@@ -1,0 +1,36 @@
+# direnv
+.direnv/
+
+# nix
+result
+result-*
+
+# bun / node
+node_modules/
+.cache/
+bun.lockb.tmp
+*.log
+
+# build output
+dist/
+build/
+.next/
+.vite/
+.parcel-cache/
+
+# editor
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# cq runtime
+var/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# scratch
+/debug/
