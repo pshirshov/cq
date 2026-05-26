@@ -42,6 +42,8 @@ import { ToolCard } from "./Cards/index";
 import type { ToolUseBlock, ToolResultBlock } from "./Cards/index";
 import { AskCard } from "./Cards/AskCard";
 import type { AskUserQuestionInput, QuestionReplyPayload } from "./Cards/AskCard";
+import { Thinking } from "./Cards/Thinking";
+import type { ThinkingBlock } from "./Cards/Thinking";
 import styles from "../styles/Stream.module.css";
 import type { ChatEvent } from "@cq/shared";
 
@@ -51,7 +53,7 @@ import type { ChatEvent } from "@cq/shared";
 
 /** A fully-resolved message ready to render. */
 type RenderedMessage =
-  | { kind: "assistant"; messageId: string; text: string }
+  | { kind: "assistant"; messageId: string; text: string; thinkingBlocks: ThinkingBlock[] }
   | { kind: "tool_use"; key: string; toolUse: ToolUseBlock; toolResult?: ToolResultBlock }
   | { kind: "ask"; key: string; toolUseId: string; input: AskUserQuestionInput }
   | { kind: "unknown"; key: string; sdkEvent: Record<string, unknown> }
@@ -96,6 +98,34 @@ function extractFinalText(content: unknown): string {
     }
   }
   return out;
+}
+
+/**
+ * Extract thinking blocks from a final SDKAssistantMessage's content array.
+ * Returns an array of ThinkingBlock values in document order.
+ */
+function extractThinkingBlocks(content: unknown): ThinkingBlock[] {
+  if (!Array.isArray(content)) return [];
+  const blocks: ThinkingBlock[] = [];
+  for (const block of content) {
+    if (
+      block !== null &&
+      typeof block === "object" &&
+      (block as Record<string, unknown>)["type"] === "thinking" &&
+      typeof (block as Record<string, unknown>)["thinking"] === "string"
+    ) {
+      const b = block as Record<string, unknown>;
+      const thinkingBlock: ThinkingBlock = {
+        type: "thinking",
+        thinking: b["thinking"] as string,
+      };
+      if (typeof b["signature"] === "string") {
+        thinkingBlock.signature = b["signature"] as string;
+      }
+      blocks.push(thinkingBlock);
+    }
+  }
+  return blocks;
 }
 
 /**
@@ -288,7 +318,10 @@ function buildSubagentChildren(entry: SubagentEntry): RenderedMessage[] {
       }
     } else {
       const text = entry.childTextByMessageId.get(id) ?? "";
-      children.push({ kind: "assistant", messageId: id, text });
+      // Subagent child messages don't carry separate thinking-block tracking;
+      // thinking blocks are dropped for child messages (they render as tool cards
+      // in the subagent panel where vertical space is constrained).
+      children.push({ kind: "assistant", messageId: id, text, thinkingBlocks: [] });
     }
   }
   return children;
@@ -299,6 +332,8 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
   const order: string[] = [];
   // Accumulated text per Anthropic message ID.
   const textByMessageId = new Map<string, string>();
+  // Thinking blocks per Anthropic message ID (populated from final messages only).
+  const thinkingByMessageId = new Map<string, ThinkingBlock[]>();
   // Whether the final canonical text has been applied for a given ID.
   const finalised = new Set<string>();
   // The Anthropic message ID currently being streamed (set by message_start).
@@ -415,10 +450,12 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
 
       if (messageId !== null) {
         const canonical = extractFinalText(message?.["content"]);
+        const thinkingBlocks = extractThinkingBlocks(message?.["content"]);
         if (!textByMessageId.has(messageId)) {
           order.push(messageId);
         }
         textByMessageId.set(messageId, canonical);
+        thinkingByMessageId.set(messageId, thinkingBlocks);
         finalised.add(messageId);
         // Reset current stream ID — the final message closes the stream group.
         currentStreamMessageId = null;
@@ -495,7 +532,8 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
       result.push(toolMsg);
     } else {
       const text = textByMessageId.get(id) ?? "";
-      result.push({ kind: "assistant", messageId: id, text });
+      const thinkingBlocks = thinkingByMessageId.get(id) ?? [];
+      result.push({ kind: "assistant", messageId: id, text, thinkingBlocks });
     }
   }
   return result;
@@ -511,9 +549,13 @@ function renderMessages(
 ): React.ReactNode[] {
   return messages.map((msg) => {
     if (msg.kind === "assistant") {
+      const thinkingNodes = msg.thinkingBlocks.map((block, i) =>
+        createElement(Thinking, { key: `thinking-${i}`, block }),
+      );
       return createElement(
         "div",
         { key: msg.messageId, className: styles.message, "data-testid": `stream-message-${msg.messageId}` },
+        ...thinkingNodes,
         createElement(Markdown, null, msg.text),
       );
     }
