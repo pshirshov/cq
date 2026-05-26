@@ -4,7 +4,8 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["bun-types"]
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }
