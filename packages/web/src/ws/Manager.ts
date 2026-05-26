@@ -1,5 +1,5 @@
 /**
- * Manager.ts — Client-side WebSocket connection pool (PR-09).
+ * Manager.ts — Client-side WebSocket connection pool (PR-09 / PR-10).
  *
  * Implements:
  *   - Pool of up to maxLiveConnections (default 3) Connection instances.
@@ -9,8 +9,10 @@
  *   - Close-code classification (R7): isRetriable() from @cq/shared; non-retriable
  *     closes enter TERMINAL immediately.
  *   - destroy(): closes all connections, clears timers, becomes inert.
+ *   - Page Lifecycle hooks (PR-10): checkConnections, handleResume, closeForBFCache,
+ *     reopenFromBFCache, runPendingReconnect. Backoff defers while tab hidden.
  *
- * PR-10 owns Page Lifecycle wiring; PR-12 hardens the destroyed-flag invariant.
+ * PR-12 hardens the destroyed-flag invariant further.
  */
 
 import { Connection } from "./Connection";
@@ -59,6 +61,13 @@ export interface ManagerOpts {
   random?: () => number;          // for jitter; default Math.random
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (id: unknown) => void;
+  /**
+   * PR-10: Predicate that returns true when the tab/page is currently visible.
+   * Used by scheduleBackoff to decide whether to defer reconnection.
+   * Default reads document.visibilityState === "visible" when document is defined;
+   * falls back to true (never defer) if document is not available.
+   */
+  isVisible?: () => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +103,7 @@ export class Manager {
   private readonly _random: () => number;
   private readonly _setTimer: (fn: () => void, ms: number) => unknown;
   private readonly _clearTimer: (id: unknown) => void;
+  private readonly _isVisible: () => boolean;
 
   // --- pool state -----------------------------------------------------------
 
@@ -116,8 +126,10 @@ export class Manager {
   private _backoffTimerId: unknown = null;
   private _nextRetryAt: number | null = null;
 
-  // --- PR-10 placeholder ----------------------------------------------------
-  readonly pendingReconnectOnVisible: boolean = false;
+  // --- PR-10: defer reconnect while hidden ----------------------------------
+  private _pendingReconnectOnVisible: boolean = false;
+  /** URL remembered when closeForBFCache() runs, so reopenFromBFCache() can re-spawn. */
+  private _bfCacheHadConnection: boolean = false;
 
   // --- lifecycle flag -------------------------------------------------------
   private _destroyed: boolean = false;
@@ -141,6 +153,10 @@ export class Manager {
     this._random = opts.random ?? Math.random;
     this._setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this._clearTimer = opts.clearTimer ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
+    this._isVisible = opts.isVisible ??
+      (() => typeof document !== "undefined"
+        ? document.visibilityState === "visible"
+        : true);
 
     // Spawn initial connection
     this._spawn();
@@ -228,6 +244,101 @@ export class Manager {
     // Clear subscribers (becomes inert; no more notifications)
     this._updateSubs.length = 0;
     this._messageSubs.length = 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // PR-10: Page Lifecycle hooks
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Issue an immediate heartbeat check on all connections. Called by the
+   * lifecycle handler on visibilitychange→visible, online, and Network
+   * Information API change events.
+   *
+   * Connection does not expose a public ping(); we achieve the same effect by
+   * letting _spawn() or the existing timer logic handle it. For now, we
+   * cancel any pending backoff and re-schedule (if applicable). If there are
+   * live connections, we cannot ping them synchronously without adding a
+   * Connection.ping() method; instead we rely on the fact that stale
+   * detection is already in flight. We mark the check by calling _notify()
+   * to propagate the latest stats to subscribers.
+   */
+  checkConnections(): void {
+    if (this._destroyed) return;
+    // If currently retrying with backoff, spawn immediately.
+    if (!this._hasAliveConnection() && this._pool.size === 0 && !this._isTerminal) {
+      this._cancelBackoff();
+      this._spawn();
+    }
+    this._notify();
+  }
+
+  /**
+   * Called by the lifecycle handler on the `resume` event (Chrome freeze/resume).
+   * Treats the resume as a long freeze: if elapsedMs exceeds pongTimeoutMs,
+   * spawns a proactive parallel replacement connection.
+   *
+   * PR-11 will install its own tick-based time-jump detector that calls this
+   * with the measured elapsed time.
+   */
+  handleResume(elapsedMs: number): void {
+    if (this._destroyed) return;
+    if (elapsedMs >= this._pongTimeoutMs) {
+      // Proactively spawn a replacement; the ALIVE→supersede logic will clean
+      // up the old connection once the new one connects.
+      this._spawn();
+    }
+    this._notify();
+  }
+
+  /**
+   * Close all sockets so that the page can enter the BFCache.
+   * An open WebSocket disqualifies a page from BFCache in all browsers.
+   * Called by the lifecycle handler on pagehide(persisted:true).
+   */
+  closeForBFCache(): void {
+    if (this._destroyed) return;
+    this._bfCacheHadConnection = this._pool.size > 0;
+    this._cancelBackoff();
+    for (const entry of this._pool.values()) {
+      entry.unsub();
+      entry.conn.close("BFCache");
+    }
+    this._pool.clear();
+    this._entrySockets.clear();
+    this._activeConnectionId = null;
+    this._pendingReconnectOnVisible = false;
+    // Do NOT set _isTerminal — this is a temporary suspension, not an error.
+    this._notify();
+  }
+
+  /**
+   * Spawn a fresh connection after BFCache restore.
+   * Called by the lifecycle handler on pageshow(persisted:true).
+   * No-op if there was no active connection before the pagehide.
+   */
+  reopenFromBFCache(): void {
+    if (this._destroyed) return;
+    if (!this._bfCacheHadConnection) return;
+    this._bfCacheHadConnection = false;
+    this._attempt = 0;
+    this._isTerminal = false;
+    this._spawn();
+    this._notify();
+  }
+
+  /**
+   * If a reconnect was deferred while the tab was hidden, fire it immediately now.
+   * Called by the lifecycle handler on visibilitychange→visible.
+   */
+  runPendingReconnect(): void {
+    if (this._destroyed) return;
+    if (!this._pendingReconnectOnVisible) return;
+    this._pendingReconnectOnVisible = false;
+    if (!this._isTerminal && !this._hasAliveConnection() && this._pool.size === 0) {
+      this._spawn();
+    }
+    this._notify();
   }
 
   // ---------------------------------------------------------------------------
@@ -465,6 +576,15 @@ export class Manager {
       return;
     }
 
+    // PR-10: defer reconnect while tab is hidden (Phoenix pattern).
+    if (!this._isVisible()) {
+      this._pendingReconnectOnVisible = true;
+      this._nextRetryAt = null;
+      // Increment attempt so it tracks correctly when we eventually fire.
+      this._attempt += 1;
+      return;
+    }
+
     const delay = this._backoffDelay();
     this._attempt += 1;
     this._nextRetryAt = this._clock() + delay;
@@ -507,7 +627,7 @@ export class Manager {
       lastCloseCode: this._lastCloseCode,
       lastCloseReason: this._lastCloseReason,
       nextRetryAt: this._nextRetryAt,
-      pendingReconnectOnVisible: this.pendingReconnectOnVisible,
+      pendingReconnectOnVisible: this._pendingReconnectOnVisible,
     };
   }
 
