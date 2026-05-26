@@ -30,7 +30,7 @@ export default function App(): React.ReactElement {
   }, [manager]);
 
   return (
-    <>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <ToastStack />
       <Indicator />
       <nav className={styles.tabs} role="tablist" aria-label="Main navigation">
@@ -51,7 +51,9 @@ export default function App(): React.ReactElement {
           History
         </button>
       </nav>
-      {activeTab === "chat" ? <ChatTab /> : <HistoryTab />}
-    </>
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {activeTab === "chat" ? <ChatTab /> : <HistoryTab />}
+      </div>
+    </div>
   );
 }

@@ -13,4 +13,42 @@
 
 .message {
   width: 100%;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--surface-message, #f7f7f8);
+  color: var(--text-primary, #111);
+  line-height: 1.5;
+  font-size: 15px;
+}
+
+/* Empty-state hint — shown when no messages and not in-progress */
+.emptyState {
+  margin: auto;
+  color: var(--text-secondary, #888);
+  font-size: 14px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Thinking indicator — pulsing "Thinking…" while waiting for first token */
+.thinkingIndicator {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--surface-message, #f7f7f8);
+  color: var(--text-secondary, #888);
+  font-size: 14px;
+  font-style: italic;
+  animation: pulse 1.4s ease-in-out infinite;
+  width: fit-content;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinkingIndicator {
+    animation: none;
+  }
 }

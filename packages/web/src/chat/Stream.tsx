@@ -616,9 +616,15 @@ export interface StreamProps {
    *   same renderer without allowing user interaction.
    */
   mode?: "live" | "replay";
+  /**
+   * When true, the model is processing (chat.started received, chat.done not
+   * yet received). If no chat.events have arrived yet for this invocation,
+   * Stream renders a "Thinking…" indicator.
+   */
+  inProgress?: boolean;
 }
 
-export function Stream({ chatEvents, onQuestionReply, mode = "live" }: StreamProps): React.ReactElement {
+export function Stream({ chatEvents, onQuestionReply, mode = "live", inProgress = false }: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
 
   // In replay mode, omit the onQuestionReply callback so AskCard renders
@@ -626,9 +632,22 @@ export function Stream({ chatEvents, onQuestionReply, mode = "live" }: StreamPro
   // disabled (they receive no reply handler).
   const effectiveReply = mode === "replay" ? undefined : onQuestionReply;
 
+  const isEmpty = chatEvents.length === 0 && !inProgress;
+  const showThinking = inProgress && chatEvents.length === 0;
+
   return (
     <div className={styles.root} data-testid="stream-root" aria-live="polite" aria-label="Chat messages">
+      {isEmpty && (
+        <div className={styles.emptyState} data-testid="stream-empty-state">
+          Type below to start
+        </div>
+      )}
       {renderMessages(messages, effectiveReply)}
+      {showThinking && (
+        <div className={styles.thinkingIndicator} data-testid="stream-thinking">
+          Thinking…
+        </div>
+      )}
     </div>
   );
 }

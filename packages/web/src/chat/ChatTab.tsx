@@ -20,7 +20,7 @@
  */
 
 import { useRef, useState, useEffect, useMemo } from "react";
-import { useConnection } from "../ws/useConnection";
+import { useConnection, useConnectionStats } from "../ws/useConnection";
 import { Input } from "./Input";
 import { Stream } from "./Stream";
 import { Header } from "./Header";
@@ -40,11 +40,16 @@ import { TaskListSidebar } from "./TaskListSidebar";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
+  const stats = useConnectionStats();
   const seqRef = useRef(0);
   const [chatEvents, setChatEvents] = useState<ChatEvent[]>([]);
   // activeSessionId is non-null while a query is in progress (chat.started received,
   // chat.done not yet received). Used to gate the Stop button and send interrupt.
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // True between sending chat.start and receiving chat.started — prevents duplicate starts.
+  const chatStartPendingRef = useRef(false);
+  // True when the user explicitly triggered new/resume session — prevents auto-start racing.
+  const userInitiatedStartRef = useRef(false);
 
   // --- Header state (PR-25) ---
   const [cwd, setCwd] = useState<string>("");
@@ -78,6 +83,8 @@ export function ChatTab(): React.ReactElement {
     const unsub = manager.onMessage((frame) => {
       if (frame.type === "chat.started") {
         const started = frame as ChatStarted;
+        chatStartPendingRef.current = false;
+        userInitiatedStartRef.current = false;
         setActiveSessionId(started.sessionId);
         setSessionId(started.sessionId);
         setInvocationId(started.invocationId);
@@ -161,6 +168,36 @@ export function ChatTab(): React.ReactElement {
     return unsub;
   }, [manager]);
 
+  // Auto-start: fire chat.start when the connection first reaches ALIVE and no
+  // session is active. Also re-fires on reconnect (ALIVE returned after being absent).
+  // Guards: don't fire while a chat.start is already in-flight (chatStartPendingRef),
+  // and don't fire when the user already triggered their own start (userInitiatedStartRef).
+  const prevWasAliveRef = useRef(false);
+  useEffect(() => {
+    const isAlive = stats.connections.some((c) => c.state === "ALIVE");
+    const wasAlive = prevWasAliveRef.current;
+    prevWasAliveRef.current = isAlive;
+
+    // Only act on the ALIVE edge (false → true).
+    if (!isAlive || wasAlive) return;
+    // Already have an active session — nothing to do.
+    if (activeSessionId !== null) return;
+    // Another start is already in-flight.
+    if (chatStartPendingRef.current) return;
+    // User pressed New Session or Resume — they'll send their own chat.start.
+    if (userInitiatedStartRef.current) return;
+
+    chatStartPendingRef.current = true;
+    const frame: ChatStart = {
+      type: "chat.start",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      model,
+      permissionMode,
+    };
+    manager.send(frame);
+  }, [stats]); // intentional: only re-run when stats changes; model/permissionMode are captured at call time
+
   function handleSubmit(text: string, attachments: Attachment[] = []): void {
     if (activeSessionId === null) return;
 
@@ -204,6 +241,8 @@ export function ChatTab(): React.ReactElement {
     if (activeSessionId !== null) {
       handleInterrupt();
     }
+    userInitiatedStartRef.current = true;
+    chatStartPendingRef.current = true;
     const frame: ChatStart = {
       type: "chat.start",
       seq: seqRef.current++,
@@ -221,6 +260,8 @@ export function ChatTab(): React.ReactElement {
     if (activeSessionId !== null) {
       handleInterrupt();
     }
+    userInitiatedStartRef.current = true;
+    chatStartPendingRef.current = true;
     const frame: ChatStart = {
       type: "chat.start",
       seq: seqRef.current++,
@@ -306,7 +347,7 @@ export function ChatTab(): React.ReactElement {
         onNewSession={handleNewSession}
         onResumeSession={handleResumeSession}
       />
-      <Stream chatEvents={chatEvents} onQuestionReply={handleQuestionReply} />
+      <Stream chatEvents={chatEvents} onQuestionReply={handleQuestionReply} inProgress={inProgress} />
       {permissionRequests.map((req) => (
         <PermissionPrompt
           key={req.permissionRequestId}

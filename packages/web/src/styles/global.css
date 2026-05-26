@@ -2,7 +2,58 @@
  * global.css — application-wide baseline styles (PR-50 a11y).
  *
  * Imported once from main.tsx. Applies to the entire document.
+ *
+ * Palette (light neutral):
+ *   --bg              #ffffff  page background
+ *   --surface         #fafafa  panel / header surfaces
+ *   --surface-message #f7f7f8  message bubble background
+ *   --border          #e0e0e0  general borders
+ *   --border-light    #f0f0f0  subtle inner borders
+ *   --text-primary    #111111  body text
+ *   --text-secondary  #666666  muted / meta text
+ *   --accent          #0070f3  links, active tabs
+ *   --hover           #f0f0f0  hover surfaces
+ *   --input-bg        #ffffff  text input backgrounds
  */
+
+:root {
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface-message: #f7f7f8;
+  --border: #e0e0e0;
+  --border-light: #f0f0f0;
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --accent: #0070f3;
+  --hover: #f0f0f0;
+  --input-bg: #ffffff;
+  --status-error: #991b1b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 /* Visible focus ring for keyboard navigation (WCAG 2.4.7). */
 :focus-visible {
