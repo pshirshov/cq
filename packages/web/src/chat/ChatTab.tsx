@@ -19,7 +19,7 @@
  * On chat.start, clears the accumulated event list.
  */
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useConnection } from "../ws/useConnection";
 import { Input } from "./Input";
 import { Stream } from "./Stream";
@@ -35,6 +35,8 @@ import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
 import type { Attachment } from "../lib/attachment";
 import { showToast } from "../lib/toast";
+import { computeTasks } from "./computeTasks";
+import { TaskListSidebar } from "./TaskListSidebar";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -223,10 +225,16 @@ export function ChatTab(): React.ReactElement {
     manager.send(frame);
   }
 
+  // Derive the task list from accumulated events (pure, memoised).
+  // The sidebar is always rendered when tasks are present; it is hidden (empty)
+  // when the Map is empty — callers do not need to toggle it manually.
+  const tasks = useMemo(() => computeTasks(chatEvents), [chatEvents]);
+
   const inProgress = activeSessionId !== null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {tasks.size > 0 && <TaskListSidebar tasks={tasks} />}
       <Header
         cwd={cwd}
         model={model}

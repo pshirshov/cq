@@ -19,11 +19,11 @@
 - [x] **M0 — Bring-up** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M0.md`](./docs/archive/tasks-M0.md)) — 5 PRs.
 - [x] **M1 — WebSocket spine** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M1.md`](./docs/archive/tasks-M1.md)) — 14 PRs.
 - [x] **M2 — Agent SDK / Chat MVP** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M2.md`](./docs/archive/tasks-M2.md)) — 9 PRs.
-- [ ] **M3 — Chat full fidelity** — permission overlays, elicitation, AskUserQuestion, plan mode, thinking blocks, slash autocomplete, attachments, file-ref anchors, more tool cards, TaskList sidebar. *PRs PR-27 … PR-38 (12).*
+- [x] **M3 — Chat full fidelity** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)) — permission overlays, elicitation, AskUserQuestion, plan mode, thinking blocks, slash autocomplete, attachments, file-ref anchors, more tool cards, TaskList sidebar. *PRs PR-27 … PR-38 (12).*
 - [ ] **M4 — Persistence + History tab** — DDL, adapters, bridge writes, list/detail/timing/export/delete, resume-from-history. *PRs PR-39 … PR-47 (9).*
 - [ ] **M5 — Polish & harden** — graceful shutdown, error toasts, a11y, E2E suite, README, type/lint clean, stop-condition verify. *PRs PR-48 … PR-54 (7).*
 
-Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b; PR-22a replaces old PR-22). 28 of 56 closed.
+Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b; PR-22a replaces old PR-22). 40 of 56 closed (M0+M1+M2+M3 complete).
 
 ## M3 — Chat full fidelity (current milestone)
 
@@ -40,15 +40,17 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
 - [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
 - [x] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
-- [ ] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
+- [x] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
 
 **Dispatch order.** Mostly serial. Some parallel opportunity: PR-32/33/37/38 are mostly disjoint card files and can split across worktrees once PR-28 / PR-22a / PR-23 are in place.
 
 ## In-progress / recent
 
-- **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
+M3 close → orchestrator archives → M4 starts at PR-39.
 
 ## Recent completions (this cycle's worth)
+
+- [x] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin (closes M3). `computeTasks.ts` pure function iterates ChatEvent frames, extracts TaskCreate/TaskList/TaskUpdate tool_use blocks, merges into a `Map<id, TaskState>` (pending/in_progress/completed/deleted). `TaskListSidebar.tsx` fixed-position right panel with per-task cards keyed by task id for stable in-place React updates. `TaskListSidebar.module.css` pinned panel + badge styles. `ChatTab.tsx` derives `tasks` via `useMemo(computeTasks, [chatEvents])`; renders `<TaskListSidebar>` when `tasks.size > 0`. 7 new tests (4 pure-function + 3 DOM rendering incl. isSameNode). 325 total (322 pass, 3 pre-existing PATH failures).
 
 - [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames) (F-06). `protocol.ts` adds `ChatReadFileRequest` (client frame) and `ChatReadFileResult` (server frame) to their respective discriminated unions. `readFile.ts` (`handleReadFile`) slices SDK `query.readFile()` response around the requested line ± context lines; returns `ChatReadFileResult`. Bridge routes `chat.read_file_request` → `handleReadFile`; `session.ts` routes the frame to bridge. `FileRefAnchor.tsx` renders a clickable path:line span; click fires `chat.read_file_request` via manager.send; incoming result expands inline snippet. `Markdown.tsx` extended with a rehype plugin (`rehypeFileRefs`) that walks hast text nodes and replaces path:line matches with `<file-ref>` elements; component map routes these to `<FileRefAnchor>`. `FileRefAnchor.module.css` added. 10 new shared protocol tests + 6 server tests + 2 web tests = 320 total.
 
@@ -78,3 +80,4 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - M0 → [`./docs/archive/tasks-M0.md`](./docs/archive/tasks-M0.md)
 - M1 → [`./docs/archive/tasks-M1.md`](./docs/archive/tasks-M1.md)
 - M2 → [`./docs/archive/tasks-M2.md`](./docs/archive/tasks-M2.md)
+- M3 → [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)
