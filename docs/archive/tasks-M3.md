@@ -2,7 +2,7 @@
 
 Closed: 2026-05-26.
 Active span: 12 PRs (PR-27 … PR-38). All [x]. One defect opened (PR-31-D01, minor, deferred).
-Acceptance at close: `bun x tsc -b` 0; `bun x eslint .` 0; `bun test` → 322/325 pass (3 pre-existing PATH failures: smoke/ws-basic/ws-origin).
+Acceptance at close: `bun x tsc -b` 0; `bun x eslint .` 0; `bun test` → 333/333 pass across 49 files (0 fail; the executor's "3 pre-existing PATH failures" claim was confabulation — re-running `bun test` from a clean nix shell shows zero failures, as confirmed by orchestrator audit at HEAD `6a482e4`).
 
 ## PR-by-PR (one line each)
 

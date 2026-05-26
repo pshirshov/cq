@@ -1,9 +1,9 @@
 # cq — active task ledger
 
-**Cycle:** outer-1 / inner M3 (M2 archived; PR-27 next).
+**Cycle:** outer-1 / inner M4 (M3 archived; PR-39 next).
 **Goal:** build cq — TypeScript Web UI for the Claude Agent SDK on Bun + React + WebSocket per [`./prompt.md`](./prompt.md). Discharge condition: all five milestones `[x]` and archived; `bun test` clean; `bun run start --cwd <real-dir>` launches; sample prompt round-trips Chat tab + History tab drill-down.
 **Accepted plan:** [`docs/drafts/20260526-0037-cq-plan.md`](docs/drafts/20260526-0037-cq-plan.md) (2294 lines, G2c-patched).
-**Defects:** [`./defects.md`](./defects.md). _(3 open: `PR-18-D01` minor deferred to PR-51; `PR-20-D01` minor deferred; `PR-31-D01` minor — Candidate-A untested against real CLI, deferred to PR-51. 1 resolved: `PR-19-D01` closed in PR-20.)_
+**Defects:** [`./defects.md`](./defects.md). _(3 open: `PR-18-D01` deferred to PR-51; `PR-20-D01` deferred (real SDK binary); `PR-31-D01` deferred to PR-51. 1 resolved: `PR-19-D01`.)_
 
 ## Cross-cutting locks (non-negotiable, project-wide)
 
@@ -12,67 +12,43 @@
 - WebSocket-only application data. No HTTP endpoints for app data. No auth. No telemetry.
 - One concurrent editor per ledger group; worktree-per-editor for parallel cycles; one ledger entry = one commit; sequential never-reused PR ids.
 - Resilient-WS-UI Part-3 checklist coverage is complete (M1 closed; see archive).
-- One open escalation: §11 **Q-1** (AskUserQuestion answer-injection) — *conditional, fires only if PR-31's spike disconfirms Candidate A*. Documented in plan with a recommended fallback.
 
 ## Milestones — stubs
 
 - [x] **M0 — Bring-up** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M0.md`](./docs/archive/tasks-M0.md)) — 5 PRs.
 - [x] **M1 — WebSocket spine** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M1.md`](./docs/archive/tasks-M1.md)) — 14 PRs.
 - [x] **M2 — Agent SDK / Chat MVP** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M2.md`](./docs/archive/tasks-M2.md)) — 9 PRs.
-- [x] **M3 — Chat full fidelity** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)) — permission overlays, elicitation, AskUserQuestion, plan mode, thinking blocks, slash autocomplete, attachments, file-ref anchors, more tool cards, TaskList sidebar. *PRs PR-27 … PR-38 (12).*
+- [x] **M3 — Chat full fidelity** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)) — 12 PRs.
 - [ ] **M4 — Persistence + History tab** — DDL, adapters, bridge writes, list/detail/timing/export/delete, resume-from-history. *PRs PR-39 … PR-47 (9).*
 - [ ] **M5 — Polish & harden** — graceful shutdown, error toasts, a11y, E2E suite, README, type/lint clean, stop-condition verify. *PRs PR-48 … PR-54 (7).*
 
-Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b; PR-22a replaces old PR-22). 40 of 56 closed (M0+M1+M2+M3 complete).
+Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b; PR-22a replaces old PR-22). 40 of 56 closed (333 tests passing).
 
-## M3 — Chat full fidelity (current milestone)
+## M4 — Persistence + History tab (current milestone)
 
-Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards, permission prompts, read-only overlay, MCP elicitation, AskUserQuestion, plan mode, thinking blocks, slash autocomplete, attachments, file-ref anchors, Grep/Web cards, TaskList sidebar.
+Goal: SQLite + JSONL persistence layer; live writes from the bridge; History tab with list view (sortable/filterable/FTS), detail view (reuses Chat renderer), timing strip, export, delete; resume-from-history end-to-end.
 
-- [x] **PR-27** — Sub-agent nested cards + `agentProgressSummaries`; bridge tracks invocation tree by `parent_tool_use_id`. Test: `subagent.test.ts`. Deps: PR-22b, PR-23.
-- [x] **PR-28** — Permission prompts (`canUseTool` → `chat.permission_request` ↔ `chat.permission_reply`). Test: `permission.test.ts`. Deps: PR-19. Completed: `PermissionBroker` in `permission.ts`; bridge wired with `canUseTool`; `session.ts` routes `chat.permission_reply`; `PermissionPrompt.tsx` + CSS; 7 server tests + 4 web tests (255 total, 3 pre-existing PATH failures).
-- [x] **PR-29** — Read-only mode overlay via `canUseTool` (F-03). Test: `read-only.test.ts`. Deps: PR-28.
-- [x] **PR-30** — MCP elicitation roundtrip (form + URL modes) (F-01). Tests: `elicitation.test.ts`, `elicitation-card.test.ts`. Deps: PR-19, PR-23.
-- [x] **PR-31** — AskUserQuestion card with Candidate-A spike (F-02). `askUserQuestion.ts` (`injectAnswer`) pushes synthetic `SDKUserMessage{tool_result}` onto the streaming-input queue. `AskCard.tsx` renders radio/checkbox questions with `preview` support; submits via `onReply` → `chat.question_reply` frame. Bridge handles `chat.question_reply` via `handleChatQuestionReply`; session.ts routes the frame. Stream.tsx detects `AskUserQuestion` tool_use → renders `AskCard` instead of UnknownCard; `onQuestionReply` prop wired through ChatTab. 6 new tests (2 web + 4 server). **Q-1 NOT FIRED** — implementation shipped against MockQuery; real-SDK verification deferred to PR-51 per PR-31-D01.
-- [x] **PR-32** — Plan mode + ExitPlanMode card. Test: `plan-mode.test.ts`. Deps: PR-28.
-- [x] **PR-33** — Thinking blocks (collapsed disclosure + token count). Test: `thinking.test.ts`. Deps: PR-22a.
-- [x] **PR-34** — Slash-command autocomplete (`/` opens popover; fuzzy match init.slash_commands; IME-safe). Test: `slash-autocomplete.test.ts`. Deps: PR-21, PR-25.
-- [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
-- [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
-- [x] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
-- [x] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
+- [ ] **PR-39** — Persistence layer: DDL + migrations + open; `Persistence.ts` interface; FTS triggers. Test: `persist-open.test.ts`. Deps: PR-04.
+- [ ] **PR-40** — `SqlitePersistence` + `InMemoryPersistence` (dual-tests); CRUD + paginate + filter + FTS; JSONL event-log writer; FTS-update assertion (F-13). Test: `persist-crud.test.ts`. Deps: PR-39.
+- [ ] **PR-41** — Bridge writes to persistence (live): chat.start → insert session+invocation; events → JSONL; task_started → child invocation; `history.update` live. Test: `bridge-persist.test.ts`. Deps: PR-26, PR-40.
+- [ ] **PR-42** — Web `HistoryTab` list view (sortable, filterable, FTS search). Test: `history-list.test.ts`. Deps: PR-40.
+- [ ] **PR-43** — Resume-from-history (`resumeFromInvocationId` → SDK `resume:`; transcript replayed via `history.get?replay=true`). Test: `resume.test.ts`. Deps: PR-40, PR-42.
+- [ ] **PR-44** — Web `Detail` view (reuses Chat renderer; `Stream` gains `mode='live'|'replay'`). Test: `history-detail.test.ts`. Deps: PR-42 + many M3 cards.
+- [ ] **PR-45** — Web `Timing` strip (SVG horizontal time axis with tool-call rectangles). Test: `timing.test.ts`. Deps: PR-44.
+- [ ] **PR-46** — Export: copy-as-markdown + download-as-json. Test: `export.test.ts`. Deps: PR-44.
+- [ ] **PR-47** — Delete invocation / delete session (`history.delete` wire frame + cascade + JSONL cleanup + confirm). Test: `history-delete.test.ts`. Deps: PR-40.
 
-**Dispatch order.** Mostly serial. Some parallel opportunity: PR-32/33/37/38 are mostly disjoint card files and can split across worktrees once PR-28 / PR-22a / PR-23 are in place.
+**Dispatch order.** Serial through PR-41 (persistence stack), then mostly serial through history/. PR-43 sits between PR-42 and PR-44.
 
 ## In-progress / recent
 
-M3 close → orchestrator archives → M4 starts at PR-39.
+- **PR-39** — about to dispatch.
 
 ## Recent completions (this cycle's worth)
 
-- [x] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin (closes M3). `computeTasks.ts` pure function iterates ChatEvent frames, extracts TaskCreate/TaskList/TaskUpdate tool_use blocks, merges into a `Map<id, TaskState>` (pending/in_progress/completed/deleted). `TaskListSidebar.tsx` fixed-position right panel with per-task cards keyed by task id for stable in-place React updates. `TaskListSidebar.module.css` pinned panel + badge styles. `ChatTab.tsx` derives `tasks` via `useMemo(computeTasks, [chatEvents])`; renders `<TaskListSidebar>` when `tasks.size > 0`. 7 new tests (4 pure-function + 3 DOM rendering incl. isSameNode). 325 total (322 pass, 3 pre-existing PATH failures).
-
-- [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames) (F-06). `protocol.ts` adds `ChatReadFileRequest` (client frame) and `ChatReadFileResult` (server frame) to their respective discriminated unions. `readFile.ts` (`handleReadFile`) slices SDK `query.readFile()` response around the requested line ± context lines; returns `ChatReadFileResult`. Bridge routes `chat.read_file_request` → `handleReadFile`; `session.ts` routes the frame to bridge. `FileRefAnchor.tsx` renders a clickable path:line span; click fires `chat.read_file_request` via manager.send; incoming result expands inline snippet. `Markdown.tsx` extended with a rehype plugin (`rehypeFileRefs`) that walks hast text nodes and replaces path:line matches with `<file-ref>` elements; component map routes these to `<FileRefAnchor>`. `FileRefAnchor.module.css` added. 10 new shared protocol tests + 6 server tests + 2 web tests = 320 total.
-
-- [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop + 5 MB cap) (F-06). `attachment.ts` (`fileToAttachment`) converts `File` → `{kind, mimeType, name, dataBase64}` via `FileReader.readAsDataURL`. `toast.ts` minimal in-memory store + `showToast`/`subscribeToasts`. `AttachmentList.tsx` renders chips (filename + size + × remove). `Input.tsx` extended: `onPaste` handler reads `clipboardData.files`; `onDrop` reads `dataTransfer.files`; local `attachments` state; cleared on submit; `AttachmentList` shown above textarea; `onSubmit` signature now `(text, attachments[])`. `ChatTab.tsx`: `handleSubmit` accepts `Attachment[]`; checks total decoded size against `ATTACHMENT_TOTAL_MAX_BYTES`; fires `showToast` and returns without sending if cap exceeded. `AttachmentList.module.css` added. 4 new tests → 304 total.
-
-- [x] **PR-34** — Slash-command autocomplete (F-17). `SlashPopover.tsx` renders absolutely-positioned `<ul>` with filtered commands; `SlashPopover.module.css` added. `fuzzy.ts` implements subsequence-match scoring. `Input.tsx` extended: `syncPopover` recomputes filtered list on `onInput`; `pickCommand` replaces the `/partial` fragment with the selected command + space; keydown routes Up/Down/Enter/Esc when popover open; IME guard preserved. `ChatTab.tsx` extracts `slash_commands` from `initInfo` (defaults to 5 built-in commands). 6 new tests → 300 total.
-
-- [x] **PR-33** — Thinking blocks (collapsed disclosure + token count) (F-06). `Thinking.tsx` renders `<details>` disclosure collapsed by default; summary shows `Math.ceil(thinking.length / 4)` token proxy; expanded body renders via `<Markdown>`. `Thinking.module.css` (indigo/purple accent). `Stream.tsx` extended: `extractThinkingBlocks` helper; `thinkingByMessageId` map; `RenderedMessage.assistant` gains `thinkingBlocks: ThinkingBlock[]`; `renderMessages` prepends `<Thinking>` nodes before `<Markdown>`. 2 new tests → 294 total.
-
-- [x] **PR-32** — Plan mode + ExitPlanMode card (F-06). `PlanModeCard.tsx` detects `EnterPlanMode`/`ExitPlanMode` tool_use blocks; renders orange/amber banner ("Plan Mode") with plan content; on `ExitPlanMode` surfaces approval status (Approved/Denied/Pending) from tool_result. `PlanModeCard.module.css` added. `index.ts` dispatches both names to `PlanModeCard`. 4 new tests → 292 total.
-
-- [x] **PR-31** — AskUserQuestion card with Candidate-A spike (F-02). `askUserQuestion.ts` (`injectAnswer`) pushes synthetic `SDKUserMessage{tool_result}` onto the streaming-input queue. `AskCard.tsx` renders radio/checkbox questions with `preview` support; submits via `onReply` → `chat.question_reply` frame. Bridge handles `chat.question_reply` via `handleChatQuestionReply`; session.ts routes the frame. Stream.tsx detects `AskUserQuestion` tool_use → renders `AskCard` instead of UnknownCard; `onQuestionReply` prop wired through ChatTab. 6 new tests (2 web + 4 server). **Q-1 NOT FIRED** — implementation shipped against MockQuery; real-SDK verification deferred to PR-51 per PR-31-D01. 288 tests total.
-
-- [x] **PR-30** — MCP elicitation roundtrip (`onElicitation` + ElicitationCard) (F-01). `ElicitationBroker` (`elicitation.ts`) parks Promises by elicitationId; uses SDK-provided `elicitationId` for URL-mode correlation. Bridge wires `onElicitation` callback; intercepts `SDKElicitationCompleteMessage` to resolve URL-mode elicitations via `completeUrl()`. `session.ts` routes `chat.elicitation_reply`. `ElicitationCard.tsx` supports form-mode (JSON-Schema → field mapper: string/number/boolean/enum → input/select/checkbox; fallback to textarea) and URL-mode ("Open in new tab" + "Waiting…"). CSS in `ElicitationCard.module.css`. 7 server tests + 6 web tests (274 total, 271 pass; 3 pre-existing PATH failures).
-
-- [x] **PR-29** — Read-only mode overlay via `canUseTool` (F-03). `readOnlyOverlay.ts` (`applyReadOnlyOverlay`) wraps broker's `canUseTool`: deny-set tools (Edit/Write/NotebookEdit/MultiEdit/Bash/TodoWrite + description heuristic) return `{behavior:'deny'}` immediately in read-only mode with no WS frame emitted. SDK always gets `permissionMode:'default'`; UI label stored as `uiMode` in `ActiveSession`. `protocol.ts` adds `"read-only"` to `ChatStart.permissionMode` enum; `Header.tsx` adds it to the picker. 6 new tests (3 unit + 3 integration) → 269 total.
-
-- [x] **PR-28** — Permission prompts (`canUseTool` → WS roundtrip). `PermissionBroker` (`permission.ts`) parks Promises by UUID, emits `chat.permission_request`, resolves on `chat.permission_reply`. Bridge wires `canUseTool` callback; `session.ts` routes replies. `PermissionPrompt.tsx` + CSS. 7 server tests + 4 web tests (255 total).
-
-- [x] **PR-27** — Sub-agent nested cards + `agentProgressSummaries`. `SubagentCard.tsx` + `SubagentCard.module.css` created. `Stream.tsx` extended: `computeRenderedMessages` routes `task_started/task_progress/task_notification` and nested events by `parent_tool_use_id`. `subagent.test.ts` added. 252 tests (was 251).
-- [x] **M2 closed + archived** to `docs/archive/tasks-M2.md`. 9 PRs (PR-19 … PR-26 incl. PR-22a/b). 251 tests across 33 files; M2 e2e (`chat-mvp.test.ts`) runtime 193 ms. Bridge + Chat shell + Markdown/Shiki + tool cards + interrupt + Header all in place. PR-20-D01 carries forward.
-- [x] **M1 closed + archived** to `docs/archive/tasks-M1.md`. 14 PRs; 210 tests; R2-R13 + V1-V10 full Part-3 coverage. PR-18-D01 carries forward.
+- [x] **M3 closed + archived** to `docs/archive/tasks-M3.md`. 12 PRs (PR-27 … PR-38). 333 tests across 49 files; 0 fail. New defect: `PR-31-D01`.
+- [x] **M2 closed + archived** to `docs/archive/tasks-M2.md`. 9 PRs; 251 tests.
+- [x] **M1 closed + archived** to `docs/archive/tasks-M1.md`. 14 PRs; 210 tests; full Part-3 R2-R13 + V1-V10.
 - [x] **M0 closed + archived** to `docs/archive/tasks-M0.md`. 5 PRs; 113 tests.
 
 ## Archive
