@@ -41,6 +41,7 @@ import type {
 } from "@cq/shared";
 import { loadMcpServers } from "./mcp";
 import { PermissionBroker } from "./permission";
+import { applyReadOnlyOverlay } from "./readOnlyOverlay";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -149,6 +150,13 @@ type ActiveSession = {
   ws: WsSocket;
   /** Set to true once chat.interrupt has been received; suppresses late chat.event frames. */
   aborting: boolean;
+  /**
+   * The UI-level permission mode label sent in ChatStart.permissionMode.
+   * "read-only" activates the canUseTool deny overlay; all other values are
+   * forwarded directly to the SDK. The SDK always receives "default" when
+   * the UI label is "read-only" (SDK has no equivalent mode).
+   */
+  uiMode: string;
 };
 
 export class Bridge {
@@ -204,7 +212,17 @@ export class Bridge {
     const capturedChatSessionId = chatSessionId;
     const capturedInvocationId = invocationId;
 
-    const canUseTool: CanUseTool = async (toolName, input, ctx) => {
+    // The UI-level mode label. "read-only" is a cq-level concept; the SDK
+    // does not know about it and always receives "default" in that case.
+    const uiMode: string = frame.permissionMode ?? "default";
+    // Map the UI label to a valid SDK permissionMode. "read-only" has no SDK
+    // equivalent so we fall back to "default" and let the overlay handle it.
+    // We widen to `string` first to avoid an unsafe cast from a type that already
+    // includes `"read-only"`, then narrow to the SDK-accepted union.
+    const rawMode: string = uiMode === "read-only" ? "default" : uiMode;
+    const sdkPermissionMode = rawMode as Exclude<SDKOptions["permissionMode"], undefined>;
+
+    const brokerCanUseTool: CanUseTool = async (toolName, input, ctx) => {
       return this.permissionBroker.request({
         sessionId: capturedChatSessionId,
         invocationId: capturedInvocationId,
@@ -218,6 +236,16 @@ export class Bridge {
       });
     };
 
+    // Wrap with the read-only overlay. The overlay reads uiMode via a getter
+    // so any future mid-session change to the session object is reflected.
+    // We use a mutable box so the getter can reference the session object even
+    // though `session` is declared after this closure.
+    const uiModeRef = { current: uiMode };
+    const canUseTool: CanUseTool = applyReadOnlyOverlay(
+      brokerCanUseTool,
+      () => uiModeRef.current,
+    );
+
     const sdkOptions: SDKOptions = {
       cwd: this.cwd,
       forwardSubagentText: true,
@@ -225,8 +253,8 @@ export class Bridge {
       // Emit SDKPartialAssistantMessage frames so the web UI can stream
       // token-level text through Stream.tsx (PR-22b).
       includePartialMessages: true,
-      permissionMode: frame.permissionMode ?? "default",
       canUseTool,
+      permissionMode: sdkPermissionMode,
       ...(hasMcpServers ? { mcpServers } : {}),
     };
     if (frame.model !== undefined) {
@@ -253,6 +281,7 @@ export class Bridge {
       queue,
       ws,
       aborting: false,
+      uiMode,
     };
     this.active = session;
 

@@ -37,9 +37,9 @@ const SUPPORTED_MODELS = [
   "claude-haiku-4-5",
 ] as const;
 
-export type PermissionMode = "default" | "acceptEdits" | "bypassPermissions" | "plan";
+export type PermissionMode = "default" | "acceptEdits" | "bypassPermissions" | "plan" | "read-only";
 
-const PERMISSION_MODES: PermissionMode[] = ["default", "acceptEdits", "bypassPermissions", "plan"];
+const PERMISSION_MODES: PermissionMode[] = ["default", "acceptEdits", "bypassPermissions", "plan", "read-only"];
 
 export interface HeaderProps {
   cwd: string;

@@ -134,7 +134,7 @@ export const ChatStart = z.object({
   ts,
   model: z.string().optional(),
   permissionMode: z
-    .enum(["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk", "auto"])
+    .enum(["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk", "auto", "read-only"])
     .optional(),
   resumeFromInvocationId: uuidStr().optional(),
 });
