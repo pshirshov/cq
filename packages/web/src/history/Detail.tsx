@@ -19,6 +19,8 @@ import type { HistoryRowFull, ChatEvent } from "@cq/shared";
 import { useConnection } from "../ws/useConnection";
 import { Stream } from "../chat/Stream";
 import { Timing } from "./Timing";
+import { Export, type HeaderInfo } from "./Export";
+import { headerFromRow } from "./exportFormats";
 import styles from "../styles/History.module.css";
 
 // ---------------------------------------------------------------------------
@@ -58,15 +60,18 @@ function fmtCost(usd: number): string {
 interface DetailHeaderProps {
   row: HistoryRowFull;
   onClose: () => void;
+  exportHeader: HeaderInfo;
+  events: ChatEvent[];
 }
 
-function DetailHeader({ row, onClose }: DetailHeaderProps): React.ReactElement {
+function DetailHeader({ row, onClose, exportHeader, events }: DetailHeaderProps): React.ReactElement {
   return (
     <div className={styles.detailHeader}>
       <div className={styles.detailHeaderRow}>
         <span className={styles.detailTitle} data-testid="detail-agent-name">
           {row.agentName}
         </span>
+        <Export events={events} header={exportHeader} />
         <button
           className={styles.detailCloseBtn}
           onClick={onClose}
@@ -249,7 +254,7 @@ export function Detail({ invocationId, onClose }: DetailProps): React.ReactEleme
 
   return (
     <div className={styles.detailOverlay} data-testid="detail-overlay">
-      <DetailHeader row={row} onClose={onClose} />
+      <DetailHeader row={row} onClose={onClose} exportHeader={headerFromRow(row)} events={events} />
       <Timing
         events={events}
         invocationStartedAt={row.startedAt}

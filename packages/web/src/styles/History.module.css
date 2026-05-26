@@ -220,6 +220,28 @@
   font-weight: 500;
 }
 
+.exportActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.exportBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #111);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.exportBtn:hover {
+  background: var(--hover, #f0f0f0);
+}
+
 .detailCloseBtn {
   padding: 4px 10px;
   border: 1px solid var(--border, #ccc);
