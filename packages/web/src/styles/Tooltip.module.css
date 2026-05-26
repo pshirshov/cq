@@ -126,3 +126,30 @@
 .bad {
   color: #f38ba8;
 }
+
+/* Event log (PR-16) */
+.eventLog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.event {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventTs {
+  color: #585b70;
+}
+
+.eventKind {
+  color: #89b4fa;
+  font-weight: 600;
+}

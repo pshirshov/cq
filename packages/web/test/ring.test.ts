@@ -72,6 +72,7 @@ function makeStats(overrides: Partial<ManagerStats> = {}): ManagerStats {
     pendingReconnectOnVisible: false,
     rttWindows: { "30s": null, "1m": null, "5m": null },
     lossPct: 0,
+    events: [],
     ...overrides,
   };
 }

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Manager } from "./ws/Manager";
 import { Indicator } from "./ws/Indicator";
+import { attachTitleMirror } from "./ws/titleMirror";
 
 /**
  * App — root composite component.
@@ -23,6 +24,11 @@ export default function App(): React.ReactElement {
       }),
     [],
   );
+
+  useEffect(() => {
+    const mirror = attachTitleMirror(manager);
+    return () => mirror.detach();
+  }, [manager]);
 
   return (
     <>

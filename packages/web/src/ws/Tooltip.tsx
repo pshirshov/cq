@@ -1,5 +1,5 @@
 /**
- * Tooltip.tsx — Expanded connection-status panel (PR-15 / resilient-ws-ui V6).
+ * Tooltip.tsx — Expanded connection-status panel (PR-15 / PR-16 / resilient-ws-ui V6,V8).
  *
  * Opened by <Indicator> on hover (transient) or click (persistent).
  * Renders:
@@ -9,6 +9,7 @@
  *   - RTT windows: 30s / 1m / 5m — min / median / max / count
  *   - Backoff state: attempt N/max + ETA, or "deferred (tab hidden)", or "stopped"
  *   - Last close code + reason
+ *   - Event log: bounded scrollable list of state transitions (PR-16)
  *
  * Pure presentational — receives ManagerStats; no side effects.
  */
@@ -229,6 +230,30 @@ export function Tooltip({ stats, now = Date.now() }: TooltipProps): React.ReactE
           </div>
         )}
       </div>
+
+      {/* Event log (PR-16 / resilient-ws-ui V8) */}
+      {stats.events.length > 0 && (
+        <>
+          <hr className={styles.divider} />
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Events</div>
+            <ul className={styles.eventLog} data-testid="event-log">
+              {stats.events.map((entry, idx) => {
+                const tsStr = new Date(entry.ts).toISOString().slice(11, 23);
+                return (
+                  <li key={`${entry.ts}-${entry.kind}-${idx}`} className={styles.event}>
+                    <span className={styles.eventTs}>{tsStr}</span>
+                    {" "}
+                    <span className={styles.eventKind}>{entry.kind}</span>
+                    {" "}
+                    {entry.msg}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
+      )}
     </div>
   );
 }

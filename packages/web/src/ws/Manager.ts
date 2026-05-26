@@ -24,6 +24,8 @@ import { Connection } from "./Connection";
 import type { ConnectionOpts, ConnectionState, ConnectionStats, SocketLike } from "./Connection";
 import { isRetriable } from "@cq/shared";
 import type { ServerFrame, ClientFrame } from "@cq/shared";
+import { createEventLog } from "./eventLog";
+import type { EventLogEntry } from "./eventLog";
 
 // ---------------------------------------------------------------------------
 // PR-15: RTT summary type + window computation
@@ -135,6 +137,11 @@ export interface ManagerStats {
    * Computed as (pingsLost / pingsSent * 100); 0 when no pings have been sent.
    */
   readonly lossPct: number;
+  /**
+   * PR-16: Most-recent displayed event log entries (up to 100), latest first.
+   * Sourced from the bounded event log (500 retained).
+   */
+  readonly events: ReadonlyArray<EventLogEntry>;
 }
 
 export interface ManagerOpts {
@@ -263,6 +270,9 @@ export class Manager {
   /** Per-connection previous state — used to detect STALE transitions (lost pings). */
   private readonly _prevState: Map<string, ConnectionState> = new Map();
 
+  // --- PR-16: event log ----------------------------------------------------
+  private readonly _eventLog = createEventLog({ retained: 500, displayed: 100 });
+
   // --- PR-11: time-jump detector -------------------------------------------
   private _lastTickAt: number = 0;
   private _tickIntervalId: unknown = null;
@@ -313,6 +323,11 @@ export class Manager {
 
   get stats(): ManagerStats {
     return this._deriveStats();
+  }
+
+  /** PR-16: Most-recent displayed event log entries (up to 100), latest first. */
+  get events(): ReadonlyArray<EventLogEntry> {
+    return this._eventLog.getDisplayed();
   }
 
   /**
@@ -407,6 +422,13 @@ export class Manager {
     // Belt-and-suspenders: clear any timer that might have been set during
     // the close cascade (no-op if the first cancel already cleared it).
     this._cancelBackoff();
+
+    // PR-16: log destroy event.
+    this._eventLog.append({
+      kind: "destroy",
+      msg: "manager destroyed",
+      ts: this._clock(),
+    });
 
     // Notify subscribers once so they see isTerminal: true (derived from
     // _destroyed), then silence the manager permanently.
@@ -622,6 +644,13 @@ export class Manager {
     };
     this._pool.set(id, entry);
 
+    // PR-16: log spawn event.
+    this._eventLog.append({
+      kind: "spawn",
+      msg: `connection ${id.slice(0, 8)} created`,
+      ts: this._clock(),
+    });
+
     // Forward messages from this connection (if it becomes active)
     conn.onMessage((frame) => this._handleConnMessage(id, frame));
   }
@@ -667,8 +696,24 @@ export class Manager {
     }
     this._prevState.set(id, newStats.state);
 
+    // --- PR-16: log STALE transition ---
+    if (newStats.state === "STALE" && prevState !== "STALE") {
+      this._eventLog.append({
+        kind: "stale",
+        msg: `connection ${id.slice(0, 8)} stale`,
+        ts: this._clock(),
+      });
+    }
+
     // --- ALIVE: first time this connection reaches ALIVE ---
     if (newStats.state === "ALIVE" && prevState !== "ALIVE") {
+      // PR-16: log ALIVE transition.
+      this._eventLog.append({
+        kind: "alive",
+        msg: `connection ${id.slice(0, 8)} alive`,
+        ts: this._clock(),
+      });
+
       // Record when this connection first became ALIVE (for oldest-ALIVE rule)
       if (entry.firstAlivedAt === null) {
         entry.firstAlivedAt = this._clock();
@@ -725,6 +770,13 @@ export class Manager {
       const closeCode = newStats.lastCloseCode ?? 1006;
       const closeReason = newStats.lastCloseReason;
 
+      // PR-16: log DEAD transition.
+      this._eventLog.append({
+        kind: "dead",
+        msg: `connection ${id.slice(0, 8)} dead (close code ${closeCode})`,
+        ts: this._clock(),
+      });
+
       this._lastCloseCode = closeCode;
       this._lastCloseReason = closeReason;
 
@@ -747,6 +799,12 @@ export class Manager {
         // Non-retriable close → TERMINAL immediately
         this._isTerminal = true;
         this._cancelBackoff();
+        // PR-16: log terminal.
+        this._eventLog.append({
+          kind: "terminal",
+          msg: `manager terminal: non-retriable close code ${closeCode}`,
+          ts: this._clock(),
+        });
         this._notify();
         return;
       }
@@ -835,6 +893,12 @@ export class Manager {
     if (this._isTerminal) return;
     if (this._attempt >= this._maxAttempts) {
       this._isTerminal = true;
+      // PR-16: log terminal via max attempts.
+      this._eventLog.append({
+        kind: "terminal",
+        msg: `manager terminal: max attempts (${this._maxAttempts}) reached`,
+        ts: this._clock(),
+      });
       return;
     }
 
@@ -852,6 +916,13 @@ export class Manager {
     const scheduledAt = this._clock();
     this._retryScheduledAt = scheduledAt;
     this._nextRetryAt = scheduledAt + delay;
+
+    // PR-16: log backoff scheduling.
+    this._eventLog.append({
+      kind: "backoff",
+      msg: `backoff attempt ${this._attempt}, retry in ${Math.round(delay)} ms`,
+      ts: scheduledAt,
+    });
 
     this._backoffTimerId = this._setTimer(() => {
       this._backoffTimerId = null;
@@ -914,6 +985,7 @@ export class Manager {
       pendingReconnectOnVisible: this._pendingReconnectOnVisible,
       rttWindows,
       lossPct,
+      events: this._eventLog.getDisplayed(),
     };
   }
 
