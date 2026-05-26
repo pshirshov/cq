@@ -24,6 +24,7 @@ import type {
   SDKUserMessage,
   SDKMessage,
   SDKSystemMessage,
+  CanUseTool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Logger } from "../log/logger";
 import type { SessionRegistry } from "../seq/sessionRegistry";
@@ -31,12 +32,15 @@ import type {
   ChatStart,
   ChatInput,
   ChatInterrupt,
+  ChatPermissionReply,
   ChatEvent,
   ChatStarted,
   ChatDone,
   ChatError,
+  ChatPermissionRequest,
 } from "@cq/shared";
 import { loadMcpServers } from "./mcp";
+import { PermissionBroker } from "./permission";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -74,6 +78,11 @@ export interface BridgeOpts {
    * Primarily for tests that set a temporary HOME.
    */
   home?: string;
+  /**
+   * Override the PermissionBroker for tests.
+   * Defaults to a fresh PermissionBroker instance per Bridge.
+   */
+  permissionBroker?: PermissionBroker;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +158,7 @@ export class Bridge {
   private readonly cwd: string;
   private readonly home: string | undefined;
   private active: ActiveSession | null = null;
+  readonly permissionBroker: PermissionBroker;
 
   constructor(opts: BridgeOpts) {
     this.logger = opts.logger;
@@ -157,6 +167,7 @@ export class Bridge {
       options !== undefined ? sdkQuery({ prompt, options }) : sdkQuery({ prompt }));
     this.cwd = opts.cwd;
     this.home = opts.home;
+    this.permissionBroker = opts.permissionBroker ?? new PermissionBroker();
   }
 
   isBusy(): boolean {
@@ -188,6 +199,25 @@ export class Bridge {
     const mcpServers = await loadMcpServers(this.home);
     const hasMcpServers = Object.keys(mcpServers).length > 0;
 
+    // Capture session identifiers for use inside the canUseTool closure.
+    // These are assigned before the closure is called by the SDK.
+    const capturedChatSessionId = chatSessionId;
+    const capturedInvocationId = invocationId;
+
+    const canUseTool: CanUseTool = async (toolName, input, ctx) => {
+      return this.permissionBroker.request({
+        sessionId: capturedChatSessionId,
+        invocationId: capturedInvocationId,
+        toolName,
+        toolUseId: ctx.toolUseID,
+        input,
+        ...(ctx.title !== undefined ? { title: ctx.title } : {}),
+        ...(ctx.displayName !== undefined ? { displayName: ctx.displayName } : {}),
+        ...(ctx.description !== undefined ? { description: ctx.description } : {}),
+        ...(ctx.suggestions !== undefined ? { suggestions: ctx.suggestions } : {}),
+      });
+    };
+
     const sdkOptions: SDKOptions = {
       cwd: this.cwd,
       forwardSubagentText: true,
@@ -196,6 +226,7 @@ export class Bridge {
       // token-level text through Stream.tsx (PR-22b).
       includePartialMessages: true,
       permissionMode: frame.permissionMode ?? "default",
+      canUseTool,
       ...(hasMcpServers ? { mcpServers } : {}),
     };
     if (frame.model !== undefined) {
@@ -224,6 +255,12 @@ export class Bridge {
       aborting: false,
     };
     this.active = session;
+
+    // Wire the permission broker's send callback to forward chat.permission_request
+    // frames over the current WS connection.
+    this.permissionBroker.setSendFrame((frame: ChatPermissionRequest) => {
+      session.ws.send(JSON.stringify(frame));
+    });
 
     this.logger.info("bridge.chat_start", { chatSessionId, invocationId });
 
@@ -277,6 +314,19 @@ export class Bridge {
     // Set abort flag first so the loop stops emitting chat.event frames immediately.
     session.aborting = true;
     await session.query.interrupt();
+  }
+
+  // ---------------------------------------------------------------------------
+  // chat.permission_reply
+  // ---------------------------------------------------------------------------
+
+  handleChatPermissionReply(_ws: WsSocket, frame: ChatPermissionReply): void {
+    const session = this.active;
+    if (session === null || session.chatSessionId !== frame.sessionId) {
+      // Stale reply (session already ended) — ignore silently.
+      return;
+    }
+    this.permissionBroker.reply(frame.permissionRequestId, frame.decision);
   }
 
   // ---------------------------------------------------------------------------
@@ -343,6 +393,9 @@ export class Bridge {
         this.active = null;
         session.queue.end();
       }
+      // Reject any pending permission requests — the session is over.
+      this.permissionBroker.rejectAll();
+      this.permissionBroker.clearSendFrame();
     }
   }
 

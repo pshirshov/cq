@@ -24,8 +24,10 @@ import { useConnection } from "../ws/useConnection";
 import { Input } from "./Input";
 import { Stream } from "./Stream";
 import { Header } from "./Header";
+import { PermissionPrompt } from "./PermissionPrompt";
+import type { PermissionDecision } from "./PermissionPrompt";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply } from "@cq/shared";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -44,6 +46,8 @@ export function ChatTab(): React.ReactElement {
   const [costUsd, setCostUsd] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  // PR-28: pending permission requests, ordered by arrival.
+  const [permissionRequests, setPermissionRequests] = useState<ChatPermissionRequest[]>([]);
 
   // Subscribe to incoming server frames and accumulate chat.event entries.
   // Track session lifecycle via chat.started / chat.done.
@@ -74,6 +78,8 @@ export function ChatTab(): React.ReactElement {
         setInputTokens(usage.inputTokens);
         setOutputTokens(usage.outputTokens);
         setCostUsd(usage.costUsd);
+      } else if (frame.type === "chat.permission_request") {
+        setPermissionRequests((prev) => [...prev, frame as ChatPermissionRequest]);
       }
     });
     return unsub;
@@ -119,6 +125,23 @@ export function ChatTab(): React.ReactElement {
     manager.send(frame);
   }
 
+  function handlePermissionReply(req: ChatPermissionRequest, decision: PermissionDecision): void {
+    // Remove the request from the pending list.
+    setPermissionRequests((prev) =>
+      prev.filter((r) => r.permissionRequestId !== req.permissionRequestId),
+    );
+    if (activeSessionId === null) return;
+    const frame: ChatPermissionReply = {
+      type: "chat.permission_reply",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      sessionId: activeSessionId,
+      permissionRequestId: req.permissionRequestId,
+      decision,
+    };
+    manager.send(frame);
+  }
+
   const inProgress = activeSessionId !== null;
 
   return (
@@ -138,6 +161,13 @@ export function ChatTab(): React.ReactElement {
         onNewSession={handleNewSession}
       />
       <Stream chatEvents={chatEvents} />
+      {permissionRequests.map((req) => (
+        <PermissionPrompt
+          key={req.permissionRequestId}
+          frame={req}
+          onReply={(decision) => handlePermissionReply(req, decision)}
+        />
+      ))}
       <Input
         onSubmit={handleSubmit}
         onInterrupt={handleInterrupt}
