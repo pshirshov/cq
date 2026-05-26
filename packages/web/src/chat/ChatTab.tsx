@@ -30,8 +30,11 @@ import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import type { PermissionMode } from "./Header";
 import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply } from "@cq/shared";
+import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
+import type { Attachment } from "../lib/attachment";
+import { showToast } from "../lib/toast";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -118,8 +121,21 @@ export function ChatTab(): React.ReactElement {
     return unsub;
   }, [manager]);
 
-  function handleSubmit(text: string): void {
+  function handleSubmit(text: string, attachments: Attachment[] = []): void {
     if (activeSessionId === null) return;
+
+    // Enforce the 5 MB total attachment cap client-side before sending.
+    if (attachments.length > 0) {
+      const totalBytes = attachments.reduce(
+        (sum, a) => sum + base64DecodedByteLength(a.dataBase64),
+        0,
+      );
+      if (totalBytes > ATTACHMENT_TOTAL_MAX_BYTES) {
+        showToast("Attachments exceed the 5 MB limit. Remove some files before sending.");
+        return;
+      }
+    }
+
     const seq = seqRef.current++;
     const frame: ChatInput = {
       type: "chat.input",
@@ -127,7 +143,7 @@ export function ChatTab(): React.ReactElement {
       ts: Date.now(),
       sessionId: activeSessionId,
       text,
-      attachments: undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
     manager.send(frame);
   }

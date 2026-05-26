@@ -37,7 +37,7 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - [x] **PR-32** — Plan mode + ExitPlanMode card. Test: `plan-mode.test.ts`. Deps: PR-28.
 - [x] **PR-33** — Thinking blocks (collapsed disclosure + token count). Test: `thinking.test.ts`. Deps: PR-22a.
 - [x] **PR-34** — Slash-command autocomplete (`/` opens popover; fuzzy match init.slash_commands; IME-safe). Test: `slash-autocomplete.test.ts`. Deps: PR-21, PR-25.
-- [ ] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
+- [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
 - [ ] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
 - [ ] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
 - [ ] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
@@ -46,9 +46,11 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 
 ## In-progress / recent
 
-- **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
+- **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
 
 ## Recent completions (this cycle's worth)
+
+- [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop + 5 MB cap) (F-06). `attachment.ts` (`fileToAttachment`) converts `File` → `{kind, mimeType, name, dataBase64}` via `FileReader.readAsDataURL`. `toast.ts` minimal in-memory store + `showToast`/`subscribeToasts`. `AttachmentList.tsx` renders chips (filename + size + × remove). `Input.tsx` extended: `onPaste` handler reads `clipboardData.files`; `onDrop` reads `dataTransfer.files`; local `attachments` state; cleared on submit; `AttachmentList` shown above textarea; `onSubmit` signature now `(text, attachments[])`. `ChatTab.tsx`: `handleSubmit` accepts `Attachment[]`; checks total decoded size against `ATTACHMENT_TOTAL_MAX_BYTES`; fires `showToast` and returns without sending if cap exceeded. `AttachmentList.module.css` added. 4 new tests → 304 total.
 
 - [x] **PR-34** — Slash-command autocomplete (F-17). `SlashPopover.tsx` renders absolutely-positioned `<ul>` with filtered commands; `SlashPopover.module.css` added. `fuzzy.ts` implements subsequence-match scoring. `Input.tsx` extended: `syncPopover` recomputes filtered list on `onInput`; `pickCommand` replaces the `/partial` fragment with the selected command + space; keydown routes Up/Down/Enter/Esc when popover open; IME guard preserved. `ChatTab.tsx` extracts `slash_commands` from `initInfo` (defaults to 5 built-in commands). 6 new tests → 300 total.
 
