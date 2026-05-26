@@ -12,6 +12,8 @@ import type { HistoryRow, HistoryListResult } from "@cq/shared";
 import { useConnection } from "../ws/useConnection";
 import { List, EMPTY_FILTER } from "./List";
 import type { SortState, SortKey, FilterState } from "./List";
+import { Detail } from "./Detail";
+import styles from "../styles/History.module.css";
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -45,6 +47,7 @@ export function HistoryTab(): React.ReactElement {
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [page] = useState(0);
+  const [selectedInvocationId, setSelectedInvocationId] = useState<string | null>(null);
 
   /** Track the seq of the last sent request so stale responses are ignored. */
   const pendingSeqRef = useRef<number | null>(null);
@@ -135,13 +138,22 @@ export function HistoryTab(): React.ReactElement {
   );
 
   return (
-    <List
-      rows={rows}
-      sort={sort}
-      filter={filter}
-      loading={loading}
-      onSort={handleSort}
-      onFilter={handleFilter}
-    />
+    <div className={styles.historyTabWrapper}>
+      <List
+        rows={rows}
+        sort={sort}
+        filter={filter}
+        loading={loading}
+        onSort={handleSort}
+        onFilter={handleFilter}
+        onRowClick={(id) => setSelectedInvocationId(id)}
+      />
+      {selectedInvocationId !== null && (
+        <Detail
+          invocationId={selectedInvocationId}
+          onClose={() => setSelectedInvocationId(null)}
+        />
+      )}
+    </div>
   );
 }

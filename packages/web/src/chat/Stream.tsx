@@ -601,14 +601,30 @@ function renderMessages(
 export interface StreamProps {
   chatEvents: ChatEvent[];
   onQuestionReply?: (payload: QuestionReplyPayload) => void;
+  /**
+   * Rendering mode.
+   *
+   * - `'live'` (default): interactive — AskCard, PermissionPrompt, and other
+   *   interactive cards accept user input and fire callbacks.
+   * - `'replay'`: read-only — interactive callbacks are suppressed; AskCard
+   *   renders without a submit button because `onQuestionReply` is omitted.
+   *   This mode is used by `Detail.tsx` to replay history events through the
+   *   same renderer without allowing user interaction.
+   */
+  mode?: "live" | "replay";
 }
 
-export function Stream({ chatEvents, onQuestionReply }: StreamProps): React.ReactElement {
+export function Stream({ chatEvents, onQuestionReply, mode = "live" }: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
+
+  // In replay mode, omit the onQuestionReply callback so AskCard renders
+  // without a submit button and other interactive cards are effectively
+  // disabled (they receive no reply handler).
+  const effectiveReply = mode === "replay" ? undefined : onQuestionReply;
 
   return (
     <div className={styles.root} data-testid="stream-root">
-      {renderMessages(messages, onQuestionReply)}
+      {renderMessages(messages, effectiveReply)}
     </div>
   );
 }

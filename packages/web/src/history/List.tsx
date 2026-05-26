@@ -116,9 +116,11 @@ export interface ListProps {
   loading: boolean;
   onSort: (key: SortKey) => void;
   onFilter: (patch: Partial<FilterState>) => void;
+  /** Called when the user clicks a history row. Receives the invocationId. */
+  onRowClick?: (invocationId: string) => void;
 }
 
-export function List({ rows, sort, filter, loading, onSort, onFilter }: ListProps): React.ReactElement {
+export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick }: ListProps): React.ReactElement {
   return (
     <div className={styles.historyTab}>
       {/* Filter bar */}
@@ -216,7 +218,12 @@ export function List({ rows, sort, filter, loading, onSort, onFilter }: ListProp
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.invocationId}>
+                <tr
+                  key={row.invocationId}
+                  onClick={onRowClick ? () => onRowClick(row.invocationId) : undefined}
+                  style={onRowClick ? { cursor: "pointer" } : undefined}
+                  data-testid={`history-row-${row.invocationId}`}
+                >
                   <td className={styles.mono}>{fmtDate(row.startedAt)}</td>
                   <td>{row.agentName}</td>
                   <td className={styles.mono}>{row.model}</td>

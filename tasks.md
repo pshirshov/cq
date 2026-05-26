@@ -33,7 +33,7 @@ Goal: SQLite + JSONL persistence layer; live writes from the bridge; History tab
 - [x] **PR-41** — Bridge writes to persistence (live): chat.start → insert session+invocation; events → JSONL; task_started → child invocation; `history.update` live. Test: `bridge-persist.test.ts`. Deps: PR-26, PR-40.
 - [x] **PR-42** — Web `HistoryTab` list view (sortable, filterable, FTS search). Test: `history-list.test.ts`. Deps: PR-40.
 - [x] **PR-43** — Resume-from-history (`resumeFromInvocationId` → SDK `resume:`; transcript replayed via `history.get?replay=true`). Test: `resume.test.ts`. Deps: PR-40, PR-42.
-- [ ] **PR-44** — Web `Detail` view (reuses Chat renderer; `Stream` gains `mode='live'|'replay'`). Test: `history-detail.test.ts`. Deps: PR-42 + many M3 cards.
+- [x] **PR-44** — Web `Detail` view (reuses Chat renderer; `Stream` gains `mode='live'|'replay'`). Test: `history-detail.test.ts`. Deps: PR-42 + many M3 cards.
 - [ ] **PR-45** — Web `Timing` strip (SVG horizontal time axis with tool-call rectangles). Test: `timing.test.ts`. Deps: PR-44.
 - [ ] **PR-46** — Export: copy-as-markdown + download-as-json. Test: `export.test.ts`. Deps: PR-44.
 - [ ] **PR-47** — Delete invocation / delete session (`history.delete` wire frame + cascade + JSONL cleanup + confirm). Test: `history-delete.test.ts`. Deps: PR-40.
@@ -42,7 +42,7 @@ Goal: SQLite + JSONL persistence layer; live writes from the bridge; History tab
 
 ## In-progress / recent
 
-- **PR-44** — Web `Detail` view (reuses Chat renderer; `Stream` gains `mode='live'|'replay'`). Test: `history-detail.test.ts`. Deps: PR-42 + many M3 cards.
+- **PR-45** — Web `Timing` strip (SVG horizontal time axis with tool-call rectangles). Test: `timing.test.ts`. Deps: PR-44.
 
 ## Recent completions (this cycle's worth)
 
