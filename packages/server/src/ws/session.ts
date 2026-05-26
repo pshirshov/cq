@@ -1,7 +1,8 @@
-import { ClientFrame, type ServerHbPong } from "@cq/shared";
+import { ClientFrame, type ServerHbPong, type SessionState } from "@cq/shared";
 import { FRAME_VALIDATION_FAILED } from "@cq/shared";
 import type { Logger } from "../log/logger";
 import { createHeartbeat, type HeartbeatHandle } from "./heartbeat";
+import type { SessionRegistry } from "../seq/sessionRegistry";
 
 // ---------------------------------------------------------------------------
 // Data attached to each WebSocket connection via ws.data
@@ -17,6 +18,7 @@ export type WsSessionData = {
 // ---------------------------------------------------------------------------
 
 type PongPayload = Omit<ServerHbPong, "seq" | "ts">;
+type SessionStatePayload = Omit<SessionState, "seq" | "ts">;
 
 // ---------------------------------------------------------------------------
 // WsSession — per-connection state and message dispatch
@@ -24,13 +26,21 @@ type PongPayload = Omit<ServerHbPong, "seq" | "ts">;
 
 export class WsSession {
   private outboundSeq = 0;
+  /** WS connection-level id (assigned at upgrade time). */
   readonly sessionId: string;
+  /**
+   * Chat session id — null until PR-19 sets it on `chat.start`.
+   * The session.request_state handler returns sessionId:null when this is null.
+   */
+  chatSessionId: string | null = null;
   private readonly logger: Logger;
   private readonly heartbeat: HeartbeatHandle;
+  private readonly registry: SessionRegistry | null;
 
-  constructor(sessionId: string, logger: Logger) {
+  constructor(sessionId: string, logger: Logger, registry?: SessionRegistry) {
     this.sessionId = sessionId;
     this.logger = logger;
+    this.registry = registry ?? null;
     this.heartbeat = createHeartbeat({
       buildFrame: (payload) => {
         const seq = this.outboundSeq++;
@@ -89,6 +99,10 @@ export class WsSession {
         this.heartbeat.onPong(ws, frame);
         break;
       }
+      case "session.request_state": {
+        this.handleRequestState(ws, frame.lastSeenServerSeq);
+        break;
+      }
       // All other client frames are accepted but not yet dispatched (PR-07+)
       default:
         // Accepted; no-op until later PRs wire the handlers.
@@ -107,10 +121,74 @@ export class WsSession {
   // ---------------------------------------------------------------------------
 
   /**
+   * Handles `session.request_state` from the client (post-reconnect catchup).
+   *
+   * Decision tree per plan § 3.5:
+   *  - No chat session (chatSessionId === null) → session.state{sessionId:null, gapDetected:false, serverSeq:0}
+   *  - lastSeenServerSeq >= buffer.serverSeq → no gap; session.state{gapDetected:false}
+   *  - gap within buffer → replay missing entries, then session.state{gapDetected:false}
+   *  - gap exceeds buffer → session.state{gapDetected:true} (client recovers via history.get in M4)
+   */
+  private handleRequestState(ws: WsSocket, lastSeenServerSeq: number | null): void {
+    if (this.chatSessionId === null || this.registry === null) {
+      // No active chat session on this WS connection.
+      const payload: SessionStatePayload = {
+        type: "session.state",
+        sessionId: null,
+        serverSeq: 0,
+        gapDetected: false,
+      };
+      this.sendFrame(ws, payload);
+      return;
+    }
+
+    const sessionState = this.registry.get(this.chatSessionId);
+    if (sessionState === undefined) {
+      // Session id set but not found in registry — treat as no session.
+      const payload: SessionStatePayload = {
+        type: "session.state",
+        sessionId: null,
+        serverSeq: 0,
+        gapDetected: false,
+      };
+      this.sendFrame(ws, payload);
+      return;
+    }
+
+    const { buffer } = sessionState;
+    const result = buffer.getSince(lastSeenServerSeq);
+
+    if (result === "GAP_EXCEEDS") {
+      const payload: SessionStatePayload = {
+        type: "session.state",
+        sessionId: this.chatSessionId,
+        serverSeq: buffer.serverSeq,
+        gapDetected: true,
+      };
+      this.sendFrame(ws, payload);
+      return;
+    }
+
+    // Replay missing entries (idempotent — keep original seq values).
+    for (const entry of result) {
+      ws.send(JSON.stringify(entry.frame));
+    }
+
+    // Then confirm state to client.
+    const payload: SessionStatePayload = {
+      type: "session.state",
+      sessionId: this.chatSessionId,
+      serverSeq: buffer.serverSeq,
+      gapDetected: false,
+    };
+    this.sendFrame(ws, payload);
+  }
+
+  /**
    * Sends a frame to the client, injecting `seq` and `ts` automatically.
    * `payload` must contain all fields except `seq` and `ts`.
    */
-  private sendFrame(ws: WsSocket, payload: PongPayload): void {
+  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload): void {
     const seq = this.outboundSeq++;
     const ts = Date.now();
     ws.send(JSON.stringify({ ...payload, seq, ts }));
