@@ -57,7 +57,7 @@ import { loadMcpServers } from "./mcp";
 import { PermissionBroker } from "./permission";
 import { ElicitationBroker } from "./elicitation";
 import { applyReadOnlyOverlay } from "./readOnlyOverlay";
-import { injectAnswer } from "./askUserQuestion";
+import { AskBroker, createAskUserQuestionMcpServer } from "./askUserQuestion";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -105,6 +105,11 @@ export interface BridgeOpts {
    * Defaults to a fresh ElicitationBroker instance per Bridge.
    */
   elicitationBroker?: ElicitationBroker;
+  /**
+   * Override the AskBroker for tests.
+   * Defaults to a fresh AskBroker instance per Bridge.
+   */
+  askBroker?: AskBroker;
   /**
    * Persistence adapter for recording sessions, invocations, and events.
    * Defaults to InMemoryPersistence (for tests and standalone use).
@@ -199,6 +204,7 @@ export class Bridge {
   private active: ActiveSession | null = null;
   readonly permissionBroker: PermissionBroker;
   readonly elicitationBroker: ElicitationBroker;
+  readonly askBroker: AskBroker;
   private readonly persistence: Persistence;
 
   constructor(opts: BridgeOpts) {
@@ -210,6 +216,7 @@ export class Bridge {
     this.home = opts.home;
     this.permissionBroker = opts.permissionBroker ?? new PermissionBroker();
     this.elicitationBroker = opts.elicitationBroker ?? new ElicitationBroker();
+    this.askBroker = opts.askBroker ?? new AskBroker();
     this.persistence = opts.persistence ?? new InMemoryPersistence();
   }
 
@@ -240,8 +247,15 @@ export class Bridge {
     // The bundled CLI binary would inherit these via HOME in a full installation;
     // since the native binary is unavailable in CI (PR-20-D01), we pass them
     // explicitly via Options.mcpServers so the bridge works in both paths.
-    const mcpServers = await loadMcpServers(this.home);
-    const hasMcpServers = Object.keys(mcpServers).length > 0;
+    const externalMcpServers = await loadMcpServers(this.home);
+    const hasMcpServers = Object.keys(externalMcpServers).length > 0;
+
+    // Build the in-process "cq" MCP server for AskUserQuestion interception.
+    const askMcpServer = createAskUserQuestionMcpServer(this.askBroker);
+    const mcpServers = {
+      ...externalMcpServers,
+      cq: askMcpServer,
+    };
 
     // Capture session identifiers for use inside the canUseTool closure.
     // These are assigned before the closure is called by the SDK.
@@ -259,6 +273,15 @@ export class Bridge {
     const sdkPermissionMode = rawMode as Exclude<SDKOptions["permissionMode"], undefined>;
 
     const brokerCanUseTool: CanUseTool = async (toolName, input, ctx) => {
+      // Auto-allow the internal "cq" MCP tools (e.g. mcp__cq__ask_user_question).
+      // These are not user-facing tools; exposing them to the permission broker
+      // would deadlock the AskUserQuestion flow (the WS client must not need to
+      // grant permission before answering a question).
+      // `updatedInput: {}` is included to satisfy the subprocess Zod schema
+      // which requires a record (not undefined) even though the TS type marks it optional.
+      if (toolName.startsWith("mcp__cq__")) {
+        return { behavior: "allow", updatedInput: {} };
+      }
       return this.permissionBroker.request({
         sessionId: capturedChatSessionId,
         invocationId: capturedInvocationId,
@@ -304,7 +327,13 @@ export class Bridge {
       canUseTool,
       onElicitation,
       permissionMode: sdkPermissionMode,
-      ...(hasMcpServers ? { mcpServers } : {}),
+      // Always include mcpServers (at minimum the "cq" in-process server for
+      // AskUserQuestion interception; plus any external servers from config).
+      mcpServers,
+      // Redirect AskUserQuestion tool_uses to the in-process MCP handler so
+      // the SDK round-trip happens via the native protocol rather than Candidate-A
+      // synthetic SDKUserMessage injection.
+      toolAliases: { AskUserQuestion: "mcp__cq__ask_user_question" },
       ...(nativeBinPath !== undefined ? { pathToClaudeCodeExecutable: nativeBinPath } : {}),
     };
     if (frame.model !== undefined) {
@@ -324,7 +353,7 @@ export class Bridge {
 
     if (hasMcpServers) {
       this.logger.info("bridge.mcp_servers_loaded", {
-        names: Object.keys(mcpServers),
+        names: Object.keys(externalMcpServers),
         source: "~/.claude/mcp_servers.json (explicit fallback)",
       });
     }
@@ -494,10 +523,11 @@ export class Bridge {
       // Stale reply (session already ended) — ignore silently.
       return;
     }
-    injectAnswer(session.queue, frame.toolUseId, frame.answers);
+    const resolved = this.askBroker.reply(frame.toolUseId, frame.answers);
     this.logger.info("bridge.question_reply", {
       chatSessionId: session.chatSessionId,
       toolUseId: frame.toolUseId,
+      brokered: resolved,
     });
   }
 
@@ -685,6 +715,8 @@ export class Bridge {
       // Cancel any pending elicitation requests — the session is over.
       this.elicitationBroker.rejectAll();
       this.elicitationBroker.clearSendFrame();
+      // Cancel any pending AskUserQuestion broker promises — the session is over.
+      this.askBroker.rejectAll();
     }
   }
 

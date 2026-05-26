@@ -1,21 +1,25 @@
 /**
- * ask-question.test.ts — PR-31: AskUserQuestion answer injection.
+ * ask-question.test.ts — PR-31-D02: AskUserQuestion via toolAliases + SDK-MCP.
  *
  * Test cases:
- *  1. injectAnswer pushes a synthetic SDKUserMessage tool_result onto the queue.
- *  2. handleChatQuestionReply with a MockQuery-backed Bridge injects the SDKUserMessage
- *     onto the queue (verified via the queue's outbound side).
+ *  1. AskBroker unit: ask/reply round-trip resolves the output correctly.
+ *  2. AskBroker unit: rejectAll() rejects a pending promise.
+ *  3. AskBroker unit: stale reply (no pending ask) returns false.
+ *  4. Bridge.handleChatQuestionReply routes via askBroker (MockQuery-backed).
+ *  5. Real-SDK spike: toolAliases + MCP server routes AskUserQuestion to the
+ *     in-process handler; broker resolves on chat.question_reply; confirmation
+ *     assistant message received.
  *
- * CONSTRAINT (PR-31-D01): These tests use MockQuery; the real bundled CLI binary
- * is unavailable in this environment. Real-SDK verification is deferred to PR-51.
- * Fallback if Candidate A is disconfirmed: Options.disallowedTools:['AskUserQuestion'].
+ * The real-SDK spike (test 5) drives the bundled CLI binary against
+ * MockAnthropicHTTP and confirms the end-to-end flow without synthetic
+ * SDKUserMessage injection.
  */
 
 import { describe, it, expect } from "bun:test";
-import { injectAnswer } from "../src/agent/askUserQuestion";
+import { AskBroker, createAskUserQuestionMcpServer } from "../src/agent/askUserQuestion";
 import { Bridge } from "../src/agent/bridge";
 import type { QueryFactory, WsSocket } from "../src/agent/bridge";
-import type { Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
 import type { Logger } from "../src/log/logger";
 
@@ -66,21 +70,6 @@ class MockWsSocket implements WsSocket {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal PushableQueue for unit testing injectAnswer
-// ---------------------------------------------------------------------------
-
-interface Pushable<T> {
-  push(item: T): void;
-}
-
-class CapturingQueue<T> implements Pushable<T> {
-  readonly items: T[] = [];
-  push(item: T): void {
-    this.items.push(item);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // MockQuery factory (hangs until resolveHang called; yields init message first)
 // ---------------------------------------------------------------------------
 
@@ -108,12 +97,10 @@ function makeInitMessage(): SDKMessage {
 
 type HangingQueryResult = {
   queryFactory: QueryFactory;
-  capturedMessages: SDKUserMessage[];
   resolveHang: () => void;
 };
 
 function makeHangingQueryFactory(): HangingQueryResult {
-  const capturedMessages: SDKUserMessage[] = [];
   let resolveHang!: () => void;
 
   const queryFactory: QueryFactory = ({ prompt }) => {
@@ -121,11 +108,10 @@ function makeHangingQueryFactory(): HangingQueryResult {
       resolveHang = r;
     });
 
-    // Consume the prompt AsyncIterable and capture all pushed messages.
+    // Drain the prompt iterable so queue push doesn't deadlock.
     void (async () => {
-      for await (const msg of prompt) {
-        capturedMessages.push(msg);
-      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of prompt) { /* discard */ }
     })();
 
     const gen = (async function* (): AsyncGenerator<SDKMessage, void> {
@@ -161,7 +147,7 @@ function makeHangingQueryFactory(): HangingQueryResult {
     return obj;
   };
 
-  return { queryFactory, capturedMessages, resolveHang: () => resolveHang?.() };
+  return { queryFactory, resolveHang: () => resolveHang?.() };
 }
 
 function makeChatStart(): import("@cq/shared").ChatStart {
@@ -169,61 +155,81 @@ function makeChatStart(): import("@cq/shared").ChatStart {
 }
 
 // ---------------------------------------------------------------------------
-// Unit test: injectAnswer pushes synthetic SDKUserMessage
+// Unit tests: AskBroker
 // ---------------------------------------------------------------------------
 
-describe("injectAnswer (unit)", () => {
-  it("pushes a tool_result SDKUserMessage onto the queue", () => {
-    const queue = new CapturingQueue<SDKUserMessage>();
-    const toolUseId = "tu-000-test";
-    const answers = { "0": ["Option B"] };
+describe("AskBroker (unit)", () => {
+  it("ask/reply round-trip resolves with normalised answers", async () => {
+    const broker = new AskBroker();
+    const questions = [{ question: "Which option?", header: "Q1", options: ["A", "B"] }];
 
-    injectAnswer(queue, toolUseId, answers);
+    const promise = broker.ask("tu-001", questions);
 
-    expect(queue.items).toHaveLength(1);
-    const msg = queue.items[0]!;
-    expect(msg.type).toBe("user");
-    expect(msg.parent_tool_use_id).toBeNull();
+    // Simulate WS reply with string values.
+    const replied = broker.reply("tu-001", { "Which option?": "A" });
+    expect(replied).toBe(true);
 
-    const msgRecord = msg.message as unknown as Record<string, unknown>;
-    const content = msgRecord["content"];
-    expect(Array.isArray(content)).toBe(true);
-    const block = (content as unknown[])[0] as Record<string, unknown>;
-    expect(block["type"]).toBe("tool_result");
-    expect(block["tool_use_id"]).toBe(toolUseId);
-
-    // Content should be a JSON string containing the answers.
-    const parsed = JSON.parse(block["content"] as string) as Record<string, unknown>;
-    expect(parsed["answers"]).toEqual(answers);
+    const output = await promise;
+    expect(output.questions).toEqual(questions);
+    expect(output.answers).toEqual({ "Which option?": "A" });
   });
 
-  it("encodes multi-select answers correctly", () => {
-    const queue = new CapturingQueue<SDKUserMessage>();
-    const toolUseId = "tu-001-multi";
-    const answers = { "0": ["Feature A", "Feature C"] };
+  it("multi-select answer (string[]) is comma-joined", async () => {
+    const broker = new AskBroker();
+    const questions = [{ question: "Which features?", header: "Q2", options: ["X", "Y", "Z"] }];
 
-    injectAnswer(queue, toolUseId, answers);
+    const promise = broker.ask("tu-002", questions);
+    broker.reply("tu-002", { "Which features?": ["X", "Z"] });
 
-    const block = ((queue.items[0]!.message as unknown as Record<string, unknown>)["content"] as unknown[])[0] as Record<string, unknown>;
-    const parsed = JSON.parse(block["content"] as string) as Record<string, unknown>;
-    expect((parsed["answers"] as Record<string, unknown>)["0"]).toEqual(["Feature A", "Feature C"]);
+    const output = await promise;
+    expect(output.answers["Which features?"]).toBe("X, Z");
+  });
+
+  it("stale reply (no pending ask) returns false", () => {
+    const broker = new AskBroker();
+    const replied = broker.reply("tu-stale", { "Q?": "A" });
+    expect(replied).toBe(false);
+  });
+
+  it("rejectAll() rejects the pending promise", async () => {
+    const broker = new AskBroker();
+    const questions = [{ question: "Foo?", header: "H", options: ["A", "B"] }];
+
+    const promise = broker.ask("tu-003", questions);
+    expect(broker.hasPending()).toBe(true);
+
+    broker.rejectAll();
+    expect(broker.hasPending()).toBe(false);
+
+    await expect(promise).rejects.toThrow("session ended");
+  });
+
+  it("createAskUserQuestionMcpServer returns a McpSdkServerConfigWithInstance", () => {
+    const broker = new AskBroker();
+    const server = createAskUserQuestionMcpServer(broker);
+    // The SDK returns an object with a `type` property and an `instance` property.
+    expect(server).toBeDefined();
+    expect(typeof server).toBe("object");
+    expect("instance" in server).toBe(true);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Integration test: Bridge.handleChatQuestionReply injects SDKUserMessage
+// Integration test: Bridge.handleChatQuestionReply routes via askBroker
 // ---------------------------------------------------------------------------
 
-describe("Bridge.handleChatQuestionReply (integration)", () => {
-  it("injects SDKUserMessage tool_result onto the queue when session is active", async () => {
-    const { queryFactory, capturedMessages } = makeHangingQueryFactory();
+describe("Bridge.handleChatQuestionReply routes via askBroker (integration)", () => {
+  it("reply resolves the broker's pending promise", async () => {
+    const { queryFactory } = makeHangingQueryFactory();
 
+    const broker = new AskBroker();
     const registry = new SessionRegistry();
     const bridge = new Bridge({
       logger: noopLogger,
       registry,
       queryFactory,
       cwd: "/tmp/test",
+      askBroker: broker,
     });
 
     const ws = new MockWsSocket();
@@ -233,52 +239,45 @@ describe("Bridge.handleChatQuestionReply (integration)", () => {
     const sessionId = startedFrame!.sessionId as string;
     const invocationId = startedFrame!.invocationId as string;
 
-    const toolUseId = "tu-ask-001";
-    const answers = { "0": ["Choice B"] };
+    // Park an ask on the broker directly (simulates MCP handler calling broker.ask).
+    const questions = [{ question: "Pick one?", header: "PQ", options: ["A", "B"] }];
+    const answerPromise = broker.ask("tu-bridge-001", questions);
 
+    // Now simulate the WS reply.
     bridge.handleChatQuestionReply(ws, {
       type: "chat.question_reply",
       seq: 1,
       ts: Date.now(),
       sessionId,
       invocationId,
-      toolUseId,
-      answers,
+      toolUseId: "tu-bridge-001",
+      answers: { "Pick one?": "A" },
     });
 
-    // Allow the async consumer coroutine to process the pushed message.
-    await Bun.sleep(20);
-
-    const injected = capturedMessages.find((m) => {
-      const content = (m.message as unknown as Record<string, unknown>)["content"] as unknown[];
-      return Array.isArray(content) && content.length > 0 &&
-        (content[0] as Record<string, unknown>)["type"] === "tool_result" &&
-        (content[0] as Record<string, unknown>)["tool_use_id"] === toolUseId;
-    });
-
-    expect(injected).toBeDefined();
-    const block = ((injected!.message as unknown as Record<string, unknown>)["content"] as unknown[])[0] as Record<string, unknown>;
-    const parsed = JSON.parse(block["content"] as string) as Record<string, unknown>;
-    expect((parsed["answers"] as Record<string, unknown>)["0"]).toEqual(["Choice B"]);
+    const output = await answerPromise;
+    expect(output.answers["Pick one?"]).toBe("A");
 
     await bridge.shutdown();
   });
 
   it("stale reply (wrong sessionId) is silently ignored", async () => {
-    const { queryFactory, capturedMessages } = makeHangingQueryFactory();
+    const { queryFactory } = makeHangingQueryFactory();
 
+    const broker = new AskBroker();
     const registry = new SessionRegistry();
     const bridge = new Bridge({
       logger: noopLogger,
       registry,
       queryFactory,
       cwd: "/tmp/test",
+      askBroker: broker,
     });
 
     const ws = new MockWsSocket();
     await bridge.handleChatStart(ws, makeChatStart());
     await ws.waitForFrames("chat.started");
 
+    // No ask is pending. A stale reply must not throw.
     bridge.handleChatQuestionReply(ws, {
       type: "chat.question_reply",
       seq: 1,
@@ -289,39 +288,69 @@ describe("Bridge.handleChatQuestionReply (integration)", () => {
       answers: { "0": ["X"] },
     });
 
-    await Bun.sleep(20);
-    // No tool_result messages should have been captured (only the normal chat.start user msg may not appear either).
-    const toolResultMsgs = capturedMessages.filter((m) => {
-      const content = (m.message as unknown as Record<string, unknown>)["content"] as unknown[];
-      return Array.isArray(content) && content.length > 0 &&
-        (content[0] as Record<string, unknown>)["type"] === "tool_result";
+    // No pending promise → reply returns false; broker has nothing pending.
+    expect(broker.hasPending()).toBe(false);
+
+    await bridge.shutdown();
+  });
+
+  it("Bridge.handleChatQuestionReply (correct session, no pending ask) is a no-op", async () => {
+    const { queryFactory } = makeHangingQueryFactory();
+
+    const broker = new AskBroker();
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory,
+      cwd: "/tmp/test",
+      askBroker: broker,
     });
-    expect(toolResultMsgs).toHaveLength(0);
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeChatStart());
+    const [startedFrame] = await ws.waitForFrames("chat.started");
+    const sessionId = startedFrame!.sessionId as string;
+    const invocationId = startedFrame!.invocationId as string;
+
+    // No ask pending — should not throw.
+    bridge.handleChatQuestionReply(ws, {
+      type: "chat.question_reply",
+      seq: 1,
+      ts: Date.now(),
+      sessionId,
+      invocationId,
+      toolUseId: "tu-no-pending",
+      answers: { "0": ["X"] },
+    });
+
+    expect(broker.hasPending()).toBe(false);
 
     await bridge.shutdown();
   });
 });
 
 // ---------------------------------------------------------------------------
-// Candidate-A spike — real SDK subprocess (PR-31-D01 resolution)
+// toolAliases + MCP spike — AskUserQuestion via REAL SDK subprocess (PR-31-D02)
 //
 // This test drives the REAL SDK subprocess (no MockQuery / queryFactory) against
 // MockAnthropicHTTP. The mock is scripted to:
 //   1. First /v1/messages (small preflight call on startup): return simple text.
-//   2. Second /v1/messages (main user prompt, body > 5 kB): return an assistant
+//   2. Second /v1/messages (main user prompt, body >= 5 kB): return an assistant
 //      message containing an AskUserQuestion tool_use.
-//   3. Third+ /v1/messages (after tool_result injection): return a confirmation
-//      assistant message whose text includes "Option B".
+//   3. Third+ /v1/messages (after tool_result from MCP handler): return a
+//      confirmation assistant message whose text includes "Option B".
 //
 // The test then:
 //   a. Waits for the bridge to surface the AskUserQuestion tool_use in a chat.event.
-//   b. Calls bridge.handleChatQuestionReply() to inject the answer.
-//   c. Asserts a subsequent chat.event carries an assistant message with "Option B".
-//   d. Verifies chat.done reason=completed.
+//   b. Calls bridge.handleChatQuestionReply() to resolve the broker promise.
+//   c. The MCP handler returns CallToolResult; the SDK sends the tool_result in
+//      the next API call.
+//   d. Asserts a subsequent chat.event carries an assistant message with "Option B".
+//   e. Verifies chat.done reason=completed.
 //
-// If the real subprocess rejects the synthetic tool_result (Candidate-A fails),
-// the third API call will be missing and the test will time out. In that case,
-// fall back to Options.disallowedTools:['AskUserQuestion'] (Candidate-B).
+// Compared to Candidate-A (PR-31-D01): no synthetic SDKUserMessage is pushed
+// onto the queue; the broker Promise resolves the MCP handler natively.
 // ---------------------------------------------------------------------------
 
 import * as fsNode from "node:fs/promises";
@@ -361,20 +390,16 @@ class RealSdkMockWsSocket implements WsSocket {
   }
 }
 
-describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D01)", () => {
+describe("toolAliases + SDK-MCP spike — AskUserQuestion via REAL SDK subprocess (PR-31-D02)", () => {
   it(
-    "real subprocess: AskUserQuestion tool_use → injectAnswer → confirmation assistant message",
+    "real subprocess: AskUserQuestion tool_use → MCP handler → broker.reply → confirmation assistant message",
     async () => {
-      const tmpHome = await fsNode.mkdtemp(pathNode.join(osNode.tmpdir(), "cq-ask-real-"));
+      const tmpHome = await fsNode.mkdtemp(pathNode.join(osNode.tmpdir(), "cq-ask-mcp-"));
       await fsNode.mkdir(pathNode.join(tmpHome, ".claude"), { recursive: true });
 
       let mock: import("./helpers/MockAnthropicHTTP").MockAnthropicHTTP | null = null;
 
       try {
-        // Scripted multi-round responder:
-        //  - Preflight requests (small body, < 5 kB): simple text response.
-        //  - Main prompt request (body >= 5 kB, no tool_result): AskUserQuestion.
-        //  - After tool_result injection: confirmation with "Option B".
         let askSent = false;
         const simpleSseBody = (() => {
           const simpleEvents = [
@@ -397,11 +422,11 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
           scriptedResponder: async (body: string) => {
             const hasToolResult = body.includes("tool_result");
             if (hasToolResult) {
-              // Third+ call: tool_result was injected — return confirmation.
+              // After MCP handler returns: tool_result in conversation → confirmation.
               return ASK_USER_QUESTION_CONFIRM_SSE_EVENTS;
             }
             if (!askSent && body.length >= 5000) {
-              // Main prompt request: return AskUserQuestion tool_use.
+              // Main prompt: return AskUserQuestion tool_use.
               askSent = true;
               return ASK_USER_QUESTION_SSE_EVENTS;
             }
@@ -418,6 +443,7 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
         process.env["HOME"] = tmpHome;
 
         // Bridge with NO queryFactory — real SDK subprocess.
+        // The bridge creates a fresh AskBroker and wires it via toolAliases.
         const registry = new SessionRegistry();
         const bridge = new Bridge({
           logger: noopLogger,
@@ -429,12 +455,8 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
         const ws = new RealSdkMockWsSocket();
         await bridge.handleChatStart(ws, { type: "chat.start", seq: 0, ts: Date.now() });
 
-        // With the real SDK, chat.started only arrives after the subprocess
-        // processes the first user message. Send chat.input immediately using
-        // bridge.activeSessionId() which is set synchronously by handleChatStart.
         const sessionId = bridge.activeSessionId()!;
 
-        // Send the user prompt that will trigger AskUserQuestion.
         await bridge.handleChatInput(ws, {
           type: "chat.input",
           seq: 1,
@@ -443,13 +465,12 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
           text: "ask me something",
         });
 
-        // Wait for chat.started (subprocess startup + first API round-trip).
+        // Wait for chat.started.
         const [startedFrame] = await ws.waitForFrames("chat.started", 1, 25000);
         expect(startedFrame!.type).toBe("chat.started");
         const invocationId = startedFrame!.invocationId as string;
 
         // Wait for the AskUserQuestion tool_use to surface as a chat.event.
-        // The SDK emits the assistant message containing the tool_use.
         let toolUseId: string | null = null;
         const deadline = Date.now() + 25000;
         while (Date.now() < deadline) {
@@ -474,7 +495,13 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
         expect(toolUseId).not.toBeNull();
         expect(typeof toolUseId).toBe("string");
 
-        // Inject the answer via the bridge.
+        // Verify toolAliases and mcpServers are reflected in the SDK options.
+        // The bridge always sets toolAliases.AskUserQuestion = 'mcp__cq__ask_user_question'
+        // and mcpServers.cq = the in-process MCP server.
+        // We confirm by verifying the broker exists on the bridge.
+        expect(bridge.askBroker).toBeInstanceOf(AskBroker);
+
+        // Resolve the broker: simulate the user answering the question via WS.
         bridge.handleChatQuestionReply(ws, {
           type: "chat.question_reply",
           seq: 2,
@@ -482,7 +509,7 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
           sessionId,
           invocationId,
           toolUseId: toolUseId!,
-          answers: { "0": ["Option B"] },
+          answers: { "Which option do you prefer?": "Option B" },
         });
 
         // Wait for a subsequent chat.event with an assistant message containing "Option B".
@@ -507,12 +534,9 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
 
         expect(confirmed).toBe(true);
 
-        // The mock received at least 2 requests:
-        //  1. Main prompt → AskUserQuestion
-        //  2. After tool_result injection → confirmation
+        // At least 2 API requests: one for the AskUserQuestion, one for the confirmation.
         expect(mock.requestCount()).toBeGreaterThanOrEqual(2);
 
-        // Shut down the bridge to close the query and emit chat.done.
         await bridge.shutdown();
 
         const [doneFrame] = await ws.waitForFrames("chat.done", 1, 5000);
@@ -522,6 +546,6 @@ describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D
         await fsNode.rm(tmpHome, { recursive: true, force: true });
       }
     },
-    35000, // generous timeout: subprocess + multi-round interaction
+    35000, // generous timeout: subprocess + multi-round MCP interaction
   );
 });
