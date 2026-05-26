@@ -212,6 +212,32 @@ export const ChatElicitationReply = z.object({
 });
 export type ChatElicitationReply = z.infer<typeof ChatElicitationReply>;
 
+export const ChatReadFileRequest = z.object({
+  type: z.literal("chat.read_file_request"),
+  seq,
+  ts,
+  requestId: uuidStr(),
+  sessionId: uuidStr(),
+  path: z.string(),
+  around: z.object({
+    line: z.number().int().positive(),
+    contextBefore: z.number().int().nonnegative().optional(),
+    contextAfter: z.number().int().nonnegative().optional(),
+  }),
+});
+export type ChatReadFileRequest = z.infer<typeof ChatReadFileRequest>;
+
+export const ChatReadFileResult = z.object({
+  type: z.literal("chat.read_file_result"),
+  seq,
+  ts,
+  requestId: uuidStr(),
+  content: z.string(),
+  startLine: z.number().int().nonnegative(),
+  error: z.string().optional(),
+});
+export type ChatReadFileResult = z.infer<typeof ChatReadFileResult>;
+
 export const HistoryList = z.object({
   type: z.literal("history.list"),
   seq,
@@ -423,6 +449,7 @@ export const ClientFrame = z.discriminatedUnion("type", [
   ChatPermissionReply,
   ChatQuestionReply,
   ChatElicitationReply,
+  ChatReadFileRequest,
   HistoryList,
   HistoryGet,
   HistoryDelete,
@@ -444,6 +471,7 @@ export const ServerFrame = z.discriminatedUnion("type", [
   ChatElicitationRequest,
   ChatDone,
   ChatError,
+  ChatReadFileResult,
   HistoryListResult,
   HistoryGetResult,
   HistoryReplayEvent,

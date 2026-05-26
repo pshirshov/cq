@@ -38,7 +38,7 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - [x] **PR-33** — Thinking blocks (collapsed disclosure + token count). Test: `thinking.test.ts`. Deps: PR-22a.
 - [x] **PR-34** — Slash-command autocomplete (`/` opens popover; fuzzy match init.slash_commands; IME-safe). Test: `slash-autocomplete.test.ts`. Deps: PR-21, PR-25.
 - [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
-- [ ] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
+- [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
 - [ ] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
 - [ ] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
 
@@ -46,9 +46,11 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 
 ## In-progress / recent
 
-- **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
+- **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
 
 ## Recent completions (this cycle's worth)
+
+- [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames) (F-06). `protocol.ts` adds `ChatReadFileRequest` (client frame) and `ChatReadFileResult` (server frame) to their respective discriminated unions. `readFile.ts` (`handleReadFile`) slices SDK `query.readFile()` response around the requested line ± context lines; returns `ChatReadFileResult`. Bridge routes `chat.read_file_request` → `handleReadFile`; `session.ts` routes the frame to bridge. `FileRefAnchor.tsx` renders a clickable path:line span; click fires `chat.read_file_request` via manager.send; incoming result expands inline snippet. `Markdown.tsx` extended with a rehype plugin (`rehypeFileRefs`) that walks hast text nodes and replaces path:line matches with `<file-ref>` elements; component map routes these to `<FileRefAnchor>`. `FileRefAnchor.module.css` added. 10 new shared protocol tests + 6 server tests + 2 web tests = 320 total.
 
 - [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop + 5 MB cap) (F-06). `attachment.ts` (`fileToAttachment`) converts `File` → `{kind, mimeType, name, dataBase64}` via `FileReader.readAsDataURL`. `toast.ts` minimal in-memory store + `showToast`/`subscribeToasts`. `AttachmentList.tsx` renders chips (filename + size + × remove). `Input.tsx` extended: `onPaste` handler reads `clipboardData.files`; `onDrop` reads `dataTransfer.files`; local `attachments` state; cleared on submit; `AttachmentList` shown above textarea; `onSubmit` signature now `(text, attachments[])`. `ChatTab.tsx`: `handleSubmit` accepts `Attachment[]`; checks total decoded size against `ATTACHMENT_TOTAL_MAX_BYTES`; fires `showToast` and returns without sending if cap exceeded. `AttachmentList.module.css` added. 4 new tests → 304 total.
 

@@ -10,6 +10,8 @@ import {
   ChatPermissionReply,
   ChatQuestionReply,
   ChatElicitationReply,
+  ChatReadFileRequest,
+  ChatReadFileResult,
   HistoryList,
   HistoryGet,
   HistoryDelete,
@@ -514,6 +516,120 @@ test("ServerFrame discriminator routes chat.event vs hb.pong", () => {
 test("ClientFrame rejects unknown type", () => {
   const result = ClientFrame.safeParse({ type: "unknown.frame", seq: 0, ts: NOW });
   expect(result.success).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// PR-36: chat.read_file_request / chat.read_file_result
+// ---------------------------------------------------------------------------
+
+describe("ChatReadFileRequest", () => {
+  test("round-trips with contextBefore and contextAfter", () => {
+    const frame = {
+      type: "chat.read_file_request" as const,
+      seq: 25,
+      ts: NOW,
+      requestId: UUID,
+      sessionId: UUID,
+      path: "/etc/hosts",
+      around: { line: 12, contextBefore: 5, contextAfter: 5 },
+    };
+    expect(ChatReadFileRequest.parse(frame)).toEqual(frame);
+  });
+
+  test("round-trips without optional context fields", () => {
+    const frame = {
+      type: "chat.read_file_request" as const,
+      seq: 26,
+      ts: NOW,
+      requestId: UUID,
+      sessionId: UUID,
+      path: "src/index.ts",
+      around: { line: 1 },
+    };
+    expect(ChatReadFileRequest.parse(frame)).toEqual(frame);
+  });
+
+  test("rejects when line is 0 (must be positive)", () => {
+    const result = ChatReadFileRequest.safeParse({
+      type: "chat.read_file_request",
+      seq: 0,
+      ts: NOW,
+      requestId: UUID,
+      sessionId: UUID,
+      path: "/etc/hosts",
+      around: { line: 0 },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.flatMap((i) => i.path);
+      expect(paths).toContain("line");
+    }
+  });
+
+  test("is accepted by ClientFrame discriminated union", () => {
+    const frame = {
+      type: "chat.read_file_request" as const,
+      seq: 27,
+      ts: NOW,
+      requestId: UUID,
+      sessionId: UUID,
+      path: "/etc/hosts",
+      around: { line: 12 },
+    };
+    const parsed = ClientFrame.parse(frame);
+    expect(parsed.type).toBe("chat.read_file_request");
+  });
+});
+
+describe("ChatReadFileResult", () => {
+  test("round-trips with content", () => {
+    const frame = {
+      type: "chat.read_file_result" as const,
+      seq: 28,
+      ts: NOW,
+      requestId: UUID,
+      content: "line7\nline8\nline9",
+      startLine: 7,
+    };
+    expect(ChatReadFileResult.parse(frame)).toEqual(frame);
+  });
+
+  test("round-trips with error field", () => {
+    const frame = {
+      type: "chat.read_file_result" as const,
+      seq: 29,
+      ts: NOW,
+      requestId: UUID,
+      content: "",
+      startLine: 0,
+      error: "file not found",
+    };
+    expect(ChatReadFileResult.parse(frame)).toEqual(frame);
+  });
+
+  test("rejects missing requestId", () => {
+    const result = ChatReadFileResult.safeParse({
+      type: "chat.read_file_result",
+      seq: 0,
+      ts: NOW,
+      content: "x",
+      startLine: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("is accepted by ServerFrame discriminated union", () => {
+    const frame = {
+      type: "chat.read_file_result" as const,
+      seq: 30,
+      ts: NOW,
+      requestId: UUID,
+      content: "line1",
+      startLine: 1,
+    };
+    const parsed = ServerFrame.parse(frame);
+    expect(parsed.type).toBe("chat.read_file_result");
+  });
 });
 
 // ---------------------------------------------------------------------------

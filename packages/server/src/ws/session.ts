@@ -158,6 +158,14 @@ export class WsSession {
         }
         break;
       }
+      case "chat.read_file_request": {
+        if (this.bridge !== null) {
+          this.bridge.handleChatReadFileRequest(ws as BridgeWsSocket, frame).catch((err: unknown) => {
+            this.logger.error("ws.bridge_error", { sessionId: this.sessionId, err: String(err) });
+          });
+        }
+        break;
+      }
       // All other client frames are accepted but not yet dispatched (PR-07+)
       default:
         // Accepted; no-op until later PRs wire the handlers.

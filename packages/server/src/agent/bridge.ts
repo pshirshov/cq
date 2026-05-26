@@ -37,6 +37,7 @@ import type {
   ChatPermissionReply,
   ChatElicitationReply,
   ChatQuestionReply,
+  ChatReadFileRequest,
   ChatEvent,
   ChatStarted,
   ChatDone,
@@ -44,6 +45,7 @@ import type {
   ChatPermissionRequest,
   ChatElicitationRequest,
 } from "@cq/shared";
+import { handleReadFile } from "./readFile";
 import { loadMcpServers } from "./mcp";
 import { PermissionBroker } from "./permission";
 import { ElicitationBroker } from "./elicitation";
@@ -415,6 +417,36 @@ export class Bridge {
       chatSessionId: session.chatSessionId,
       toolUseId: frame.toolUseId,
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // chat.read_file_request
+  // ---------------------------------------------------------------------------
+
+  async handleChatReadFileRequest(ws: WsSocket, frame: ChatReadFileRequest): Promise<void> {
+    const session = this.active;
+    if (session === null || session.chatSessionId !== frame.sessionId) {
+      // No active session — return an error result so the UI can surface it.
+      const result = {
+        type: "chat.read_file_result" as const,
+        seq: 0,
+        ts: Date.now(),
+        requestId: frame.requestId,
+        content: "",
+        startLine: 0,
+        error: "No active session",
+      };
+      ws.send(JSON.stringify(result));
+      return;
+    }
+
+    const seq = (() => {
+      const state = this.registry.get(session.chatSessionId);
+      return state !== undefined ? state.buffer.serverSeq + 1 : 0;
+    })();
+
+    const result = await handleReadFile(session.query, frame, seq);
+    ws.send(JSON.stringify(result));
   }
 
   // ---------------------------------------------------------------------------
