@@ -24,6 +24,7 @@ import { act } from "react";
 import type { ManagerStats } from "../src/ws/Manager";
 import { Tooltip } from "../src/ws/Tooltip";
 import { Indicator } from "../src/ws/Indicator";
+import { ConnectionProvider } from "../src/ws/ConnectionProvider";
 
 // ---------------------------------------------------------------------------
 // Helpers — shared with indicator.test.ts but duplicated to keep files self-contained
@@ -114,6 +115,15 @@ function teardown(): void {
 }
 
 afterEach(() => { teardown(); });
+
+/** Render <Indicator> wrapped in <ConnectionProvider value={manager}>. */
+function renderIndicator(manager: FakeManager): void {
+  reactRoot!.render(
+    createElement(ConnectionProvider, { value: manager as never },
+      createElement(Indicator, {}),
+    ),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // <Tooltip> — pure rendering tests
@@ -253,7 +263,7 @@ describe("Indicator tooltip integration", () => {
     const manager = new FakeManager(makeStats());
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     const tooltip = container!.querySelector("[role=tooltip]");
     expect(tooltip).toBeNull();
@@ -266,7 +276,7 @@ describe("Indicator tooltip integration", () => {
     }));
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
 
     const indicator = container!.querySelector("#ws-indicator");
@@ -285,7 +295,7 @@ describe("Indicator tooltip integration", () => {
     const manager = new FakeManager(makeStats());
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
 
     const indicator = container!.querySelector("#ws-indicator")!;
@@ -310,7 +320,7 @@ describe("Indicator tooltip integration", () => {
     }));
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
 
     const indicator = container!.querySelector("#ws-indicator")!;
@@ -332,7 +342,7 @@ describe("Indicator tooltip integration", () => {
     const manager = new FakeManager(makeStats());
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
 
     const indicator = container!.querySelector("#ws-indicator")!;

@@ -1,29 +1,17 @@
-import { useMemo, useEffect } from "react";
-import { Manager } from "./ws/Manager";
-import { Indicator } from "./ws/Indicator";
+import { useEffect } from "react";
+import { useConnection } from "./ws/useConnection";
 import { attachTitleMirror } from "./ws/titleMirror";
+import { Indicator } from "./ws/Indicator";
 
 /**
  * App — root composite component.
  *
- * Constructs a Manager pointing at the local WebSocket endpoint.
- * PR-17 will refactor this to a ConnectionProvider context so the manager
- * is accessible to deeply nested components without prop-drilling.
- *
- * useMemo with [] ensures the Manager is constructed exactly once per
- * App mount (React Strict Mode double-invokes effects but not useMemo with
- * an empty dep array). The Manager is not destroyed on unmount in this PR;
- * PR-17 will add a cleanup via useEffect.
+ * PR-17: Manager is no longer constructed here. It is built in main.tsx and
+ * provided via <ConnectionProvider>. App reads it via useConnection() to wire
+ * the document.title mirror; Indicator reads stats via useConnectionStats().
  */
 export default function App(): React.ReactElement {
-  const manager = useMemo(
-    () =>
-      new Manager({
-        url: `ws://${location.host}/ws`,
-        enableTimeJumpDetector: true,
-      }),
-    [],
-  );
+  const manager = useConnection();
 
   useEffect(() => {
     const mirror = attachTitleMirror(manager);
@@ -32,7 +20,7 @@ export default function App(): React.ReactElement {
 
   return (
     <>
-      <Indicator manager={manager} />
+      <Indicator />
       <div>cq is up</div>
     </>
   );

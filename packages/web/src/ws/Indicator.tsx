@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import type { Manager, ManagerStats } from "./Manager";
+import type { ManagerStats } from "./Manager";
+import { useConnection, useConnectionStats } from "./useConnection";
 import { deriveWidgetState } from "./deriveWidgetState";
 import type { WidgetState } from "./deriveWidgetState";
 import { CountdownRing } from "./CountdownRing";
@@ -80,7 +81,6 @@ function buildAriaLabel(ws: WidgetState, stats: ManagerStats): string {
 // ---------------------------------------------------------------------------
 
 export interface IndicatorProps {
-  manager: Manager;
   /** Injectable options for computeRingRemaining; defaults to Manager defaults. */
   ringOpts?: {
     connectTimeoutMs: number;
@@ -107,11 +107,14 @@ export interface IndicatorProps {
  * Widget state is DERIVED from ManagerStats on every update (V2);
  * it is never stored separately.
  *
- * PR-17 will move Manager construction into a ConnectionProvider context;
- * for now the manager is passed as a prop.
+ * PR-17: Manager is read from ConnectionContext via useConnectionStats() and
+ * useConnection(); the manager prop has been removed. Wrap with
+ * <ConnectionProvider value={manager}> in the application root (main.tsx) or
+ * in test harnesses.
  */
-export function Indicator({ manager, ringOpts }: IndicatorProps): React.ReactElement {
-  const [stats, setStats] = useState<ManagerStats>(() => manager.stats);
+export function Indicator({ ringOpts }: IndicatorProps): React.ReactElement {
+  const manager = useConnection();
+  const stats = useConnectionStats();
   const [now, setNow] = useState<number>(() => Date.now());
 
   // PR-15: tooltip visibility state
@@ -121,15 +124,12 @@ export function Indicator({ manager, ringOpts }: IndicatorProps): React.ReactEle
   const tooltipVisible = hovered || pinned;
 
   // ---------------------------------------------------------------------------
-  // Subscribe to Manager.onUpdate for immediate event-driven refresh (PR-14)
+  // Refresh `now` immediately on Manager.onUpdate so the ring re-computes at
+  // the event boundary (PR-14). stats subscription is handled by useConnectionStats().
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    // Sync on mount in case stats changed between initial read and subscription.
-    setStats(manager.stats);
-    const unsub = manager.onUpdate((s) => {
-      setStats(s);
-      // Immediate now-refresh so the ring re-computes at the event boundary.
+    const unsub = manager.onUpdate(() => {
       setNow(Date.now());
     });
     return unsub;

@@ -36,6 +36,7 @@ import { CountdownRing } from "../src/ws/CountdownRing";
 import { computeRingRemaining } from "../src/ws/computeRingRemaining";
 import type { RingInfo } from "../src/ws/computeRingRemaining";
 import { Indicator } from "../src/ws/Indicator";
+import { ConnectionProvider } from "../src/ws/ConnectionProvider";
 import type { ManagerStats } from "../src/ws/Manager";
 
 // ---------------------------------------------------------------------------
@@ -351,7 +352,9 @@ describe("Indicator ring integration", () => {
 
     act(() => {
       reactRoot!.render(
-        createElement(Indicator, { manager: manager as never, ringOpts }),
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(Indicator, { ringOpts }),
+        ),
       );
     });
 

@@ -29,6 +29,7 @@ import { deriveWidgetState } from "../src/ws/deriveWidgetState";
 import type { WidgetState } from "../src/ws/deriveWidgetState";
 import type { ManagerStats } from "../src/ws/Manager";
 import { Indicator } from "../src/ws/Indicator";
+import { ConnectionProvider } from "../src/ws/ConnectionProvider";
 
 // ---------------------------------------------------------------------------
 // Fake Manager — minimal in-memory stand-in
@@ -126,6 +127,15 @@ function teardown(): void {
 
 afterEach(() => { teardown(); });
 
+/** Render <Indicator> wrapped in <ConnectionProvider value={manager}>. */
+function renderIndicator(manager: FakeManager): void {
+  reactRoot!.render(
+    createElement(ConnectionProvider, { value: manager as never },
+      createElement(Indicator, {}),
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // deriveWidgetState — pure unit tests (no DOM)
 // ---------------------------------------------------------------------------
@@ -187,7 +197,7 @@ describe("Indicator component", () => {
     );
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     const el = container!.querySelector("[data-state]");
     expect(el).not.toBeNull();
@@ -198,7 +208,7 @@ describe("Indicator component", () => {
     const manager = new FakeManager(makeStats({ isTerminal: true }));
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     const el = container!.querySelector("[data-state]");
     expect(el!.getAttribute("data-state")).toBe("terminal");
@@ -210,7 +220,7 @@ describe("Indicator component", () => {
     );
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     expect(container!.querySelector("[data-state]")!.getAttribute("data-state")).toBe("alive");
 
@@ -225,7 +235,7 @@ describe("Indicator component", () => {
     );
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     const el = container!.querySelector("[data-state]");
     const label = el!.getAttribute("aria-label") ?? "";
@@ -238,7 +248,7 @@ describe("Indicator component", () => {
     );
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     // Transition to connecting via nextRetryAt
     act(() => { manager.push(makeStats({ nextRetryAt: Date.now() + 5000 })); });
@@ -250,9 +260,10 @@ describe("Indicator component", () => {
     const manager = new FakeManager(makeStats());
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
-    expect(manager.subscriberCount).toBe(1);
+    // 2 subscribers: useSyncExternalStore (useConnectionStats) + useEffect (setNow refresh)
+    expect(manager.subscriberCount).toBe(2);
 
     // Unmount
     act(() => { reactRoot!.unmount(); });
@@ -269,7 +280,7 @@ describe("Indicator component", () => {
     );
     setup();
     act(() => {
-      reactRoot!.render(createElement(Indicator, { manager: manager as never }));
+      renderIndicator(manager);
     });
     const el = container!.querySelector("[data-state]");
     // The alive glyph is "✓"
