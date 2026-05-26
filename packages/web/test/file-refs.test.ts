@@ -64,6 +64,17 @@ class MockManager {
   get stats() {
     return {} as unknown as ReturnType<Manager["stats"]["valueOf"]>;
   }
+  /**
+   * Deterministic CryptoProvider for tests — gives stable requestIds so
+   * assertions can pin them rather than matching a UUID regex.
+   */
+  readonly crypto = {
+    _n: 0,
+    randomUUID(): string {
+      this._n += 1;
+      return `mock-req-${this._n}`;
+    },
+  };
   onUpdate(): () => void { return () => {}; }
   destroy(): void {}
 }

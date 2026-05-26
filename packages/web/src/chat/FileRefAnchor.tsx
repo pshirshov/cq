@@ -61,7 +61,7 @@ export function FileRefAnchor({ path, line }: FileRefAnchorProps): React.ReactEl
       return;
     }
 
-    const requestId = crypto.randomUUID();
+    const requestId = manager.crypto.randomUUID();
     setLoading(true);
 
     // Subscribe to incoming server frames to catch the result.

@@ -27,6 +27,8 @@ import type { ServerFrame, ClientFrame } from "@cq/shared";
 import { createEventLog } from "./eventLog";
 import type { EventLogEntry } from "./eventLog";
 import { showToast } from "../lib/toast";
+import type { CryptoProvider } from "../lib/crypto";
+import { defaultCryptoProvider } from "../lib/crypto";
 
 // ---------------------------------------------------------------------------
 // PR-15: RTT summary type + window computation
@@ -181,6 +183,14 @@ export interface ManagerOpts {
    * falls back to true (never defer) if document is not available.
    */
   isVisible?: () => boolean;
+  /**
+   * Source of randomness for connection ids and other ID generation needs.
+   * Defaults to `defaultCryptoProvider()` which probes the environment for
+   * `crypto.randomUUID` (secure contexts) or `crypto.getRandomValues` (insecure
+   * contexts such as VPN deployments per the brief), and throws if neither is
+   * available. Tests inject deterministic implementations.
+   */
+  crypto?: CryptoProvider;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +229,7 @@ export class Manager {
   private readonly _setInterval: (fn: () => void, ms: number) => unknown;
   private readonly _clearInterval: (id: unknown) => void;
   private readonly _isVisible: () => boolean;
+  private readonly _crypto: CryptoProvider;
 
   // --- pool state -----------------------------------------------------------
 
@@ -308,6 +319,7 @@ export class Manager {
       (() => typeof document !== "undefined"
         ? document.visibilityState === "visible"
         : true);
+    this._crypto = opts.crypto ?? defaultCryptoProvider();
 
     // Spawn initial connection
     this._spawn();
@@ -329,6 +341,17 @@ export class Manager {
   /** PR-16: Most-recent displayed event log entries (up to 100), latest first. */
   get events(): ReadonlyArray<EventLogEntry> {
     return this._eventLog.getDisplayed();
+  }
+
+  /**
+   * Shared randomness source. Consumers that need to generate IDs in the
+   * same domain as the connection pool (e.g. request-id correlation in
+   * FileRefAnchor) should read it from here rather than calling
+   * `crypto.randomUUID()` directly — that primitive is unavailable in
+   * insecure browser contexts and the project's VPN deployment hits that.
+   */
+  get crypto(): CryptoProvider {
+    return this._crypto;
   }
 
   /**
@@ -608,7 +631,7 @@ export class Manager {
     if (this._isTerminal) return;
     if (this._pool.size >= this._maxLiveConnections) return;
 
-    const id = crypto.randomUUID();
+    const id = this._crypto.randomUUID();
 
     // Wrap the socket factory to capture the socket instance
     let capturedSocket: SocketLike | null = null;

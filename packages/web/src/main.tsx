@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { Manager } from "./ws/Manager";
 import { ConnectionProvider } from "./ws/ConnectionProvider";
+import { defaultCryptoProvider } from "./lib/crypto";
 import App from "./App";
 import "./styles/global.css";
 
@@ -19,6 +20,10 @@ import "./styles/global.css";
 const manager = new Manager({
   url: `ws://${location.host}/ws`,
   enableTimeJumpDetector: true,
+  // Probe-once-and-cache CryptoProvider. Constructed here (not inside
+  // Manager defaults) so the production wiring is visible at the entry point
+  // and the wiring path matches the one tests exercise.
+  crypto: defaultCryptoProvider(),
 });
 
 const root = document.getElementById("root");

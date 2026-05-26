@@ -29,6 +29,19 @@ const QUEUE_CAP = 50;
 let entries: ToastEntry[] = [];
 const listeners = new Set<Listener>();
 
+/**
+ * Monotonic id counter. Toast IDs are used as React keys and as `dismiss(id)`
+ * handles — they need to be unique within a session and stable across
+ * re-renders, NOT cryptographically random. A counter is the right tool;
+ * avoiding `crypto.randomUUID()` here keeps this module free of the secure-
+ * context dependency that bit the Manager (see lib/crypto.ts).
+ */
+let _toastIdCounter = 0;
+function nextToastId(): string {
+  _toastIdCounter += 1;
+  return `t-${Date.now()}-${_toastIdCounter}`;
+}
+
 function notify(): void {
   const snapshot: ReadonlyArray<ToastEntry> = [...entries];
   for (const l of listeners) l(snapshot);
@@ -40,7 +53,7 @@ function notify(): void {
  */
 export function showToast({ level, text }: { level: ToastLevel; text: string }): void {
   const entry: ToastEntry = {
-    id: crypto.randomUUID(),
+    id: nextToastId(),
     level,
     text,
     ts: Date.now(),
