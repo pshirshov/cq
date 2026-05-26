@@ -26,6 +26,51 @@ import { isRetriable } from "@cq/shared";
 import type { ServerFrame, ClientFrame } from "@cq/shared";
 
 // ---------------------------------------------------------------------------
+// PR-15: RTT summary type + window computation
+// ---------------------------------------------------------------------------
+
+/**
+ * RTT statistics over a time window.
+ * null when no samples exist in that window.
+ */
+export interface RttSummary {
+  min: number;
+  median: number;
+  max: number;
+  count: number;
+}
+
+/**
+ * Compute min/median/max/count for RTT samples within `windowMs` of `now`.
+ * Returns null when no samples exist in the window.
+ * Exported so rtt-windows.test.ts can test it directly.
+ */
+export function computeRttSummary(
+  samples: ReadonlyArray<{ ts: number; rtt: number }>,
+  now: number,
+  windowMs: number,
+): RttSummary | null {
+  const cutoff = now - windowMs;
+  const windowed: number[] = [];
+  for (const s of samples) {
+    if (s.ts >= cutoff) {
+      windowed.push(s.rtt);
+    }
+  }
+  if (windowed.length === 0) return null;
+
+  windowed.sort((a, b) => a - b);
+  const min = windowed[0]!;
+  const max = windowed[windowed.length - 1]!;
+  const mid = Math.floor(windowed.length / 2);
+  const median = windowed.length % 2 === 0
+    ? (windowed[mid - 1]! + windowed[mid]!) / 2
+    : windowed[mid]!;
+
+  return { min, median, max, count: windowed.length };
+}
+
+// ---------------------------------------------------------------------------
 // Time-jump detector constants (PR-11 / R8)
 // ---------------------------------------------------------------------------
 
@@ -75,6 +120,21 @@ export interface ManagerStats {
   readonly retryScheduledAt: number | null;
   /** PR-10 will toggle this; default false here. */
   readonly pendingReconnectOnVisible: boolean;
+  /**
+   * PR-15: RTT statistics per time window.
+   * Each window covers the most recent N milliseconds of samples.
+   * null when no samples exist in that window.
+   */
+  readonly rttWindows: {
+    "30s": RttSummary | null;
+    "1m": RttSummary | null;
+    "5m": RttSummary | null;
+  };
+  /**
+   * PR-15: Packet-loss percentage (0..100).
+   * Computed as (pingsLost / pingsSent * 100); 0 when no pings have been sent.
+   */
+  readonly lossPct: number;
 }
 
 export interface ManagerOpts {
@@ -182,6 +242,26 @@ export class Manager {
 
   // --- lifecycle flag -------------------------------------------------------
   private _destroyed: boolean = false;
+
+  // --- PR-15: RTT window tracking ------------------------------------------
+  /**
+   * Bounded ring of RTT samples. Each entry records the clock() timestamp and
+   * the measured RTT in milliseconds. New samples are appended; old ones beyond
+   * the 5-minute horizon are pruned lazily in _deriveStats().
+   * Cap: 1000 entries to bound memory.
+   */
+  private readonly _rttSamples: Array<{ ts: number; rtt: number }> = [];
+  private readonly _RTT_SAMPLE_CAP = 1_000;
+  /** Total client pings sent across all connections (incremented in _handleConnUpdate). */
+  private _pingsSent: number = 0;
+  /** Total pings that timed out without a pong (STALE transitions of the active connection). */
+  private _pingsLost: number = 0;
+  /** Per-connection previous RTT value — used to detect new RTT measurements. */
+  private readonly _prevRtt: Map<string, number | null> = new Map();
+  /** Per-connection previous inFlight count — used to detect new pings sent. */
+  private readonly _prevInFlight: Map<string, number> = new Map();
+  /** Per-connection previous state — used to detect STALE transitions (lost pings). */
+  private readonly _prevState: Map<string, ConnectionState> = new Map();
 
   // --- PR-11: time-jump detector -------------------------------------------
   private _lastTickAt: number = 0;
@@ -559,6 +639,34 @@ export class Manager {
     const prevState = entry.stats.state;
     entry.stats = newStats;
 
+    // --- PR-15: telemetry updates ----------------------------------------
+
+    // Detect new pings sent: inFlight increased
+    const prevInFlight = this._prevInFlight.get(id) ?? 0;
+    const currInFlight = newStats.inFlight;
+    if (currInFlight > prevInFlight) {
+      this._pingsSent += currInFlight - prevInFlight;
+    }
+    this._prevInFlight.set(id, currInFlight);
+
+    // Detect new RTT measurement: rtt value changed
+    const prevRtt = this._prevRtt.get(id);
+    if (newStats.rtt !== null && newStats.rtt !== prevRtt) {
+      this._rttSamples.push({ ts: this._clock(), rtt: newStats.rtt });
+      // Trim to cap — remove oldest entries beyond the cap
+      if (this._rttSamples.length > this._RTT_SAMPLE_CAP) {
+        this._rttSamples.splice(0, this._rttSamples.length - this._RTT_SAMPLE_CAP);
+      }
+    }
+    this._prevRtt.set(id, newStats.rtt);
+
+    // Detect lost pings: connection transitioned to STALE — a heartbeat timed out
+    const prevStateForId = this._prevState.get(id) ?? "NEW";
+    if (newStats.state === "STALE" && prevStateForId === "ALIVE") {
+      this._pingsLost += 1;
+    }
+    this._prevState.set(id, newStats.state);
+
     // --- ALIVE: first time this connection reaches ALIVE ---
     if (newStats.state === "ALIVE" && prevState !== "ALIVE") {
       // Record when this connection first became ALIVE (for oldest-ALIVE rule)
@@ -624,6 +732,9 @@ export class Manager {
       entry.unsub();
       this._pool.delete(id);
       this._entrySockets.delete(id);
+      this._prevRtt.delete(id);
+      this._prevInFlight.delete(id);
+      this._prevState.delete(id);
 
       if (wasActive) {
         this._activeConnectionId = null;
@@ -672,6 +783,9 @@ export class Manager {
     entry.unsub();
     this._pool.delete(id);
     this._entrySockets.delete(id);
+    this._prevRtt.delete(id);
+    this._prevInFlight.delete(id);
+    this._prevState.delete(id);
     entry.conn.close(reason);
   }
 
@@ -772,6 +886,17 @@ export class Manager {
       connectedAt: e.stats.connectedAt,
     }));
 
+    const now = this._clock();
+    const rttWindows = {
+      "30s": computeRttSummary(this._rttSamples, now, 30_000),
+      "1m": computeRttSummary(this._rttSamples, now, 60_000),
+      "5m": computeRttSummary(this._rttSamples, now, 300_000),
+    };
+
+    const lossPct = this._pingsSent > 0
+      ? (this._pingsLost / this._pingsSent) * 100
+      : 0;
+
     return {
       connections,
       activeConnectionId: this._activeConnectionId,
@@ -787,6 +912,8 @@ export class Manager {
       nextRetryAt: this._nextRetryAt,
       retryScheduledAt: this._retryScheduledAt,
       pendingReconnectOnVisible: this._pendingReconnectOnVisible,
+      rttWindows,
+      lossPct,
     };
   }
 

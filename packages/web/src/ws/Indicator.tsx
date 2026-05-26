@@ -4,6 +4,7 @@ import { deriveWidgetState } from "./deriveWidgetState";
 import type { WidgetState } from "./deriveWidgetState";
 import { CountdownRing } from "./CountdownRing";
 import { computeRingRemaining } from "./computeRingRemaining";
+import { Tooltip } from "./Tooltip";
 import styles from "../styles/Indicator.module.css";
 
 // ---------------------------------------------------------------------------
@@ -113,6 +114,12 @@ export function Indicator({ manager, ringOpts }: IndicatorProps): React.ReactEle
   const [stats, setStats] = useState<ManagerStats>(() => manager.stats);
   const [now, setNow] = useState<number>(() => Date.now());
 
+  // PR-15: tooltip visibility state
+  // hovered → transient (closes on mouseleave); clicked → persistent (toggle)
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const tooltipVisible = hovered || pinned;
+
   // ---------------------------------------------------------------------------
   // Subscribe to Manager.onUpdate for immediate event-driven refresh (PR-14)
   // ---------------------------------------------------------------------------
@@ -177,24 +184,31 @@ export function Indicator({ manager, ringOpts }: IndicatorProps): React.ReactEle
   const ringInfo = computeRingRemaining(stats, resolvedRingOpts, now);
 
   return (
-    <div
-      id="ws-indicator"
-      className={`${styles.indicator ?? ""} ${colorClass}`}
-      data-state={ws}
-      aria-label={ariaLabel}
-      role="status"
-      title={ariaLabel}
-    >
-      {glyph}
-      {ringInfo !== null && (
-        <CountdownRing
-          remaining={ringInfo.remaining}
-          total={ringInfo.total}
-          size={32}
-          strokeWidth={3}
-          ariaHidden
-        />
-      )}
-    </div>
+    <>
+      <div
+        id="ws-indicator"
+        className={`${styles.indicator ?? ""} ${colorClass}`}
+        data-state={ws}
+        aria-label={ariaLabel}
+        role="status"
+        title={ariaLabel}
+        style={{ cursor: "pointer" }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => setPinned((p) => !p)}
+      >
+        {glyph}
+        {ringInfo !== null && (
+          <CountdownRing
+            remaining={ringInfo.remaining}
+            total={ringInfo.total}
+            size={32}
+            strokeWidth={3}
+            ariaHidden
+          />
+        )}
+      </div>
+      {tooltipVisible && <Tooltip stats={stats} now={now} />}
+    </>
   );
 }
