@@ -15,7 +15,9 @@
  *     calls checkConnections() (short gap) or handleResume(elapsed) (long gap ≥ pongTimeout).
  *     Fires even when the tab is hidden — we want the connection ready before visibility.
  *
- * PR-12 hardens the destroyed-flag invariant further.
+ * PR-12 hardens the destroyed-flag invariant: _destroyed is set before any
+ * close side-effect; every spawn, handler, and scheduler short-circuits on it;
+ * isTerminal in stats now includes _destroyed (R13 truthfulness).
  */
 
 import { Connection } from "./Connection";
@@ -272,28 +274,52 @@ export class Manager {
 
   /**
    * Close all connections, clear all timers. The Manager becomes inert.
-   * PR-12 will harden the destroyed-flag invariant further.
+   *
+   * R12 invariant: `_destroyed` is set FIRST — before any side effect that
+   * could re-enter a spawn or schedule path. Every state handler, scheduler,
+   * and public method gates on `_destroyed`, so closing connections
+   * synchronously below cannot arm a new reconnect timer even if the close
+   * drives a connection through DEAD inside the same call stack.
+   *
+   * After closing connections, a second `_cancelBackoff()` clears any timer
+   * that could theoretically have been armed during the close cascade (belt-
+   * and-suspenders; the gating above makes this a no-op in practice, but the
+   * specification requires it).
+   *
+   * A `_notify()` fires while subscribers are still registered so that any
+   * registered `onUpdate` callback sees `isTerminal: true` before the manager
+   * goes fully silent.
    */
   destroy(): void {
     if (this._destroyed) return;
-    this._destroyed = true;
+    this._destroyed = true;     // set FIRST — re-entry guard for all handlers
 
-    // Clear time-jump detector tick interval
+    // Cancel scheduled work before closing connections.
+    this._cancelBackoff();
     this.stopTimeJumpDetector();
 
-    // Clear backoff timer
-    this._cancelBackoff();
-
-    // Close all connections
+    // Close every connection synchronously.
+    // Because _destroyed is already true, any DEAD handler triggered by
+    // conn.close() short-circuits at the top of _handleConnUpdate and cannot
+    // call _scheduleBackoff().
     for (const entry of this._pool.values()) {
       entry.unsub();
-      entry.conn.close("manager destroyed");
+      try { entry.conn.close("manager destroyed"); } catch { /* ignore */ }
     }
     this._pool.clear();
     this._entrySockets.clear();
     this._activeConnectionId = null;
 
-    // Clear subscribers (becomes inert; no more notifications)
+    // Belt-and-suspenders: clear any timer that might have been set during
+    // the close cascade (no-op if the first cancel already cleared it).
+    this._cancelBackoff();
+
+    // Notify subscribers once so they see isTerminal: true (derived from
+    // _destroyed), then silence the manager permanently.
+    this._pendingReconnectOnVisible = false;
+    this._notify();
+
+    // Silence the manager: no further notifications will be sent.
     this._updateSubs.length = 0;
     this._messageSubs.length = 0;
   }
@@ -731,7 +757,11 @@ export class Manager {
       activeConnectionId: this._activeConnectionId,
       attempt: this._attempt,
       maxAttempts: this._maxAttempts,
-      isTerminal: this._isTerminal,
+      // R13: isTerminal is true whenever the manager will not retry — which
+      // includes the destroyed case (even though _isTerminal was not explicitly
+      // set). Computing this here (derived, never stored) means the flag is
+      // always truthful without needing a second write path in destroy().
+      isTerminal: this._destroyed || this._isTerminal,
       lastCloseCode: this._lastCloseCode,
       lastCloseReason: this._lastCloseReason,
       nextRetryAt: this._nextRetryAt,
