@@ -4,6 +4,7 @@
   "type": "module",
   "workspaces": ["packages/shared", "packages/server", "packages/web"],
   "scripts": {
+    "check": "tsc -b && eslint . && bun test",
     "typecheck": "tsc -b",
     "lint": "eslint packages",
     "format": "prettier --write .",
