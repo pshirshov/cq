@@ -1,30 +1,25 @@
 /**
  * sdk-stub.test.ts — PR-20: bridge invocation against MockAnthropicHTTP.
  *
- * Design note (PR-20-D01):
- * The real `query()` from `@anthropic-ai/claude-agent-sdk` spawns the native
- * Claude Code binary, which is distributed as an optional peer package
- * (`@anthropic-ai/claude-agent-sdk-linux-x64`). That package is NOT installed
- * in this environment (only the JS SDK wrapper is present). Consequently,
- * calling the real `query()` throws immediately:
- *   "Native CLI binary for linux-x64 not found. Reinstall @anthropic-ai/claude-agent-sdk
- *    without --omit=optional, or set options.pathToClaudeCodeExecutable."
+ * Two describe blocks:
  *
- * Resolution: these tests use a `queryFactory` that issues a real `fetch()` call
- * against `MockAnthropicHTTP`'s `POST /v1/messages` SSE endpoint and then maps
- * the parsed SSE events to `SDKMessage` objects — exercising the full SSE parsing
- * and message-mapping path through the Bridge without requiring the native binary.
+ * 1. "Bridge against MockAnthropicHTTP (PR-20 fallback path)" — kept for
+ *    regression coverage. Uses a `queryFactory` that fetches directly from the
+ *    mock via fetch(), bypassing the native CLI binary. Tests that the bridge
+ *    SSE parsing and message-mapping path work correctly in isolation.
  *
- * The defect is tracked as PR-20-D01 in defects.md. When the native binary is
- * available (full install or CI with optional deps), `sdk-stub.test.ts` should
- * be updated to remove the `queryFactory` injection and rely on
- * `ANTHROPIC_BASE_URL` env-var inheritance instead.
+ * 2. "Bridge against MockAnthropicHTTP (REAL SDK, PR-20-D01)" — added when
+ *    @anthropic-ai/claude-agent-sdk-linux-x64 is installed. Uses the real
+ *    `query()` from the SDK, which spawns the native CLI subprocess. The
+ *    subprocess inherits `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` from the
+ *    environment, pointing it at MockAnthropicHTTP. No `queryFactory` injection —
+ *    the Bridge uses the default SDK path. Resolves PR-20-D01.
  *
- * Cases:
- *  1. Bridge invokes SSE fetch against MockAnthropicHTTP; chat.input →
- *     chat.event with streamed assistant text, then chat.done reason=completed.
- *  2. Error path: MockAnthropicHTTP returns HTTP 500 →
- *     bridge emits chat.done reason=errored (and optionally chat.error).
+ * The real SDK subprocess sends `HEAD /` as a connectivity probe before making
+ * API calls; MockAnthropicHTTP now handles this (returns 200). The subprocess
+ * also makes two simultaneous `/v1/messages` requests on startup (one with the
+ * raw user prompt, one with system-reminder context); MockAnthropicHTTP returns
+ * the scripted SSE response for each.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
@@ -431,4 +426,111 @@ describe("Bridge against MockAnthropicHTTP (PR-20 fallback path)", () => {
       await mock?.stop();
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// Real-SDK tests (PR-20-D01 resolution)
+//
+// These tests use the REAL `query()` from @anthropic-ai/claude-agent-sdk —
+// no `queryFactory` injection. The Bridge spawns the native CLI subprocess,
+// which inherits ANTHROPIC_BASE_URL/ANTHROPIC_API_KEY from the environment
+// and hits MockAnthropicHTTP instead of the real Anthropic API.
+//
+// The subprocess sends HEAD / (connectivity probe) and then POST /v1/messages.
+// MockAnthropicHTTP now handles HEAD / (returns 200) and POST /v1/messages
+// (returns the scripted SSE sequence).
+//
+// Timeout is 28 s (well within bun test's default) to account for the
+// subprocess startup overhead (~2–4 s) and any CI variance.
+// ---------------------------------------------------------------------------
+
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+
+describe("Bridge against MockAnthropicHTTP (REAL SDK, PR-20-D01)", () => {
+  // PR-20-D01 resolution: real SDK subprocess invoked; ANTHROPIC_BASE_URL
+  // points at MockAnthropicHTTP. No queryFactory injection.
+  it(
+    "REAL SDK: chat.input → streamed assistant chat.event via MockAnthropicHTTP; chat.done reason=completed",
+    async () => {
+      let mock: MockAnthropicHTTP | null = null;
+      const tmpHome = await fs.mkdtemp(path.join(os.tmpdir(), "cq-sdk-real-"));
+      await fs.mkdir(path.join(tmpHome, ".claude"), { recursive: true });
+
+      try {
+        // The real subprocess returns DEFAULT_SSE_EVENTS for all /v1/messages requests.
+        mock = await startMockAnthropic({ scriptedResponse: DEFAULT_SSE_EVENTS });
+
+        // Inherit these env vars into the spawned subprocess.
+        process.env["ANTHROPIC_BASE_URL"] = mock.url;
+        process.env["ANTHROPIC_API_KEY"] = "sk-test-fake";
+        process.env["HOME"] = tmpHome;
+
+        // Bridge with NO queryFactory — uses real SDK query().
+        const registry = new SessionRegistry();
+        const bridge = new Bridge({
+          logger: noopLogger,
+          registry,
+          cwd: tmpHome,
+          home: tmpHome,
+        });
+
+        const ws = new MockWsSocket();
+        await bridge.handleChatStart(ws, makeChatStart());
+
+        // With the real SDK subprocess, chat.started (system/init) is only emitted
+        // AFTER the subprocess processes the first user message. We therefore send
+        // chat.input immediately using bridge.activeSessionId() — which is set by
+        // handleChatStart before the background loop starts — then wait for both
+        // chat.started and the subsequent chat.event.
+        const sessionId = bridge.activeSessionId()!;
+        expect(typeof sessionId).toBe("string");
+        await bridge.handleChatInput(ws, makeChatInput(sessionId, "say hello"));
+
+        // Wait for chat.started — subprocess startup + first API round-trip.
+        const [startedFrame] = await ws.waitForFrames("chat.started", 1, 25000);
+        expect(startedFrame).toBeDefined();
+        expect(startedFrame!.type).toBe("chat.started");
+
+        // Wait for the "assistant" sdkEvent — one of the chat.event frames emitted
+        // during a turn. Other frames include stream_event and system/status events
+        // that arrive before the assistant frame, so we must poll until the
+        // assistant-type frame is present rather than stopping at the first event.
+        let assistantEvent: ParsedFrame | undefined;
+        const evtDeadline = Date.now() + 25000;
+        while (Date.now() < evtDeadline) {
+          assistantEvent = ws.framesOfType("chat.event").find((f) => {
+            const sdkEvt = f.sdkEvent as Record<string, unknown>;
+            return sdkEvt.type === "assistant";
+          });
+          if (assistantEvent !== undefined) break;
+          await Bun.sleep(50);
+        }
+        expect(assistantEvent).toBeDefined();
+
+        // The SSE response contained "hello" via DEFAULT_SSE_EVENTS.
+        const sdkEvt = assistantEvent!.sdkEvent as Record<string, unknown>;
+        const msg = sdkEvt.message as { content: Array<{ type: string; text?: string }> };
+        const textContent = msg.content.find((c) => c.type === "text");
+        expect(textContent?.text).toContain("hello");
+
+        // The mock received at least one /v1/messages request.
+        expect(mock.requestCount()).toBeGreaterThanOrEqual(1);
+
+        // After the turn completes the subprocess waits for more input (the bridge
+        // queue stays open for multi-turn conversations). Calling shutdown() closes
+        // the query which unblocks the runLoop, causing it to emit
+        // chat.done{reason:'completed'}.
+        await bridge.shutdown();
+
+        const [doneFrame] = await ws.waitForFrames("chat.done", 1, 5000);
+        expect(doneFrame!.reason).toBe("completed");
+      } finally {
+        await mock?.stop();
+        await fs.rm(tmpHome, { recursive: true, force: true });
+      }
+    },
+    30000, // test-level timeout: 30 s for subprocess startup overhead
+  );
 });

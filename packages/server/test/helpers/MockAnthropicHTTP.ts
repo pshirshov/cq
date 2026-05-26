@@ -88,6 +88,143 @@ export const ERROR_RESPONSE_BODY = JSON.stringify({
   error: { type: "api_error", message: "internal server error (stub)" },
 });
 
+/**
+ * SSE event sequence for an assistant message that invokes the AskUserQuestion tool.
+ *
+ * The AskUserQuestion input schema requires:
+ *   questions[].header   — string (required, displayed as the question heading)
+ *   questions[].question — string (required, the question body)
+ *   questions[].options  — string[] (required, list of choices)
+ *   questions[].question_type — "single_select" | "multiple_select" (required)
+ *
+ * Used for real-SDK spike tests (PR-31-D01).
+ */
+export const ASK_USER_QUESTION_TOOL_USE_ID = "toolu_ask_spike_001";
+
+export const ASK_USER_QUESTION_SSE_EVENTS: SSEEvent[] = [
+  {
+    event: "message_start",
+    data: {
+      type: "message_start",
+      message: {
+        id: "msg_ask_spike_1",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-3-5-sonnet-stub",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 0 },
+      },
+    },
+  },
+  {
+    event: "content_block_start",
+    data: {
+      type: "content_block_start",
+      index: 0,
+      content_block: {
+        type: "tool_use",
+        id: ASK_USER_QUESTION_TOOL_USE_ID,
+        name: "AskUserQuestion",
+        input: {},
+      },
+    },
+  },
+  {
+    event: "content_block_delta",
+    data: {
+      type: "content_block_delta",
+      index: 0,
+      delta: {
+        type: "input_json_delta",
+        // questions[].header is required by the AskUserQuestion schema.
+        partial_json: JSON.stringify({
+          questions: [
+            {
+              header: "Please choose an option",
+              question: "Which option do you prefer?",
+              options: ["Option A", "Option B"],
+              question_type: "single_select",
+            },
+          ],
+        }),
+      },
+    },
+  },
+  {
+    event: "content_block_stop",
+    data: { type: "content_block_stop", index: 0 },
+  },
+  {
+    event: "message_delta",
+    data: {
+      type: "message_delta",
+      delta: { stop_reason: "tool_use", stop_sequence: null },
+      usage: { output_tokens: 15 },
+    },
+  },
+  {
+    event: "message_stop",
+    data: { type: "message_stop" },
+  },
+];
+
+/**
+ * SSE event sequence confirming that the answer was received.
+ * The text contains "Option B" to let tests assert the chosen option was acknowledged.
+ */
+export const ASK_USER_QUESTION_CONFIRM_SSE_EVENTS: SSEEvent[] = [
+  {
+    event: "message_start",
+    data: {
+      type: "message_start",
+      message: {
+        id: "msg_ask_spike_2",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-3-5-sonnet-stub",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 25, output_tokens: 0 },
+      },
+    },
+  },
+  {
+    event: "content_block_start",
+    data: {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "text", text: "" },
+    },
+  },
+  {
+    event: "content_block_delta",
+    data: {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "text_delta", text: "Received: Option B was chosen." },
+    },
+  },
+  {
+    event: "content_block_stop",
+    data: { type: "content_block_stop", index: 0 },
+  },
+  {
+    event: "message_delta",
+    data: {
+      type: "message_delta",
+      delta: { stop_reason: "end_turn", stop_sequence: null },
+      usage: { output_tokens: 8 },
+    },
+  },
+  {
+    event: "message_stop",
+    data: { type: "message_stop" },
+  },
+];
+
 // ---------------------------------------------------------------------------
 // MockAnthropicHTTP result
 // ---------------------------------------------------------------------------
@@ -111,11 +248,13 @@ export type MockAnthropicHTTPOpts = {
   /**
    * Custom SSE event sequence to return for POST /v1/messages.
    * Defaults to `DEFAULT_SSE_EVENTS`.
+   * Ignored if `scriptedResponder` is provided.
    */
   scriptedResponse?: SSEEvent[];
   /**
    * When true, POST /v1/messages returns HTTP 500 with a JSON error body
    * instead of a streaming SSE response. Use for error-path tests.
+   * Ignored if `scriptedResponder` is provided.
    */
   returnError?: boolean;
   /**
@@ -123,6 +262,17 @@ export type MockAnthropicHTTPOpts = {
    * `returnError` is true.
    */
   errorStatus?: number;
+  /**
+   * Custom async callback invoked for each POST /v1/messages request.
+   * Receives the parsed request body (as a string) and returns either:
+   *   - an SSEEvent[] array (served as text/event-stream), or
+   *   - a Response object (used as-is).
+   *
+   * When provided, takes precedence over `scriptedResponse` and `returnError`.
+   * Use for multi-round flows (e.g. AskUserQuestion spike) where the response
+   * must depend on the request content.
+   */
+  scriptedResponder?: (body: string, reqIndex: number) => Promise<SSEEvent[] | Response>;
 };
 
 // ---------------------------------------------------------------------------
@@ -177,6 +327,7 @@ export async function startMockAnthropic(
   const events = opts.scriptedResponse ?? DEFAULT_SSE_EVENTS;
   const returnError = opts.returnError ?? false;
   const errorStatus = opts.errorStatus ?? 500;
+  const scriptedResponder = opts.scriptedResponder;
 
   let reqCount = 0;
 
@@ -187,8 +338,30 @@ export async function startMockAnthropic(
     async fetch(req: Request): Promise<Response> {
       const url = new URL(req.url);
 
+      // HEAD / — the real Claude CLI subprocess sends this as a connectivity probe
+      // before initiating its first API call. Return 200 to let it proceed.
+      if (req.method === "HEAD" && url.pathname === "/") {
+        return new Response(null, { status: 200 });
+      }
+
       if (req.method === "POST" && url.pathname === "/v1/messages") {
         reqCount += 1;
+
+        // Custom responder takes precedence — used for multi-round real-SDK tests.
+        if (scriptedResponder !== undefined) {
+          const body = await req.text();
+          const result = await scriptedResponder(body, reqCount);
+          if (result instanceof Response) return result;
+          const sseBody = encodeSSEEvents(result);
+          return new Response(sseBody, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "X-Accel-Buffering": "no",
+            },
+          });
+        }
 
         if (returnError) {
           return new Response(ERROR_RESPONSE_BODY, {
@@ -198,8 +371,8 @@ export async function startMockAnthropic(
         }
 
         // Return SSE stream.
-        const body = encodeSSEEvents(events);
-        return new Response(body, {
+        const sseBody = encodeSSEEvents(events);
+        return new Response(sseBody, {
           status: 200,
           headers: {
             "Content-Type": "text/event-stream",

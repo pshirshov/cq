@@ -18,6 +18,7 @@
  */
 
 import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
+import { createRequire } from "node:module";
 import type {
   Query,
   Options as SDKOptions,
@@ -285,6 +286,14 @@ export class Bridge {
       () => uiModeRef.current,
     );
 
+    // Bun workaround: resolve the native binary path explicitly.
+    // Under Bun, child_process.spawn can fail to launch the native CLI binary
+    // even when the file exists (ENOENT-type spawn error in Bun's emulation).
+    // Passing pathToClaudeCodeExecutable bypasses the SDK's default lookup and
+    // the problematic spawn path. Returns undefined in non-Bun runtimes so the
+    // SDK performs its own resolution unmodified.
+    const nativeBinPath = resolveNativeBinaryPath();
+
     const sdkOptions: SDKOptions = {
       cwd: this.cwd,
       forwardSubagentText: true,
@@ -296,6 +305,7 @@ export class Bridge {
       onElicitation,
       permissionMode: sdkPermissionMode,
       ...(hasMcpServers ? { mcpServers } : {}),
+      ...(nativeBinPath !== undefined ? { pathToClaudeCodeExecutable: nativeBinPath } : {}),
     };
     if (frame.model !== undefined) {
       sdkOptions.model = frame.model;
@@ -894,4 +904,47 @@ function buildMessageParam(text: string): SDKUserMessage["message"] {
   // construction. The Anthropic SDK's MessageParam{role:'user', content:string}
   // is the simplest valid form and matches what the CLI subprocess expects.
   return { role: "user", content: text } as SDKUserMessage["message"];
+}
+
+/**
+ * Resolve the native Claude Code CLI binary path for the current platform.
+ *
+ * When running under Bun, the SDK's default binary lookup uses `createRequire`
+ * from the sdk.mjs location to resolve the optional peer package, then spawns
+ * it via `child_process.spawn`. In the Bun test runner, Bun's `child_process`
+ * emulation can fail to launch the resolved binary (spawn returns an ENOENT-type
+ * error even though the file exists). Passing `pathToClaudeCodeExecutable`
+ * explicitly to the SDK bypasses the problematic spawn path.
+ *
+ * This helper resolves the platform-specific package path relative to this
+ * file so the Bridge always passes an explicit, absolute path under Bun.
+ * Under Node.js (non-Bun runtimes), the SDK's built-in lookup works fine and
+ * `undefined` is returned to let the SDK do its own resolution.
+ */
+function resolveNativeBinaryPath(): string | undefined {
+  // Only apply the workaround when running under Bun.
+  if (typeof (process.versions as Record<string, unknown>)["bun"] === "undefined") {
+    return undefined;
+  }
+  try {
+    const req = createRequire(import.meta.url);
+    const platform = process.platform;
+    const arch = process.arch;
+    // Attempt both plain and -musl variants (musl check mirrors SDK's bx()).
+    const pkgCandidates = [
+      `@anthropic-ai/claude-agent-sdk-${platform}-${arch}/claude`,
+      `@anthropic-ai/claude-agent-sdk-${platform}-${arch}-musl/claude`,
+    ];
+    for (const pkg of pkgCandidates) {
+      try {
+        const resolved = req.resolve(pkg);
+        if (resolved) return resolved;
+      } catch {
+        // Not found — try next candidate.
+      }
+    }
+  } catch {
+    // Fallback: let the SDK do its own lookup.
+  }
+  return undefined;
 }

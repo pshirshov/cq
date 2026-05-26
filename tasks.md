@@ -3,7 +3,7 @@
 **Cycle:** outer-1 — **DISCHARGED**. G4 emitted 2026-05-26.
 **Goal:** ✓ build cq per [`./prompt.md`](./prompt.md). Discharge condition met: all five milestones `[x]` and archived; `bun run check` exits 0 (tsc + eslint + 396 tests); `bun run start --cwd <real-dir>` launches; sample prompt round-trips functionally verified via PR-51 e2e (live-browser path gated on missing SDK binary — `PR-20-D01`).
 **Accepted plan:** [`docs/drafts/20260526-0037-cq-plan.md`](docs/drafts/20260526-0037-cq-plan.md) (2294 lines, G2c-patched).
-**Defects:** [`./defects.md`](./defects.md). _(3 open: `PR-18-D01`, `PR-20-D01`, `PR-31-D01` — all carry forward on a single environmental constraint. 1 resolved: `PR-19-D01`.)_
+**Defects:** [`./defects.md`](./defects.md). _(1 open: `PR-18-D01` — carries forward. 3 resolved: `PR-19-D01`, `PR-20-D01`, `PR-31-D01`.)_
 **Final session log:** [`docs/logs/20260526-final-log.md`](docs/logs/20260526-final-log.md).
 
 ## Milestones — final
@@ -16,6 +16,10 @@
 - [x] **M5 — Polish & harden** — archive: [`./docs/archive/tasks-M5.md`](./docs/archive/tasks-M5.md). 7 PRs.
 
 **56 PRs shipped. 396 tests passing. 0 fails, 0 skips, 0 algedonic escalations to the user.**
+
+## Post-discharge fixes
+
+- `fix: install real SDK binary (PR-20-D01) + verify Candidate-A spike (PR-31-D01)` — Pinned `@anthropic-ai/claude-agent-sdk-linux-x64@0.3.150` in `packages/server/package.json`; added `resolveNativeBinaryPath()` to bridge.ts; added real-SDK test cases to `sdk-stub.test.ts`, `mcp-inheritance.test.ts`, and `ask-question.test.ts`; updated `MockAnthropicHTTP` to handle `HEAD /` probe and multi-round `scriptedResponder`; confirmed Candidate-A (synthetic tool_result injection) works against real subprocess. 399 tests pass (3 new).
 
 ## Archive
 

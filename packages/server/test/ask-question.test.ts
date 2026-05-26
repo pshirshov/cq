@@ -301,3 +301,227 @@ describe("Bridge.handleChatQuestionReply (integration)", () => {
     await bridge.shutdown();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Candidate-A spike — real SDK subprocess (PR-31-D01 resolution)
+//
+// This test drives the REAL SDK subprocess (no MockQuery / queryFactory) against
+// MockAnthropicHTTP. The mock is scripted to:
+//   1. First /v1/messages (small preflight call on startup): return simple text.
+//   2. Second /v1/messages (main user prompt, body > 5 kB): return an assistant
+//      message containing an AskUserQuestion tool_use.
+//   3. Third+ /v1/messages (after tool_result injection): return a confirmation
+//      assistant message whose text includes "Option B".
+//
+// The test then:
+//   a. Waits for the bridge to surface the AskUserQuestion tool_use in a chat.event.
+//   b. Calls bridge.handleChatQuestionReply() to inject the answer.
+//   c. Asserts a subsequent chat.event carries an assistant message with "Option B".
+//   d. Verifies chat.done reason=completed.
+//
+// If the real subprocess rejects the synthetic tool_result (Candidate-A fails),
+// the third API call will be missing and the test will time out. In that case,
+// fall back to Options.disallowedTools:['AskUserQuestion'] (Candidate-B).
+// ---------------------------------------------------------------------------
+
+import * as fsNode from "node:fs/promises";
+import * as osNode from "node:os";
+import * as pathNode from "node:path";
+import {
+  startMockAnthropic,
+  ASK_USER_QUESTION_SSE_EVENTS,
+  ASK_USER_QUESTION_CONFIRM_SSE_EVENTS,
+  ASK_USER_QUESTION_TOOL_USE_ID,
+} from "./helpers/MockAnthropicHTTP";
+
+class RealSdkMockWsSocket implements WsSocket {
+  readonly sent: ParsedFrame[] = [];
+
+  send(data: string): void {
+    this.sent.push(JSON.parse(data) as ParsedFrame);
+  }
+
+  close(): void {}
+
+  framesOfType(type: string): ParsedFrame[] {
+    return this.sent.filter((f) => f.type === type);
+  }
+
+  async waitForFrames(type: string, count = 1, timeoutMs = 25000): Promise<ParsedFrame[]> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const frames = this.framesOfType(type);
+      if (frames.length >= count) return frames;
+      await Bun.sleep(50);
+    }
+    throw new Error(
+      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}; ` +
+      `all seen: ${[...new Set(this.sent.map(f => f.type))].join(", ")}`,
+    );
+  }
+}
+
+describe("Candidate-A spike — AskUserQuestion via REAL SDK subprocess (PR-31-D01)", () => {
+  it(
+    "real subprocess: AskUserQuestion tool_use → injectAnswer → confirmation assistant message",
+    async () => {
+      const tmpHome = await fsNode.mkdtemp(pathNode.join(osNode.tmpdir(), "cq-ask-real-"));
+      await fsNode.mkdir(pathNode.join(tmpHome, ".claude"), { recursive: true });
+
+      let mock: import("./helpers/MockAnthropicHTTP").MockAnthropicHTTP | null = null;
+
+      try {
+        // Scripted multi-round responder:
+        //  - Preflight requests (small body, < 5 kB): simple text response.
+        //  - Main prompt request (body >= 5 kB, no tool_result): AskUserQuestion.
+        //  - After tool_result injection: confirmation with "Option B".
+        let askSent = false;
+        const simpleSseBody = (() => {
+          const simpleEvents = [
+            {
+              event: "message_start",
+              data: { type: "message_start", message: { id: "msg_simple", type: "message", role: "assistant", content: [], model: "claude-test", stop_reason: null, stop_sequence: null, usage: { input_tokens: 5, output_tokens: 0 } } },
+            },
+            { event: "content_block_start", data: { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } } },
+            { event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "ok" } } },
+            { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
+            { event: "message_delta", data: { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 1 } } },
+            { event: "message_stop", data: { type: "message_stop" } },
+          ] as import("./helpers/MockAnthropicHTTP").SSEEvent[];
+          return simpleEvents
+            .map((e) => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`)
+            .join("");
+        })();
+
+        mock = await startMockAnthropic({
+          scriptedResponder: async (body: string) => {
+            const hasToolResult = body.includes("tool_result");
+            if (hasToolResult) {
+              // Third+ call: tool_result was injected — return confirmation.
+              return ASK_USER_QUESTION_CONFIRM_SSE_EVENTS;
+            }
+            if (!askSent && body.length >= 5000) {
+              // Main prompt request: return AskUserQuestion tool_use.
+              askSent = true;
+              return ASK_USER_QUESTION_SSE_EVENTS;
+            }
+            // Preflight / small requests: return simple text.
+            return new Response(simpleSseBody, {
+              status: 200,
+              headers: { "Content-Type": "text/event-stream" },
+            });
+          },
+        });
+
+        process.env["ANTHROPIC_BASE_URL"] = mock.url;
+        process.env["ANTHROPIC_API_KEY"] = "sk-test-fake";
+        process.env["HOME"] = tmpHome;
+
+        // Bridge with NO queryFactory — real SDK subprocess.
+        const registry = new SessionRegistry();
+        const bridge = new Bridge({
+          logger: noopLogger,
+          registry,
+          cwd: tmpHome,
+          home: tmpHome,
+        });
+
+        const ws = new RealSdkMockWsSocket();
+        await bridge.handleChatStart(ws, { type: "chat.start", seq: 0, ts: Date.now() });
+
+        // With the real SDK, chat.started only arrives after the subprocess
+        // processes the first user message. Send chat.input immediately using
+        // bridge.activeSessionId() which is set synchronously by handleChatStart.
+        const sessionId = bridge.activeSessionId()!;
+
+        // Send the user prompt that will trigger AskUserQuestion.
+        await bridge.handleChatInput(ws, {
+          type: "chat.input",
+          seq: 1,
+          ts: Date.now(),
+          sessionId,
+          text: "ask me something",
+        });
+
+        // Wait for chat.started (subprocess startup + first API round-trip).
+        const [startedFrame] = await ws.waitForFrames("chat.started", 1, 25000);
+        expect(startedFrame!.type).toBe("chat.started");
+        const invocationId = startedFrame!.invocationId as string;
+
+        // Wait for the AskUserQuestion tool_use to surface as a chat.event.
+        // The SDK emits the assistant message containing the tool_use.
+        let toolUseId: string | null = null;
+        const deadline = Date.now() + 25000;
+        while (Date.now() < deadline) {
+          const events = ws.framesOfType("chat.event");
+          for (const evt of events) {
+            const sdkEvt = evt.sdkEvent as Record<string, unknown>;
+            if (sdkEvt.type === "assistant") {
+              const msg = sdkEvt.message as { content?: Array<{ type: string; name?: string; id?: string }> };
+              const toolUse = (msg.content ?? []).find(
+                (c) => c.type === "tool_use" && c.name === "AskUserQuestion",
+              );
+              if (toolUse) {
+                toolUseId = toolUse.id ?? ASK_USER_QUESTION_TOOL_USE_ID;
+                break;
+              }
+            }
+          }
+          if (toolUseId !== null) break;
+          await Bun.sleep(50);
+        }
+
+        expect(toolUseId).not.toBeNull();
+        expect(typeof toolUseId).toBe("string");
+
+        // Inject the answer via the bridge.
+        bridge.handleChatQuestionReply(ws, {
+          type: "chat.question_reply",
+          seq: 2,
+          ts: Date.now(),
+          sessionId,
+          invocationId,
+          toolUseId: toolUseId!,
+          answers: { "0": ["Option B"] },
+        });
+
+        // Wait for a subsequent chat.event with an assistant message containing "Option B".
+        const confirmDeadline = Date.now() + 25000;
+        let confirmed = false;
+        while (Date.now() < confirmDeadline) {
+          const events = ws.framesOfType("chat.event");
+          for (const evt of events) {
+            const sdkEvt = evt.sdkEvent as Record<string, unknown>;
+            if (sdkEvt.type === "assistant") {
+              const msg = sdkEvt.message as { content?: Array<{ type: string; text?: string }> };
+              const textBlock = (msg.content ?? []).find((c) => c.type === "text");
+              if (textBlock?.text?.includes("Option B")) {
+                confirmed = true;
+                break;
+              }
+            }
+          }
+          if (confirmed) break;
+          await Bun.sleep(50);
+        }
+
+        expect(confirmed).toBe(true);
+
+        // The mock received at least 2 requests:
+        //  1. Main prompt → AskUserQuestion
+        //  2. After tool_result injection → confirmation
+        expect(mock.requestCount()).toBeGreaterThanOrEqual(2);
+
+        // Shut down the bridge to close the query and emit chat.done.
+        await bridge.shutdown();
+
+        const [doneFrame] = await ws.waitForFrames("chat.done", 1, 5000);
+        expect(doneFrame!.reason).toBe("completed");
+      } finally {
+        await mock?.stop();
+        await fsNode.rm(tmpHome, { recursive: true, force: true });
+      }
+    },
+    35000, // generous timeout: subprocess + multi-round interaction
+  );
+});
