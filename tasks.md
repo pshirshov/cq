@@ -20,7 +20,7 @@
 - [x] **M2 — Agent SDK / Chat MVP** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M2.md`](./docs/archive/tasks-M2.md)) — 9 PRs.
 - [x] **M3 — Chat full fidelity** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)) — 12 PRs.
 - [x] **M4 — Persistence + History tab** (closed: 2026-05-26; archive: [`./docs/archive/tasks-M4.md`](./docs/archive/tasks-M4.md)) — 9 PRs.
-- [ ] **M5 — Polish & harden** — graceful shutdown, error toasts, a11y, E2E suite, README, type/lint clean, stop-condition verify. *PRs PR-48 … PR-54 (7).*
+- [x] **M5 — Polish & harden** (closed: 2026-05-26; archive: [`./docs/logs/20260526-final-log.md`](./docs/logs/20260526-final-log.md)) — graceful shutdown, error toasts, a11y, E2E suite, README, type/lint clean, stop-condition verify. *PRs PR-48 … PR-54 (7).*
 
 Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b). 50 of 56 closed (385 tests passing).
 
@@ -34,11 +34,11 @@ Goal: ship. Graceful shutdown, error toasts, accessibility pass, true end-to-end
 - [x] **PR-51** — End-to-end suite (brief § 7 mandate; should resolve `PR-18-D01` if possible by driving Manager in-process; resolves `PR-31-D01` if real-SDK becomes feasible). Test: `e2e/full.test.ts`. Deps: PR-26, PR-44, PR-48.
 - [x] **PR-52** — README + run instructions + 2 screenshots + known-limitations (F-11 attachment cap, F-09 R14, F-02 AskUserQuestion status). Deps: PR-51.
 - [x] **PR-53** — Final type-check + lint clean; `bun run check` wires tsc + eslint + test. Deps: all prior.
-- [ ] **PR-54** — Final stop-condition verification per brief § 11 (server up, browser open, list-files round-trip, History drill-down); session log under `./docs/logs/`. Deps: PR-52, PR-53.
+- [x] **PR-54** — Final stop-condition verification per brief § 11 (server up, browser open, list-files round-trip, History drill-down); session log under `./docs/logs/`. Deps: PR-52, PR-53.
 
 ## In-progress / recent
 
-- **PR-54** — Final stop-condition verification per brief § 11; session log under `./docs/logs/`.
+ALL MILESTONES DISCHARGED — G4 emit pending.
 
 ## Recent completions (this cycle's worth)
 
