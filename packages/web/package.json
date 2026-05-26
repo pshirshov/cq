@@ -6,7 +6,10 @@
   "dependencies": {
     "@cq/shared": "workspace:*",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^3.0.0"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^15.0.0",
