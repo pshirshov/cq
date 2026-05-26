@@ -1,0 +1,23 @@
+{
+  "name": "cq",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/shared", "packages/server", "packages/web"],
+  "scripts": {
+    "typecheck": "tsc -b",
+    "lint": "eslint packages",
+    "format": "prettier --write .",
+    "test": "bun test --pass-with-no-tests",
+    "start": "bun run packages/server/src/main.ts",
+    "dev": "bun run packages/server/src/main.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "globals": "^16.2.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.34.0"
+  }
+}
