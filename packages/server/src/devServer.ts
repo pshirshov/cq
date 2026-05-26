@@ -1,5 +1,7 @@
 import type { Logger } from "./log/logger";
 import indexHtml from "../../web/index.html" with { type: "html" };
+import { WsSession, type WsSessionData } from "./ws/session";
+import { isOriginAllowed } from "./ws/origin";
 
 export type DevServerConfig = Readonly<{
   host: string;
@@ -27,12 +29,46 @@ export function startDevServer(
 ): RunningDevServer {
   const { host, port, cwd, dbPath, logger } = config;
 
-  const server = serve({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const server = (serve as (opts: any) => ReturnType<typeof Bun.serve>)({
     hostname: host,
     port,
     development: { hmr: true, console: true },
     routes: {
       "/": indexHtml,
+    },
+    fetch(req: Request, srv: { upgrade(req: Request, opts: { data: WsSessionData }): boolean }) {
+      const url = new URL(req.url);
+      if (url.pathname === "/ws") {
+        if (!isOriginAllowed(req, host, port)) {
+          logger.info("ws.origin_rejected", {
+            origin: req.headers.get("Origin") ?? "(none)",
+            host,
+            port,
+          });
+          return new Response(null, { status: 403 });
+        }
+
+        const sessionId = crypto.randomUUID();
+        const session = new WsSession(sessionId, logger);
+        const upgraded = srv.upgrade(req, { data: { sessionId, session } });
+        if (!upgraded) {
+          return new Response("Upgrade required", { status: 426 });
+        }
+        return undefined;
+      }
+      return new Response("Not found", { status: 404 });
+    },
+    websocket: {
+      open(ws: { data: WsSessionData; send(d: string): void; close(c?: number, r?: string): void }) {
+        ws.data.session.open(ws);
+      },
+      message(ws: { data: WsSessionData; send(d: string): void; close(c?: number, r?: string): void }, raw: string | Buffer) {
+        ws.data.session.message(ws, raw);
+      },
+      close(ws: { data: WsSessionData; send(d: string): void; close(c?: number, r?: string): void }, code: number, reason: string) {
+        ws.data.session.close(ws, code, reason);
+      },
     },
   });
 

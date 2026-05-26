@@ -1,6 +1,8 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import type { Logger } from "./log/logger";
+import { WsSession, type WsSessionData } from "./ws/session";
+import { isOriginAllowed } from "./ws/origin";
 
 export type ServerConfig = Readonly<{
   host: string;
@@ -18,12 +20,34 @@ export type RunningServer = {
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const { host, port, webOutdir, cwd, dbPath, logger } = config;
 
-  const server = Bun.serve({
+  const server = Bun.serve<WsSessionData>({
     hostname: host,
     port,
-    async fetch(req) {
+    async fetch(req, srv) {
       const url = new URL(req.url);
       const pathname = url.pathname;
+
+      // WebSocket upgrade — only on /ws
+      if (pathname === "/ws") {
+        if (!isOriginAllowed(req, host, port)) {
+          logger.info("ws.origin_rejected", {
+            origin: req.headers.get("Origin") ?? "(none)",
+            host,
+            port,
+          });
+          return new Response(null, { status: 403 });
+        }
+
+        const sessionId = crypto.randomUUID();
+        const session = new WsSession(sessionId, logger);
+        const upgraded = srv.upgrade(req, { data: { sessionId, session } });
+        if (!upgraded) {
+          // Bun returns false when the upgrade fails for non-WS requests
+          return new Response("Upgrade required", { status: 426 });
+        }
+        // upgrade() succeeded — must return undefined so Bun takes over.
+        return undefined;
+      }
 
       // Serve index.html for root or unknown paths
       if (pathname === "/" || pathname === "") {
@@ -50,6 +74,18 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       } catch {
         return new Response("Not found", { status: 404 });
       }
+    },
+
+    websocket: {
+      open(ws) {
+        ws.data.session.open(ws);
+      },
+      message(ws, raw) {
+        ws.data.session.message(ws, raw);
+      },
+      close(ws, code, reason) {
+        ws.data.session.close(ws, code, reason);
+      },
     },
   });
 
