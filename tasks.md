@@ -39,14 +39,14 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - [x] **PR-34** — Slash-command autocomplete (`/` opens popover; fuzzy match init.slash_commands; IME-safe). Test: `slash-autocomplete.test.ts`. Deps: PR-21, PR-25.
 - [x] **PR-35** — Attachments (clipboard image paste + drag-and-drop; 5 MB Zod refinement). Test: `attachments.test.ts`. Deps: PR-21.
 - [x] **PR-36** — File-reference rendering (path:line anchors; adds `chat.read_file_request/result` frames). Tests: `file-refs.test.ts`, `read-file.test.ts`. Deps: PR-22a.
-- [ ] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
+- [x] **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
 - [ ] **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
 
 **Dispatch order.** Mostly serial. Some parallel opportunity: PR-32/33/37/38 are mostly disjoint card files and can split across worktrees once PR-28 / PR-22a / PR-23 are in place.
 
 ## In-progress / recent
 
-- **PR-37** — Grep/Glob/WebFetch/WebSearch cards. Test: `grep-card.test.ts`. Deps: PR-23.
+- **PR-38** — TaskCreate/TaskList/TaskUpdate sidebar pin. Test: see plan § 6. Deps: PR-23, PR-22a.
 
 ## Recent completions (this cycle's worth)
 

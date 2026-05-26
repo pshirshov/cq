@@ -16,12 +16,16 @@ import { WriteCard } from "./WriteCard";
 import { EditCard } from "./EditCard";
 import { BashCard } from "./BashCard";
 import { PlanModeCard } from "./PlanModeCard";
+import { GrepCard } from "./GrepCard";
+import { WebCard } from "./WebCard";
 import { UnknownCard } from "./UnknownCard";
 
 export type { ReadInput, ReadCardProps } from "./ReadCard";
 export type { WriteInput, WriteCardProps } from "./WriteCard";
 export type { EditInput, EditCardProps } from "./EditCard";
 export type { BashInput, BashResult, BashCardProps } from "./BashCard";
+export type { GrepInput, GrepCardProps } from "./GrepCard";
+export type { WebFetchInput, WebSearchInput, WebCardProps } from "./WebCard";
 export { lineDiff } from "./diffLine";
 export type { DiffEntry } from "./diffLine";
 
@@ -133,6 +137,22 @@ export function ToolCard(
       return createElement(PlanModeCard, {
         toolUse,
         ...(toolResult !== undefined ? { toolResult } : {}),
+      });
+
+    case "Grep":
+    case "Glob":
+      return createElement(GrepCard, {
+        toolName: toolUse.name as "Grep" | "Glob",
+        input: toolUse.input as import("./GrepCard").GrepInput,
+        resultContent,
+      });
+
+    case "WebFetch":
+    case "WebSearch":
+      return createElement(WebCard, {
+        toolName: toolUse.name as "WebFetch" | "WebSearch",
+        input: toolUse.input as import("./WebCard").WebFetchInput | import("./WebCard").WebSearchInput,
+        resultContent,
       });
 
     default:
