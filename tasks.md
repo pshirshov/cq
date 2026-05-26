@@ -31,7 +31,7 @@ Goal: full resilient-ws-ui Part-3 reliability + indicator coverage on both serve
 
 - [x] **PR-06** — Server WS endpoint + Zod inbound validation + Origin check (F-19). Tests: `ws-basic.test.ts`, `ws-origin.test.ts`. Deps: PR-02, PR-03. (44 tests, commit `c05b27a`)
 - [x] **PR-07** — Server heartbeat (`hb.sping`/`hb.spong`) with setImmediate defer + nonce current+previous lookback `[ws R11]`. Test: `heartbeat.test.ts`. Deps: PR-06. (50 tests, commit HEAD, R11 ticked)
-- [ ] **PR-08** — Client `Connection` class: state machine NEW/ALIVE/STALE/DEAD + per-nonce ping + connect timeout `[ws R2,R3,R4]`. Test: `connection.test.ts`. Deps: PR-02.
+- [x] **PR-08** — Client `Connection` class: state machine NEW/ALIVE/STALE/DEAD + per-nonce ping + connect timeout `[ws R2,R3,R4]`. Test: `connection.test.ts`. Deps: PR-02. (8 tests, commit HEAD, R2+R3+R4 ticked)
 - [ ] **PR-09** — Client `Manager`: backoff + overlapping reconnect + close-code classify + pool cap=3 `[ws R5,R6,R7]`. Test: `manager.test.ts`. Deps: PR-08.
 - [ ] **PR-09a** — Server-side seq replay buffer (last-500 / 5 MB ring per session) (F-04). Test: `replay-buffer.test.ts`. Deps: PR-06, PR-09.
 - [ ] **PR-10** — Page Lifecycle wiring + defer-while-hidden Phoenix pattern `[ws R9,R10]`. Test: `lifecycle.test.ts`. Deps: PR-09.
@@ -48,10 +48,11 @@ Goal: full resilient-ws-ui Part-3 reliability + indicator coverage on both serve
 
 ## In-progress / recent
 
-- **PR-08** — Client `Connection` class: state machine NEW/ALIVE/STALE/DEAD + per-nonce ping + connect timeout `[ws R2,R3,R4]`. Test: `connection.test.ts`. Deps: PR-02.
+- **PR-09** — Client `Manager`: backoff + overlapping reconnect + close-code classify + pool cap=3 `[ws R5,R6,R7]`. Test: `manager.test.ts`. Deps: PR-08.
 
 ## Recent completions (this cycle's worth)
 
+- [x] **PR-08** — Client `Connection` state machine NEW/ALIVE/STALE/DEAD `[ws R2,R3,R4]`. `ws/Connection.ts` (SocketLike structural interface; injectable socketFactory + clock; per-nonce Map<nonce,sentAt>; per-nonce pong timers; stale grace timer; connect timeout checking readyState; hb.sping→hb.spong R11 client side; onUpdate + onMessage subscribers; stats derived not stored). `test/helpers/MockWebSocket.ts` (simulateOpen/Message/Close). `connection.test.ts` 8 cases via fake timers (jest.useFakeTimers). tsconfig + package.json: bun-types + @cq/shared path mapping added to web package. [ws P3-r-1] (nonce heartbeat + per-ping timeouts), [ws P3-r-2] (four-state + grace), [ws P3-r-3] (connect timeout + readyState) TICKED. Total web tests: 8. Total suite: 96. `tsc -b` + `eslint` clean. Commit: HEAD.
 - [x] **PR-07** — Server heartbeat with setImmediate defer + nonce lookback `[ws R11]`. `ws/heartbeat.ts` (createHeartbeat factory, WeakMap per-WS state: currentNonce, previousNonce, pendingFlag, pingTimerId, pendingTimerId; setImmediate injection seam for R11 race test), `ws/session.ts` wired (open→heartbeat.start, hb.spong→heartbeat.onPong, close→heartbeat.stop). 6 new tests in `heartbeat.test.ts` (schedule, current-nonce pong, previous-nonce lookback, unknown-nonce ignored, no-pong→1011, R11 race). Compressed real timers (pingIntervalMs:100, pongTimeoutMs:50); setImmediate injection for test 6. Total server tests: **50**. `tsc -b` + `eslint` clean. Operational smoke: WS open → saw hb.sping → close 1011 exit 0. [ws P3-r-10] TICKED. Commit: HEAD.
 - [x] **PR-06** — Server WS endpoint + Zod inbound validation + Origin check (F-19). `ws/session.ts` (WsSession class, `open`/`message`/`close`, `sendFrame` helper), `ws/origin.ts` (isOriginAllowed), `server.ts` + `devServer.ts` extended with `/ws` upgrade path. Origin mismatch → HTTP 403 (option A; 1008 reserved for client-side). Zod `ClientFrame.safeParse` on every frame; failure → close 4000. `hb.ping` → `hb.pong` with `echoNonce`+`serverTs`. Tests: `ws-basic.test.ts` (4 cases) + `ws-origin.test.ts` (3 cases). Total server tests: **44** (37 prior + 7 new). `tsc -b` + `eslint` clean. Operational audit: WS open + 403 on bad Origin + SIGINT all exit 0. Commit: `c05b27a`.
 - [x] **M0 closed + archived** to `docs/archive/tasks-M0.md`. 5 PRs, 113 tests total (76 shared + 37 server), 0 defects, 0 algedonic escalations. Both `start` and `dev` modes audit-green.

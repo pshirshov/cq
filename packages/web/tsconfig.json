@@ -3,7 +3,11 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["bun-types"],
+    "paths": {
+      "@cq/shared": ["../shared/src/index.ts"]
+    }
   },
   "references": [
     { "path": "../shared" }
