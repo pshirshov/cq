@@ -3,7 +3,7 @@
 **Cycle:** outer-1 / inner M3 (M2 archived; PR-27 next).
 **Goal:** build cq — TypeScript Web UI for the Claude Agent SDK on Bun + React + WebSocket per [`./prompt.md`](./prompt.md). Discharge condition: all five milestones `[x]` and archived; `bun test` clean; `bun run start --cwd <real-dir>` launches; sample prompt round-trips Chat tab + History tab drill-down.
 **Accepted plan:** [`docs/drafts/20260526-0037-cq-plan.md`](docs/drafts/20260526-0037-cq-plan.md) (2294 lines, G2c-patched).
-**Defects:** [`./defects.md`](./defects.md). _(2 open: `PR-18-D01` minor deferred to PR-51; `PR-20-D01` minor deferred. 1 resolved: `PR-19-D01` closed in PR-20.)_
+**Defects:** [`./defects.md`](./defects.md). _(3 open: `PR-18-D01` minor deferred to PR-51; `PR-20-D01` minor deferred; `PR-31-D01` minor — Candidate-A untested against real CLI, deferred to PR-51. 1 resolved: `PR-19-D01` closed in PR-20.)_
 
 ## Cross-cutting locks (non-negotiable, project-wide)
 
@@ -33,7 +33,7 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 - [x] **PR-28** — Permission prompts (`canUseTool` → `chat.permission_request` ↔ `chat.permission_reply`). Test: `permission.test.ts`. Deps: PR-19. Completed: `PermissionBroker` in `permission.ts`; bridge wired with `canUseTool`; `session.ts` routes `chat.permission_reply`; `PermissionPrompt.tsx` + CSS; 7 server tests + 4 web tests (255 total, 3 pre-existing PATH failures).
 - [x] **PR-29** — Read-only mode overlay via `canUseTool` (F-03). Test: `read-only.test.ts`. Deps: PR-28.
 - [x] **PR-30** — MCP elicitation roundtrip (form + URL modes) (F-01). Tests: `elicitation.test.ts`, `elicitation-card.test.ts`. Deps: PR-19, PR-23.
-- [ ] **PR-31** — AskUserQuestion card with Candidate-A spike (F-02; Q-1 conditional escalation). Tests: `ask-question.test.ts` (web + server). Deps: PR-23, PR-28.
+- [x] **PR-31** — AskUserQuestion card with Candidate-A spike (F-02). `askUserQuestion.ts` (`injectAnswer`) pushes synthetic `SDKUserMessage{tool_result}` onto the streaming-input queue. `AskCard.tsx` renders radio/checkbox questions with `preview` support; submits via `onReply` → `chat.question_reply` frame. Bridge handles `chat.question_reply` via `handleChatQuestionReply`; session.ts routes the frame. Stream.tsx detects `AskUserQuestion` tool_use → renders `AskCard` instead of UnknownCard; `onQuestionReply` prop wired through ChatTab. 6 new tests (2 web + 4 server). **Q-1 NOT FIRED** — implementation shipped against MockQuery; real-SDK verification deferred to PR-51 per PR-31-D01.
 - [ ] **PR-32** — Plan mode + ExitPlanMode card. Test: `plan-mode.test.ts`. Deps: PR-28.
 - [ ] **PR-33** — Thinking blocks (collapsed disclosure + token count). Test: `thinking.test.ts`. Deps: PR-22a.
 - [ ] **PR-34** — Slash-command autocomplete (`/` opens popover; fuzzy match init.slash_commands; IME-safe). Test: `slash-autocomplete.test.ts`. Deps: PR-21, PR-25.
@@ -46,9 +46,11 @@ Goal: every brief § 4 first-class affordance ticked — sub-agent nested cards,
 
 ## In-progress / recent
 
-- **PR-31** — AskUserQuestion card with Candidate-A spike (F-02; Q-1 conditional escalation). Tests: `ask-question.test.ts` (web + server). Deps: PR-23, PR-28.
+- **PR-32** — Plan mode + ExitPlanMode card. Test: `plan-mode.test.ts`. Deps: PR-28.
 
 ## Recent completions (this cycle's worth)
+
+- [x] **PR-31** — AskUserQuestion card with Candidate-A spike (F-02). `askUserQuestion.ts` (`injectAnswer`) pushes synthetic `SDKUserMessage{tool_result}` onto the streaming-input queue. `AskCard.tsx` renders radio/checkbox questions with `preview` support; submits via `onReply` → `chat.question_reply` frame. Bridge handles `chat.question_reply` via `handleChatQuestionReply`; session.ts routes the frame. Stream.tsx detects `AskUserQuestion` tool_use → renders `AskCard` instead of UnknownCard; `onQuestionReply` prop wired through ChatTab. 6 new tests (2 web + 4 server). **Q-1 NOT FIRED** — implementation shipped against MockQuery; real-SDK verification deferred to PR-51 per PR-31-D01. 288 tests total.
 
 - [x] **PR-30** — MCP elicitation roundtrip (`onElicitation` + ElicitationCard) (F-01). `ElicitationBroker` (`elicitation.ts`) parks Promises by elicitationId; uses SDK-provided `elicitationId` for URL-mode correlation. Bridge wires `onElicitation` callback; intercepts `SDKElicitationCompleteMessage` to resolve URL-mode elicitations via `completeUrl()`. `session.ts` routes `chat.elicitation_reply`. `ElicitationCard.tsx` supports form-mode (JSON-Schema → field mapper: string/number/boolean/enum → input/select/checkbox; fallback to textarea) and URL-mode ("Open in new tab" + "Waiting…"). CSS in `ElicitationCard.module.css`. 7 server tests + 6 web tests (274 total, 271 pass; 3 pre-existing PATH failures).
 

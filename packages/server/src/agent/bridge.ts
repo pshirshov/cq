@@ -36,6 +36,7 @@ import type {
   ChatInterrupt,
   ChatPermissionReply,
   ChatElicitationReply,
+  ChatQuestionReply,
   ChatEvent,
   ChatStarted,
   ChatDone,
@@ -47,6 +48,7 @@ import { loadMcpServers } from "./mcp";
 import { PermissionBroker } from "./permission";
 import { ElicitationBroker } from "./elicitation";
 import { applyReadOnlyOverlay } from "./readOnlyOverlay";
+import { injectAnswer } from "./askUserQuestion";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -396,6 +398,23 @@ export class Bridge {
       frame.action,
       frame.content,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // chat.question_reply
+  // ---------------------------------------------------------------------------
+
+  handleChatQuestionReply(_ws: WsSocket, frame: ChatQuestionReply): void {
+    const session = this.active;
+    if (session === null || session.chatSessionId !== frame.sessionId) {
+      // Stale reply (session already ended) — ignore silently.
+      return;
+    }
+    injectAnswer(session.queue, frame.toolUseId, frame.answers);
+    this.logger.info("bridge.question_reply", {
+      chatSessionId: session.chatSessionId,
+      toolUseId: frame.toolUseId,
+    });
   }
 
   // ---------------------------------------------------------------------------

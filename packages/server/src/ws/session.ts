@@ -152,6 +152,12 @@ export class WsSession {
         }
         break;
       }
+      case "chat.question_reply": {
+        if (this.bridge !== null) {
+          this.bridge.handleChatQuestionReply(ws as BridgeWsSocket, frame);
+        }
+        break;
+      }
       // All other client frames are accepted but not yet dispatched (PR-07+)
       default:
         // Accepted; no-op until later PRs wire the handlers.

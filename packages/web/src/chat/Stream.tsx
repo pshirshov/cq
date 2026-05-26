@@ -40,6 +40,8 @@ import { SubagentCard } from "./Cards/SubagentCard";
 import type { SubagentTask } from "./Cards/SubagentCard";
 import { ToolCard } from "./Cards/index";
 import type { ToolUseBlock, ToolResultBlock } from "./Cards/index";
+import { AskCard } from "./Cards/AskCard";
+import type { AskUserQuestionInput, QuestionReplyPayload } from "./Cards/AskCard";
 import styles from "../styles/Stream.module.css";
 import type { ChatEvent } from "@cq/shared";
 
@@ -51,6 +53,7 @@ import type { ChatEvent } from "@cq/shared";
 type RenderedMessage =
   | { kind: "assistant"; messageId: string; text: string }
   | { kind: "tool_use"; key: string; toolUse: ToolUseBlock; toolResult?: ToolResultBlock }
+  | { kind: "ask"; key: string; toolUseId: string; input: AskUserQuestionInput }
   | { kind: "unknown"; key: string; sdkEvent: Record<string, unknown> }
   | { kind: "subagent"; key: string; task: SubagentTask; children: RenderedMessage[] };
 
@@ -310,6 +313,8 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
   const subagentByTaskId = new Map<string, SubagentEntry>();
   // Map tool_use_id → task_id so nested events route into the right entry.
   const toolUseIdToTaskId = new Map<string, string>();
+  // AskUserQuestion tool_use blocks, keyed by insertion key.
+  const askByKey = new Map<string, { toolUseId: string; input: AskUserQuestionInput }>();
 
   for (let i = 0; i < events.length; i++) {
     const evt = events[i]!;
@@ -432,9 +437,15 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
         const toolUse = asToolUseBlock(block);
         if (toolUse !== null) {
           const key = `tool-${i}-${bi}`;
-          order.push(key);
-          toolUseByKey.set(key, { toolUse });
-          toolUseIdToKey.set(toolUse.id, key);
+          if (toolUse.name === "AskUserQuestion") {
+            // Render as an interactive AskCard instead of a generic tool card.
+            order.push(key);
+            askByKey.set(key, { toolUseId: toolUse.id, input: toolUse.input as unknown as AskUserQuestionInput });
+          } else {
+            order.push(key);
+            toolUseByKey.set(key, { toolUse });
+            toolUseIdToKey.set(toolUse.id, key);
+          }
           continue;
         }
         const toolResult = asToolResultBlock(block);
@@ -472,6 +483,9 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
       result.push({ kind: "subagent", key: id, task: entry.task, children });
     } else if (unknownByKey.has(id)) {
       result.push({ kind: "unknown", key: id, sdkEvent: unknownByKey.get(id)! });
+    } else if (askByKey.has(id)) {
+      const entry = askByKey.get(id)!;
+      result.push({ kind: "ask", key: id, toolUseId: entry.toolUseId, input: entry.input });
     } else if (toolUseByKey.has(id)) {
       const entry = toolUseByKey.get(id)!;
       const toolMsg: RenderedMessage =
@@ -491,13 +505,27 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
 // Helper: render a list of RenderedMessage values (used recursively by SubagentCard)
 // ---------------------------------------------------------------------------
 
-function renderMessages(messages: RenderedMessage[]): React.ReactNode[] {
+function renderMessages(
+  messages: RenderedMessage[],
+  onQuestionReply?: (payload: QuestionReplyPayload) => void,
+): React.ReactNode[] {
   return messages.map((msg) => {
     if (msg.kind === "assistant") {
       return createElement(
         "div",
         { key: msg.messageId, className: styles.message, "data-testid": `stream-message-${msg.messageId}` },
         createElement(Markdown, null, msg.text),
+      );
+    }
+    if (msg.kind === "ask") {
+      return createElement(
+        "div",
+        { key: msg.key, className: styles.message },
+        createElement(AskCard, {
+          toolUseId: msg.toolUseId,
+          input: msg.input,
+          onReply: onQuestionReply ?? (() => {}),
+        }),
       );
     }
     if (msg.kind === "tool_use") {
@@ -508,7 +536,7 @@ function renderMessages(messages: RenderedMessage[]): React.ReactNode[] {
       );
     }
     if (msg.kind === "subagent") {
-      const nestedChildren = renderMessages(msg.children);
+      const nestedChildren = renderMessages(msg.children, onQuestionReply);
       return createElement(
         "div",
         { key: msg.key, className: styles.message },
@@ -530,14 +558,15 @@ function renderMessages(messages: RenderedMessage[]): React.ReactNode[] {
 
 export interface StreamProps {
   chatEvents: ChatEvent[];
+  onQuestionReply?: (payload: QuestionReplyPayload) => void;
 }
 
-export function Stream({ chatEvents }: StreamProps): React.ReactElement {
+export function Stream({ chatEvents, onQuestionReply }: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
 
   return (
     <div className={styles.root} data-testid="stream-root">
-      {renderMessages(messages)}
+      {renderMessages(messages, onQuestionReply)}
     </div>
   );
 }
