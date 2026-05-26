@@ -31,9 +31,31 @@
  * Any ChatEvent whose sdkEvent doesn't map to a known rendering path (e.g.
  * tool_use, tool_result, system events) is rendered by <UnknownCard>. PR-23
  * will replace these with proper tool cards.
+ *
+ * ## Pagination (F3)
+ *
+ * Design choice: "Load older" button at the top (option a from the brief).
+ * We render only the most recent VISIBLE_PAGE_SIZE messages by default.
+ * Clicking "Load older (N more)" doubles the visible count (up to the total).
+ * This avoids virtualisation while keeping long histories performant.
+ * DEFAULT_VISIBLE = 200 messages shown initially; load in chunks of 100.
+ *
+ * ## Auto-scroll (F2)
+ *
+ * The scroll container is .root itself (overflow-y: auto, flex: 1).
+ * We track whether the user is "at bottom" (within SCROLL_NEAR_BOTTOM_PX of
+ * the scrollable end). If yes, new messages trigger a scroll to bottom.
+ * If the user has scrolled up, auto-scroll is suppressed; the parent
+ * renders a "↓ Jump to latest" button (via the onScrolledUp callback).
+ *
+ * ## Search (F4)
+ *
+ * When searchQuery is non-empty we wrap matching text runs inside <mark>
+ * elements. The activeMatchKey identifies which message bubble gets the
+ * highlight ring (via MessageBubble.isActiveMatch).
  */
 
-import { useMemo, createElement } from "react";
+import { useMemo, useRef, useEffect, useCallback, createElement, useState } from "react";
 import { Markdown } from "./Markdown";
 import { UnknownCard } from "./Cards/UnknownCard";
 import { SubagentCard } from "./Cards/SubagentCard";
@@ -44,8 +66,21 @@ import { AskCard } from "./Cards/AskCard";
 import type { AskUserQuestionInput, QuestionReplyPayload } from "./Cards/AskCard";
 import { Thinking } from "./Cards/Thinking";
 import type { ThinkingBlock } from "./Cards/Thinking";
+import { MessageBubble } from "./MessageBubble";
+import type { MessageRole } from "./MessageBubble";
 import styles from "../styles/Stream.module.css";
 import type { ChatEvent } from "@cq/shared";
+
+// ---------------------------------------------------------------------------
+// Pagination constants (F3)
+// ---------------------------------------------------------------------------
+
+/** Default number of messages shown without clicking "Load older". */
+const DEFAULT_VISIBLE = 200;
+/** Number of additional messages revealed per "Load older" click. */
+const LOAD_OLDER_CHUNK = 100;
+/** Distance from bottom (px) within which auto-scroll fires. */
+const SCROLL_NEAR_BOTTOM_PX = 80;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,11 +88,11 @@ import type { ChatEvent } from "@cq/shared";
 
 /** A fully-resolved message ready to render. */
 type RenderedMessage =
-  | { kind: "assistant"; messageId: string; text: string; thinkingBlocks: ThinkingBlock[] }
-  | { kind: "tool_use"; key: string; toolUse: ToolUseBlock; toolResult?: ToolResultBlock }
-  | { kind: "ask"; key: string; toolUseId: string; input: AskUserQuestionInput }
-  | { kind: "unknown"; key: string; sdkEvent: Record<string, unknown> }
-  | { kind: "subagent"; key: string; task: SubagentTask; children: RenderedMessage[] };
+  | { kind: "assistant"; messageId: string; text: string; thinkingBlocks: ThinkingBlock[]; ts: number }
+  | { kind: "tool_use"; key: string; toolUse: ToolUseBlock; toolResult?: ToolResultBlock; ts: number }
+  | { kind: "ask"; key: string; toolUseId: string; input: AskUserQuestionInput; ts: number }
+  | { kind: "unknown"; key: string; sdkEvent: Record<string, unknown>; ts: number }
+  | { kind: "subagent"; key: string; task: SubagentTask; children: RenderedMessage[]; ts: number };
 
 // ---------------------------------------------------------------------------
 // Sub-agent entry accumulator
@@ -66,9 +101,11 @@ type RenderedMessage =
 /** Mutable state accumulated for one sub-agent task. */
 interface SubagentEntry {
   task: SubagentTask;
+  ts: number;
   /** Ordered child keys (same semantics as the top-level `order` array). */
   childOrder: string[];
   childTextByMessageId: Map<string, string>;
+  childTsByMessageId: Map<string, number>;
   childFinalised: Set<string>;
   childToolUseByKey: Map<string, { toolUse: ToolUseBlock; toolResult?: ToolResultBlock }>;
   childToolUseIdToKey: Map<string, string>;
@@ -211,7 +248,7 @@ function asToolResultBlock(block: unknown): ToolResultBlock | null {
 // Sub-agent entry helpers
 // ---------------------------------------------------------------------------
 
-function makeSubagentEntry(sdkEvent: Record<string, unknown>): SubagentEntry {
+function makeSubagentEntry(sdkEvent: Record<string, unknown>, ts: number): SubagentEntry {
   const task_id = typeof sdkEvent["task_id"] === "string" ? sdkEvent["task_id"] : "";
   const rawToolUseId = sdkEvent["tool_use_id"];
   const description = typeof sdkEvent["description"] === "string" ? sdkEvent["description"] : "";
@@ -224,8 +261,10 @@ function makeSubagentEntry(sdkEvent: Record<string, unknown>): SubagentEntry {
       : baseTask;
   return {
     task,
+    ts,
     childOrder: [],
     childTextByMessageId: new Map(),
+    childTsByMessageId: new Map(),
     childFinalised: new Set(),
     childToolUseByKey: new Map(),
     childToolUseIdToKey: new Map(),
@@ -239,6 +278,7 @@ function accumulateChildAssistant(
   entry: SubagentEntry,
   sdkEvent: Record<string, unknown>,
   index: number,
+  ts: number,
 ): void {
   const message = sdkEvent["message"] as Record<string, unknown> | undefined;
   const messageId = typeof message?.["id"] === "string" ? (message["id"] as string) : null;
@@ -250,6 +290,7 @@ function accumulateChildAssistant(
       entry.childOrder.push(messageId);
     }
     entry.childTextByMessageId.set(messageId, canonical);
+    entry.childTsByMessageId.set(messageId, ts);
     entry.childFinalised.add(messageId);
     entry.currentStreamMessageId = null;
   } else {
@@ -308,20 +349,21 @@ function buildSubagentChildren(entry: SubagentEntry): RenderedMessage[] {
   const children: RenderedMessage[] = [];
   for (const id of entry.childOrder) {
     if (entry.childUnknownByKey.has(id)) {
-      children.push({ kind: "unknown", key: id, sdkEvent: entry.childUnknownByKey.get(id)! });
+      children.push({ kind: "unknown", key: id, sdkEvent: entry.childUnknownByKey.get(id)!, ts: 0 });
     } else if (entry.childToolUseByKey.has(id)) {
       const e = entry.childToolUseByKey.get(id)!;
       if (e.toolResult !== undefined) {
-        children.push({ kind: "tool_use", key: id, toolUse: e.toolUse, toolResult: e.toolResult });
+        children.push({ kind: "tool_use", key: id, toolUse: e.toolUse, toolResult: e.toolResult, ts: 0 });
       } else {
-        children.push({ kind: "tool_use", key: id, toolUse: e.toolUse });
+        children.push({ kind: "tool_use", key: id, toolUse: e.toolUse, ts: 0 });
       }
     } else {
       const text = entry.childTextByMessageId.get(id) ?? "";
+      const ts = entry.childTsByMessageId.get(id) ?? 0;
       // Subagent child messages don't carry separate thinking-block tracking;
       // thinking blocks are dropped for child messages (they render as tool cards
       // in the subagent panel where vertical space is constrained).
-      children.push({ kind: "assistant", messageId: id, text, thinkingBlocks: [] });
+      children.push({ kind: "assistant", messageId: id, text, thinkingBlocks: [], ts });
     }
   }
   return children;
@@ -332,6 +374,8 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
   const order: string[] = [];
   // Accumulated text per Anthropic message ID.
   const textByMessageId = new Map<string, string>();
+  // Timestamps per message ID.
+  const tsByMessageId = new Map<string, number>();
   // Thinking blocks per Anthropic message ID (populated from final messages only).
   const thinkingByMessageId = new Map<string, ThinkingBlock[]>();
   // Whether the final canonical text has been applied for a given ID.
@@ -340,6 +384,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
   let currentStreamMessageId: string | null = null;
   // Messages that are unknown/tool events, mapped by their insertion key.
   const unknownByKey = new Map<string, Record<string, unknown>>();
+  const tsByKey = new Map<string, number>();
   // Tool-use blocks, keyed by their insertion key (for ordering).
   const toolUseByKey = new Map<string, { toolUse: ToolUseBlock; toolResult?: ToolResultBlock }>();
   // Index from tool_use_id → insertion key so tool_result can find its partner.
@@ -356,6 +401,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
     const sdkEvent = evt.sdkEvent as Record<string, unknown>;
     const sdkType = sdkEvent["type"] as string | undefined;
     const sdkSubtype = sdkEvent["subtype"] as string | undefined;
+    const evtTs = evt.ts;
 
     // ------------------------------------------------------------------
     // Sub-agent lifecycle events
@@ -363,7 +409,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
     if (sdkType === "system" && sdkSubtype === "task_started") {
       const task_id = typeof sdkEvent["task_id"] === "string" ? sdkEvent["task_id"] : `task-${i}`;
       if (!subagentByTaskId.has(task_id)) {
-        const entry = makeSubagentEntry(sdkEvent);
+        const entry = makeSubagentEntry(sdkEvent, evtTs);
         subagentByTaskId.set(task_id, entry);
         // Register the tool_use_id → task_id mapping for routing nested events.
         if (entry.task.tool_use_id !== undefined) {
@@ -412,7 +458,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
       if (task_id !== undefined) {
         const entry = subagentByTaskId.get(task_id)!;
         if (sdkType === "assistant") {
-          accumulateChildAssistant(entry, sdkEvent, i);
+          accumulateChildAssistant(entry, sdkEvent, i, evtTs);
         } else if (sdkType === "stream_event") {
           accumulateChildStreamEvent(entry, sdkEvent);
         } else {
@@ -436,6 +482,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
         if (parsed.messageId !== "" && !textByMessageId.has(parsed.messageId)) {
           order.push(parsed.messageId);
           textByMessageId.set(parsed.messageId, "");
+          tsByMessageId.set(parsed.messageId, evtTs);
         }
       } else if (parsed.kind === "text_delta" && currentStreamMessageId !== null) {
         const existing = textByMessageId.get(currentStreamMessageId) ?? "";
@@ -455,6 +502,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
           order.push(messageId);
         }
         textByMessageId.set(messageId, canonical);
+        if (!tsByMessageId.has(messageId)) tsByMessageId.set(messageId, evtTs);
         thinkingByMessageId.set(messageId, thinkingBlocks);
         finalised.add(messageId);
         // Reset current stream ID — the final message closes the stream group.
@@ -465,6 +513,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
         const key = `unknown-${i}`;
         order.push(key);
         unknownByKey.set(key, sdkEvent);
+        tsByKey.set(key, evtTs);
       }
 
       // Extract tool_use and tool_result blocks from message.content regardless
@@ -478,10 +527,12 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
             // Render as an interactive AskCard instead of a generic tool card.
             order.push(key);
             askByKey.set(key, { toolUseId: toolUse.id, input: toolUse.input as unknown as AskUserQuestionInput });
+            tsByKey.set(key, evtTs);
           } else {
             order.push(key);
             toolUseByKey.set(key, { toolUse });
             toolUseIdToKey.set(toolUse.id, key);
+            tsByKey.set(key, evtTs);
           }
           continue;
         }
@@ -499,6 +550,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
             const key = `unknown-${i}-${bi}`;
             order.push(key);
             unknownByKey.set(key, block as Record<string, unknown>);
+            tsByKey.set(key, evtTs);
           }
         }
       }
@@ -507,6 +559,7 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
       const key = `unknown-${i}`;
       order.push(key);
       unknownByKey.set(key, sdkEvent);
+      tsByKey.set(key, evtTs);
     }
   }
 
@@ -517,26 +570,60 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
       const task_id = id.slice("subagent-".length);
       const entry = subagentByTaskId.get(task_id)!;
       const children = buildSubagentChildren(entry);
-      result.push({ kind: "subagent", key: id, task: entry.task, children });
+      result.push({ kind: "subagent", key: id, task: entry.task, children, ts: entry.ts });
     } else if (unknownByKey.has(id)) {
-      result.push({ kind: "unknown", key: id, sdkEvent: unknownByKey.get(id)! });
+      result.push({ kind: "unknown", key: id, sdkEvent: unknownByKey.get(id)!, ts: tsByKey.get(id) ?? 0 });
     } else if (askByKey.has(id)) {
       const entry = askByKey.get(id)!;
-      result.push({ kind: "ask", key: id, toolUseId: entry.toolUseId, input: entry.input });
+      result.push({ kind: "ask", key: id, toolUseId: entry.toolUseId, input: entry.input, ts: tsByKey.get(id) ?? 0 });
     } else if (toolUseByKey.has(id)) {
       const entry = toolUseByKey.get(id)!;
       const toolMsg: RenderedMessage =
         entry.toolResult !== undefined
-          ? { kind: "tool_use", key: id, toolUse: entry.toolUse, toolResult: entry.toolResult }
-          : { kind: "tool_use", key: id, toolUse: entry.toolUse };
+          ? { kind: "tool_use", key: id, toolUse: entry.toolUse, toolResult: entry.toolResult, ts: tsByKey.get(id) ?? 0 }
+          : { kind: "tool_use", key: id, toolUse: entry.toolUse, ts: tsByKey.get(id) ?? 0 };
       result.push(toolMsg);
     } else {
       const text = textByMessageId.get(id) ?? "";
       const thinkingBlocks = thinkingByMessageId.get(id) ?? [];
-      result.push({ kind: "assistant", messageId: id, text, thinkingBlocks });
+      const ts = tsByMessageId.get(id) ?? 0;
+      result.push({ kind: "assistant", messageId: id, text, thinkingBlocks, ts });
     }
   }
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Search helpers (F4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract plain text content from a RenderedMessage for search matching.
+ * Returns empty string for non-text message kinds.
+ */
+function messagePlainText(msg: RenderedMessage): string {
+  if (msg.kind === "assistant") return msg.text;
+  if (msg.kind === "tool_use") {
+    return `${msg.toolUse.name} ${JSON.stringify(msg.toolUse.input)}`;
+  }
+  return "";
+}
+
+/**
+ * Given a search query and an ordered list of messages, return the indices
+ * (into messages[]) that contain a case-insensitive substring match.
+ */
+export function computeMatchIndices(messages: RenderedMessage[], query: string): number[] {
+  if (query.length === 0) return [];
+  const lower = query.toLowerCase();
+  const indices: number[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const text = messagePlainText(messages[i]!);
+    if (text.toLowerCase().includes(lower)) {
+      indices.push(i);
+    }
+  }
+  return indices;
 }
 
 // ---------------------------------------------------------------------------
@@ -546,23 +633,40 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
 function renderMessages(
   messages: RenderedMessage[],
   onQuestionReply?: (payload: QuestionReplyPayload) => void,
+  searchQuery = "",
+  activeMatchKey = "",
 ): React.ReactNode[] {
   return messages.map((msg) => {
     if (msg.kind === "assistant") {
       const thinkingNodes = msg.thinkingBlocks.map((block, i) =>
         createElement(Thinking, { key: `thinking-${i}`, block }),
       );
+      const isActive = msg.messageId === activeMatchKey;
+      const plainText = msg.text;
       return createElement(
-        "div",
-        { key: msg.messageId, className: styles.message, "data-testid": `stream-message-${msg.messageId}` },
+        MessageBubble,
+        {
+          key: msg.messageId,
+          role: "assistant" as MessageRole,
+          timestamp: msg.ts,
+          plainText,
+          isActiveMatch: isActive,
+          testId: `stream-message-${msg.messageId}`,
+        },
         ...thinkingNodes,
-        createElement(Markdown, null, msg.text),
+        createElement(Markdown, { searchQuery, children: msg.text }),
       );
     }
     if (msg.kind === "ask") {
       return createElement(
-        "div",
-        { key: msg.key, className: styles.message },
+        MessageBubble,
+        {
+          key: msg.key,
+          role: "assistant" as MessageRole,
+          timestamp: msg.ts,
+          plainText: "",
+          isActiveMatch: false,
+        },
         createElement(AskCard, {
           toolUseId: msg.toolUseId,
           input: msg.input,
@@ -571,28 +675,45 @@ function renderMessages(
       );
     }
     if (msg.kind === "tool_use") {
+      const isActive = msg.key === activeMatchKey;
+      const plainText = messagePlainText(msg);
       return createElement(
-        "div",
+        MessageBubble,
         {
           key: msg.key,
-          className: styles.message,
-          "data-testid": `tool-use-${msg.toolUse.id}`,
+          role: "tool" as MessageRole,
+          timestamp: msg.ts,
+          plainText,
+          isActiveMatch: isActive,
+          testId: `tool-use-${msg.toolUse.id}`,
         },
         ToolCard(msg.toolUse, msg.toolResult),
       );
     }
     if (msg.kind === "subagent") {
-      const nestedChildren = renderMessages(msg.children, onQuestionReply);
+      const nestedChildren = renderMessages(msg.children, onQuestionReply, searchQuery, activeMatchKey);
       return createElement(
-        "div",
-        { key: msg.key, className: styles.message },
+        MessageBubble,
+        {
+          key: msg.key,
+          role: "assistant" as MessageRole,
+          timestamp: msg.ts,
+          plainText: msg.task.task_description,
+          isActiveMatch: false,
+        },
         createElement(SubagentCard, { task: msg.task }, ...nestedChildren),
       );
     }
     // unknown
     return createElement(
-      "div",
-      { key: msg.key, className: styles.message },
+      MessageBubble,
+      {
+        key: msg.key,
+        role: "unknown" as MessageRole,
+        timestamp: msg.ts,
+        plainText: "",
+        isActiveMatch: false,
+      },
       createElement(UnknownCard, { sdkEvent: msg.sdkEvent }),
     );
   });
@@ -622,10 +743,132 @@ export interface StreamProps {
    * Stream renders a "Thinking…" indicator.
    */
   inProgress?: boolean;
+  /**
+   * Search query for F4 highlighting. Empty string = no search active.
+   */
+  searchQuery?: string;
+  /**
+   * 0-based index of the active match within matchIndices.
+   * Passed in from the parent which owns search state.
+   */
+  activeMatchIndex?: number;
+  /**
+   * Callback fired when the user scrolls up (away from the bottom).
+   * The parent uses this to show the "Jump to latest" button.
+   */
+  onScrolledUp?: (scrolledUp: boolean) => void;
+  /**
+   * When true, the parent wants Stream to imperatively scroll to the bottom.
+   * The parent sets this after the user clicks "Jump to latest".
+   */
+  scrollToBottom?: boolean;
+  /** Called after Stream has processed a scrollToBottom request. */
+  onScrollToBottomDone?: () => void;
 }
 
-export function Stream({ chatEvents, onQuestionReply, mode = "live", inProgress = false }: StreamProps): React.ReactElement {
+export function Stream({
+  chatEvents,
+  onQuestionReply,
+  mode = "live",
+  inProgress = false,
+  searchQuery = "",
+  activeMatchIndex = 0,
+  onScrolledUp,
+  scrollToBottom = false,
+  onScrollToBottomDone,
+}: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
+
+  // ---- Pagination state (F3) ----
+  // We show only the most recent `visibleCount` messages. "Load older" increases this.
+  const [visibleCount, setVisibleCount] = useState(DEFAULT_VISIBLE);
+
+  // Reset pagination when a new session starts (chatEvents cleared to []).
+  const prevEventLengthRef = useRef(chatEvents.length);
+  useEffect(() => {
+    if (chatEvents.length < prevEventLengthRef.current) {
+      // Events array shrank — new session started, reset pagination.
+      setVisibleCount(DEFAULT_VISIBLE);
+    }
+    prevEventLengthRef.current = chatEvents.length;
+  }, [chatEvents.length]);
+
+  const totalMessages = messages.length;
+  const hiddenCount = Math.max(0, totalMessages - visibleCount);
+  // The slice we actually render: most recent `visibleCount` messages.
+  const visibleMessages = hiddenCount > 0 ? messages.slice(hiddenCount) : messages;
+
+  function handleLoadOlder(): void {
+    setVisibleCount((c) => c + LOAD_OLDER_CHUNK);
+  }
+
+  // ---- Search state (F4) ----
+  const matchIndices = useMemo(
+    () => computeMatchIndices(visibleMessages, searchQuery),
+    [visibleMessages, searchQuery],
+  );
+  // The activeMatchIndex is 0-based over matchIndices[].
+  const activeMatchArrayIndex = matchIndices[activeMatchIndex] ?? -1;
+  // Convert to a message key for bubble highlighting.
+  const activeMatchMsg = activeMatchArrayIndex >= 0 ? visibleMessages[activeMatchArrayIndex] : undefined;
+  const activeMatchKey: string =
+    activeMatchMsg !== undefined
+      ? activeMatchMsg.kind === "assistant"
+        ? activeMatchMsg.messageId
+        : activeMatchMsg.key
+      : "";
+
+  // ---- Auto-scroll state (F2) ----
+  const rootRef = useRef<HTMLDivElement>(null);
+  // True while the user is scrolled up (not near the bottom).
+  const isScrolledUpRef = useRef(false);
+
+  function isAtBottom(): boolean {
+    const el = rootRef.current;
+    if (el === null) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_NEAR_BOTTOM_PX;
+  }
+
+  // Scroll to bottom on new messages if the user is at (or near) the bottom.
+  const prevMessageCountRef = useRef(visibleMessages.length);
+  useEffect(() => {
+    const grew = visibleMessages.length > prevMessageCountRef.current;
+    prevMessageCountRef.current = visibleMessages.length;
+    if (grew && !isScrolledUpRef.current) {
+      rootRef.current?.scrollTo({ top: rootRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [visibleMessages.length]);
+
+  // Handle the imperative scrollToBottom request from parent.
+  useEffect(() => {
+    if (scrollToBottom) {
+      rootRef.current?.scrollTo({ top: rootRef.current.scrollHeight, behavior: "smooth" });
+      isScrolledUpRef.current = false;
+      onScrolledUp?.(false);
+      onScrollToBottomDone?.();
+    }
+  }, [scrollToBottom]); // intentional: only react to the flag change
+
+  // Track scroll position to determine if user has scrolled up.
+  const handleScroll = useCallback(() => {
+    const atBottom = isAtBottom();
+    const wasScrolledUp = isScrolledUpRef.current;
+    isScrolledUpRef.current = !atBottom;
+    if (!atBottom !== wasScrolledUp) {
+      onScrolledUp?.(!atBottom);
+    }
+  }, [onScrolledUp]);
+
+  // Scroll to active search match when it changes.
+  useEffect(() => {
+    if (activeMatchKey.length === 0) return;
+    const el = rootRef.current;
+    if (el === null) return;
+    const target = el.querySelector(`[data-testid="stream-message-${activeMatchKey}"], [data-testid="tool-use-${activeMatchKey}"]`);
+    if (target !== null) {
+      target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [activeMatchKey]);
 
   // In replay mode, omit the onQuestionReply callback so AskCard renders
   // without a submit button and other interactive cards are effectively
@@ -636,13 +879,33 @@ export function Stream({ chatEvents, onQuestionReply, mode = "live", inProgress 
   const showThinking = inProgress && chatEvents.length === 0;
 
   return (
-    <div className={styles.root} data-testid="stream-root" aria-live="polite" aria-label="Chat messages">
+    <div
+      ref={rootRef}
+      className={styles.root}
+      data-testid="stream-root"
+      aria-live="polite"
+      aria-label="Chat messages"
+      onScroll={handleScroll}
+    >
+      {/* F3: Load older button — shown when there are hidden older messages */}
+      {hiddenCount > 0 && (
+        <button
+          className={styles.loadOlderBtn}
+          onClick={handleLoadOlder}
+          type="button"
+          data-testid="load-older-btn"
+        >
+          Load older ({hiddenCount} more)
+        </button>
+      )}
       {isEmpty && (
         <div className={styles.emptyState} data-testid="stream-empty-state">
           Type below to start
         </div>
       )}
-      {renderMessages(messages, effectiveReply)}
+      <div className={styles.messageList}>
+        {renderMessages(visibleMessages, effectiveReply, searchQuery, activeMatchKey)}
+      </div>
       {showThinking && (
         <div className={styles.thinkingIndicator} data-testid="stream-thinking">
           Thinking…

@@ -1,29 +1,34 @@
 /**
  * ChatTab.tsx — top-level chat shell component.
  *
- * Renders:
- *   - <Header> at the top: cwd, model picker, permission-mode, live usage,
- *     session id, started-at, duration, new-session button.
- *   - <Stream> for assistant output, fed by accumulated chat.event frames.
- *   - <Input> for user text entry.
+ * Layout (F1, F2):
+ *   header (fixed height, never scrolls)
+ *   [search bar, when open]
+ *   stream  (flex:1, scrolls internally — owns auto-scroll logic)
+ *   footer  (sticky bottom — Input + Stop button + AttachmentList)
  *
- * On submit, builds a ChatInput frame and calls manager.send(). The session id
- * is read from the chat.started server frame (PR-25).
+ * Search (F4):
+ *   Ctrl+F (Linux/Windows) or Cmd+F (macOS) opens the search bar and focuses it.
+ *   Esc closes. ↑/↓ navigate matches. The match index is passed into Stream
+ *   which highlights the active bubble and scrolls it into view.
  *
- * Tracks in-progress state: set on chat.started, cleared on chat.done. While
- * in-progress the Input is disabled and a Stop button is shown; clicking Stop
- * sends chat.interrupt to the server.
+ * Jump-to-latest (F2):
+ *   When Stream reports the user has scrolled up (onScrolledUp), we render a
+ *   "↓ Jump to latest" button in the footer area. Clicking it sets
+ *   scrollToBottom=true on Stream, which then calls onScrollToBottomDone to
+ *   clear it.
  *
  * Subscribes to useConnection() for the Manager instance.
  * Subscribes to manager.onMessage() to accumulate chat.event frames.
  * On chat.start, clears the accumulated event list.
  */
 
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { useConnection, useConnectionStats } from "../ws/useConnection";
 import { Input } from "./Input";
 import { Stream } from "./Stream";
 import { Header } from "./Header";
+import { SearchBar } from "./SearchBar";
 import { PermissionPrompt } from "./PermissionPrompt";
 import type { PermissionDecision } from "./PermissionPrompt";
 import { ElicitationCard } from "./Cards/ElicitationCard";
@@ -37,6 +42,9 @@ import type { Attachment } from "../lib/attachment";
 import { showToast } from "../lib/toast";
 import { computeTasks } from "./computeTasks";
 import { TaskListSidebar } from "./TaskListSidebar";
+import { isMacPlatform } from "../lib/platform";
+import { computeMatchIndices, computeRenderedMessages } from "./Stream";
+import tabStyles from "../styles/ChatTab.module.css";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -76,6 +84,79 @@ export function ChatTab(): React.ReactElement {
     { name: "/cost" },
   ];
   const [slashCommands, setSlashCommands] = useState<SlashCommand[]>(DEFAULT_SLASH_COMMANDS);
+
+  // ---- F4: Search state ----
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  // 0-based index of the active match within the matchIndices array.
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+
+  // Compute rendered messages and match indices for search (memoised).
+  const renderedMessages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
+  const matchIndices = useMemo(
+    () => computeMatchIndices(renderedMessages, searchQuery),
+    [renderedMessages, searchQuery],
+  );
+
+  // Clamp activeMatchIndex whenever the match list changes.
+  useEffect(() => {
+    if (matchIndices.length === 0) {
+      setActiveMatchIndex(0);
+    } else if (activeMatchIndex >= matchIndices.length) {
+      setActiveMatchIndex(matchIndices.length - 1);
+    }
+  }, [matchIndices.length]); // intentional: only clamp on count change
+
+  function openSearch(): void {
+    setSearchOpen(true);
+  }
+
+  function closeSearch(): void {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setActiveMatchIndex(0);
+  }
+
+  function goToNextMatch(): void {
+    if (matchIndices.length === 0) return;
+    setActiveMatchIndex((i) => (i + 1) % matchIndices.length);
+  }
+
+  function goToPrevMatch(): void {
+    if (matchIndices.length === 0) return;
+    setActiveMatchIndex((i) => (i - 1 + matchIndices.length) % matchIndices.length);
+  }
+
+  // Ctrl+F (Linux/Windows) or Cmd+F (macOS) opens the search bar.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      const isMac = isMacPlatform();
+      const isSearchChord = e.key === "f" && (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
+      if (isSearchChord) {
+        e.preventDefault();
+        openSearch();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // ---- F2: Jump-to-latest state ----
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [triggerScrollToBottom, setTriggerScrollToBottom] = useState(false);
+
+  const handleScrolledUp = useCallback((up: boolean) => {
+    setUserScrolledUp(up);
+  }, []);
+
+  function handleJumpToLatest(): void {
+    setTriggerScrollToBottom(true);
+    setUserScrolledUp(false);
+  }
+
+  function handleScrollToBottomDone(): void {
+    setTriggerScrollToBottom(false);
+  }
 
   // Subscribe to incoming server frames and accumulate chat.event entries.
   // Track session lifecycle via chat.started / chat.done.
@@ -329,9 +410,14 @@ export function ChatTab(): React.ReactElement {
 
   const inProgress = activeSessionId !== null;
 
+  // 1-based match counter for SearchBar display.
+  const displayMatchCount = matchIndices.length;
+  const displayCurrentMatch = displayMatchCount > 0 ? activeMatchIndex + 1 : 0;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div className={tabStyles.shell} data-testid="chat-tab-shell">
       {tasks.size > 0 && <TaskListSidebar tasks={tasks} />}
+      {/* Fixed header — never scrolls */}
       <Header
         cwd={cwd}
         model={model}
@@ -347,7 +433,41 @@ export function ChatTab(): React.ReactElement {
         onNewSession={handleNewSession}
         onResumeSession={handleResumeSession}
       />
-      <Stream chatEvents={chatEvents} onQuestionReply={handleQuestionReply} inProgress={inProgress} />
+      {/* F4: Search bar — shown when open, sits between header and stream */}
+      {searchOpen && (
+        <SearchBar
+          query={searchQuery}
+          onChange={(q) => { setSearchQuery(q); setActiveMatchIndex(0); }}
+          onClose={closeSearch}
+          onPrev={goToPrevMatch}
+          onNext={goToNextMatch}
+          matchCount={displayMatchCount}
+          currentMatch={displayCurrentMatch}
+        />
+      )}
+      {/* F2: Scrollable stream — owns its own overflow */}
+      <Stream
+        chatEvents={chatEvents}
+        onQuestionReply={handleQuestionReply}
+        inProgress={inProgress}
+        searchQuery={searchQuery}
+        activeMatchIndex={activeMatchIndex}
+        onScrolledUp={handleScrolledUp}
+        scrollToBottom={triggerScrollToBottom}
+        onScrollToBottomDone={handleScrollToBottomDone}
+      />
+      {/* F2: Jump-to-latest button — floats above footer when user scrolled up */}
+      {userScrolledUp && (
+        <button
+          className={tabStyles.jumpButton}
+          onClick={handleJumpToLatest}
+          type="button"
+          data-testid="jump-to-latest-btn"
+          aria-label="Jump to latest message"
+        >
+          ↓ Jump to latest
+        </button>
+      )}
       {permissionRequests.map((req) => (
         <PermissionPrompt
           key={req.permissionRequestId}
@@ -362,12 +482,15 @@ export function ChatTab(): React.ReactElement {
           onReply={(reply) => handleElicitationReply(req, reply)}
         />
       ))}
-      <Input
-        onSubmit={handleSubmit}
-        onInterrupt={handleInterrupt}
-        disabled={inProgress}
-        slashCommands={slashCommands}
-      />
+      {/* F1: Sticky footer — input + stop button, never scrolls */}
+      <div className={tabStyles.footer} data-testid="chat-footer">
+        <Input
+          onSubmit={handleSubmit}
+          onInterrupt={handleInterrupt}
+          disabled={inProgress}
+          slashCommands={slashCommands}
+        />
+      </div>
     </div>
   );
 }

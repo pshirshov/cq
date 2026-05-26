@@ -22,6 +22,8 @@ import type { Components } from "react-markdown";
 
 export interface MarkdownProps {
   children: string;
+  /** When non-empty, wrap matching substrings in <mark> elements (F4 search). */
+  searchQuery?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +134,87 @@ function visitTextNodes(node: HastNode): void {
 }
 
 // ---------------------------------------------------------------------------
+// Search highlight rehype plugin (F4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a rehype plugin that wraps case-insensitive occurrences of `query` in
+ * text nodes with `<mark>` element nodes, skipping code/pre blocks.
+ *
+ * Same traversal structure as rehypeFileRefs: walk text nodes, split on
+ * matches, splice in element nodes.
+ */
+function makeRehypeHighlight(query: string) {
+  return function rehypeHighlight() {
+    return function transform(tree: unknown): void {
+      if (query.length === 0) return;
+      visitTextNodesForHighlight(tree as HastNode, query.toLowerCase());
+    };
+  };
+}
+
+function visitTextNodesForHighlight(node: HastNode, lowerQuery: string): void {
+  if (!node.children) return;
+
+  let i = 0;
+  while (i < node.children.length) {
+    const child = node.children[i];
+    if (child === undefined) { i++; continue; }
+
+    if (
+      child.type === "text" &&
+      child.value !== undefined &&
+      node.tagName !== "code" &&
+      node.tagName !== "pre"
+    ) {
+      const value = child.value;
+      if (value.toLowerCase().includes(lowerQuery)) {
+        const replacements = splitTextForHighlight(value, lowerQuery);
+        if (replacements.length > 1) {
+          const arr = node.children as HastNode[];
+          arr.splice(i, 1, ...replacements);
+          i += replacements.length;
+          continue;
+        }
+      }
+    }
+
+    if (child.type === "element") {
+      visitTextNodesForHighlight(child, lowerQuery);
+    }
+
+    i++;
+  }
+}
+
+/** Split a text value into text + mark element nodes. */
+function splitTextForHighlight(value: string, lowerQuery: string): HastNode[] {
+  const result: HastNode[] = [];
+  const queryLen = lowerQuery.length;
+  let pos = 0;
+  const lowerValue = value.toLowerCase();
+
+  let idx = lowerValue.indexOf(lowerQuery, pos);
+  while (idx !== -1) {
+    if (idx > pos) {
+      result.push({ type: "text", value: value.slice(pos, idx) });
+    }
+    result.push({
+      type: "element",
+      tagName: "mark",
+      properties: {},
+      children: [{ type: "text", value: value.slice(idx, idx + queryLen) }],
+    });
+    pos = idx + queryLen;
+    idx = lowerValue.indexOf(lowerQuery, pos);
+  }
+  if (pos < value.length) {
+    result.push({ type: "text", value: value.slice(pos) });
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Custom element renderers
 // ---------------------------------------------------------------------------
 
@@ -175,14 +258,21 @@ const COMPONENTS = {
 } as unknown as Components;
 
 const REMARK_PLUGINS = [remarkGfm];
-const REHYPE_PLUGINS = [rehypeFileRefs];
+const REHYPE_PLUGINS_NO_HIGHLIGHT = [rehypeFileRefs];
 
-export function Markdown({ children }: MarkdownProps): React.ReactElement {
+export function Markdown({ children, searchQuery = "" }: MarkdownProps): React.ReactElement {
+  // Build the rehype pipeline. When a searchQuery is active, append the
+  // highlight plugin after fileRefs so it can mark matched text in all nodes.
+  // useMemo avoids rebuilding the array on every render unless the query changes.
+  const rehypePlugins = searchQuery.length > 0
+    ? [rehypeFileRefs, makeRehypeHighlight(searchQuery)]
+    : REHYPE_PLUGINS_NO_HIGHLIGHT;
+
   return (
     <div className={styles.root} data-testid="markdown-root">
       <ReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={REHYPE_PLUGINS}
+        rehypePlugins={rehypePlugins}
         components={COMPONENTS}
       >
         {children}

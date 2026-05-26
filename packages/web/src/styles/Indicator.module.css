@@ -12,7 +12,8 @@
 
 .indicator {
   position: fixed;
-  top: 16px;
+  /* Sit just below the header to avoid overlapping header content (F5). */
+  top: 56px;
   right: 16px;
   z-index: 1000;
 
