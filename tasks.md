@@ -36,14 +36,14 @@ Goal: first end-to-end conversation. User types in browser, hits Cmd/Ctrl+Enter,
 - [x] **PR-22b** — `Stream` renderer + token-level reflow via `SDKPartialAssistantMessage`; code-block stable-identity invariant (F-07). Test: `stream-reflow.test.ts`. Deps: PR-22a.
 - [x] **PR-23** — Tool cards for Read / Write / Edit / Bash with hand-rolled line-diff. Test: `cards.test.ts`. Deps: PR-22a.
 - [x] **PR-24** — Interrupt path: `chat.interrupt` → `Query.interrupt()`; stop button in Input; abort-token guards late events; `chat.done reason=interrupted`. Test: `interrupt.test.ts`. Deps: PR-19, PR-21.
-- [ ] **PR-25** — Web `Header` (cwd, model picker, permission-mode toggle, live tokens + cost, session id, started-at, duration, new-session w/ mid-stream confirm). Test: `header.test.ts`. Deps: PR-22a.
+- [x] **PR-25** — Web `Header` (cwd, model picker, permission-mode toggle, live tokens + cost, session id, started-at, duration, new-session w/ mid-stream confirm). 4 new tests; 250 total. (Orchestrator completed commit after executor returned without committing — fixed 1 eslint unused-import.)
 - [ ] **PR-26** — M2 e2e: full-stack boot with `MockAnthropicHTTP`; `chat.start` + `chat.input "list files"` → `chat.started` → `chat.event` (assistant + Bash tool_use + tool_result) → `chat.done reason=completed`. Runtime <30s. Test: `e2e/chat-mvp.test.ts`. Deps: PR-19..PR-25.
 
 **Dispatch order (plan § 9).** Mostly serial. Possible parallel split: PR-19 server-side and PR-21 web-side after PR-17 lands (disjoint write scopes); PR-22a/22b/23 share `Markdown.tsx`/`Cards/` so serialise. PR-24 needs both PR-19 and PR-21.
 
 ## In-progress / recent
 
-- **PR-25** — Web `Header` (cwd, model picker, permission-mode toggle, live tokens + cost, session id, started-at, duration, new-session w/ mid-stream confirm). Test: `header.test.ts`. Deps: PR-22a.
+- **PR-26** — M2 E2E `chat-mvp.test.ts`. Deps: PR-19..PR-25.
 
 ## Recent completions (this cycle's worth)
 

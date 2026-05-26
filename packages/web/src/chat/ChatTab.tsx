@@ -2,12 +2,13 @@
  * ChatTab.tsx — top-level chat shell component.
  *
  * Renders:
+ *   - <Header> at the top: cwd, model picker, permission-mode, live usage,
+ *     session id, started-at, duration, new-session button.
  *   - <Stream> for assistant output, fed by accumulated chat.event frames.
- *   - The <Input> component for user text entry.
+ *   - <Input> for user text entry.
  *
- * On submit, builds a ChatInput frame and calls manager.send(). The sessionId
- * is a placeholder UUID for PR-21; PR-25 will wire the real session id from
- * the chat.started server frame.
+ * On submit, builds a ChatInput frame and calls manager.send(). The session id
+ * is read from the chat.started server frame (PR-25).
  *
  * Tracks in-progress state: set on chat.started, cleared on chat.done. While
  * in-progress the Input is disabled and a Stop button is shown; clicking Stop
@@ -22,10 +23,9 @@ import { useRef, useState, useEffect } from "react";
 import { useConnection } from "../ws/useConnection";
 import { Input } from "./Input";
 import { Stream } from "./Stream";
-import type { ChatInput, ChatInterrupt, ChatEvent } from "@cq/shared";
-
-/** Placeholder session id for PR-21. PR-25 will replace with a real value. */
-const PLACEHOLDER_SESSION_ID = "00000000-0000-0000-0000-000000000000";
+import { Header } from "./Header";
+import type { PermissionMode } from "./Header";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage } from "@cq/shared";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -35,30 +35,58 @@ export function ChatTab(): React.ReactElement {
   // chat.done not yet received). Used to gate the Stop button and send interrupt.
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
+  // --- Header state (PR-25) ---
+  const [cwd, setCwd] = useState<string>("");
+  const [model, setModel] = useState<string>("claude-sonnet-4-6");
+  const [permissionMode, setPermissionMode] = useState<PermissionMode>("default");
+  const [inputTokens, setInputTokens] = useState(0);
+  const [outputTokens, setOutputTokens] = useState(0);
+  const [costUsd, setCostUsd] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+
   // Subscribe to incoming server frames and accumulate chat.event entries.
   // Track session lifecycle via chat.started / chat.done.
   useEffect(() => {
     const unsub = manager.onMessage((frame) => {
       if (frame.type === "chat.started") {
-        setActiveSessionId((frame as { sessionId: string }).sessionId);
+        const started = frame as ChatStarted;
+        setActiveSessionId(started.sessionId);
+        setSessionId(started.sessionId);
+        setStartedAt(Date.now());
+        // Extract cwd from initInfo if present.
+        const info = started.initInfo as Record<string, unknown>;
+        if (typeof info["cwd"] === "string") {
+          setCwd(info["cwd"] as string);
+        }
+        // Reset usage counters for new session.
+        setInputTokens(0);
+        setOutputTokens(0);
+        setCostUsd(0);
+        // Clear previous conversation.
+        setChatEvents([]);
       } else if (frame.type === "chat.done") {
         setActiveSessionId(null);
       } else if (frame.type === "chat.event") {
         setChatEvents((prev) => [...prev, frame as ChatEvent]);
+      } else if (frame.type === "chat.usage") {
+        const usage = frame as ChatUsage;
+        setInputTokens(usage.inputTokens);
+        setOutputTokens(usage.outputTokens);
+        setCostUsd(usage.costUsd);
       }
     });
     return unsub;
   }, [manager]);
 
   function handleSubmit(text: string): void {
+    if (activeSessionId === null) return;
     const seq = seqRef.current++;
-    // Clear previous conversation on each new submission.
-    setChatEvents([]);
     const frame: ChatInput = {
       type: "chat.input",
       seq,
       ts: Date.now(),
-      sessionId: PLACEHOLDER_SESSION_ID,
+      sessionId: activeSessionId,
       text,
       attachments: undefined,
     };
@@ -76,10 +104,39 @@ export function ChatTab(): React.ReactElement {
     manager.send(frame);
   }
 
+  function handleNewSession(): void {
+    // Interrupt any in-progress session before starting fresh.
+    if (activeSessionId !== null) {
+      handleInterrupt();
+    }
+    const frame: ChatStart = {
+      type: "chat.start",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      model,
+      permissionMode,
+    };
+    manager.send(frame);
+  }
+
   const inProgress = activeSessionId !== null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <Header
+        cwd={cwd}
+        model={model}
+        onModelChange={setModel}
+        permissionMode={permissionMode}
+        onPermissionModeChange={setPermissionMode}
+        inputTokens={inputTokens}
+        outputTokens={outputTokens}
+        costUsd={costUsd}
+        sessionId={sessionId}
+        startedAt={startedAt}
+        inProgress={inProgress}
+        onNewSession={handleNewSession}
+      />
       <Stream chatEvents={chatEvents} />
       <Input
         onSubmit={handleSubmit}
