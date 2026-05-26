@@ -1,9 +1,10 @@
-import { ClientFrame, type ServerHbPong, type SessionState, type ChatError } from "@cq/shared";
+import { ClientFrame, type ServerHbPong, type SessionState, type ChatError, type HistoryListResult, type HistoryGetResult } from "@cq/shared";
 import { FRAME_VALIDATION_FAILED } from "@cq/shared";
 import type { Logger } from "../log/logger";
 import { createHeartbeat, type HeartbeatHandle } from "./heartbeat";
 import type { SessionRegistry } from "../seq/sessionRegistry";
 import type { Bridge, WsSocket as BridgeWsSocket } from "../agent/bridge";
+import type { Persistence } from "../persist/Persistence.js";
 
 // ---------------------------------------------------------------------------
 // Data attached to each WebSocket connection via ws.data
@@ -20,6 +21,8 @@ export type WsSessionData = {
 
 type PongPayload = Omit<ServerHbPong, "seq" | "ts">;
 type SessionStatePayload = Omit<SessionState, "seq" | "ts">;
+type HistoryListResultPayload = Omit<HistoryListResult, "seq" | "ts">;
+type HistoryGetResultPayload = Omit<HistoryGetResult, "seq" | "ts">;
 
 // ---------------------------------------------------------------------------
 // WsSession — per-connection state and message dispatch
@@ -42,12 +45,15 @@ export class WsSession {
    * When null, chat.start/input/interrupt return chat.error{code:BRIDGE_UNAVAILABLE}.
    */
   private readonly bridge: Bridge | null;
+  /** Persistence — null when not wired (tests that don't need history). */
+  private readonly persistence: Persistence | null;
 
-  constructor(sessionId: string, logger: Logger, registry?: SessionRegistry, bridge?: Bridge | null) {
+  constructor(sessionId: string, logger: Logger, registry?: SessionRegistry, bridge?: Bridge | null, persistence?: Persistence | null) {
     this.sessionId = sessionId;
     this.logger = logger;
     this.registry = registry ?? null;
     this.bridge = bridge ?? null;
+    this.persistence = persistence ?? null;
     this.heartbeat = createHeartbeat({
       buildFrame: (payload) => {
         const seq = this.outboundSeq++;
@@ -166,6 +172,58 @@ export class WsSession {
         }
         break;
       }
+      case "history.list": {
+        if (this.persistence === null) break;
+        const f = frame.filter ?? {};
+        const sortKey = frame.sort?.key ?? "startedAt";
+        const sortDir = (frame.sort?.dir ?? "desc") as "asc" | "desc";
+        // Map protocol sort key names to InvocationSortField names
+        const sortFieldMap: Record<string, string> = {
+          started_at: "startedAt",
+          ended_at: "endedAt",
+          duration_ms: "durationMs",
+          cost_usd: "costUsd",
+          tool_call_count: "toolCallCount",
+          startedAt: "startedAt",
+          endedAt: "endedAt",
+          durationMs: "durationMs",
+          costUsd: "costUsd",
+          toolCallCount: "toolCallCount",
+        };
+        const mappedSort = (sortFieldMap[sortKey] ?? "startedAt") as import("../persist/Persistence.js").InvocationSortField;
+        const invFilter: import("../persist/Persistence.js").InvocationFilter = {};
+        if (f.agentName !== undefined) invFilter.agentName = f.agentName;
+        if (f.model !== undefined) invFilter.model = f.model;
+        if (f.status !== undefined) invFilter.status = f.status;
+        if (f.dateFrom !== undefined) invFilter.dateFrom = f.dateFrom;
+        if (f.dateTo !== undefined) invFilter.dateTo = f.dateTo;
+        if (f.search !== undefined) invFilter.search = f.search;
+        const result = this.persistence.invocations.list(
+          invFilter,
+          { field: mappedSort, dir: sortDir },
+          { limit: frame.pageSize, offset: frame.page * frame.pageSize },
+        );
+        const payload: HistoryListResultPayload = {
+          type: "history.list_result",
+          requestSeq: frame.seq,
+          total: result.total,
+          rows: result.rows,
+        };
+        this.sendFrame(ws, payload);
+        break;
+      }
+      case "history.get": {
+        if (this.persistence === null) break;
+        const full = this.persistence.invocations.getFull(frame.invocationId);
+        if (full === undefined) break;
+        const payload: HistoryGetResultPayload = {
+          type: "history.get_result",
+          requestSeq: frame.seq,
+          row: full,
+        };
+        this.sendFrame(ws, payload);
+        break;
+      }
       // All other client frames are accepted but not yet dispatched (PR-07+)
       default:
         // Accepted; no-op until later PRs wire the handlers.
@@ -251,7 +309,7 @@ export class WsSession {
    * Sends a frame to the client, injecting `seq` and `ts` automatically.
    * `payload` must contain all fields except `seq` and `ts`.
    */
-  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload): void {
+  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload | HistoryListResultPayload | HistoryGetResultPayload): void {
     const seq = this.outboundSeq++;
     const ts = Date.now();
     ws.send(JSON.stringify({ ...payload, seq, ts }));

@@ -1,5 +1,6 @@
 import type { Database, Statement } from "bun:sqlite";
-import type { InvocationRow } from "@cq/shared";
+import type { InvocationRow, HistoryRow, HistoryRowFull } from "@cq/shared";
+import type { InvocationFilter, InvocationSortSpec, PageSpec, PagedResult } from "./Persistence.js";
 
 // ---------------------------------------------------------------------------
 // Column mapping helpers (camelCase ↔ snake_case)
@@ -46,6 +47,61 @@ function toRow(r: InvocationSqlRow): InvocationRow {
     costUsd: r.cost_usd,
     promptExcerpt: r.prompt_excerpt,
     eventLogPath: r.event_log_path,
+  };
+}
+
+/** SQL row shape for the joined history query (invocation + session columns). */
+interface HistorySqlRow extends InvocationSqlRow {
+  title: string;
+  // session fields for HistoryRowFull
+  cwd: string;
+  permission_mode: string;
+  ended_reason: string | null;
+  sdk_session_id: string | null;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cost_usd: number;
+}
+
+const INVOCATION_SORT_MAP: Record<string, string> = {
+  startedAt: "i.started_at",
+  endedAt: "i.ended_at",
+  durationMs: "i.duration_ms",
+  costUsd: "i.cost_usd",
+  toolCallCount: "i.tool_call_count",
+};
+
+function toHistoryRow(r: HistorySqlRow): HistoryRow {
+  return {
+    invocationId: r.id,
+    sessionId: r.session_id,
+    agentName: r.agent_name,
+    model: r.model,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    durationMs: r.duration_ms,
+    status: r.status,
+    toolCallCount: r.tool_call_count,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    costUsd: r.cost_usd,
+    promptExcerpt: r.prompt_excerpt,
+    title: r.title,
+  };
+}
+
+function toHistoryRowFull(r: HistorySqlRow): HistoryRowFull {
+  return {
+    ...toHistoryRow(r),
+    cwd: r.cwd,
+    permissionMode: r.permission_mode,
+    endedReason: r.ended_reason,
+    sdkSessionId: r.sdk_session_id,
+    eventLogPath: r.event_log_path,
+    parentInvocationId: r.parent_invocation_id,
+    totalInputTokens: r.total_input_tokens,
+    totalOutputTokens: r.total_output_tokens,
+    totalCostUsd: r.total_cost_usd,
   };
 }
 
@@ -134,6 +190,100 @@ export class InvocationStore {
   get(id: string): InvocationRow | undefined {
     const r = this.stmtGet.get(id);
     return r ? toRow(r) : undefined;
+  }
+
+  list(
+    filter: InvocationFilter,
+    sort: InvocationSortSpec,
+    page: PageSpec,
+  ): PagedResult<HistoryRow> {
+    const conditions: string[] = [];
+    const params: Record<string, unknown> = {};
+
+    if (filter.agentName !== undefined) {
+      conditions.push("i.agent_name = $agent_name");
+      params.$agent_name = filter.agentName;
+    }
+    if (filter.model !== undefined) {
+      conditions.push("i.model = $model");
+      params.$model = filter.model;
+    }
+    if (filter.status !== undefined) {
+      conditions.push("i.status = $status");
+      params.$status = filter.status;
+    }
+    if (filter.dateFrom !== undefined) {
+      conditions.push("i.started_at >= $date_from");
+      params.$date_from = filter.dateFrom;
+    }
+    if (filter.dateTo !== undefined) {
+      conditions.push("i.started_at <= $date_to");
+      params.$date_to = filter.dateTo;
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const col = INVOCATION_SORT_MAP[sort.field] ?? "i.started_at";
+    const dir = sort.dir === "desc" ? "DESC" : "ASC";
+
+    const baseQuery = `
+      FROM invocation i
+      LEFT JOIN session s ON s.id = i.session_id
+      ${where}
+    `;
+
+    // FTS search: run as a separate query when search is provided, then intersect ids.
+    if (filter.search) {
+      const safeQuery = `"${filter.search.replace(/"/g, '""')}"`;
+      const ftsIds = new Set<string>(
+        this.db
+          .query<{ id: string }, [string]>(
+            `SELECT i.id FROM invocation i JOIN invocation_fts fts ON fts.rowid = i.rowid WHERE invocation_fts MATCH ?`,
+          )
+          .all(safeQuery)
+          .map((r) => r.id),
+      );
+      if (ftsIds.size === 0) return { rows: [], total: 0 };
+      const idList = [...ftsIds].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+      const ftsWhere = where
+        ? `${where} AND i.id IN (${idList})`
+        : `WHERE i.id IN (${idList})`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const total = (this.db.query<{ n: number }, any>(
+        `SELECT COUNT(*) AS n FROM invocation i LEFT JOIN session s ON s.id = i.session_id ${ftsWhere}`,
+      ).get(params) ?? { n: 0 }).n;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = this.db.query<HistorySqlRow, any>(
+        `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+         FROM invocation i LEFT JOIN session s ON s.id = i.session_id
+         ${ftsWhere}
+         ORDER BY ${col} ${dir} LIMIT $limit OFFSET $offset`,
+      ).all({ ...params, $limit: page.limit, $offset: page.offset });
+      return { rows: rows.map(toHistoryRow), total };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const total = (this.db.query<{ n: number }, any>(
+      `SELECT COUNT(*) AS n ${baseQuery}`,
+    ).get(params) ?? { n: 0 }).n;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = this.db.query<HistorySqlRow, any>(
+      `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+       ${baseQuery}
+       ORDER BY ${col} ${dir} LIMIT $limit OFFSET $offset`,
+    ).all({ ...params, $limit: page.limit, $offset: page.offset });
+
+    return { rows: rows.map(toHistoryRow), total };
+  }
+
+  getFull(id: string): HistoryRowFull | undefined {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = this.db.query<HistorySqlRow, any>(
+      `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+       FROM invocation i LEFT JOIN session s ON s.id = i.session_id
+       WHERE i.id = ?`,
+    ).get(id);
+    return r ? toHistoryRowFull(r) : undefined;
   }
 
   listForSession(sessionId: string): InvocationRow[] {

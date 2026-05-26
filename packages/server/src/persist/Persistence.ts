@@ -1,4 +1,4 @@
-import type { SessionRow, InvocationRow } from "@cq/shared";
+import type { SessionRow, InvocationRow, HistoryRow, HistoryRowFull } from "@cq/shared";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 // ---------------------------------------------------------------------------
@@ -28,6 +28,28 @@ export interface PagedResult<T> {
   total: number;
 }
 
+/** Filter for cross-session invocation listing (history.list). */
+export interface InvocationFilter {
+  agentName?: string;
+  model?: string;
+  status?: string;
+  dateFrom?: number;
+  dateTo?: number;
+  search?: string;
+}
+
+export type InvocationSortField =
+  | "startedAt"
+  | "endedAt"
+  | "durationMs"
+  | "costUsd"
+  | "toolCallCount";
+
+export interface InvocationSortSpec {
+  field: InvocationSortField;
+  dir: SortDir;
+}
+
 // ---------------------------------------------------------------------------
 // Persistence interface
 // ---------------------------------------------------------------------------
@@ -49,6 +71,14 @@ export interface Persistence {
     insert(row: InvocationRow): void;
     update(id: string, patch: Partial<InvocationRow>): void;
     get(id: string): InvocationRow | undefined;
+    /** List all invocations across sessions, joined with session.title. */
+    list(
+      filter: InvocationFilter,
+      sort: InvocationSortSpec,
+      page: PageSpec,
+    ): PagedResult<HistoryRow>;
+    /** Get a single invocation joined with session fields as HistoryRowFull. */
+    getFull(id: string): HistoryRowFull | undefined;
     listForSession(sessionId: string): InvocationRow[];
     delete(id: string): void;
     searchFts(query: string, limit: number): InvocationRow[];

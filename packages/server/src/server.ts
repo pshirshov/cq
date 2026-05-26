@@ -52,7 +52,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
         }
 
         const sessionId = crypto.randomUUID();
-        const session = new WsSession(sessionId, logger, registry, bridge);
+        const session = new WsSession(sessionId, logger, registry, bridge, persistence);
         const upgraded = srv.upgrade(req, { data: { sessionId, session } });
         if (!upgraded) {
           // Bun returns false when the upgrade fails for non-WS requests

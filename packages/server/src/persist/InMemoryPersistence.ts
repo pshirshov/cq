@@ -1,4 +1,4 @@
-import type { SessionRow, InvocationRow } from "@cq/shared";
+import type { SessionRow, InvocationRow, HistoryRow, HistoryRowFull } from "@cq/shared";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type {
   Persistence,
@@ -6,6 +6,8 @@ import type {
   SortSpec,
   PageSpec,
   PagedResult,
+  InvocationFilter,
+  InvocationSortSpec,
 } from "./Persistence.js";
 import { InMemoryEventLog } from "./events.js";
 
@@ -137,6 +139,104 @@ export class InMemoryPersistence implements Persistence {
         )
         .slice(0, limit)
         .map((r) => ({ ...r }));
+    },
+
+    list: (
+      filter: InvocationFilter,
+      sort: InvocationSortSpec,
+      page: PageSpec,
+    ): PagedResult<HistoryRow> => {
+      let rows = [...this.invocationMap.values()];
+
+      if (filter.agentName !== undefined) {
+        rows = rows.filter((r) => r.agentName === filter.agentName);
+      }
+      if (filter.model !== undefined) {
+        rows = rows.filter((r) => r.model === filter.model);
+      }
+      if (filter.status !== undefined) {
+        rows = rows.filter((r) => r.status === filter.status);
+      }
+      if (filter.dateFrom !== undefined) {
+        rows = rows.filter((r) => r.startedAt >= filter.dateFrom!);
+      }
+      if (filter.dateTo !== undefined) {
+        rows = rows.filter((r) => r.startedAt <= filter.dateTo!);
+      }
+      if (filter.search) {
+        const q = filter.search.toLowerCase();
+        rows = rows.filter(
+          (r) =>
+            r.promptExcerpt.toLowerCase().includes(q) ||
+            r.agentName.toLowerCase().includes(q),
+        );
+      }
+
+      const key = sort.field as keyof InvocationRow;
+      rows.sort((a, b) => {
+        const av = a[key] ?? null;
+        const bv = b[key] ?? null;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        const c = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sort.dir === "desc" ? -c : c;
+      });
+
+      const total = rows.length;
+      const sliced = rows.slice(page.offset, page.offset + page.limit);
+
+      const historyRows: HistoryRow[] = sliced.map((r) => {
+        const session = this.sessionMap.get(r.sessionId);
+        return {
+          invocationId: r.id,
+          sessionId: r.sessionId,
+          agentName: r.agentName,
+          model: r.model,
+          startedAt: r.startedAt,
+          endedAt: r.endedAt,
+          durationMs: r.durationMs,
+          status: r.status,
+          toolCallCount: r.toolCallCount,
+          inputTokens: r.inputTokens,
+          outputTokens: r.outputTokens,
+          costUsd: r.costUsd,
+          promptExcerpt: r.promptExcerpt,
+          title: session?.title ?? "",
+        };
+      });
+
+      return { rows: historyRows, total };
+    },
+
+    getFull: (id: string): HistoryRowFull | undefined => {
+      const r = this.invocationMap.get(id);
+      if (!r) return undefined;
+      const session = this.sessionMap.get(r.sessionId);
+      return {
+        invocationId: r.id,
+        sessionId: r.sessionId,
+        agentName: r.agentName,
+        model: r.model,
+        startedAt: r.startedAt,
+        endedAt: r.endedAt,
+        durationMs: r.durationMs,
+        status: r.status,
+        toolCallCount: r.toolCallCount,
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+        costUsd: r.costUsd,
+        promptExcerpt: r.promptExcerpt,
+        title: session?.title ?? "",
+        cwd: session?.cwd ?? "",
+        permissionMode: session?.permissionMode ?? "",
+        endedReason: session?.endedReason ?? null,
+        sdkSessionId: session?.sdkSessionId ?? null,
+        eventLogPath: r.eventLogPath,
+        parentInvocationId: r.parentInvocationId,
+        totalInputTokens: session?.totalInputTokens ?? 0,
+        totalOutputTokens: session?.totalOutputTokens ?? 0,
+        totalCostUsd: session?.totalCostUsd ?? 0,
+      };
     },
   };
 

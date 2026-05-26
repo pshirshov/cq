@@ -66,6 +66,12 @@ export class SqlitePersistence implements Persistence {
     insert: (row: InvocationRow): void => this.invocationStore.insert(row),
     update: (id: string, patch: Partial<InvocationRow>): void => this.invocationStore.update(id, patch),
     get: (id: string): InvocationRow | undefined => this.invocationStore.get(id),
+    list: (
+      filter: import("./Persistence.js").InvocationFilter,
+      sort: import("./Persistence.js").InvocationSortSpec,
+      page: import("./Persistence.js").PageSpec,
+    ) => this.invocationStore.list(filter, sort, page),
+    getFull: (id: string) => this.invocationStore.getFull(id),
     listForSession: (sessionId: string): InvocationRow[] =>
       this.invocationStore.listForSession(sessionId),
     delete: (id: string): void => this.invocationStore.delete(id),
