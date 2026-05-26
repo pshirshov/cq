@@ -1,3 +1,5 @@
 import { createRoot } from "react-dom/client";
+import App from "./App";
+
 const root = document.getElementById("root");
-if (root) createRoot(root).render(<div>cq is up</div>);
+if (root) createRoot(root).render(<App />);
