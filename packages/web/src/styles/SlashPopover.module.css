@@ -1,0 +1,46 @@
+/*
+ * SlashPopover.module.css — floating command-palette list for slash-command autocomplete.
+ */
+
+.popover {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  list-style: none;
+  margin: 0;
+  padding: 2px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.item:hover,
+.itemSelected {
+  background-color: #e8f0fe;
+}
+
+.itemName {
+  font-family: monospace;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.itemDesc {
+  color: #555;
+  font-size: 12px;
+  margin-top: 1px;
+}

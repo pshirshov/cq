@@ -2,8 +2,10 @@
  * Input.tsx — multi-line textarea for chat input.
  *
  * Props:
- *   onSubmit(text): called when the user triggers the send chord.
- *   disabled:       passed through to the textarea.
+ *   onSubmit(text):      called when the user triggers the send chord.
+ *   onInterrupt():       called when the Stop button is clicked.
+ *   disabled:            passed through to the textarea.
+ *   slashCommands:       list of slash commands for autocomplete popover (PR-34).
  *
  * Implementation note:
  *   The textarea is UNCONTROLLED (no React value/onChange binding) so that
@@ -22,21 +24,32 @@
  *                 product choice: plain Enter never submits; the explicit
  *                 Cmd/Ctrl chord is required (unambiguous across IME and
  *                 keyboard layouts).
- *   Esc         — blurs the textarea (e.currentTarget.blur()).
+ *   Esc         — if popover open: close popover. Otherwise blurs the textarea.
  *   isComposing — when e.isComposing is true the handler returns early,
  *                 passing all key events through to the IME composition
  *                 session. Prevents accidental submit on Enter-to-confirm
  *                 a CJK candidate. (F-16 IME safety requirement.)
+ *                 Also prevents opening the slash popover during composition.
+ *
+ * Slash-command autocomplete (PR-34):
+ *   Typing `/` at position 0 (or at the start of any line) while NOT composing
+ *   opens a popover listing slashCommands filtered by what follows `/`.
+ *   Up/Down moves selection; Enter inserts `/<name> ` and closes; Esc closes.
+ *   Any character that makes the leading `/` no longer present closes the popover.
  */
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { isMacPlatform } from "../lib/platform";
+import { fuzzyFilter } from "../lib/fuzzy";
+import { SlashPopover } from "./SlashPopover";
+import type { SlashCommand } from "./SlashPopover";
 import styles from "../styles/Input.module.css";
 
 export interface InputProps {
   onSubmit: (text: string) => void;
   onInterrupt?: () => void;
   disabled?: boolean;
+  slashCommands?: SlashCommand[];
 }
 
 /**
@@ -53,16 +66,105 @@ export function isSendChord(e: KeyboardEvent | React.KeyboardEvent): boolean {
   return e.ctrlKey && !e.metaKey;
 }
 
-export function Input({ onSubmit, onInterrupt, disabled }: InputProps): React.ReactElement {
+export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: InputProps): React.ReactElement {
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // --- Slash popover state ---
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [filteredCommands, setFilteredCommands] = useState<SlashCommand[]>([]);
+
+  /**
+   * Recompute the filtered command list from the current textarea value.
+   * Opens or closes the popover based on whether the value starts with `/`
+   * at a line boundary and no whitespace follows (only the partial command name).
+   */
+  function syncPopover(value: string, cursorPos: number): void {
+    // Find the start of the current "word" ending at cursorPos.
+    const textBeforeCursor = value.slice(0, cursorPos);
+    // The popover is active when the text before the cursor on this line
+    // starts with `/` and contains no space (so we're still typing the command name).
+    const lineStart = textBeforeCursor.lastIndexOf("\n") + 1;
+    const lineFragment = textBeforeCursor.slice(lineStart);
+
+    if (lineFragment.startsWith("/") && !lineFragment.includes(" ")) {
+      const query = lineFragment.slice(1); // everything after the leading `/`
+      const filtered = fuzzyFilter(query, slashCommands);
+      if (filtered.length > 0) {
+        setFilteredCommands(filtered);
+        setSelectedIndex(0);
+        setPopoverOpen(true);
+        return;
+      }
+    }
+    setPopoverOpen(false);
+  }
+
+  /** Insert the command (with trailing space) at the position of the currently-typed
+   *  `/command` fragment, replacing it from the line-start `/` up to the cursor. */
+  function pickCommand(name: string): void {
+    const ta = ref.current;
+    if (!ta) return;
+    const value = ta.value;
+    const cursorPos = ta.selectionStart ?? value.length;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const lineStart = textBeforeCursor.lastIndexOf("\n") + 1;
+    // `name` already includes the leading `/` (e.g. "/clear").
+    // Replace from lineStart up to cursorPos (the `/<partial>` fragment).
+    const insertion = `${name} `;
+    ta.value = value.slice(0, lineStart) + insertion + value.slice(cursorPos);
+    const newCursor = lineStart + insertion.length;
+    ta.setSelectionRange(newCursor, newCursor);
+    setPopoverOpen(false);
+  }
+
+  // When slashCommands list changes externally, re-sync if popover is already open.
+  useEffect(() => {
+    if (!popoverOpen) return;
+    const ta = ref.current;
+    if (!ta) return;
+    syncPopover(ta.value, ta.selectionStart ?? ta.value.length);
+  }, [slashCommands]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
     // IME passthrough: never intercept during an active composition session.
     if (e.nativeEvent.isComposing) return;
 
+    // --- Popover navigation (when open) ---
+    if (popoverOpen && filteredCommands.length > 0) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        const cmd = filteredCommands[selectedIndex];
+        if (cmd !== undefined) pickCommand(cmd.name);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setPopoverOpen(false);
+        return;
+      }
+    }
+
+    // --- Normal Escape: blur textarea ---
     if (e.key === "Escape") {
       e.currentTarget.blur();
       return;
+    }
+
+    // --- Check for `/` opening the popover ---
+    if (e.key === "/" && !popoverOpen) {
+      // Let the browser insert the `/` first via default; we'll check in onInput.
+      // (Nothing to do here; onInput will fire after the character lands.)
     }
 
     if (isSendChord(e.nativeEvent)) {
@@ -72,6 +174,7 @@ export function Input({ onSubmit, onInterrupt, disabled }: InputProps): React.Re
       if (trimmed.length > 0) {
         onSubmit(trimmed);
         if (ref.current) ref.current.value = "";
+        setPopoverOpen(false);
       }
       return;
     }
@@ -80,13 +183,27 @@ export function Input({ onSubmit, onInterrupt, disabled }: InputProps): React.Re
     // behaviour, which inserts a newline. No explicit handling needed.
   }
 
+  function handleInput(e: React.FormEvent<HTMLTextAreaElement>): void {
+    const ta = e.currentTarget;
+    syncPopover(ta.value, ta.selectionStart ?? ta.value.length);
+  }
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ position: "relative" }}>
+      {popoverOpen && filteredCommands.length > 0 && (
+        <SlashPopover
+          items={filteredCommands}
+          selectedIndex={selectedIndex}
+          onPick={pickCommand}
+          onClose={() => setPopoverOpen(false)}
+        />
+      )}
       <textarea
         ref={ref}
         className={styles.textarea}
         disabled={disabled}
         onKeyDown={handleKeyDown}
+        onInput={handleInput}
         placeholder="Cmd+Enter to send"
         rows={3}
       />

@@ -31,6 +31,7 @@ import type { ElicitationReply } from "./Cards/ElicitationCard";
 import type { PermissionMode } from "./Header";
 import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
+import type { SlashCommand } from "./SlashPopover";
 
 export function ChatTab(): React.ReactElement {
   const manager = useConnection();
@@ -54,6 +55,15 @@ export function ChatTab(): React.ReactElement {
   const [permissionRequests, setPermissionRequests] = useState<ChatPermissionRequest[]>([]);
   // PR-30: pending elicitation requests, ordered by arrival.
   const [elicitationRequests, setElicitationRequests] = useState<ChatElicitationRequest[]>([]);
+  // PR-34: slash commands from initInfo (or sensible defaults).
+  const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
+    { name: "/help" },
+    { name: "/clear" },
+    { name: "/cwd" },
+    { name: "/model" },
+    { name: "/cost" },
+  ];
+  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>(DEFAULT_SLASH_COMMANDS);
 
   // Subscribe to incoming server frames and accumulate chat.event entries.
   // Track session lifecycle via chat.started / chat.done.
@@ -69,6 +79,20 @@ export function ChatTab(): React.ReactElement {
         const info = started.initInfo as Record<string, unknown>;
         if (typeof info["cwd"] === "string") {
           setCwd(info["cwd"] as string);
+        }
+        // Extract slash_commands from initInfo (PR-34).
+        const rawCmds = info["slash_commands"];
+        if (Array.isArray(rawCmds)) {
+          const parsed: SlashCommand[] = [];
+          for (const c of rawCmds) {
+            if (c !== null && typeof c === "object" && typeof (c as Record<string, unknown>)["name"] === "string") {
+              const entry: SlashCommand = { name: (c as Record<string, unknown>)["name"] as string };
+              const desc = (c as Record<string, unknown>)["description"];
+              if (typeof desc === "string") entry.description = desc;
+              parsed.push(entry);
+            }
+          }
+          if (parsed.length > 0) setSlashCommands(parsed);
         }
         // Reset usage counters for new session.
         setInputTokens(0);
@@ -220,6 +244,7 @@ export function ChatTab(): React.ReactElement {
         onSubmit={handleSubmit}
         onInterrupt={handleInterrupt}
         disabled={inProgress}
+        slashCommands={slashCommands}
       />
     </div>
   );
