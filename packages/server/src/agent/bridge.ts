@@ -36,6 +36,7 @@ import type {
   ChatDone,
   ChatError,
 } from "@cq/shared";
+import { loadMcpServers } from "./mcp";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -67,6 +68,12 @@ export interface BridgeOpts {
   queryFactory?: QueryFactory;
   /** Forwarded to SDK as `options.cwd`. */
   cwd: string;
+  /**
+   * Override the HOME directory used for MCP server config loading
+   * (`~/.claude/mcp_servers.json`). Defaults to `process.env.HOME`.
+   * Primarily for tests that set a temporary HOME.
+   */
+  home?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +145,7 @@ export class Bridge {
   private readonly registry: SessionRegistry;
   private readonly queryFactory: QueryFactory;
   private readonly cwd: string;
+  private readonly home: string | undefined;
   private active: ActiveSession | null = null;
 
   constructor(opts: BridgeOpts) {
@@ -146,6 +154,7 @@ export class Bridge {
     this.queryFactory = opts.queryFactory ?? (({ prompt, options }) =>
       options !== undefined ? sdkQuery({ prompt, options }) : sdkQuery({ prompt }));
     this.cwd = opts.cwd;
+    this.home = opts.home;
   }
 
   isBusy(): boolean {
@@ -170,11 +179,19 @@ export class Bridge {
     const invocationId = crypto.randomUUID();
     const queue = new AsyncQueue<SDKUserMessage>();
 
+    // Load MCP servers from ~/.claude/mcp_servers.json (fallback path per PR-19-D01).
+    // The bundled CLI binary would inherit these via HOME in a full installation;
+    // since the native binary is unavailable in CI (PR-20-D01), we pass them
+    // explicitly via Options.mcpServers so the bridge works in both paths.
+    const mcpServers = await loadMcpServers(this.home);
+    const hasMcpServers = Object.keys(mcpServers).length > 0;
+
     const sdkOptions: SDKOptions = {
       cwd: this.cwd,
       forwardSubagentText: true,
       agentProgressSummaries: true,
       permissionMode: frame.permissionMode ?? "default",
+      ...(hasMcpServers ? { mcpServers } : {}),
     };
     if (frame.model !== undefined) {
       sdkOptions.model = frame.model;
@@ -182,6 +199,13 @@ export class Bridge {
     if (frame.resumeFromInvocationId !== undefined) {
       // resume is a sessionId in the SDK; PR-39 will wire real resume logic.
       sdkOptions.resume = frame.resumeFromInvocationId;
+    }
+
+    if (hasMcpServers) {
+      this.logger.info("bridge.mcp_servers_loaded", {
+        names: Object.keys(mcpServers),
+        source: "~/.claude/mcp_servers.json (explicit fallback)",
+      });
     }
 
     const activeQuery = this.queryFactory({ prompt: queue, options: sdkOptions });
