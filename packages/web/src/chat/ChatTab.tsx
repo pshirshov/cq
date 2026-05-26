@@ -29,7 +29,7 @@ import type { PermissionDecision } from "./PermissionPrompt";
 import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError } from "@cq/shared";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
@@ -153,6 +153,9 @@ export function ChatTab(): React.ReactElement {
         setPermissionRequests((prev) => [...prev, frame as ChatPermissionRequest]);
       } else if (frame.type === "chat.elicitation_request") {
         setElicitationRequests((prev) => [...prev, frame as ChatElicitationRequest]);
+      } else if (frame.type === "chat.error") {
+        const errFrame = frame as ChatError;
+        showToast({ level: "error", text: errFrame.message });
       }
     });
     return unsub;
@@ -168,7 +171,7 @@ export function ChatTab(): React.ReactElement {
         0,
       );
       if (totalBytes > ATTACHMENT_TOTAL_MAX_BYTES) {
-        showToast("Attachments exceed the 5 MB limit. Remove some files before sending.");
+        showToast({ level: "error", text: "Attachments exceed the 5 MB limit. Remove some files before sending." });
         return;
       }
     }

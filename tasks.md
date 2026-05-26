@@ -29,7 +29,7 @@ Total PR count: 56 (PR-01 … PR-54 + PR-09a + PR-22b). 50 of 56 closed (385 tes
 Goal: ship. Graceful shutdown, error toasts, accessibility pass, true end-to-end suite (the brief § 7 one), README + screenshots, final `bun run check`, stop-condition verification per brief § 11.
 
 - [x] **PR-48** — Graceful shutdown (SIGTERM/SIGINT, --shutdown-timeout-ms, 1012 close); F-05 timeout-exceeded test. Test: `shutdown.test.ts`. Deps: PR-19, PR-39.
-- [ ] **PR-49** — Error toasts (bounded 50-entry queue; chat.error + 4xxx close surface). Test: `toast.test.ts`. Deps: PR-22a.
+- [x] **PR-49** — Error toasts (bounded 50-entry queue; chat.error + 4xxx close surface). Test: `toast.test.ts`. Deps: PR-22a.
 - [ ] **PR-50** — Accessibility pass (aria-live, focus, reduced-motion, axe). Test: `a11y.test.ts`. Deps: PR-17, PR-22a, PR-22b, PR-25, PR-42.
 - [ ] **PR-51** — End-to-end suite (brief § 7 mandate; should resolve `PR-18-D01` if possible by driving Manager in-process; resolves `PR-31-D01` if real-SDK becomes feasible). Test: `e2e/full.test.ts`. Deps: PR-26, PR-44, PR-48.
 - [ ] **PR-52** — README + run instructions + 2 screenshots + known-limitations (F-11 attachment cap, F-09 R14, F-02 AskUserQuestion status). Deps: PR-51.
@@ -38,7 +38,7 @@ Goal: ship. Graceful shutdown, error toasts, accessibility pass, true end-to-end
 
 ## In-progress / recent
 
-- **PR-49** — Error toasts — next.
+- **PR-50** — Accessibility pass — next.
 
 ## Recent completions (this cycle's worth)
 

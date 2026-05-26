@@ -26,6 +26,7 @@ import { isRetriable } from "@cq/shared";
 import type { ServerFrame, ClientFrame } from "@cq/shared";
 import { createEventLog } from "./eventLog";
 import type { EventLogEntry } from "./eventLog";
+import { showToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
 // PR-15: RTT summary type + window computation
@@ -779,6 +780,11 @@ export class Manager {
 
       this._lastCloseCode = closeCode;
       this._lastCloseReason = closeReason;
+
+      // Surface 4xxx application-level close codes as error toasts (PR-49).
+      if (closeCode >= 4000 && closeCode <= 4999) {
+        showToast({ level: "error", text: `WS closed: ${closeCode} ${closeReason}` });
+      }
 
       // Remove from pool (unsubscribe already hooked into conn, just remove entry)
       entry.unsub();

@@ -285,10 +285,10 @@ describe("Input — PR-35 attachments", () => {
     expect(decodedSize).toBeGreaterThan(ATTACHMENT_TOTAL_MAX_BYTES);
 
     // Now simulate what ChatTab.handleSubmit does: check cap and fire toast.
-    const toastMessages: string[] = [];
+    const toastTexts: string[] = [];
     const unsub = subscribeToasts((entries) => {
       for (const e of entries) {
-        if (!toastMessages.includes(e.message)) toastMessages.push(e.message);
+        if (!toastTexts.includes(e.text)) toastTexts.push(e.text);
       }
     });
 
@@ -299,13 +299,13 @@ describe("Input — PR-35 attachments", () => {
     const totalBytes = [att].reduce((sum, a) => sum + base64DecodedByteLength(a.dataBase64), 0);
     if (totalBytes > ATTACHMENT_TOTAL_MAX_BYTES) {
       const { showToast } = await import("../src/lib/toast");
-      showToast("Attachments exceed the 5 MB limit. Remove some files before sending.");
+      showToast({ level: "error", text: "Attachments exceed the 5 MB limit. Remove some files before sending." });
     } else {
       fakeSend();
     }
 
     expect(sendCalled).toHaveLength(0);
-    expect(toastMessages.some((m) => m.includes("5 MB"))).toBe(true);
+    expect(toastTexts.some((m) => m.includes("5 MB"))).toBe(true);
 
     unsub();
   });

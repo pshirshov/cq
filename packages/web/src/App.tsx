@@ -4,6 +4,7 @@ import { attachTitleMirror } from "./ws/titleMirror";
 import { Indicator } from "./ws/Indicator";
 import { ChatTab } from "./chat/ChatTab";
 import { HistoryTab } from "./history/HistoryTab";
+import { ToastStack } from "./lib/ToastStack";
 import styles from "./styles/History.module.css";
 
 type TabId = "chat" | "history";
@@ -30,6 +31,7 @@ export default function App(): React.ReactElement {
 
   return (
     <>
+      <ToastStack />
       <Indicator />
       <nav className={styles.tabs} role="tablist" aria-label="Main navigation">
         <button
