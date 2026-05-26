@@ -259,6 +259,10 @@
             ripgrep
             fd
             gh
+            # Playwright Chromium bundle: pinned via flake. The PLAYWRIGHT_*
+            # env vars below tell @playwright/test where to find the binary
+            # so it does NOT try to download from the internet.
+            playwright-driver.browsers
           ];
 
           shellHook = ''
@@ -268,6 +272,9 @@
             echo "  sqlite: $(sqlite3 --version | awk '{print $1}')"
             export BUN_INSTALL_CACHE_DIR="$PWD/.cache/bun"
             mkdir -p "$BUN_INSTALL_CACHE_DIR"
+            # Playwright: use the flake-provisioned browsers, don't download.
+            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+            export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
           '';
         };
       });

@@ -358,9 +358,10 @@ describe("Bridge persistence", () => {
     const updates = ws.framesOfType("history.update");
     expect(updates.length).toBeGreaterThanOrEqual(1);
 
-    // The update should carry the invocationId from the chat.started frame.
+    // Two chat.started frames are emitted (early + late); both carry the same
+    // sessionId/invocationId. Read the invocationId from the first one.
     const started = ws.framesOfType("chat.started");
-    expect(started).toHaveLength(1);
+    expect(started.length).toBeGreaterThanOrEqual(1);
     const invocationId = started[0]!.invocationId as string;
     const finalUpdate = updates.find((u) => u.invocationId === invocationId);
     expect(finalUpdate).toBeDefined();

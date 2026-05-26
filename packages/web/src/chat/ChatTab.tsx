@@ -51,9 +51,15 @@ export function ChatTab(): React.ReactElement {
   const stats = useConnectionStats();
   const seqRef = useRef(0);
   const [chatEvents, setChatEvents] = useState<ChatEvent[]>([]);
-  // activeSessionId is non-null while a query is in progress (chat.started received,
-  // chat.done not yet received). Used to gate the Stop button and send interrupt.
+  // activeSessionId is the persistent session handle. Set once on the first
+  // chat.started (early stub) and cleared only on WS disconnect. Used as the
+  // sessionId field on outbound chat.input / chat.interrupt frames.
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // inProgress is true only between sending a chat.input and receiving the
+  // corresponding chat.done. This gates the textarea (disabled while waiting)
+  // and the Stop button (visible only while waiting). Decoupled from
+  // activeSessionId so the textarea stays enabled when the session is idle.
+  const [inProgress, setInProgress] = useState(false);
   // True between sending chat.start and receiving chat.started — prevents duplicate starts.
   const chatStartPendingRef = useRef(false);
   // True when the user explicitly triggered new/resume session — prevents auto-start racing.
@@ -229,7 +235,9 @@ export function ChatTab(): React.ReactElement {
           return [synthetic, ...prev];
         });
       } else if (frame.type === "chat.done") {
-        setActiveSessionId(null);
+        // Turn finished — clear in-progress so the textarea re-enables.
+        // Keep activeSessionId set: the session stays alive for multi-turn.
+        setInProgress(false);
       } else if (frame.type === "chat.event") {
         setChatEvents((prev) => [...prev, frame as ChatEvent]);
       } else if (frame.type === "chat.usage") {
@@ -258,6 +266,17 @@ export function ChatTab(): React.ReactElement {
     const isAlive = stats.connections.some((c) => c.state === "ALIVE");
     const wasAlive = prevWasAliveRef.current;
     prevWasAliveRef.current = isAlive;
+
+    // ALIVE → not-ALIVE: WS dropped. The server-side bridge.active state is
+    // tied to the connection lifecycle, so the prior session is no longer
+    // valid. Drop client-side session state so the next ALIVE edge auto-starts
+    // a fresh session.
+    if (wasAlive && !isAlive) {
+      setActiveSessionId(null);
+      setInProgress(false);
+      chatStartPendingRef.current = false;
+      return;
+    }
 
     // Only act on the ALIVE edge (false → true).
     if (!isAlive || wasAlive) return;
@@ -294,6 +313,7 @@ export function ChatTab(): React.ReactElement {
       }
     }
 
+    setInProgress(true);
     const seq = seqRef.current++;
     const frame: ChatInput = {
       type: "chat.input",
@@ -408,7 +428,8 @@ export function ChatTab(): React.ReactElement {
   // when the Map is empty — callers do not need to toggle it manually.
   const tasks = useMemo(() => computeTasks(chatEvents), [chatEvents]);
 
-  const inProgress = activeSessionId !== null;
+  // `inProgress` is the explicit state set/cleared in the chat.input → chat.done
+  // window above; activeSessionId is the persistent session handle.
 
   // 1-based match counter for SearchBar display.
   const displayMatchCount = matchIndices.length;

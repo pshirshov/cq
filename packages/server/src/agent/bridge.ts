@@ -431,6 +431,17 @@ export class Bridge {
 
     this.logger.info("bridge.chat_start", { chatSessionId, invocationId });
 
+    // Emit chat.started preemptively so the client learns its sessionId
+    // immediately and can begin sending chat.input. The real SDK subprocess
+    // emits its `system/init` message only AFTER it receives the first user
+    // message on stdin — so without this preemptive frame, the client and
+    // SDK deadlock waiting for each other.
+    //
+    // The runLoop will fire chat.started a second time when the SDK actually
+    // emits init (carrying real cwd, slash_commands, mcp_servers, etc.). The
+    // client treats the second one as an update for the same sessionId.
+    this.sendStartedEarly(ws, session);
+
     // Run the iteration loop in the background.
     this.runLoop(session, ws).catch((err: unknown) => {
       this.logger.error("bridge.loop_uncaught", {
@@ -659,9 +670,28 @@ export class Bridge {
 
         // All other messages → chat.event via replay buffer.
         this.sendEvent(ws, session, msg);
+
+        // End-of-turn marker. The SDK emits exactly one `result` per turn
+        // (subtype 'success' on normal completion, 'error_*' on failure).
+        // The client treats chat.done as "turn finished; textarea re-enables;
+        // ready for next user input". We KEEP the session alive (don't break)
+        // so the next chat.input can drive another turn through the same
+        // subprocess — that's the SDK's multi-turn semantics.
+        if ((msg as { type?: string }).type === "result") {
+          const sub = (msg as { subtype?: string }).subtype ?? "";
+          const turnDone: ChatDone["reason"] = sub.startsWith("error")
+            ? "errored"
+            : "completed";
+          this.sendDone(session.ws, session, turnDone);
+          continue;
+        }
       }
 
-      // Iteration ended: choose reason based on whether an interrupt was requested.
+      // Iteration ended (subprocess closed stdin / queue ended): choose reason
+      // based on whether an interrupt was requested. Note: on a healthy
+      // multi-turn flow we never reach here because turn-level chat.done is
+      // sent above; this only fires on shutdown() / interruptActive() that
+      // close the query.
       ws = session.ws;
       doneReason = session.aborting ? "interrupted" : "completed";
       this.sendDone(ws, session, doneReason);
@@ -799,6 +829,31 @@ export class Bridge {
   // ---------------------------------------------------------------------------
   // Frame senders
   // ---------------------------------------------------------------------------
+
+  /**
+   * Emit chat.started immediately after handleChatStart, before the SDK
+   * subprocess has produced its system/init message. Carries the session and
+   * invocation IDs so the client can send chat.input; carries cwd from the
+   * server config (the only initInfo field knowable up-front). Other init
+   * fields (slash_commands, mcp_servers, model) arrive in the second
+   * chat.started fired by sendStarted() once the SDK emits init.
+   */
+  private sendStartedEarly(ws: WsSocket, session: ActiveSession): void {
+    const sessionState = this.registry.get(session.chatSessionId);
+    const seq = sessionState !== undefined ? sessionState.buffer.serverSeq + 1 : 0;
+    const frame: ChatStarted = {
+      type: "chat.started",
+      seq,
+      ts: Date.now(),
+      sessionId: session.chatSessionId,
+      invocationId: session.invocationId,
+      initInfo: { cwd: this.cwd },
+    };
+    ws.send(JSON.stringify(frame));
+    this.logger.info("bridge.chat_started_early", {
+      chatSessionId: session.chatSessionId,
+    });
+  }
 
   private sendStarted(ws: WsSocket, session: ActiveSession, initMsg: SDKSystemMessage): void {
     const sessionState = this.registry.get(session.chatSessionId);

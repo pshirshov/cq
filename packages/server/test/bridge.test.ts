@@ -291,15 +291,25 @@ describe("Bridge", () => {
     const ws = new MockWsSocket();
     await bridge.handleChatStart(ws, makeChatStart());
 
-    const started = await ws.waitForFrames("chat.started");
-    expect(started).toHaveLength(1);
-    const frame = started[0]!;
-    expect(frame.type).toBe("chat.started");
-    expect(typeof frame.sessionId).toBe("string");
-    expect(typeof frame.invocationId).toBe("string");
-    expect(frame.initInfo).toBeDefined();
-    const initInfo = frame.initInfo as Record<string, unknown>;
-    expect(initInfo.model).toBe("claude-test");
+    // Two chat.started frames are emitted: the first immediately after
+    // handleChatStart carrying just sessionId + invocationId + cwd (so the
+    // client can begin sending chat.input before the SDK has booted); the
+    // second from the SDK's system/init message carrying the full initInfo.
+    // Wait for both, then verify the final one has the SDK init payload.
+    const started = await ws.waitForFrames("chat.started", 2);
+    expect(started).toHaveLength(2);
+
+    const earlyFrame = started[0]!;
+    expect(earlyFrame.type).toBe("chat.started");
+    expect(typeof earlyFrame.sessionId).toBe("string");
+    expect(typeof earlyFrame.invocationId).toBe("string");
+    const earlyInfo = earlyFrame.initInfo as Record<string, unknown>;
+    expect(earlyInfo).toEqual({ cwd: expect.any(String) });
+
+    const finalFrame = started[1]!;
+    expect(finalFrame.sessionId).toBe(earlyFrame.sessionId);
+    const finalInfo = finalFrame.initInfo as Record<string, unknown>;
+    expect(finalInfo.model).toBe("claude-test");
 
     await bridge.shutdown();
   });

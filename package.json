@@ -2,7 +2,7 @@
   "name": "cq",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/shared", "packages/server", "packages/web"],
+  "workspaces": ["packages/shared", "packages/server", "packages/web", "packages/e2e"],
   "scripts": {
     "check": "tsc -b && eslint . && bun test",
     "typecheck": "tsc -b",
@@ -10,7 +10,9 @@
     "format": "prettier --write .",
     "test": "bun test --pass-with-no-tests",
     "start": "bun run packages/server/src/main.ts --cwd /tmp --port 5173",
-    "dev": "bun run packages/server/src/main.ts -- --dev --cwd . --port 5173"
+    "dev": "bun run packages/server/src/main.ts -- --dev --cwd . --port 5173",
+    "e2e": "cd packages/e2e && playwright test",
+    "e2e:headed": "cd packages/e2e && playwright test --headed"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

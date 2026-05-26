@@ -280,7 +280,11 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     expect(hint!.textContent).toContain("Type below to start");
   });
 
-  test("(e) thinking indicator renders after chat.started before any chat.event", () => {
+  test("(e) chat.started alone does NOT show thinking — session is idle, not in a turn", () => {
+    // Design contract: inProgress means "a user turn is awaiting a response",
+    // not "the session is established". After chat.started the session is
+    // idle and ready for input; the thinking indicator must appear only after
+    // the user has actually submitted a chat.input.
     const manager = new FakeManager(makeStats());
     setup();
 
@@ -294,7 +298,7 @@ describe("ChatTab auto-start (D-UX-1)", () => {
 
     act(() => { manager.push(ALIVE_STATS); });
 
-    // Simulate chat.started (sets inProgress=true, no events yet).
+    // chat.started arrives but the user has not typed anything yet.
     act(() => {
       manager.emit({
         type: "chat.started",
@@ -306,8 +310,9 @@ describe("ChatTab auto-start (D-UX-1)", () => {
       } as ServerFrame);
     });
 
-    const thinking = container!.querySelector("[data-testid='stream-thinking']");
-    expect(thinking).not.toBeNull();
-    expect(thinking!.textContent).toContain("Thinking");
+    // No thinking indicator: not in a turn.
+    expect(container!.querySelector("[data-testid='stream-thinking']")).toBeNull();
+    // Empty-state hint is the correct affordance for "session ready, type below".
+    expect(container!.querySelector("[data-testid='stream-empty-state']")).not.toBeNull();
   });
 });

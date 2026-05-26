@@ -53,6 +53,24 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       const url = new URL(req.url);
       const pathname = url.pathname;
 
+      // ── E2E test hook ────────────────────────────────────────────────── //
+      // POST /__e2e/interrupt: force-clears bridge.active so the next test
+      // starts with a clean slate. Only enabled when CQ_E2E_HOOKS=1 (set by
+      // the Playwright globalSetup), refusing the route in production. This
+      // is the minimum surface Playwright needs for reliable test teardown
+      // when the SDK subprocess takes long to drain.
+      if (pathname === "/__e2e/interrupt" && process.env["CQ_E2E_HOOKS"] === "1") {
+        if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+        try {
+          bridge.interruptActive();
+          await bridge.shutdown();
+          return new Response("ok", { status: 200 });
+        } catch (err) {
+          logger.warn("e2e.interrupt_failed", { err: String(err) });
+          return new Response("interrupt failed", { status: 500 });
+        }
+      }
+
       // WebSocket upgrade — only on /ws
       if (pathname === "/ws") {
         // Refuse new upgrades when draining.

@@ -242,9 +242,13 @@ describe("MCP inheritance (G2c F-14)", () => {
         });
 
         // Wait for chat.started.
-        const [startedFrame] = await ws.waitForFrames("chat.started", 1, 5000);
-        expect(startedFrame).toBeDefined();
-        expect(startedFrame!.type).toBe("chat.started");
+        // Two chat.started frames now: early stub (cwd only) + late one with
+        // full initInfo from the SDK. We need the late one for the mcp_servers
+        // assertion.
+        const startedFrames = await ws.waitForFrames("chat.started", 2, 5000);
+        expect(startedFrames.length).toBeGreaterThanOrEqual(2);
+        const lateStarted = startedFrames[startedFrames.length - 1]!;
+        expect(lateStarted.type).toBe("chat.started");
 
         // Assertion A: the queryFactory was called with mcpServers containing 'test-mcp'.
         expect(calls.length).toBeGreaterThanOrEqual(1);
@@ -258,8 +262,8 @@ describe("MCP inheritance (G2c F-14)", () => {
         });
 
         // Assertion B: the synthetic init message (built by MockQuery from Options.mcpServers)
-        // is surfaced in chat.started.initInfo.mcp_servers.
-        const initInfo = startedFrame!.initInfo as Record<string, unknown>;
+        // is surfaced in the LATE chat.started.initInfo.mcp_servers.
+        const initInfo = lateStarted.initInfo as Record<string, unknown>;
         const mcpServers = (initInfo["mcp_servers"] ?? []) as Array<{ name: string }>;
         const names = mcpServers.map((s) => s.name);
         expect(names).toContain("test-mcp");
