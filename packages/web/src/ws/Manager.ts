@@ -1,5 +1,5 @@
 /**
- * Manager.ts — Client-side WebSocket connection pool (PR-09 / PR-10).
+ * Manager.ts — Client-side WebSocket connection pool (PR-09 / PR-10 / PR-11).
  *
  * Implements:
  *   - Pool of up to maxLiveConnections (default 3) Connection instances.
@@ -11,6 +11,9 @@
  *   - destroy(): closes all connections, clears timers, becomes inert.
  *   - Page Lifecycle hooks (PR-10): checkConnections, handleResume, closeForBFCache,
  *     reopenFromBFCache, runPendingReconnect. Backoff defers while tab hidden.
+ *   - Time-jump detector (PR-11 / R8): 1s tick interval; if elapsed > tick + threshold,
+ *     calls checkConnections() (short gap) or handleResume(elapsed) (long gap ≥ pongTimeout).
+ *     Fires even when the tab is hidden — we want the connection ready before visibility.
  *
  * PR-12 hardens the destroyed-flag invariant further.
  */
@@ -19,6 +22,20 @@ import { Connection } from "./Connection";
 import type { ConnectionOpts, ConnectionState, ConnectionStats, SocketLike } from "./Connection";
 import { isRetriable } from "@cq/shared";
 import type { ServerFrame, ClientFrame } from "@cq/shared";
+
+// ---------------------------------------------------------------------------
+// Time-jump detector constants (PR-11 / R8)
+// ---------------------------------------------------------------------------
+
+/** Nominal tick period for the time-jump detector (ms). */
+export const TIME_JUMP_TICK_MS = 1_000;
+
+/**
+ * Additional tolerance beyond the tick interval (ms). A real elapsed time
+ * exceeding TIME_JUMP_TICK_MS + TIME_JUMP_THRESHOLD_MS triggers recovery.
+ * With the defaults, any gap > 3 s triggers the detector.
+ */
+export const TIME_JUMP_THRESHOLD_MS = 2_000;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -62,6 +79,20 @@ export interface ManagerOpts {
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (id: unknown) => void;
   /**
+   * PR-11: Periodic interval scheduler for the time-jump detector.
+   * Defaults to globalThis.setInterval. Inject in tests to get explicit control
+   * over when ticks fire independently of the clock() value.
+   */
+  setInterval?: (fn: () => void, ms: number) => unknown;
+  /** Paired cancellation for the interval injected via setInterval. */
+  clearInterval?: (id: unknown) => void;
+  /**
+   * PR-11: When false, the time-jump detector is not started. Useful in tests
+   * that do not want the detector interfering with their scenario.
+   * Default: true.
+   */
+  enableTimeJumpDetector?: boolean;
+  /**
    * PR-10: Predicate that returns true when the tab/page is currently visible.
    * Used by scheduleBackoff to decide whether to defer reconnection.
    * Default reads document.visibilityState === "visible" when document is defined;
@@ -103,6 +134,8 @@ export class Manager {
   private readonly _random: () => number;
   private readonly _setTimer: (fn: () => void, ms: number) => unknown;
   private readonly _clearTimer: (id: unknown) => void;
+  private readonly _setInterval: (fn: () => void, ms: number) => unknown;
+  private readonly _clearInterval: (id: unknown) => void;
   private readonly _isVisible: () => boolean;
 
   // --- pool state -----------------------------------------------------------
@@ -134,6 +167,15 @@ export class Manager {
   // --- lifecycle flag -------------------------------------------------------
   private _destroyed: boolean = false;
 
+  // --- PR-11: time-jump detector -------------------------------------------
+  private _lastTickAt: number = 0;
+  private _tickIntervalId: unknown = null;
+  /**
+   * Telemetry counters for tests: incremented on each detector branch taken.
+   * Avoids the need to spy on methods while remaining lightweight.
+   */
+  readonly _timeJumpStats: { short: number; long: number } = { short: 0, long: 0 };
+
   // --- subscribers ----------------------------------------------------------
   private readonly _updateSubs: Array<(stats: ManagerStats) => void> = [];
   private readonly _messageSubs: Array<(frame: ServerFrame) => void> = [];
@@ -153,6 +195,8 @@ export class Manager {
     this._random = opts.random ?? Math.random;
     this._setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this._clearTimer = opts.clearTimer ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
+    this._setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
+    this._clearInterval = opts.clearInterval ?? ((id) => clearInterval(id as ReturnType<typeof setInterval>));
     this._isVisible = opts.isVisible ??
       (() => typeof document !== "undefined"
         ? document.visibilityState === "visible"
@@ -160,6 +204,11 @@ export class Manager {
 
     // Spawn initial connection
     this._spawn();
+
+    // Start time-jump detector (R8); default enabled.
+    if (opts.enableTimeJumpDetector !== false) {
+      this.startTimeJumpDetector();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -228,6 +277,9 @@ export class Manager {
   destroy(): void {
     if (this._destroyed) return;
     this._destroyed = true;
+
+    // Clear time-jump detector tick interval
+    this.stopTimeJumpDetector();
 
     // Clear backoff timer
     this._cancelBackoff();
@@ -325,6 +377,62 @@ export class Manager {
     this._isTerminal = false;
     this._spawn();
     this._notify();
+  }
+
+  // ---------------------------------------------------------------------------
+  // PR-11: Time-jump detector (R8)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Start the 1 s tick that detects event-loop pauses (mobile freeze, OS sleep,
+   * debugger). On each tick:
+   *   elapsed = clock() - _lastTickAt
+   *   If elapsed > TIME_JUMP_TICK_MS + TIME_JUMP_THRESHOLD_MS:
+   *     short gap (< pongTimeoutMs)  → checkConnections() (just ping)
+   *     long gap  (≥ pongTimeoutMs)  → handleResume(elapsed) (proactive reconnect)
+   *
+   * The detector fires even while the tab is hidden — we want the connection
+   * ready *before* the tab becomes visible (R8 rationale: NAT tables are gone,
+   * TCP state is gone; don't waste a full pong timeout confirming it).
+   *
+   * Called automatically by the constructor unless enableTimeJumpDetector:false.
+   * Idempotent: calling it twice has no effect (existing interval is kept).
+   */
+  startTimeJumpDetector(): void {
+    if (this._destroyed) return;
+    if (this._tickIntervalId !== null) return; // already running
+
+    this._lastTickAt = this._clock();
+    this._tickIntervalId = this._setInterval(() => {
+      if (this._destroyed) return;
+      const now = this._clock();
+      const elapsed = now - this._lastTickAt;
+      this._lastTickAt = now;
+
+      if (elapsed > TIME_JUMP_TICK_MS + TIME_JUMP_THRESHOLD_MS) {
+        if (elapsed < this._pongTimeoutMs) {
+          // Short gap: connections may still be alive — just ping.
+          this._timeJumpStats.short += 1;
+          this.checkConnections();
+        } else {
+          // Long gap: NAT/TCP state is almost certainly gone.
+          this._timeJumpStats.long += 1;
+          this.handleResume(elapsed);
+        }
+      }
+    }, TIME_JUMP_TICK_MS);
+  }
+
+  /**
+   * Stop the time-jump detector tick interval.
+   * Called automatically by destroy(). May also be called explicitly when
+   * a consumer wants to disable the detector without destroying the manager.
+   */
+  stopTimeJumpDetector(): void {
+    if (this._tickIntervalId !== null) {
+      this._clearInterval(this._tickIntervalId);
+      this._tickIntervalId = null;
+    }
   }
 
   /**
