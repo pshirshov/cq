@@ -706,4 +706,76 @@ describe("Bridge", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]!.code).toBe("REJOIN_FAILED");
   });
+
+  // --------------------------------------------------------------------------
+  // QR-P8: SDK error catch path — non-aborting throw in runLoop
+  //
+  // A MockQuery whose second next() call throws a non-abort Error should trigger:
+  //   - chat.done with reason="errored"
+  //   - chat.error with code="SDK_ERROR"
+  //   - a system:error event appended to the invocation's JSONL log
+  // --------------------------------------------------------------------------
+  it("QR-P8: SDK throw in runLoop → chat.done{errored} + chat.error{SDK_ERROR} + event-log entry", async () => {
+    const errMsg = "simulated SDK crash";
+    let callCount = 0;
+
+    // The generator yields init on first next(), then throws on second next().
+    const gen = (async function* (): AsyncGenerator<SDKMessage, void> {
+      yield makeInitMessage();
+      // Give the bridge a moment to process init so the invocation is registered
+      // before we throw (otherwise persistence.events.append hasn't been wired yet).
+      await Bun.sleep(10);
+      throw new Error(errMsg);
+    })();
+
+    const throwQuery = gen as unknown as MockQuery;
+    patchWithStubs(throwQuery);
+    throwQuery.interrupt = async () => { callCount++; };
+    throwQuery.close = () => {};
+
+    const persistence = new InMemoryPersistence();
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => throwQuery,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeChatStart());
+
+    // chat.started (early) carries invocationId — retrieve it before the error frames arrive.
+    const startedFrames = await ws.waitForFrames("chat.started", 1, 5000);
+    const invocationId = startedFrames[0]!.invocationId as string;
+    expect(typeof invocationId).toBe("string");
+
+    // Wait for the error frames — both must arrive within 5 s.
+    const dones = await ws.waitForFrames("chat.done", 1, 5000);
+    const chatErrors = await ws.waitForFrames("chat.error", 1, 5000);
+
+    // chat.done must have reason="errored".
+    expect(dones.some((f) => f.reason === "errored")).toBe(true);
+
+    // chat.error must have code="SDK_ERROR".
+    expect(chatErrors).toHaveLength(1);
+    expect(chatErrors[0]!.code).toBe("SDK_ERROR");
+    expect(typeof chatErrors[0]!.message).toBe("string");
+    expect((chatErrors[0]!.message as string).length).toBeGreaterThan(0);
+
+    const logged: SDKMessage[] = [];
+    for await (const e of persistence.events.readAll(invocationId)) {
+      logged.push(e);
+    }
+    const errEntry = logged.find(
+      (e) => (e as Record<string, unknown>).type === "system" &&
+              (e as Record<string, unknown>).subtype === "error",
+    );
+    expect(errEntry).toBeDefined();
+    expect((errEntry as Record<string, unknown>).error).toContain(errMsg);
+
+    await bridge.shutdown();
+    void callCount;
+  });
 });
