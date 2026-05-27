@@ -82,7 +82,6 @@ function statusClass(status: HistoryRow["status"]): string {
     case "completed": return styles.statusCompleted!;
     case "failed": return styles.statusFailed!;
     case "stopped": return styles.statusStopped!;
-    case "errored": return styles.statusFailed!;
   }
 }
 
@@ -103,6 +102,8 @@ const COLUMNS: ColDef[] = [
   { label: "Tool calls", sortKey: "toolCallCount" },
   { label: "Status" },
   { label: "Cost", sortKey: "costUsd" },
+  { label: "In tokens" },
+  { label: "Out tokens" },
   { label: "Session / Excerpt" },
 ];
 
@@ -242,6 +243,8 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
                     </span>
                   </td>
                   <td className={styles.mono}>{fmtCost(row.costUsd)}</td>
+                  <td className={styles.mono}>{row.inputTokens}</td>
+                  <td className={styles.mono}>{row.outputTokens}</td>
                   <td>
                     <div className={styles.mono} style={{ fontSize: 11 }}>
                       {row.title || row.sessionId.slice(0, 8)}
