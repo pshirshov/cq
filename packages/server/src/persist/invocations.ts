@@ -392,13 +392,14 @@ export class InvocationStore {
     for (const c of candidates) {
       if (c.owner_pid === null) continue; // unknown owner — never reap
       if (c.owner_pid === process.pid) continue; // our own row — never reap
-      // Probe liveness.
+      // Probe liveness. ESRCH = truly dead; EPERM = alive but foreign-owned.
       let alive: boolean;
       try {
         process.kill(c.owner_pid, 0);
         alive = true;
-      } catch {
-        alive = false;
+      } catch (err: unknown) {
+        // Only ESRCH means the process is gone. EPERM means it's alive — do NOT reap.
+        alive = (err as NodeJS.ErrnoException).code !== "ESRCH";
       }
       if (alive) continue;
       this.db.run(

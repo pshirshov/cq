@@ -622,7 +622,7 @@ describe("persist-crud", () => {
 // D29: PID-file lock — tryAcquireDbLock unit tests
 // ---------------------------------------------------------------------------
 
-import { mkdtempSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, unlinkSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -674,6 +674,52 @@ describe("D29: tryAcquireDbLock", () => {
     // The stale lock should be reclaimed.
     expect(lock.acquired).toBe(true);
     lock.release();
+  });
+
+  // -------------------------------------------------------------------------
+  // R2a: Two concurrent tryAcquireDbLock calls — exactly one acquires
+  // -------------------------------------------------------------------------
+  test("R2a: two concurrent tryAcquireDbLock calls on the same path; exactly one acquires", async () => {
+    // Fire both acquisitions synchronously (they are sync internally).
+    // Wrapping in Promise.all ensures we catch any thrown errors.
+    const [lockA, lockB] = await Promise.all([
+      Promise.resolve(tryAcquireDbLock(dbPath)),
+      Promise.resolve(tryAcquireDbLock(dbPath)),
+    ]);
+    const acquiredCount = [lockA.acquired, lockB.acquired].filter(Boolean).length;
+    expect(acquiredCount).toBe(1);
+    lockA.release();
+    lockB.release();
+    // After both release the lock file must be gone.
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // R2b: process.kill throwing EPERM → acquired:false (live foreign-owned process)
+  // -------------------------------------------------------------------------
+  test("R2b: EPERM from process.kill means the process is alive; lock is NOT reclaimed", () => {
+    // Write a lock file with a fake PID. The real PID value does not matter
+    // because we monkey-patch process.kill to throw EPERM.
+    const fakePid = 12345;
+    writeFileSync(lockPath, String(fakePid), "utf8");
+
+    const originalKill = process.kill.bind(process);
+    // Temporarily replace process.kill to simulate a foreign-owned live process.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (process as unknown as Record<string, unknown>).kill = (...args: unknown[]) => {
+      const err = new Error("Operation not permitted") as NodeJS.ErrnoException;
+      err.code = "EPERM";
+      throw err;
+    };
+    try {
+      const lock = tryAcquireDbLock(dbPath);
+      // Must NOT reclaim: the PID is alive (just foreign-owned).
+      expect(lock.acquired).toBe(false);
+      // Lock file must still contain the original PID (not overwritten).
+      expect(readFileSync(lockPath, "utf8").trim()).toBe(String(fakePid));
+    } finally {
+      (process as unknown as Record<string, unknown>).kill = originalKill;
+    }
   });
 
   test("SqlitePersistence A holds lock; opening B on same file-backed DB skips reap", () => {

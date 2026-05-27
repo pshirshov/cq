@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { readFileSync, openSync, writeSync, closeSync, writeFileSync, unlinkSync } from "node:fs";
 
 export interface CqLock {
   acquired: boolean;
@@ -8,10 +8,13 @@ export interface CqLock {
 /**
  * Best-effort PID lock at <dbPath>.lock.
  *
- * - If the lock file exists AND its PID is alive (process.kill(pid, 0) succeeds),
- *   the lock is held by another process. Returns { acquired: false }.
- * - Otherwise (no file, or stale PID), claims the lock by writing our PID.
- *   Returns { acquired: true, release: () => unlink the file }.
+ * - Uses openSync with the "wx" flag for an atomic exclusive create on POSIX.
+ *   Two concurrent callers cannot both create the file; only one succeeds.
+ * - If the file already exists (EEXIST from "wx"), we check whether the
+ *   recorded PID is still alive:
+ *     - process.kill(pid, 0) succeeds → process alive → lock held → { acquired: false }
+ *     - throws ESRCH → process truly dead → stale lock, reclaim
+ *     - throws EPERM → process alive but foreign-owned → lock held → { acquired: false }
  * - Never throws on filesystem errors; the caller skips destructive actions
  *   like reaping when acquired === false.
  *
@@ -26,7 +29,21 @@ export function tryAcquireDbLock(
   const noop = (): void => {};
 
   try {
-    if (existsSync(lockPath)) {
+    // Attempt an atomic exclusive create ("wx" fails with EEXIST if file exists).
+    let fd: number;
+    try {
+      fd = openSync(lockPath, "wx");
+      // Exclusive create succeeded — we own the lock; write our PID.
+      writeSync(fd, String(process.pid));
+      closeSync(fd);
+    } catch (openErr: unknown) {
+      const code = (openErr as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") {
+        // Unexpected filesystem error — degrade gracefully.
+        logger?.warn("persist.lock_error", { lockPath });
+        return { acquired: false, release: noop };
+      }
+      // File already exists — inspect the PID it contains.
       const raw = readFileSync(lockPath, "utf8").trim();
       const stalePid = parseInt(raw, 10);
       if (!isNaN(stalePid)) {
@@ -36,14 +53,19 @@ export function tryAcquireDbLock(
           // Process is alive — lock is held by another process.
           logger?.warn("persist.lock_held_by_other", { lockPath, pid: stalePid });
           return { acquired: false, release: noop };
-        } catch {
-          // ESRCH or EPERM → process no longer exists; stale lock — reclaim.
+        } catch (killErr: unknown) {
+          const killCode = (killErr as NodeJS.ErrnoException).code;
+          if (killCode !== "ESRCH") {
+            // EPERM means the process is alive but foreign-owned — do NOT reclaim.
+            logger?.warn("persist.lock_held_by_other", { lockPath, pid: stalePid, killCode });
+            return { acquired: false, release: noop };
+          }
+          // ESRCH → process truly dead; stale lock — reclaim by overwriting.
         }
       }
+      // Reclaim the stale lock by overwriting with our PID.
+      writeFileSync(lockPath, String(process.pid), "utf8");
     }
-
-    // Write our PID.
-    writeFileSync(lockPath, String(process.pid), "utf8");
 
     let released = false;
     function release(): void {
