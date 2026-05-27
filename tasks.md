@@ -68,7 +68,7 @@ Discharge: `bun run check` 0; `bun run e2e` 0; zero `ResumePicker` refs.
 Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 - [x] **PR-01** — Haiku-generated session titles (server-side + persist + tests).
-- [ ] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
+- [x] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
 - [ ] **PR-03** — Add Resume button column in History tab (top-level finished main only).
 - [ ] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
 - [ ] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
@@ -79,6 +79,10 @@ Cross-cutting (locked):
 - [x] `@anthropic-ai/sdk` added to `packages/server` only.
 - [x] Subagent predicate in `List.tsx` = `agentName !== 'main'`.
 - [x] User-triggered rejoin (live session) goes away; only auto-refresh rejoin remains.
+
+### PR-02 completed (2026-05-28)
+
+`packages/web/src/history/List.tsx`: cost/in/out cells now render empty for any row where `agentName !== 'main'` (the SDK emits per-turn metrics only at the top-level boundary, so subagent rows always carried misleading zeros). Test added in `history-list.test.ts` asserts both the main-row and subagent-row paths. `bun run check` → 537 pass.
 
 ### PR-01 completed (2026-05-28)
 

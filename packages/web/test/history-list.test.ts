@@ -351,4 +351,62 @@ describe("HistoryTab list view", () => {
     // The filter will be sent when the user types — verified by integration.
     console.warn("React fiber access unavailable; structural fallback used for test (4).");
   });
+
+  test("(PR-02) subagent rows render empty Cost/In/Out cells; main rows render numeric values", () => {
+    setup();
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const mainRow = makeHistoryRow({
+      agentName: "main",
+      costUsd: 0.1234,
+      inputTokens: 1500,
+      outputTokens: 2500,
+    });
+    const subRow = makeHistoryRow({
+      agentName: "Task",
+      costUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+    });
+
+    const sentFrame = manager.sent.find((f) => f.type === "history.list");
+    if (!sentFrame || sentFrame.type !== "history.list") throw new Error("no list frame");
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: sentFrame.seq,
+        total: 2,
+        rows: [mainRow, subRow],
+      });
+    });
+
+    const trs = container!.querySelectorAll("table tbody tr");
+    expect(trs.length).toBe(2);
+
+    // Columns: When, Agent, Model, Duration, Tool calls, Status, Cost, In, Out, Session/Excerpt.
+    // Indices: 0..9. Cost=6, In=7, Out=8.
+    function cellText(row: Element, idx: number): string {
+      const cells = row.querySelectorAll("td");
+      return (cells[idx]?.textContent ?? "").trim();
+    }
+
+    const mainTr = Array.from(trs).find((tr) =>
+      (tr.querySelector("td:nth-child(2)")?.textContent ?? "").includes("main"),
+    )!;
+    const subTr = Array.from(trs).find((tr) =>
+      (tr.querySelector("td:nth-child(2)")?.textContent ?? "").includes("Task"),
+    )!;
+
+    expect(cellText(mainTr, 6)).toMatch(/\$/);
+    expect(cellText(mainTr, 7)).toBe("1500");
+    expect(cellText(mainTr, 8)).toBe("2500");
+
+    expect(cellText(subTr, 6)).toBe("");
+    expect(cellText(subTr, 7)).toBe("");
+    expect(cellText(subTr, 8)).toBe("");
+  });
 });

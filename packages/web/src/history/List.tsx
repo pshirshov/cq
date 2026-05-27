@@ -257,9 +257,12 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
                       {row.status}
                     </span>
                   </td>
-                  <td className={styles.mono}>{fmtCost(row.costUsd)}</td>
-                  <td className={styles.mono}>{row.inputTokens}</td>
-                  <td className={styles.mono}>{row.outputTokens}</td>
+                  {/* PR-02: subagent rows have no per-row cost/token data
+                      (SDK emits result only at the top-level turn boundary),
+                      so render empty cells rather than misleading zeros. */}
+                  <td className={styles.mono}>{row.agentName === "main" ? fmtCost(row.costUsd) : ""}</td>
+                  <td className={styles.mono}>{row.agentName === "main" ? row.inputTokens : ""}</td>
+                  <td className={styles.mono}>{row.agentName === "main" ? row.outputTokens : ""}</td>
                   <td>
                     <div className={styles.mono} style={{ fontSize: 11 }}>
                       {row.title || row.sessionId.slice(0, 8)}
