@@ -89,6 +89,7 @@ const SCROLL_NEAR_BOTTOM_PX = 80;
 /** A fully-resolved message ready to render. */
 type RenderedMessage =
   | { kind: "assistant"; messageId: string; text: string; thinkingBlocks: ThinkingBlock[]; ts: number }
+  | { kind: "user"; messageId: string; text: string; ts: number }
   | { kind: "tool_use"; key: string; toolUse: ToolUseBlock; toolResult?: ToolResultBlock; ts: number }
   | { kind: "ask"; key: string; toolUseId: string; input: AskUserQuestionInput; ts: number }
   | { kind: "unknown"; key: string; sdkEvent: Record<string, unknown>; ts: number }
@@ -395,6 +396,8 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
   const toolUseIdToTaskId = new Map<string, string>();
   // AskUserQuestion tool_use blocks, keyed by insertion key.
   const askByKey = new Map<string, { toolUseId: string; input: AskUserQuestionInput }>();
+  // User-typed messages (SDKUserMessage with text content), keyed by message id or user-<i>.
+  const userTextByKey = new Map<string, string>();
 
   for (let i = 0; i < events.length; i++) {
     const evt = events[i]!;
@@ -554,6 +557,47 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
           }
         }
       }
+    } else if (sdkType === "user") {
+      // SDKUserMessage — the user's typed input echoed back by the SDK.
+      // Extract text blocks; skip if the message contains only tool_result blocks
+      // (those are paired with tool_use cards rendered elsewhere).
+      const message = sdkEvent["message"] as Record<string, unknown> | undefined;
+      const content = Array.isArray(message?.["content"]) ? (message!["content"] as unknown[]) : [];
+      const hasTextBlock = content.some(
+        (b) =>
+          b !== null &&
+          typeof b === "object" &&
+          (b as Record<string, unknown>)["type"] === "text",
+      );
+      if (hasTextBlock) {
+        let text = "";
+        for (const block of content) {
+          if (
+            block !== null &&
+            typeof block === "object" &&
+            (block as Record<string, unknown>)["type"] === "text" &&
+            typeof (block as Record<string, unknown>)["text"] === "string"
+          ) {
+            text += (block as Record<string, unknown>)["text"] as string;
+          }
+        }
+        if (text.length > 0) {
+          const rawId = message?.["id"];
+          const msgId = typeof rawId === "string" ? rawId : `user-${i}`;
+          order.push(msgId);
+          // Store in unknownByKey-style maps but with a user-typed key prefix
+          // so the build step can identify them. We reuse a dedicated Map.
+          userTextByKey.set(msgId, text);
+          tsByKey.set(msgId, evtTs);
+        }
+      }
+      // If message contains only tool_result blocks (no text), fall through to unknown.
+      if (!hasTextBlock) {
+        const key = `unknown-${i}`;
+        order.push(key);
+        unknownByKey.set(key, sdkEvent);
+        tsByKey.set(key, evtTs);
+      }
     } else {
       // All other SDK event types (tool_use, tool_result, system, etc.).
       const key = `unknown-${i}`;
@@ -583,6 +627,10 @@ export function computeRenderedMessages(events: ChatEvent[]): RenderedMessage[] 
           ? { kind: "tool_use", key: id, toolUse: entry.toolUse, toolResult: entry.toolResult, ts: tsByKey.get(id) ?? 0 }
           : { kind: "tool_use", key: id, toolUse: entry.toolUse, ts: tsByKey.get(id) ?? 0 };
       result.push(toolMsg);
+    } else if (userTextByKey.has(id)) {
+      const text = userTextByKey.get(id)!;
+      const ts = tsByKey.get(id) ?? 0;
+      result.push({ kind: "user", messageId: id, text, ts });
     } else {
       const text = textByMessageId.get(id) ?? "";
       const thinkingBlocks = thinkingByMessageId.get(id) ?? [];
@@ -654,6 +702,20 @@ function renderMessages(
           testId: `stream-message-${msg.messageId}`,
         },
         ...thinkingNodes,
+        createElement(Markdown, { searchQuery, children: msg.text }),
+      );
+    }
+    if (msg.kind === "user") {
+      return createElement(
+        MessageBubble,
+        {
+          key: msg.messageId,
+          role: "user" as MessageRole,
+          timestamp: msg.ts,
+          plainText: msg.text,
+          isActiveMatch: false,
+          testId: `stream-user-${msg.messageId}`,
+        },
         createElement(Markdown, { searchQuery, children: msg.text }),
       );
     }

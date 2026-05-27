@@ -172,6 +172,45 @@ function renderStream(events: ChatEvent[]): HTMLDivElement {
 // Test cases
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Helper — SDKUserMessage with text content
+// ---------------------------------------------------------------------------
+
+function makeUserMessage(text: string, messageId?: string): ChatEvent {
+  return {
+    ...baseFrame(),
+    sdkEvent: {
+      type: "user",
+      uuid: "00000000-0000-0000-0000-000000000099",
+      session_id: "sess1",
+      parent_tool_use_id: null,
+      message: {
+        id: messageId ?? `user-msg-${_seq}`,
+        role: "user",
+        content: [{ type: "text", text }],
+      },
+    },
+  };
+}
+
+/** SDKUserMessage carrying only tool_result blocks (no text). */
+function makeUserToolResult(toolUseId: string): ChatEvent {
+  return {
+    ...baseFrame(),
+    sdkEvent: {
+      type: "user",
+      uuid: "00000000-0000-0000-0000-000000000099",
+      session_id: "sess1",
+      parent_tool_use_id: null,
+      message: {
+        id: `user-tool-result-${_seq}`,
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: toolUseId, content: "ok" }],
+      },
+    },
+  };
+}
+
 describe("Stream — streaming reflow and stable identity", () => {
   test("monotonic text accumulation across partials", () => {
     /**
@@ -241,6 +280,23 @@ describe("Stream — streaming reflow and stable identity", () => {
     const c = renderStream(events);
     const root = c.querySelector("[data-testid='stream-root']");
     expect(root?.textContent).toContain(canonicalText.slice(0, 10));
+  });
+
+  // D24 — user messages render as user bubbles
+  test("D24: SDKUserMessage with text renders as a user role bubble", () => {
+    const events: ChatEvent[] = [makeUserMessage("what is this project")];
+    const c = renderStream(events);
+    const bubble = c.querySelector("[data-role='user']");
+    expect(bubble).not.toBeNull();
+    expect(bubble!.textContent).toContain("what is this project");
+  });
+
+  test("D24: SDKUserMessage with only tool_result blocks does NOT render a user bubble", () => {
+    const events: ChatEvent[] = [makeUserToolResult("tool-abc")];
+    const c = renderStream(events);
+    // No user bubble; the frame falls through to an UnknownCard (unknown role).
+    const userBubble = c.querySelector("[data-role='user']");
+    expect(userBubble).toBeNull();
   });
 
   test("code-block stable identity across partial updates (F-07)", () => {
