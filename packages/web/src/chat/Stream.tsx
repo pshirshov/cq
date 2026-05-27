@@ -953,14 +953,20 @@ export function Stream({
   }
 
   // ---- Search state (F4) ----
+  // Compute over the full messages array so the index space matches what
+  // ChatTab computed (it also uses computeMatchIndices over renderedMessages).
+  // Using visibleMessages here caused an off-by-hiddenCount mismatch when
+  // pagination was active.
   const matchIndices = useMemo(
-    () => computeMatchIndices(visibleMessages, searchQuery),
-    [visibleMessages, searchQuery],
+    () => computeMatchIndices(messages, searchQuery),
+    [messages, searchQuery],
   );
   // The activeMatchIndex is 0-based over matchIndices[].
+  // matchIndices[i] is an absolute index into messages[]; translate to visibleMessages.
   const activeMatchArrayIndex = matchIndices[activeMatchIndex] ?? -1;
+  const activeMatchVisibleIndex = activeMatchArrayIndex >= hiddenCount ? activeMatchArrayIndex - hiddenCount : -1;
   // Convert to a message key for bubble highlighting.
-  const activeMatchMsg = activeMatchArrayIndex >= 0 ? visibleMessages[activeMatchArrayIndex] : undefined;
+  const activeMatchMsg = activeMatchVisibleIndex >= 0 ? visibleMessages[activeMatchVisibleIndex] : undefined;
   const activeMatchKey: string =
     activeMatchMsg !== undefined
       ? activeMatchMsg.kind === "assistant" || activeMatchMsg.kind === "user"
