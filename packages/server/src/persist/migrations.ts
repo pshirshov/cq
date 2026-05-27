@@ -92,6 +92,17 @@ ALTER TABLE invocation ADD COLUMN resumed_from_invocation_id TEXT NULL REFERENCE
 CREATE INDEX IF NOT EXISTS idx_invocation_resumed_from ON invocation(resumed_from_invocation_id);
 `,
   },
+  {
+    // D21: a brief window (D05 → D13) had the orphan reaper write status='errored',
+    // a value that D13 later removed from the InvocationRow.status union and the
+    // protocol Zod schema. Existing DBs may still carry those rows; the client
+    // would then drop history.list_result frames at Zod validation and the
+    // History tab would stay on "loading" forever. Rewrite them in place.
+    version: 3,
+    up: `
+UPDATE invocation SET status='failed' WHERE status='errored';
+`,
+  },
 ];
 
 export function runMigrations(db: Database, migrations: Migration[]): void {

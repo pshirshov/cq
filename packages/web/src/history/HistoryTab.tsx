@@ -53,7 +53,7 @@ export function HistoryTab(): React.ReactElement {
   const pendingSeqRef = useRef<number | null>(null);
 
   const sendList = useCallback(
-    (currentSort: SortState, currentFilter: FilterState, currentPage: number) => {
+    (currentSort: SortState, currentFilter: FilterState, currentPage: number): boolean => {
       const seq = Date.now();
       pendingSeqRef.current = seq;
       setLoading(true);
@@ -88,7 +88,9 @@ export function HistoryTab(): React.ReactElement {
       if (!sent) {
         // Connection not ALIVE — keep loading spinner, will retry via subscription.
         setLoading(false);
+        pendingSeqRef.current = null;
       }
+      return sent;
     },
     [manager],
   );
@@ -106,26 +108,38 @@ export function HistoryTab(): React.ReactElement {
     return unsub;
   }, [manager]);
 
-  // Send on mount, and re-send whenever the WS transitions to ALIVE (so we
-  // recover from the case where HistoryTab mounted before the connection came
-  // up — D10 always-mounts the panel, so the initial send may have raced the
-  // connection).
-  useEffect(() => {
-    sendList(sort, filter, page);
-    // Intentional: only run on mount; sort/filter/page are intentionally excluded.
-  }, []);
+  // Keep refs of the latest sort/filter/page so the auto-fire effect below
+  // captures fresh values without re-subscribing on every change.
+  const sortRef = useRef(sort);
+  const filterRef = useRef(filter);
+  const pageRef = useRef(page);
+  useEffect(() => { sortRef.current = sort; }, [sort]);
+  useEffect(() => { filterRef.current = filter; }, [filter]);
+  useEffect(() => { pageRef.current = page; }, [page]);
 
+  // Auto-fire history.list whenever the connection is ALIVE and we have not
+  // yet loaded any data. Fires on mount (if alive) and on every subsequent
+  // manager.onUpdate (covering: late-ALIVE on first connect, reconnect after
+  // a drop, etc.). The pendingSeqRef guard prevents stacking duplicate sends.
   useEffect(() => {
-    let lastWasAlive = manager.stats.connections.some((c) => c.state === "ALIVE");
-    const unsub = manager.onUpdate((stats) => {
-      const aliveNow = stats.connections.some((c) => c.state === "ALIVE");
-      if (aliveNow && !lastWasAlive) {
-        sendList(sort, filter, page);
-      }
-      lastWasAlive = aliveNow;
+    let inFlight = false;
+    const tryFire = (): void => {
+      if (inFlight) return;
+      const isAlive = manager.stats.connections.some((c) => c.state === "ALIVE");
+      if (!isAlive) return;
+      const ok = sendList(sortRef.current, filterRef.current, pageRef.current);
+      if (ok) inFlight = true;
+    };
+
+    const unsubMsg = manager.onMessage((frame) => {
+      if (frame.type === "history.list_result") inFlight = false;
     });
-    return unsub;
-  }, [manager]);
+
+    tryFire();
+    const unsubUpdate = manager.onUpdate(() => { tryFire(); });
+
+    return () => { unsubMsg(); unsubUpdate(); };
+  }, [manager, sendList]);
 
   const handleSort = useCallback(
     (key: SortKey) => {

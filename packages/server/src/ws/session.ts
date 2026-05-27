@@ -177,6 +177,11 @@ export class WsSession {
       }
       case "history.list": {
         if (this.persistence === null) break;
+        this.logger.info("ws.history_list", {
+          sessionId: this.sessionId,
+          seq: frame.seq,
+          filter: frame.filter,
+        });
         const f = frame.filter ?? {};
         const sortKey = frame.sort?.key ?? "startedAt";
         const sortDir = (frame.sort?.dir ?? "desc") as "asc" | "desc";
