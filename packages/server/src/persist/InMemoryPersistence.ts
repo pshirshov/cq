@@ -146,7 +146,10 @@ export class InMemoryPersistence implements Persistence {
       sort: InvocationSortSpec,
       page: PageSpec,
     ): PagedResult<HistoryRow> => {
-      let rows = [...this.invocationMap.values()];
+      // Only top-level main-agent invocations (mirrors the SQLite query).
+      let rows = [...this.invocationMap.values()].filter(
+        (r) => r.agentName === "main" && r.parentInvocationId === null,
+      );
 
       if (filter.agentName !== undefined) {
         rows = rows.filter((r) => r.agentName === filter.agentName);
@@ -165,15 +168,31 @@ export class InMemoryPersistence implements Persistence {
       }
       if (filter.search) {
         const q = filter.search.toLowerCase();
-        rows = rows.filter(
-          (r) =>
-            r.promptExcerpt.toLowerCase().includes(q) ||
-            r.agentName.toLowerCase().includes(q),
+        // For FTS, keep sessions that have at least one matching invocation.
+        const matchingSessionIds = new Set(
+          [...this.invocationMap.values()]
+            .filter(
+              (r) =>
+                r.promptExcerpt.toLowerCase().includes(q) ||
+                r.agentName.toLowerCase().includes(q),
+            )
+            .map((r) => r.sessionId),
         );
+        rows = rows.filter((r) => matchingSessionIds.has(r.sessionId));
       }
 
+      // One row per session — the latest invocation by startedAt.
+      const latestBySession = new Map<string, InvocationRow>();
+      for (const r of rows) {
+        const existing = latestBySession.get(r.sessionId);
+        if (existing === undefined || r.startedAt > existing.startedAt) {
+          latestBySession.set(r.sessionId, r);
+        }
+      }
+      let deduped = [...latestBySession.values()];
+
       const key = sort.field as keyof InvocationRow;
-      rows.sort((a, b) => {
+      deduped.sort((a, b) => {
         const av = a[key] ?? null;
         const bv = b[key] ?? null;
         if (av === null) return 1;
@@ -182,8 +201,8 @@ export class InMemoryPersistence implements Persistence {
         return sort.dir === "desc" ? -c : c;
       });
 
-      const total = rows.length;
-      const sliced = rows.slice(page.offset, page.offset + page.limit);
+      const total = deduped.length;
+      const sliced = deduped.slice(page.offset, page.offset + page.limit);
 
       const historyRows: HistoryRow[] = sliced.map((r) => {
         const session = this.sessionMap.get(r.sessionId);

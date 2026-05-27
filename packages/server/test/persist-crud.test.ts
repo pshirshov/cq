@@ -365,6 +365,73 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
+    // D23. list() returns one row per session (latest invocation by startedAt)
+    // -----------------------------------------------------------------------
+    test("D23: list() returns one row per session — latest invocation wins", () => {
+      const now = Date.now();
+
+      // Session 1: three invocations A (original), B (resumed from A), C (resumed from B).
+      const session1 = makeSession({ title: "S1" });
+      p.sessions.insert(session1);
+
+      const invA = makeInvocation(session1.id, {
+        agentName: "main",
+        resumedFromInvocationId: null,
+        startedAt: now + 1000,
+        promptExcerpt: "invA",
+      });
+      const invB = makeInvocation(session1.id, {
+        agentName: "main",
+        resumedFromInvocationId: invA.id,
+        startedAt: now + 2000,
+        promptExcerpt: "invB",
+      });
+      const invC = makeInvocation(session1.id, {
+        agentName: "main",
+        resumedFromInvocationId: invB.id,
+        startedAt: now + 3000,
+        promptExcerpt: "invC",
+      });
+      p.invocations.insert(invA);
+      p.invocations.insert(invB);
+      p.invocations.insert(invC);
+
+      // After inserting one session with three invocations, list returns exactly 1 row
+      // and that row corresponds to the latest invocation (C).
+      const result1 = p.invocations.list(
+        {},
+        { field: "startedAt", dir: "desc" },
+        { limit: 50, offset: 0 },
+      );
+      expect(result1.total).toBe(1);
+      expect(result1.rows).toHaveLength(1);
+      expect(result1.rows[0]!.invocationId).toBe(invC.id);
+
+      // Session 2: one invocation D.
+      const session2 = makeSession({ title: "S2" });
+      p.sessions.insert(session2);
+
+      const invD = makeInvocation(session2.id, {
+        agentName: "main",
+        resumedFromInvocationId: null,
+        startedAt: now + 4000,
+        promptExcerpt: "invD",
+      });
+      p.invocations.insert(invD);
+
+      // Now list returns 2 rows: D (latest session) then C, sorted desc by startedAt.
+      const result2 = p.invocations.list(
+        {},
+        { field: "startedAt", dir: "desc" },
+        { limit: 50, offset: 0 },
+      );
+      expect(result2.total).toBe(2);
+      expect(result2.rows).toHaveLength(2);
+      expect(result2.rows[0]!.invocationId).toBe(invD.id);
+      expect(result2.rows[1]!.invocationId).toBe(invC.id);
+    });
+
+    // -----------------------------------------------------------------------
     // 15. reapOrphans: running rows become failed; completed rows unchanged
     // -----------------------------------------------------------------------
     test("reapOrphans transitions running rows to failed, leaves completed unchanged", () => {
