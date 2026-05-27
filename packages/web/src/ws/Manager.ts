@@ -508,6 +508,11 @@ export class Manager {
     // If currently retrying with backoff, spawn immediately.
     if (!this._hasAliveConnection() && this._pool.size === 0 && !this._isTerminal) {
       this._cancelBackoff();
+      // Reset the backoff counter: a visibility/online event is a fresh-start
+      // signal. Inheriting a high attempt count (e.g. 5) would make the NEXT
+      // failure schedule a long delay despite the user explicitly re-surfacing.
+      // reopenFromBFCache() already does the same reset for the BFCache path.
+      this._attempt = 0;
       this._spawn();
     }
     this._notify();
@@ -632,6 +637,8 @@ export class Manager {
     if (!this._pendingReconnectOnVisible) return;
     this._pendingReconnectOnVisible = false;
     if (!this._isTerminal && !this._hasAliveConnection() && this._pool.size === 0) {
+      // Same fresh-start reset as checkConnections() and reopenFromBFCache().
+      this._attempt = 0;
       this._spawn();
     }
     this._notify();

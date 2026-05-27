@@ -409,6 +409,51 @@ describe("Manager", () => {
   });
 
   // -------------------------------------------------------------------------
+  // QR-P10: checkConnections() resets _attempt to 0 on visibility-triggered
+  // reconnect so that the immediately-following failure uses a short backoff
+  // delay rather than inheriting the old high attempt count.
+  // -------------------------------------------------------------------------
+  it("QR-P10: checkConnections resets attempt counter; next failure backoff is short", () => {
+    // Use a very large connect timeout so the sockets don't die from connect
+    // timeout during the tick(MAX_BACKOFF_MS+10) advances (mirrors Test 6).
+    const TICK = MAX_BACKOFF_MS + 10;
+    const LARGE_CONNECT_MS = TICK * 20;
+    const m = new Manager(makeOpts({ connectTimeoutMs: LARGE_CONNECT_MS }));
+
+    // Drive the attempt counter up via retriable closes + backoff fires.
+    // Each cycle: close last socket → backoff fires after tick → new socket.
+    for (let i = 0; i < 3; i++) {
+      const sock = sockets[sockets.length - 1]!;
+      sock.simulateClose(1011, "internal error");
+      tick(TICK); // fire the backoff → new socket spawned
+    }
+    expect(m.stats.attempt).toBeGreaterThanOrEqual(3);
+
+    // Enter backoff state: close the last socket WITHOUT ticking so the
+    // backoff timer hasn't fired yet (pool is empty, backoff pending).
+    sockets[sockets.length - 1]!.simulateClose(1011, "pre-visibility");
+    expect(m.stats.connections.length).toBe(0);
+
+    // Simulate visibilitychange→visible: call checkConnections().
+    m.checkConnections();
+
+    // attempt must have been reset to 0 by checkConnections().
+    expect(m.stats.attempt).toBe(0);
+
+    // The next failure should schedule a SHORT delay (base * 2^0 * jitter=1.0 = 100ms)
+    // not the old high attempt count.
+    const sockAfter = sockets[sockets.length - 1]!;
+    sockAfter.simulateClose(1011, "retry after visibility");
+    const s = m.stats;
+    expect(s.nextRetryAt).not.toBeNull();
+    const delta = s.nextRetryAt! - Date.now();
+    // With attempt=0 and jitter=1.0: delay = min(100 * 2^0, 800) * 1.0 = 100ms.
+    expect(delta).toBeLessThanOrEqual(BASE_BACKOFF_MS + 20);
+
+    m.destroy();
+  });
+
+  // -------------------------------------------------------------------------
   // Test 10: destroy() while RETRYING_BACKOFF clears the timer; no new spawn
   // -------------------------------------------------------------------------
   it("destroy() while RETRYING_BACKOFF clears the timer; no new spawn after destroy", () => {
