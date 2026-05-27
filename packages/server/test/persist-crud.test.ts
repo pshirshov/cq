@@ -619,6 +619,46 @@ describe("persist-crud", () => {
 });
 
 // ---------------------------------------------------------------------------
+// QR-P1: SqliteEventLog writes via fd (not appendFileSync) so fsync covers bytes
+// ---------------------------------------------------------------------------
+
+describe("QR-P1: SqliteEventLog fd-write round-trip via fresh store", () => {
+  test("append 10 events, close, reopen via fresh SqlitePersistence, readAll yields all 10", async () => {
+    // Use a real temp-dir-backed DB so the events dir is a real directory.
+    const tmpDir = mkdtempSync(join(tmpdir(), "cq-p1-test-"));
+    const dbFile = join(tmpDir, "p1.db");
+
+    const persA = new SqlitePersistence(dbFile, undefined, undefined, false);
+    const session = makeSession();
+    persA.sessions.insert(session);
+    const inv = makeInvocation(session.id, { eventLogPath: `events/${session.id}.jsonl` });
+    persA.invocations.insert(inv);
+
+    for (let i = 0; i < 10; i++) {
+      persA.events.append(inv.id, makeEvent(i));
+    }
+    // close() flushes fsync; this is the moment bytes are durably committed.
+    persA.events.close(inv.id);
+    persA.close();
+
+    // Re-open via a second persistence instance — fresh InvocationStore + SqliteEventLog.
+    const persB = new SqlitePersistence(dbFile, undefined, undefined, false);
+    const collected: import("@anthropic-ai/claude-agent-sdk").SDKMessage[] = [];
+    for await (const e of persB.events.readAll(inv.id)) {
+      collected.push(e);
+    }
+    persB.close();
+
+    expect(collected).toHaveLength(10);
+    for (let i = 0; i < 10; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = (collected[i] as any).message;
+      expect(msg.usage.input_tokens).toBe(i);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // D29: PID-file lock — tryAcquireDbLock unit tests
 // ---------------------------------------------------------------------------
 

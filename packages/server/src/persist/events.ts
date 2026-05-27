@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, openSync, fsyncSync, closeSync } from "node:fs";
+import { writeSync, mkdirSync, openSync, fsyncSync, closeSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
@@ -34,10 +34,11 @@ export class SqliteEventLog {
   }
 
   append(invocationId: string, event: SDKMessage): void {
-    // Ensure dir/file exist via the fd (lazy open), then write via appendFileSync.
-    this.fdFor(invocationId);
-    const p = this.pathFor(invocationId);
-    appendFileSync(p, JSON.stringify(event) + "\n");
+    // Write via the cached O_APPEND fd so that close()'s fsyncSync covers
+    // the bytes we just wrote (appendFileSync opens its own fd and fsync misses them).
+    const fd = this.fdFor(invocationId);
+    const buf = Buffer.from(JSON.stringify(event) + "\n");
+    writeSync(fd, buf);
   }
 
   async *readAll(invocationId: string): AsyncIterable<SDKMessage> {
