@@ -189,7 +189,7 @@ export class InMemoryPersistence implements Persistence {
           latestBySession.set(r.sessionId, r);
         }
       }
-      let deduped = [...latestBySession.values()];
+      const deduped = [...latestBySession.values()];
 
       const key = sort.field as keyof InvocationRow;
       deduped.sort((a, b) => {

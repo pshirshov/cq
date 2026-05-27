@@ -86,6 +86,9 @@ export function ChatTab(): React.ReactElement {
   ];
   const [slashCommands, setSlashCommands] = useState<SlashCommand[]>(DEFAULT_SLASH_COMMANDS);
 
+  // ---- D26: Hide SDK events toggle ----
+  const [hideSdkEvents, setHideSdkEvents] = useState(false);
+
   // ---- F4: Search state ----
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -448,6 +451,8 @@ export function ChatTab(): React.ReactElement {
         inProgress={inProgress}
         onNewSession={handleNewSession}
         onResumeSession={handleResumeSession}
+        hideSdkEvents={hideSdkEvents}
+        onHideSdkEventsChange={setHideSdkEvents}
       />
       {/* F4: Search bar — shown when open, sits between header and stream */}
       {searchOpen && (
@@ -471,6 +476,7 @@ export function ChatTab(): React.ReactElement {
         onScrolledUp={handleScrolledUp}
         scrollToBottom={triggerScrollToBottom}
         onScrollToBottomDone={handleScrollToBottomDone}
+        hideSdkEvents={hideSdkEvents}
       />
       {/* F2: Jump-to-latest button — floats above footer when user scrolled up */}
       {userScrolledUp && (

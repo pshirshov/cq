@@ -63,6 +63,8 @@ export interface HeaderProps {
   inProgress: boolean;
   onNewSession: () => void;
   onResumeSession: (invocationId: string) => void;
+  hideSdkEvents: boolean;
+  onHideSdkEventsChange: (value: boolean) => void;
 }
 
 /** Format epoch ms as "mm:ss" elapsed from startedAt to now. */
@@ -92,6 +94,8 @@ export function Header({
   inProgress,
   onNewSession,
   onResumeSession,
+  hideSdkEvents,
+  onHideSdkEventsChange,
 }: HeaderProps): React.ReactElement {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showResumePicker, setShowResumePicker] = useState(false);
@@ -189,6 +193,17 @@ export function Header({
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
+
+        {/* hide SDK events toggle */}
+        <label className={styles.meta} data-testid="hide-sdk-events-label">
+          <input
+            type="checkbox"
+            checked={hideSdkEvents}
+            onChange={(e) => onHideSdkEventsChange(e.currentTarget.checked)}
+            data-testid="hide-sdk-events-toggle"
+          />
+          {" Hide SDK events"}
+        </label>
 
         {/* tokens + cost */}
         <span className={styles.usage} data-testid="usage">

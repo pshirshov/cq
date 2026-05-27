@@ -683,8 +683,15 @@ function renderMessages(
   onQuestionReply?: (payload: QuestionReplyPayload) => void,
   searchQuery = "",
   activeMatchKey = "",
+  hideSdkEvents = false,
 ): React.ReactNode[] {
   return messages.map((msg) => {
+    // D26: when hideSdkEvents is true, suppress unknown (raw SDK event) cards.
+    // Assistant, user, tool, ask, and subagent messages are never hidden.
+    if (hideSdkEvents && msg.kind === "unknown") {
+      return null;
+    }
+
     if (msg.kind === "assistant") {
       // D25: skip assistant bubbles with no text and no thinking blocks — they
       // arise when a message contains only tool_use content blocks (no prose).
@@ -759,7 +766,7 @@ function renderMessages(
       );
     }
     if (msg.kind === "subagent") {
-      const nestedChildren = renderMessages(msg.children, onQuestionReply, searchQuery, activeMatchKey);
+      const nestedChildren = renderMessages(msg.children, onQuestionReply, searchQuery, activeMatchKey, hideSdkEvents);
       return createElement(
         MessageBubble,
         {
@@ -832,6 +839,12 @@ export interface StreamProps {
   scrollToBottom?: boolean;
   /** Called after Stream has processed a scrollToBottom request. */
   onScrollToBottomDone?: () => void;
+  /**
+   * When true, raw SDK event cards (UnknownCard) are hidden from the stream.
+   * Assistant, user, tool, ask, and subagent messages are never affected.
+   * Default: false.
+   */
+  hideSdkEvents?: boolean;
 }
 
 export function Stream({
@@ -844,6 +857,7 @@ export function Stream({
   onScrolledUp,
   scrollToBottom = false,
   onScrollToBottomDone,
+  hideSdkEvents = false,
 }: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
 
@@ -881,7 +895,7 @@ export function Stream({
   const activeMatchMsg = activeMatchArrayIndex >= 0 ? visibleMessages[activeMatchArrayIndex] : undefined;
   const activeMatchKey: string =
     activeMatchMsg !== undefined
-      ? activeMatchMsg.kind === "assistant"
+      ? activeMatchMsg.kind === "assistant" || activeMatchMsg.kind === "user"
         ? activeMatchMsg.messageId
         : activeMatchMsg.key
       : "";
@@ -972,7 +986,7 @@ export function Stream({
         </div>
       )}
       <div className={styles.messageList}>
-        {renderMessages(visibleMessages, effectiveReply, searchQuery, activeMatchKey)}
+        {renderMessages(visibleMessages, effectiveReply, searchQuery, activeMatchKey, hideSdkEvents)}
       </div>
       {showThinking && (
         <div className={styles.thinkingIndicator} data-testid="stream-thinking">

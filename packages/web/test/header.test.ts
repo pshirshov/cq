@@ -89,6 +89,8 @@ function defaultProps(overrides: Partial<HeaderProps> = {}): HeaderProps {
     inProgress: false,
     onNewSession: () => undefined,
     onResumeSession: () => undefined,
+    hideSdkEvents: false,
+    onHideSdkEventsChange: () => undefined,
     ...overrides,
   };
 }
@@ -242,5 +244,26 @@ describe("Header — session metadata display", () => {
     // Dialog dismissed; onNewSession called once.
     expect(c.querySelector("[role='dialog']")).toBeNull();
     expect(newSessionCallCount).toBe(1);
+  });
+
+  // D26 — hide SDK events toggle
+  test("D26: hide-sdk-events toggle renders and fires callback", () => {
+    let toggleValue = false;
+    const c = renderHeader(
+      defaultProps({
+        hideSdkEvents: false,
+        onHideSdkEventsChange: (v) => { toggleValue = v; },
+      }),
+    );
+
+    const checkbox = c.querySelector("[data-testid='hide-sdk-events-toggle']") as HTMLInputElement;
+    expect(checkbox).not.toBeNull();
+    expect(checkbox.checked).toBe(false);
+
+    // Simulate checking the checkbox.
+    act(() => {
+      checkbox.click();
+    });
+    expect(toggleValue).toBe(true);
   });
 });

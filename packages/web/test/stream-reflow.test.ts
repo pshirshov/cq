@@ -40,6 +40,7 @@ import { act } from "react";
 
 import { Stream } from "../src/chat/Stream";
 import { computeRenderedMessages } from "../src/chat/Stream";
+import { UnknownCard } from "../src/chat/Cards/UnknownCard";
 import type { ChatEvent } from "@cq/shared";
 
 // ---------------------------------------------------------------------------
@@ -379,5 +380,100 @@ describe("Stream — streaming reflow and stable identity", () => {
     const pre2 = c.querySelector("pre");
     expect(pre2).not.toBeNull();
     expect(pre1!.isSameNode(pre2)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D26 — UnknownCard label rules
+// ---------------------------------------------------------------------------
+
+describe("D26 — UnknownCard label rewrite", () => {
+  function renderUnknown(sdkEvent: Record<string, unknown>): HTMLDivElement {
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(UnknownCard, { sdkEvent }));
+    });
+    return c;
+  }
+
+  test("system event renders 'system: <subtype>'", () => {
+    const c = renderUnknown({ type: "system", subtype: "init" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("system: init");
+  });
+
+  test("user event renders 'user / tool result'", () => {
+    const c = renderUnknown({ type: "user" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("user / tool result");
+  });
+
+  test("result event renders 'result: <subtype>'", () => {
+    const c = renderUnknown({ type: "result", subtype: "success" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("result: success");
+  });
+
+  test("rate_limit_event with status renders 'rate limit: <status>'", () => {
+    const c = renderUnknown({ type: "rate_limit_event", status: "allowed" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("rate limit: allowed");
+  });
+
+  test("rate_limit_event without status renders 'rate limit'", () => {
+    const c = renderUnknown({ type: "rate_limit_event" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("rate limit");
+  });
+
+  test("unknown type with underscores humanizes to spaces", () => {
+    const c = renderUnknown({ type: "tool_progress" });
+    const summary = c.querySelector("summary");
+    expect(summary?.textContent).toBe("tool progress");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D26 — Stream hideSdkEvents prop
+// ---------------------------------------------------------------------------
+
+describe("D26 — Stream hideSdkEvents prop", () => {
+  function makeSystemEvent(): ChatEvent {
+    return {
+      ...baseFrame(),
+      sdkEvent: {
+        type: "system",
+        subtype: "init",
+        uuid: "00000000-0000-0000-0000-000000000099",
+        session_id: "sess1",
+        parent_tool_use_id: null,
+      },
+    };
+  }
+
+  test("hideSdkEvents=true hides unknown SDK event cards", () => {
+    const events: ChatEvent[] = [makeSystemEvent()];
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(Stream, { chatEvents: events, hideSdkEvents: true }));
+    });
+    // UnknownCard wraps inside a MessageBubble with data-role='unknown'
+    const unknownBubble = c.querySelector("[data-role='unknown']");
+    expect(unknownBubble).toBeNull();
+  });
+
+  test("hideSdkEvents=true does NOT hide assistant messages", () => {
+    const msgId = "msg-d26-assistant";
+    const events: ChatEvent[] = [
+      makeMessageStart(msgId),
+      makeTextDelta("hello"),
+      makeAssistantFinal(msgId, "hello"),
+    ];
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(Stream, { chatEvents: events, hideSdkEvents: true }));
+    });
+    const assistantBubble = c.querySelector("[data-role='assistant']");
+    expect(assistantBubble).not.toBeNull();
   });
 });
