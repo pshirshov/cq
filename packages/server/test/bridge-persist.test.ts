@@ -545,4 +545,84 @@ describe("Bridge persistence", () => {
     );
     expect(costUpdate).toBeDefined();
   });
+
+  // ---------------------------------------------------------------------------
+  // Test 7 (D28a): subagent child row receives non-zero tool_call_count + model
+  // ---------------------------------------------------------------------------
+
+  it("D28a: subagent child row receives tool_call_count and model from assistant messages with parent_tool_use_id", async () => {
+    const persistence = new InMemoryPersistence();
+    const taskId = "task-d28a-001";
+    const toolUseId = "toolu_parent_001";
+    const childToolUseId = "toolu_child_001";
+
+    // Subagent assistant message with parent_tool_use_id linking it to the child
+    const subagentAssistantMsg: SDKMessage = {
+      type: "assistant",
+      message: {
+        id: "msg_child",
+        type: "message",
+        role: "assistant",
+        content: [
+          { type: "text", text: "counting lines" },
+          { type: "tool_use", id: childToolUseId, name: "Bash", input: { command: "wc -l **/*.ts" } },
+        ],
+        model: "claude-sonnet-4-7",
+        stop_reason: "tool_use",
+        stop_sequence: null,
+        usage: { input_tokens: 30, output_tokens: 15, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+      },
+      parent_tool_use_id: toolUseId,
+      uuid: "00000000-0000-4000-a000-000000000020",
+      session_id: "00000000-0000-4000-a000-000000000002",
+    } as unknown as SDKMessage;
+
+    const script: SDKMessage[] = [
+      makeInitMessage(),
+      makeTaskStartedMessage(taskId, toolUseId),
+      subagentAssistantMsg,
+      makeTaskNotificationMessage(taskId, toolUseId),
+    ];
+    const { bridge, ws } = makeBridgeWithPersistence(script, persistence);
+
+    await bridge.handleChatStart(ws, makeChatStart());
+    await ws.waitForFrames("chat.done");
+
+    const sessions = persistence.sessions.list(
+      {},
+      { field: "startedAt", dir: "desc" },
+      { limit: 10, offset: 0 },
+    );
+    const sessionId = sessions.rows[0]!.id;
+    const invocations = persistence.invocations.listForSession(sessionId);
+
+    // Two rows: top-level + child
+    expect(invocations).toHaveLength(2);
+    const child = invocations.find((r) => r.agentName !== "main");
+    expect(child).toBeDefined();
+
+    // Child row must have tool_call_count > 0 (credited from the subagent assistant msg)
+    expect(child!.toolCallCount).toBeGreaterThan(0);
+
+    // Child row must have a non-empty model (captured from msg.message.model)
+    expect(child!.model).toBe("claude-sonnet-4-7");
+
+    // history.update for the child should carry toolCallCount > 0
+    const updates = ws.framesOfType("history.update");
+    const childToolCountUpdate = updates.find(
+      (u) =>
+        u.invocationId === child!.id &&
+        typeof (u.patch as Record<string, unknown>).toolCallCount === "number" &&
+        ((u.patch as Record<string, unknown>).toolCallCount as number) > 0,
+    );
+    expect(childToolCountUpdate).toBeDefined();
+
+    // history.update for the child should carry the model
+    const childModelUpdate = updates.find(
+      (u) =>
+        u.invocationId === child!.id &&
+        (u.patch as Record<string, unknown>).model === "claude-sonnet-4-7",
+    );
+    expect(childModelUpdate).toBeDefined();
+  });
 });

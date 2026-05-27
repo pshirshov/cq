@@ -522,4 +522,50 @@ describe("Bridge", () => {
     // finalizing), but isBusy must be false.
     expect(sentCountAfterShutdown).toBeGreaterThanOrEqual(sentCountBeforeShutdown);
   });
+
+  // --------------------------------------------------------------------------
+  // Test 7 (D28b): result message with error subtype emits both chat.done and
+  //                chat.error so the UI toast surfaces the failure
+  // --------------------------------------------------------------------------
+  it("D28b: result{subtype:'error_max_turns'} emits chat.done{errored} + chat.error", async () => {
+    const errorResultMsg: SDKMessage = {
+      type: "result",
+      subtype: "error_max_turns",
+      duration_ms: 1000,
+      duration_api_ms: 900,
+      is_error: true,
+      num_turns: 5,
+      stop_reason: null,
+      total_cost_usd: 0.01,
+      usage: { input_tokens: 100, output_tokens: 50 },
+      modelUsage: {},
+      permission_denials: [],
+      errors: ["Reached maximum number of turns"],
+      uuid: "00000000-0000-4000-a000-000000000099",
+      session_id: "00000000-0000-4000-a000-000000000002",
+    } as unknown as SDKMessage;
+
+    const mockQuery = makeMockQuery([makeInitMessage(), errorResultMsg]);
+    const { bridge } = makeBridge(mockQuery);
+    const ws = new MockWsSocket();
+
+    await bridge.handleChatStart(ws, makeChatStart());
+
+    // Wait for both chat.done and chat.error
+    const dones = await ws.waitForFrames("chat.done");
+    const errors = await ws.waitForFrames("chat.error");
+
+    // chat.done must carry reason='errored'
+    const turnDone = dones.find((f) => f.reason === "errored");
+    expect(turnDone).toBeDefined();
+
+    // chat.error must carry the SDK subtype as its code
+    expect(errors).toHaveLength(1);
+    const errFrame = errors[0]!;
+    expect(errFrame.code).toBe("error_max_turns");
+    expect(typeof errFrame.message).toBe("string");
+    expect((errFrame.message as string).length).toBeGreaterThan(0);
+
+    await bridge.shutdown();
+  });
 });

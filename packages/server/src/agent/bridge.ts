@@ -194,11 +194,24 @@ type ActiveSession = {
   readonly startedAt: number;
   /** Map from SDK task_id to child InvocationRow.id (for task finalisation). */
   readonly taskInvocationMap: Map<string, string>;
-  /** Running accumulators updated on each assistant/result message within the session. */
+  /**
+   * Map from parent_tool_use_id → child InvocationRow.id.
+   * Built in handleTaskStarted from msg.tool_use_id. Used to route subagent
+   * assistant messages to the correct child invocation row.
+   */
+  readonly toolUseInvocationMap: Map<string, string>;
+  /** Running tool_call_count accumulator for the top-level invocation. */
   toolCallCount: number;
   costUsd: number;
   inputTokens: number;
   outputTokens: number;
+  /**
+   * Per-child-invocation tool_call_count accumulators, keyed by child invocationId.
+   * NOTE: cost_usd, input_tokens, output_tokens are NOT tracked per-child because
+   * the SDK emits one result message per top-level turn boundary only; there is no
+   * per-subagent cost breakdown available. Those fields remain 0 on child rows.
+   */
+  readonly childToolCallCounts: Map<string, number>;
 };
 
 export class Bridge {
@@ -452,10 +465,12 @@ export class Bridge {
       uiMode,
       startedAt,
       taskInvocationMap: new Map(),
+      toolUseInvocationMap: new Map(),
       toolCallCount: 0,
       costUsd: 0,
       inputTokens: 0,
       outputTokens: 0,
+      childToolCallCounts: new Map(),
     };
     this.active = session;
 
@@ -714,21 +729,55 @@ export class Bridge {
         this.sendEvent(ws, session, msg);
 
         // Count tool_use content blocks on assistant messages.
+        // If parent_tool_use_id identifies a known child invocation, credit that
+        // child row; otherwise credit the top-level invocation (existing behaviour).
         if (msg.type === "assistant") {
-          const content = (msg as Record<string, unknown> & { message?: { content?: unknown } })
-            .message?.content;
+          const assistantMsg = msg as Record<string, unknown> & {
+            message?: { content?: unknown; model?: string };
+            parent_tool_use_id?: string | null;
+          };
+          const content = assistantMsg.message?.content;
+          const parentToolUseId = assistantMsg.parent_tool_use_id ?? null;
+          const childInvId = parentToolUseId !== null
+            ? session.toolUseInvocationMap.get(parentToolUseId)
+            : undefined;
+
           if (Array.isArray(content)) {
             const toolUses = (content as Array<{ type: string }>).filter(
               (b) => b.type === "tool_use",
             ).length;
             if (toolUses > 0) {
-              session.toolCallCount += toolUses;
-              this.persistence.invocations.update(session.invocationId, {
-                toolCallCount: session.toolCallCount,
-              });
-              this.sendHistoryUpdate(ws, session.invocationId, {
-                toolCallCount: session.toolCallCount,
-              });
+              if (childInvId !== undefined) {
+                // Subagent assistant message → update child row.
+                const prev = session.childToolCallCounts.get(childInvId) ?? 0;
+                const next = prev + toolUses;
+                session.childToolCallCounts.set(childInvId, next);
+                this.persistence.invocations.update(childInvId, { toolCallCount: next });
+                this.sendHistoryUpdate(ws, childInvId, { toolCallCount: next });
+              } else {
+                // Top-level assistant message → update parent row.
+                session.toolCallCount += toolUses;
+                this.persistence.invocations.update(session.invocationId, {
+                  toolCallCount: session.toolCallCount,
+                });
+                this.sendHistoryUpdate(ws, session.invocationId, {
+                  toolCallCount: session.toolCallCount,
+                });
+              }
+            }
+          }
+
+          // Capture the model for the child row on its first assistant message.
+          // The model field is only meaningful on child rows when they first
+          // arrive; thereafter it stays fixed.
+          if (childInvId !== undefined) {
+            const msgModel = assistantMsg.message?.model;
+            if (typeof msgModel === "string" && msgModel.length > 0) {
+              const childRow = this.persistence.invocations.get(childInvId);
+              if (childRow !== undefined && childRow.model === "") {
+                this.persistence.invocations.update(childInvId, { model: msgModel });
+                this.sendHistoryUpdate(ws, childInvId, { model: msgModel });
+              }
             }
           }
         }
@@ -780,6 +829,16 @@ export class Bridge {
             ? "errored"
             : "completed";
           this.sendDone(session.ws, session, turnDone);
+
+          // D28b: when the SDK closes the turn with an error subtype, surface
+          // a chat.error frame so the UI toast fires. Without this, the session
+          // row silently flips to 'failed' with no visible message to the user.
+          // SDKResultError carries an `errors` string[] for the error detail.
+          if (sub.startsWith("error")) {
+            const errMsg = (msg as { errors?: string[] }).errors?.[0] ?? sub;
+            this.sendError(session.ws, session.chatSessionId, sub, errMsg);
+          }
+
           continue;
         }
       }
@@ -858,6 +917,11 @@ export class Bridge {
   ): void {
     const childInvocationId = crypto.randomUUID();
     session.taskInvocationMap.set(msg.task_id, childInvocationId);
+    // Build the tool_use_id → child invocation id index so we can route
+    // assistant messages with parent_tool_use_id to the correct child row.
+    if (msg.tool_use_id !== undefined) {
+      session.toolUseInvocationMap.set(msg.tool_use_id, childInvocationId);
+    }
 
     const childRow: InvocationRow = {
       id: childInvocationId,
