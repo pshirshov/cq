@@ -7,6 +7,8 @@ import { MIGRATIONS, runMigrations } from "./migrations.js";
 import { SessionStore } from "./sessions.js";
 import { InvocationStore } from "./invocations.js";
 import { SqliteEventLog } from "./events.js";
+import { tryAcquireDbLock } from "./cqLock.js";
+import type { CqLock } from "./cqLock.js";
 import type { Persistence, SessionFilter, SortSpec, PageSpec, PagedResult } from "./Persistence.js";
 import type { SessionRow, InvocationRow } from "@cq/shared";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -26,6 +28,8 @@ export class SqlitePersistence implements Persistence {
   private readonly invocationStore: InvocationStore;
   private readonly eventLog: SqliteEventLog;
   private _closed = false;
+  /** Lock held by this instance; only set for file-backed DBs. */
+  private _lock: CqLock | null = null;
 
   constructor(path: string, eventsDir?: string, logger?: Logger) {
     const isMemory = path === ":memory:";
@@ -45,9 +49,21 @@ export class SqlitePersistence implements Persistence {
     this.eventLog = new SqliteEventLog(dir);
 
     if (!isMemory) {
-      const reaped = this.invocationStore.reapOrphans(Date.now());
-      if (reaped > 0 && logger) {
-        logger.info("persist.orphan_reap", { count: reaped });
+      // D29: Use a PID-file lock so that only the process that owns the lock
+      // runs the reaper. A second process opening the same DB (e.g. a diagnostic
+      // script or a second cq instance) will see the lock held and skip reaping,
+      // preventing it from clobbering live "running" rows.
+      const lock = tryAcquireDbLock(path, logger);
+      this._lock = lock;
+      if (lock.acquired) {
+        const reaped = this.invocationStore.reapOrphans(Date.now());
+        if (reaped > 0 && logger) {
+          logger.info("persist.orphan_reap", { count: reaped });
+        }
+      } else {
+        if (logger) {
+          logger.info("persist.lock_held_by_other_skipped_reap", {});
+        }
       }
     }
   }
@@ -108,5 +124,7 @@ export class SqlitePersistence implements Persistence {
     if (this._closed) return;
     this._closed = true;
     this.db.close();
+    // D29: release the PID lock so the next start can reclaim and run the reaper.
+    this._lock?.release();
   }
 }

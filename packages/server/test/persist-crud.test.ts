@@ -12,6 +12,7 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SqlitePersistence } from "../src/persist/SqlitePersistence.js";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence.js";
 import type { Persistence } from "../src/persist/Persistence.js";
+import { tryAcquireDbLock } from "../src/persist/cqLock.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -480,4 +481,91 @@ function runSuite(label: string, factory: () => Persistence): void {
 describe("persist-crud", () => {
   runSuite("sqlite", () => new SqlitePersistence(":memory:"));
   runSuite("memory", () => new InMemoryPersistence());
+});
+
+// ---------------------------------------------------------------------------
+// D29: PID-file lock — tryAcquireDbLock unit tests
+// ---------------------------------------------------------------------------
+
+import { mkdtempSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+describe("D29: tryAcquireDbLock", () => {
+  // Create a temp dir for lock files; clean it up after each test.
+  let tmpDir: string;
+  let dbPath: string;
+  let lockPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "cq-lock-test-"));
+    dbPath = join(tmpDir, "test.db");
+    lockPath = `${dbPath}.lock`;
+  });
+
+  afterEach(() => {
+    // Remove lock file if it still exists (test may have left it).
+    try { if (existsSync(lockPath)) unlinkSync(lockPath); } catch { /* ignore */ }
+  });
+
+  test("acquires lock when no lock file exists", () => {
+    const lock = tryAcquireDbLock(dbPath);
+    expect(lock.acquired).toBe(true);
+    // Lock file must be present after acquisition.
+    expect(existsSync(lockPath)).toBe(true);
+    lock.release();
+    // Lock file must be removed after release.
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  test("second call returns acquired:false when lock is already held by this process", () => {
+    // First acquisition writes our PID. Our PID is alive, so a second attempt sees
+    // the file, reads our PID, and process.kill(ourPid, 0) succeeds → not acquired.
+    const lockA = tryAcquireDbLock(dbPath);
+    expect(lockA.acquired).toBe(true);
+
+    const lockB = tryAcquireDbLock(dbPath);
+    expect(lockB.acquired).toBe(false);
+
+    lockA.release();
+  });
+
+  test("reclaims stale lock when PID in file is not running", () => {
+    // Write a lock file with an almost-certainly-nonexistent PID.
+    const stalePid = 2147483647; // max int32 — practically guaranteed not running.
+    writeFileSync(lockPath, String(stalePid), "utf8");
+
+    const lock = tryAcquireDbLock(dbPath);
+    // The stale lock should be reclaimed.
+    expect(lock.acquired).toBe(true);
+    lock.release();
+  });
+
+  test("SqlitePersistence A holds lock; opening B on same file-backed DB skips reap", () => {
+    // Use a real file-backed DB so the PID lock logic is exercised.
+    const dbFile = join(tmpDir, "shared.db");
+
+    // Open A — acquires lock and runs reaper (no orphans on empty DB, so 0 reaped).
+    const persA = new SqlitePersistence(dbFile);
+    const session = makeSession();
+    persA.sessions.insert(session);
+    const runningInv = makeInvocation(session.id, { status: "running", endedAt: null, durationMs: null });
+    persA.invocations.insert(runningInv);
+
+    // Open B on the same file. A still holds the lock so B must skip reaping.
+    const persB = new SqlitePersistence(dbFile);
+    // The running invocation must still be 'running' (B did not reap it).
+    const row = persB.invocations.get(runningInv.id);
+    expect(row?.status).toBe("running");
+    persB.close();
+
+    // Close A — releases the lock.
+    persA.close();
+
+    // Open C — reclaims the stale lock and reaps.
+    const persC = new SqlitePersistence(dbFile);
+    const reaped = persC.invocations.get(runningInv.id);
+    expect(reaped?.status).toBe("failed");
+    persC.close();
+  });
 });
