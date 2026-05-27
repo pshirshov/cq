@@ -59,6 +59,31 @@ Goal: fix 4 UX defects surfaced by dogfooding (D23–D26). Commit-per-defect; `b
 - `fix(D15): resume from history continues the same session, marked` — Resume previously generated a fresh `chatSessionId + sessionRow`, breaking Claude CLI semantics (resumption should continue the same session). Added `SessionRegistry.register(id)` to reuse an existing id without collision. `handleChatStart` now looks up priorInv/priorSession, re-uses `priorSession.id` as `chatSessionId`, calls `sessions.update({endedAt:null, endedReason:null})` to re-open the row, inserts a new invocation with `resumedFromInvocationId` set, and falls back to fresh-session path on missing prior rows (with warn log). Schema: `invocation` gains nullable `resumed_from_invocation_id` (migration 2). `InvocationRow` + `HistoryRow` (Zod) gain `resumedFromInvocationId`. `List.tsx` renders a ↻ badge on resumed rows. Existing test fixtures updated to include the new field. Tests: `persist-crud` (round-trip both adapters), `bridge-persist` (fresh+resume asserts 1 session row, 2 invocations, correct link, SDK options carry resume). 459 unit tests pass (+3 net); 6/6 e2e pass. Commit: `e515cee`.
 - `fix(D28): attribute subagent tool_call_count + model to child invocation row` — D28a: added `toolUseInvocationMap: Map<tool_use_id, childInvId>` to `ActiveSession`; `handleTaskStarted` populates it from `msg.tool_use_id`. In the `assistant` handler, `parent_tool_use_id` is resolved via the map: subagent messages credit `tool_call_count` to the child row and capture `msg.message.model` on the child's first message. Cost/tokens stay 0 on child rows (SDK emits one result per top-level turn boundary only; documented in code). D28b: result messages with `subtype.startsWith("error")` now emit `chat.error{code:subtype, message:errors[0]}` alongside `chat.done{errored}` so the UI toast surfaces the failure. Tests: `bridge-persist.test.ts` D28a (task_started + subagent assistant with parent_tool_use_id → child has tool_call_count>0 and model non-empty); `bridge.test.ts` D28b (result{error_max_turns} → chat.done{errored} + chat.error). 475 unit tests pass (+2); 6/6 e2e pass. Commit: `4d3b028`.
 
+## Active — outer-5 (resume-from-history rework)
+
+Goal: ship five UX fixes for the resume flow per
+[`docs/drafts/20260527-2330-resume-rework-plan.md`](docs/drafts/20260527-2330-resume-rework-plan.md).
+Discharge: `bun run check` 0; `bun run e2e` 0; zero `ResumePicker` refs.
+
+Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
+
+- [x] **PR-01** — Haiku-generated session titles (server-side + persist + tests).
+- [ ] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
+- [ ] **PR-03** — Add Resume button column in History tab (top-level finished main only).
+- [ ] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
+- [ ] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
+
+Cross-cutting (locked):
+
+- [x] `title` column stays `TEXT NOT NULL DEFAULT ''`; brief's "nullable" deviates from existing schema. Empty-string sentinel preserved.
+- [x] `@anthropic-ai/sdk` added to `packages/server` only.
+- [x] Subagent predicate in `List.tsx` = `agentName !== 'main'`.
+- [x] User-triggered rejoin (live session) goes away; only auto-refresh rejoin remains.
+
+### PR-01 completed (2026-05-28)
+
+Shipped `packages/server/src/agent/titleGenerator.ts` with `AnthropicTitleGenerator` + `TitleGenerator` interface + `buildTitleUserPrompt` + `sanitizeTitle` helpers. Added `@anthropic-ai/sdk@^0.69.0` dep. Wired into `Bridge`: `BridgeOpts.titleGenerator` (defaults to `AnthropicTitleGenerator`); `ActiveSession` gains `firstUserText`/`titleRequested`; `handleChatInput` captures the first user text; after the first `result{subtype:'success'}` with non-empty user+assistant text, generator runs async via `.then/.catch`, persists via `sessions.update({title})`, gated by both in-memory and persisted idempotency checks. Lazy client construction (no `ANTHROPIC_API_KEY` required for tests that don't trigger). Tests: 7 unit (`titleGenerator.test.ts`) + 2 bridge-integration (`bridge-persist.test.ts`). Verification: `bun run check` → 536 pass (was 524). Surprises: existing `session.title` column was `NOT NULL DEFAULT ''` already — no migration needed; empty string is the "not yet generated" sentinel (documented as cross-cutting note).
+
 ## Archive
 
 - M0 → [`./docs/archive/tasks-M0.md`](./docs/archive/tasks-M0.md)

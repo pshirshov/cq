@@ -61,6 +61,10 @@ import { PermissionBroker } from "./permission";
 import { ElicitationBroker } from "./elicitation";
 import { applyReadOnlyOverlay } from "./readOnlyOverlay";
 import { AskBroker, createAskUserQuestionMcpServer } from "./askUserQuestion";
+import {
+  AnthropicTitleGenerator,
+  type TitleGenerator,
+} from "./titleGenerator";
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -119,6 +123,12 @@ export interface BridgeOpts {
    * Wire SqlitePersistence in main.ts / server.ts for production.
    */
   persistence?: Persistence;
+  /**
+   * Pluggable Haiku-based session title generator. Defaults to
+   * AnthropicTitleGenerator (real HTTP API). Tests inject a fake to avoid
+   * a real network call.
+   */
+  titleGenerator?: TitleGenerator;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +224,17 @@ type ActiveSession = {
    * per-subagent cost breakdown available. Those fields remain 0 on child rows.
    */
   readonly childToolCallCounts: Map<string, number>;
+  /**
+   * The first user-typed message text for this session, captured the first
+   * time `handleChatInput` runs. Used by the Haiku title generator. Empty
+   * until `handleChatInput` populates it.
+   */
+  firstUserText: string;
+  /**
+   * Set once the title generator has been kicked off for this session.
+   * Stops the bridge from firing duplicate requests on later `result`s.
+   */
+  titleRequested: boolean;
 };
 
 export class Bridge {
@@ -227,6 +248,7 @@ export class Bridge {
   readonly elicitationBroker: ElicitationBroker;
   readonly askBroker: AskBroker;
   private readonly persistence: Persistence;
+  private readonly titleGenerator: TitleGenerator;
 
   constructor(opts: BridgeOpts) {
     this.logger = opts.logger;
@@ -244,6 +266,7 @@ export class Bridge {
     this.elicitationBroker.setLogger(this.logger);
     this.askBroker = opts.askBroker ?? new AskBroker();
     this.persistence = opts.persistence ?? new InMemoryPersistence();
+    this.titleGenerator = opts.titleGenerator ?? new AnthropicTitleGenerator();
   }
 
   isBusy(): boolean {
@@ -479,6 +502,8 @@ export class Bridge {
       inputTokens: 0,
       outputTokens: 0,
       childToolCallCounts: new Map(),
+      firstUserText: "",
+      titleRequested: false,
     };
     this.active = session;
 
@@ -631,6 +656,13 @@ export class Bridge {
 
     // Update ws reference so emits go to the current connection.
     session.ws = ws;
+
+    // Capture the first user message text for the title generator (PR-01).
+    // Only the first call wins — later inputs in the same session are ignored
+    // by this branch.
+    if (session.firstUserText === "" && frame.text.length > 0) {
+      session.firstUserText = frame.text;
+    }
 
     const userMsg: SDKUserMessage = {
       type: "user",
@@ -984,6 +1016,48 @@ export class Bridge {
           const turnDone: ChatDone["reason"] = sub.startsWith("error")
             ? "errored"
             : "completed";
+
+          // PR-01: trigger Haiku title generation once per session after the
+          // first successful `result`. Idempotent: gated by titleRequested
+          // (in-memory) and the persisted session.title === "" check.
+          // Subagent rows are never affected because `result` is emitted only
+          // at the top-level turn boundary.
+          if (sub === "success" && !session.titleRequested) {
+            session.titleRequested = true;
+            const sessionRow = this.persistence.sessions.get(session.chatSessionId);
+            const alreadyTitled =
+              sessionRow !== undefined && sessionRow.title.trim().length > 0;
+            const haveUserText = session.firstUserText.trim().length > 0;
+            const assistantText = (msg as { result?: string }).result ?? "";
+            const haveAssistantText = assistantText.trim().length > 0;
+            if (!alreadyTitled && haveUserText && haveAssistantText) {
+              const sessionIdForLog = session.chatSessionId;
+              const firstUserText = session.firstUserText;
+              this.titleGenerator
+                .generate({ firstUserMessage: firstUserText, firstAssistantText: assistantText })
+                .then((title) => {
+                  const trimmed = title.trim();
+                  if (trimmed.length === 0) return;
+                  // Re-check before write to avoid clobbering a concurrent
+                  // update (e.g. parallel session reuse race).
+                  const fresh = this.persistence.sessions.get(sessionIdForLog);
+                  if (fresh === undefined) return;
+                  if (fresh.title.trim().length > 0) return;
+                  this.persistence.sessions.update(sessionIdForLog, { title: trimmed });
+                  this.logger.info("bridge.title_generated", {
+                    chatSessionId: sessionIdForLog,
+                    title: trimmed,
+                  });
+                })
+                .catch((err: unknown) => {
+                  this.logger.warn("bridge.title_generate_failed", {
+                    chatSessionId: sessionIdForLog,
+                    err: String(err),
+                  });
+                });
+            }
+          }
+
           this.sendDone(session.ws, session, turnDone);
           turnDoneSent = true;
 
