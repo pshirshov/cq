@@ -36,7 +36,7 @@ import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import { Detail } from "../history/Detail";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatRejoin, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult } from "@cq/shared";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
@@ -57,10 +57,12 @@ export function ChatTab(): React.ReactElement {
   const { activeSessionId, setActiveSessionId, inProgress, setInProgress } = useSession();
   const seqRef = useRef(0);
   const [chatEvents, setChatEvents] = useState<ChatEvent[]>([]);
-  // True between sending chat.start and receiving chat.started — prevents duplicate starts.
+  // True between sending chat.start/chat.rejoin and receiving chat.started — prevents duplicate starts.
   const chatStartPendingRef = useRef(false);
   // True when the user explicitly triggered new/resume session — prevents auto-start racing.
   const userInitiatedStartRef = useRef(false);
+  // True while a chat.rejoin is in-flight on the first ALIVE edge (D47).
+  const rejoinPendingRef = useRef(false);
   // D33: chat.started fires twice per new session (early stub + late real-init).
   // We must only clear chatEvents on the FIRST one — otherwise live events
   // received between the two (notably the server's echo of the user's
@@ -193,6 +195,7 @@ export function ChatTab(): React.ReactElement {
       if (frame.type === "chat.started") {
         const started = frame as ChatStarted;
         chatStartPendingRef.current = false;
+        rejoinPendingRef.current = false;
         userInitiatedStartRef.current = false;
         setActiveSessionId(started.sessionId);
         setSessionId(started.sessionId);
@@ -283,6 +286,25 @@ export function ChatTab(): React.ReactElement {
         setElicitationRequests((prev) => [...prev, frame as ChatElicitationRequest]);
       } else if (frame.type === "chat.error") {
         const errFrame = frame as ChatError;
+        // D47: if rejoin failed, clear the stale session from localStorage and
+        // fall back to a fresh chat.start so the user is not left stranded.
+        if (rejoinPendingRef.current && errFrame.code === "REJOIN_FAILED") {
+          rejoinPendingRef.current = false;
+          chatStartPendingRef.current = false;
+          setActiveSessionId(null);
+          // Fire a fresh start. model/permissionMode are read from current state
+          // via the ref snapshot captured in the outer scope by React's closure.
+          chatStartPendingRef.current = true;
+          const fallbackFrame: ChatStart = {
+            type: "chat.start",
+            seq: seqRef.current++,
+            ts: Date.now(),
+            model,
+            permissionMode,
+          };
+          manager.send(fallbackFrame);
+          return;
+        }
         showToast({ level: "error", text: errFrame.message });
       } else if (frame.type === "settings.get_result") {
         const r = frame as SettingsGetResult;
@@ -305,22 +327,18 @@ export function ChatTab(): React.ReactElement {
     const wasAlive = prevWasAliveRef.current;
     prevWasAliveRef.current = isAlive;
 
-    // ALIVE → not-ALIVE: WS dropped. The server-side bridge.active state is
-    // tied to the connection lifecycle, so the prior session is no longer
-    // valid. Drop client-side session state so the next ALIVE edge auto-starts
-    // a fresh session.
+    // ALIVE → not-ALIVE: WS dropped. Clear in-flight guards so the next ALIVE
+    // edge can attempt rejoin (if activeSessionId is still in localStorage).
     if (wasAlive && !isAlive) {
-      setActiveSessionId(null);
       setInProgress(false);
       chatStartPendingRef.current = false;
+      rejoinPendingRef.current = false;
       return;
     }
 
     // Only act on the ALIVE edge (false → true).
     if (!isAlive || wasAlive) return;
-    // Already have an active session — nothing to do.
-    if (activeSessionId !== null) return;
-    // Another start is already in-flight.
+    // Another start/rejoin is already in-flight.
     if (chatStartPendingRef.current) return;
     // User pressed New Session or Resume — they'll send their own chat.start.
     if (userInitiatedStartRef.current) return;
@@ -334,6 +352,21 @@ export function ChatTab(): React.ReactElement {
       ts: Date.now(),
     };
     manager.send(settingsGetFrame);
+
+    // D47: if we have a stored sessionId from a previous page load, attempt
+    // to rejoin it before falling back to a fresh start.
+    if (activeSessionId !== null) {
+      rejoinPendingRef.current = true;
+      chatStartPendingRef.current = true;
+      const rejoinFrame: ChatRejoin = {
+        type: "chat.rejoin",
+        seq: seqRef.current++,
+        ts: Date.now(),
+        sessionId: activeSessionId,
+      };
+      manager.send(rejoinFrame);
+      return;
+    }
 
     chatStartPendingRef.current = true;
     const frame: ChatStart = {
@@ -461,6 +494,20 @@ export function ChatTab(): React.ReactElement {
     manager.send(frame);
   }
 
+  function handleRejoinSession(sessionId: string): void {
+    // D48: user selected a running session from history — rejoin it.
+    userInitiatedStartRef.current = true;
+    rejoinPendingRef.current = true;
+    chatStartPendingRef.current = true;
+    const frame: ChatRejoin = {
+      type: "chat.rejoin",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      sessionId,
+    };
+    manager.send(frame);
+  }
+
   function handlePermissionReply(req: ChatPermissionRequest, decision: PermissionDecision): void {
     // Remove the request from the pending list.
     setPermissionRequests((prev) =>
@@ -542,6 +589,7 @@ export function ChatTab(): React.ReactElement {
         runningSubagents={subagentCounts.running}
         onNewSession={handleNewSession}
         onResumeSession={handleResumeSession}
+        onRejoinSession={handleRejoinSession}
         hideSdkEvents={hideSdkEvents}
         onHideSdkEventsChange={setHideSdkEvents}
       />

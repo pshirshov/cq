@@ -19,6 +19,7 @@ import { Bridge } from "../src/agent/bridge";
 import type { QueryFactory, WsSocket } from "../src/agent/bridge";
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
+import { InMemoryPersistence } from "../src/persist/InMemoryPersistence";
 import type { Logger } from "../src/log/logger";
 
 // ---------------------------------------------------------------------------
@@ -567,5 +568,98 @@ describe("Bridge", () => {
     expect((errFrame.message as string).length).toBeGreaterThan(0);
 
     await bridge.shutdown();
+  });
+
+  // --------------------------------------------------------------------------
+  // D47: chat.rejoin — Case A: active session (still running)
+  // --------------------------------------------------------------------------
+  it("chat.rejoin with the active session id rebinds WS and replays persisted events", async () => {
+    // Use a hanging query so the session stays active while we call handleChatRejoin.
+    let resolveHang!: () => void;
+    const hangPromise = new Promise<void>((r) => { resolveHang = r; });
+
+    const assistantMsg = makeAssistantMessage("hello from replay");
+    const hangingGen = (async function* (): AsyncGenerator<SDKMessage, void> {
+      yield makeInitMessage();
+      yield assistantMsg;
+      // Hang so the session stays active.
+      await hangPromise;
+    })();
+    const hangingQuery = hangingGen as unknown as MockQuery;
+    patchWithStubs(hangingQuery);
+    hangingQuery.interrupt = async () => { resolveHang(); };
+    hangingQuery.close = () => { resolveHang(); };
+
+    const persistence = new InMemoryPersistence();
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => hangingQuery,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    const ws1 = new MockWsSocket();
+    await bridge.handleChatStart(ws1, makeChatStart());
+
+    // Wait for init + assistant message to be processed and persisted.
+    const started1 = await ws1.waitForFrames("chat.started", 1);
+    const sessionId = started1[0]!.sessionId as string;
+    // Wait for at least one chat.event (assistant message persisted at that point).
+    await ws1.waitForFrames("chat.event", 1);
+
+    // Simulate a new WS connection (page refresh) sending chat.rejoin.
+    const ws2 = new MockWsSocket();
+    await bridge.handleChatRejoin(ws2, {
+      type: "chat.rejoin",
+      seq: 1,
+      ts: Date.now(),
+      sessionId,
+    });
+
+    // Should receive a fresh chat.started on ws2 with the same sessionId.
+    const started2 = await ws2.waitForFrames("chat.started", 1);
+    expect(started2[0]!.sessionId).toBe(sessionId);
+
+    // Should receive replayed events as history.replay_event frames.
+    const replays = await ws2.waitForFrames("history.replay_event", 1);
+    expect(replays.length).toBeGreaterThanOrEqual(1);
+
+    // Should receive history.replay_done.
+    await ws2.waitForFrames("history.replay_done", 1);
+
+    // Clean up.
+    resolveHang();
+    await bridge.shutdown();
+  });
+
+  // --------------------------------------------------------------------------
+  // D47: chat.rejoin — unknown session id returns REJOIN_FAILED
+  // --------------------------------------------------------------------------
+  it("chat.rejoin with an unknown session id returns chat.error{REJOIN_FAILED}", async () => {
+    const persistence = new InMemoryPersistence();
+    const registry = new SessionRegistry();
+    const mockQuery = makeMockQuery([]);
+    const queryFactory: QueryFactory = () => mockQuery;
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatRejoin(ws, {
+      type: "chat.rejoin",
+      seq: 1,
+      ts: Date.now(),
+      sessionId: "00000000-0000-4000-a000-000000000099",
+    });
+
+    const errors = ws.framesOfType("chat.error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.code).toBe("REJOIN_FAILED");
   });
 });

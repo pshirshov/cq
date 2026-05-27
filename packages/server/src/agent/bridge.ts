@@ -39,6 +39,7 @@ import type { Persistence } from "../persist/Persistence.js";
 import { InMemoryPersistence } from "../persist/InMemoryPersistence.js";
 import type {
   ChatStart,
+  ChatRejoin,
   ChatInput,
   ChatInterrupt,
   ChatPermissionReply,
@@ -511,6 +512,89 @@ export class Bridge {
         err: String(err),
       });
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // chat.rejoin
+  // ---------------------------------------------------------------------------
+
+  async handleChatRejoin(ws: WsSocket, frame: ChatRejoin): Promise<void> {
+    // Case A: the requested session IS our currently-active session.
+    if (this.active !== null && this.active.chatSessionId === frame.sessionId) {
+      // Bind the new WS to the active session so subsequent frames go to it.
+      this.active.ws = ws;
+      // Re-emit chat.started so the client knows it has rejoined.
+      this.sendStartedEarly(ws, this.active);
+      // Replay all events from the active invocation's log.
+      await this.replayInvocationEvents(ws, frame.seq, this.active.invocationId);
+      this.logger.info("bridge.chat_rejoin_active", { chatSessionId: frame.sessionId });
+      return;
+    }
+
+    // Case B: no matching active session — look up the most recent invocation
+    // for this session in persistence and delegate to handleChatStart with a
+    // resumeFromInvocationId so the existing resume path handles it.
+    const sessionRow = this.persistence.sessions.get(frame.sessionId);
+    if (sessionRow === undefined) {
+      this.sendError(ws, frame.sessionId, "REJOIN_FAILED", "Session not found");
+      return;
+    }
+
+    const invs = this.persistence.invocations.listForSession(frame.sessionId);
+    const main = invs
+      .filter((i) => i.parentInvocationId === null && i.agentName === "main")
+      .sort((a, b) => b.startedAt - a.startedAt)[0];
+
+    if (main === undefined) {
+      this.sendError(ws, frame.sessionId, "REJOIN_FAILED", "No invocations in session");
+      return;
+    }
+
+    this.logger.info("bridge.chat_rejoin_resume", {
+      chatSessionId: frame.sessionId,
+      resumeFromInvocationId: main.id,
+    });
+
+    await this.handleChatStart(ws, {
+      type: "chat.start",
+      seq: frame.seq,
+      ts: frame.ts,
+      resumeFromInvocationId: main.id,
+    });
+
+    // Replay the prior invocation's events so the client can restore the
+    // conversation after refresh. handleChatStart has already sent chat.started;
+    // we now stream the historical events using the original invocation's log.
+    await this.replayInvocationEvents(ws, frame.seq, main.id);
+  }
+
+  /**
+   * Streams all persisted events for an invocation as history.replay_event frames,
+   * then emits history.replay_done. Used by handleChatRejoin to restore client state.
+   */
+  private async replayInvocationEvents(
+    ws: WsSocket,
+    requestSeq: number,
+    invocationId: string,
+  ): Promise<void> {
+    let ordinal = 0;
+    for await (const event of this.persistence.events.readAll(invocationId)) {
+      ws.send(JSON.stringify({
+        type: "history.replay_event",
+        seq: 0,
+        ts: Date.now(),
+        requestSeq,
+        invocationId,
+        ordinal: ordinal++,
+        sdkEvent: event,
+      }));
+    }
+    ws.send(JSON.stringify({
+      type: "history.replay_done",
+      seq: 0,
+      ts: Date.now(),
+      requestSeq,
+    }));
   }
 
   // ---------------------------------------------------------------------------

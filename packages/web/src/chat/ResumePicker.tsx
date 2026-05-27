@@ -12,6 +12,11 @@ import type { HistoryRow, HistoryListResult } from "@cq/shared";
 
 export interface ResumePickerProps {
   onSelect: (invocationId: string) => void;
+  /** Called when the user selects a session that is currently running and
+   *  should be rejoined rather than restarted. D48. */
+  onRejoin?: (sessionId: string) => void;
+  /** The active session id from the parent (used for D48 rejoin branch). */
+  activeSessionId?: string | null;
   onCancel: () => void;
 }
 
@@ -27,7 +32,7 @@ function formatDuration(ms: number | null): string {
   return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
-export function ResumePicker({ onSelect, onCancel }: ResumePickerProps): React.ReactElement {
+export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: ResumePickerProps): React.ReactElement {
   const manager = useConnection();
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +151,19 @@ export function ResumePicker({ onSelect, onCancel }: ResumePickerProps): React.R
                   flexDirection: "column",
                   gap: 2,
                 }}
-                onClick={() => onSelect(row.invocationId)}
+                onClick={() => {
+                  // D48: if this row is the currently-running session, rejoin
+                  // instead of restarting (which would kill the session).
+                  if (
+                    row.status === "running" &&
+                    row.sessionId === activeSessionId &&
+                    onRejoin !== undefined
+                  ) {
+                    onRejoin(row.sessionId);
+                  } else {
+                    onSelect(row.invocationId);
+                  }
+                }}
                 data-testid={`resume-row-${row.invocationId}`}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>

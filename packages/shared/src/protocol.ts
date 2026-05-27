@@ -142,6 +142,14 @@ export const ChatStart = z.object({
 });
 export type ChatStart = z.infer<typeof ChatStart>;
 
+export const ChatRejoin = z.object({
+  type: z.literal("chat.rejoin"),
+  seq,
+  ts,
+  sessionId: uuidStr(),
+});
+export type ChatRejoin = z.infer<typeof ChatRejoin>;
+
 const AttachmentSchema = z.object({
   kind: z.enum(["image", "file"]),
   mimeType: z.string(),
@@ -474,6 +482,7 @@ export const ClientFrame = z.discriminatedUnion("type", [
   ClientHbPing,
   ClientHbPong,
   ChatStart,
+  ChatRejoin,
   ChatInput,
   ChatInterrupt,
   ChatPermissionReply,

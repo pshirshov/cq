@@ -130,6 +130,16 @@ export class WsSession {
         }
         break;
       }
+      case "chat.rejoin": {
+        if (this.bridge === null) {
+          this.sendBridgeUnavailable(ws);
+        } else {
+          this.bridge.handleChatRejoin(ws as BridgeWsSocket, frame).catch((err: unknown) => {
+            this.logger.error("ws.bridge_error", { sessionId: this.sessionId, err: String(err) });
+          });
+        }
+        break;
+      }
       case "chat.input": {
         if (this.bridge === null) {
           this.sendBridgeUnavailable(ws);

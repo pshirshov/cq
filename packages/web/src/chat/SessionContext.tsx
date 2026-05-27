@@ -4,9 +4,34 @@
  * Mounting SessionProvider above ChatTab in App.tsx ensures that
  * activeSessionId and inProgress survive Chat ↔ History tab switches,
  * which would otherwise unmount ChatTab and lose local component state.
+ *
+ * D47: activeSessionId is also persisted to localStorage["cq.activeSessionId"]
+ * so that a page refresh can attempt to rejoin the previous session.
  */
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+
+const LS_KEY = "cq.activeSessionId";
+
+function readStoredSessionId(): string | null {
+  try {
+    return localStorage.getItem(LS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSessionId(id: string | null): void {
+  try {
+    if (id === null) {
+      localStorage.removeItem(LS_KEY);
+    } else {
+      localStorage.setItem(LS_KEY, id);
+    }
+  } catch {
+    // localStorage may be unavailable (e.g. in tests or private browsing).
+  }
+}
 
 interface SessionState {
   activeSessionId: string | null;
@@ -18,8 +43,15 @@ interface SessionState {
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }): React.ReactElement {
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // Hydrate from localStorage on initial render (D47).
+  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(readStoredSessionId);
   const [inProgress, setInProgress] = useState(false);
+
+  const setActiveSessionId = useCallback((id: string | null) => {
+    writeStoredSessionId(id);
+    setActiveSessionIdState(id);
+  }, []);
+
   return (
     <SessionContext.Provider value={{ activeSessionId, setActiveSessionId, inProgress, setInProgress }}>
       {children}

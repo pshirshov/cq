@@ -66,6 +66,8 @@ export interface HeaderProps {
   runningSubagents?: number;
   onNewSession: () => void;
   onResumeSession: (invocationId: string) => void;
+  /** D48: called when the user selects a running session from history to rejoin it. */
+  onRejoinSession?: (sessionId: string) => void;
   hideSdkEvents: boolean;
   onHideSdkEventsChange: (value: boolean) => void;
 }
@@ -98,6 +100,7 @@ export function Header({
   runningSubagents = 0,
   onNewSession,
   onResumeSession,
+  onRejoinSession,
   hideSdkEvents,
   onHideSdkEventsChange,
 }: HeaderProps): React.ReactElement {
@@ -150,6 +153,11 @@ export function Header({
   function handleResumeSelect(invocationId: string): void {
     setShowResumePicker(false);
     onResumeSession(invocationId);
+  }
+
+  function handleRejoin(rejoinSessionId: string): void {
+    setShowResumePicker(false);
+    onRejoinSession?.(rejoinSessionId);
   }
 
   function handleResumeCancel(): void {
@@ -280,7 +288,12 @@ export function Header({
       )}
 
       {showResumePicker && (
-        <ResumePicker onSelect={handleResumeSelect} onCancel={handleResumeCancel} />
+        <ResumePicker
+          onSelect={handleResumeSelect}
+          onRejoin={handleRejoin}
+          activeSessionId={sessionId}
+          onCancel={handleResumeCancel}
+        />
       )}
     </>
   );

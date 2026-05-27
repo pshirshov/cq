@@ -153,6 +153,8 @@ function teardown(): void {
     container.parentNode.removeChild(container);
   }
   container = null;
+  // Clear persisted session id so tests start clean (D47 localStorage).
+  try { localStorage.removeItem("cq.activeSessionId"); } catch { /* ignore */ }
 }
 
 afterEach(() => { teardown(); });
@@ -186,7 +188,7 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     expect(starts).toHaveLength(1);
   });
 
-  test("(b) re-fires chat.start on reconnect when no session is active", () => {
+  test("(b) on reconnect with a stored session, sends chat.rejoin instead of chat.start", () => {
     const manager = new FakeManager(makeStats());
     setup();
 
@@ -200,35 +202,27 @@ describe("ChatTab auto-start (D-UX-1)", () => {
       );
     });
 
-    // First ALIVE → auto-start fires.
+    // First ALIVE → auto-start fires (activeSessionId is null → chat.start).
     act(() => { manager.push(ALIVE_STATS); });
-    // Simulate chat.started so activeSessionId is set, then chat.done to clear it.
+    const startsAfterFirst = manager.sent.filter((f) => f.type === "chat.start").length;
+    expect(startsAfterFirst).toBe(1);
+
+    // Simulate chat.started so activeSessionId is set (persisted to localStorage).
     act(() => {
       manager.emit({
         type: "chat.started",
         seq: 1,
         ts: Date.now(),
-        sessionId: "sess-1",
-        invocationId: "inv-1",
+        sessionId: "00000000-0000-4000-a000-000000000011",
+        invocationId: "00000000-0000-4000-a000-000000000012",
         initInfo: {},
       } as ServerFrame);
     });
-    act(() => {
-      manager.emit({
-        type: "chat.done",
-        seq: 2,
-        ts: Date.now(),
-        sessionId: "sess-1",
-        invocationId: "inv-1",
-      } as ServerFrame);
-    });
 
-    // Lose connection.
+    // Lose connection — clears in-flight guards but NOT activeSessionId (D47).
     act(() => { manager.push(NOT_ALIVE_STATS); });
 
-    const startsAfterFirst = manager.sent.filter((f) => f.type === "chat.start").length;
-
-    // Reconnect (ALIVE edge fires again).
+    // Reconnect → should send chat.rejoin (not chat.start) because activeSessionId is still set.
     act(() => {
       manager.push(makeStats({
         connections: [makeConn({ id: "c2", state: "ALIVE" })],
@@ -236,8 +230,13 @@ describe("ChatTab auto-start (D-UX-1)", () => {
       }));
     });
 
-    const startsTotal = manager.sent.filter((f) => f.type === "chat.start").length;
-    expect(startsTotal).toBeGreaterThan(startsAfterFirst);
+    const rejoins = manager.sent.filter((f) => f.type === "chat.rejoin");
+    expect(rejoins).toHaveLength(1);
+    expect((rejoins[0] as { sessionId: string }).sessionId).toBe(
+      "00000000-0000-4000-a000-000000000011",
+    );
+    // No additional chat.start should have been sent.
+    expect(manager.sent.filter((f) => f.type === "chat.start").length).toBe(1);
   });
 
   test("(c) does not duplicate chat.start when one is in-flight (pending)", () => {
@@ -360,6 +359,75 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     if (modelSelect !== null) {
       expect(modelSelect.value).toBe("claude-haiku-4-5");
     }
+  });
+
+  test("(h) on ALIVE edge with stored session id, sends chat.rejoin instead of chat.start", () => {
+    // Pre-seed localStorage to simulate a prior session surviving page refresh.
+    try { localStorage.setItem("cq.activeSessionId", "00000000-0000-4000-a000-000000000077"); } catch { /* ignore */ }
+
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    // Transition to ALIVE — should attempt rejoin, not a fresh start.
+    act(() => { manager.push(ALIVE_STATS); });
+
+    const rejoins = manager.sent.filter((f) => f.type === "chat.rejoin");
+    expect(rejoins).toHaveLength(1);
+    expect((rejoins[0] as { sessionId: string }).sessionId).toBe(
+      "00000000-0000-4000-a000-000000000077",
+    );
+    // No chat.start should have been sent yet.
+    expect(manager.sent.filter((f) => f.type === "chat.start")).toHaveLength(0);
+  });
+
+  test("(i) REJOIN_FAILED clears localStorage and falls back to chat.start", () => {
+    try { localStorage.setItem("cq.activeSessionId", "00000000-0000-4000-a000-000000000088"); } catch { /* ignore */ }
+
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    // ALIVE edge → sends chat.rejoin.
+    act(() => { manager.push(ALIVE_STATS); });
+    expect(manager.sent.filter((f) => f.type === "chat.rejoin")).toHaveLength(1);
+
+    // Server replies with REJOIN_FAILED.
+    act(() => {
+      manager.emit({
+        type: "chat.error",
+        seq: 2,
+        ts: Date.now(),
+        code: "REJOIN_FAILED",
+        message: "Session not found",
+      } as ServerFrame);
+    });
+
+    // A fallback chat.start should now be in the queue.
+    expect(manager.sent.filter((f) => f.type === "chat.start")).toHaveLength(1);
+
+    // localStorage should be cleared.
+    let stored: string | null = null;
+    try { stored = localStorage.getItem("cq.activeSessionId"); } catch { /* ignore */ }
+    expect(stored).toBeNull();
   });
 
   test("(e) chat.started alone does NOT show thinking — session is idle, not in a turn", () => {
