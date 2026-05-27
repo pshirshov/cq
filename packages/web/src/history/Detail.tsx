@@ -159,11 +159,15 @@ function DetailHeader({ row, onClose, onDelete, exportHeader, events }: DetailHe
         </span>
         <span className={styles.detailMetaItem}>
           <span className={styles.detailMetaLabel}>Tokens:</span>
-          <span data-testid="detail-tokens">{row.totalInputTokens + row.totalOutputTokens}</span>
+          {/* Use invocation-level fields (input/output tokens on the row) —
+              the session-level totals (totalInputTokens etc.) are not
+              currently populated by the bridge, so reading them shows 0.
+              Per-invocation values match what the History list displays. */}
+          <span data-testid="detail-tokens">{row.inputTokens + row.outputTokens}</span>
         </span>
         <span className={styles.detailMetaItem}>
           <span className={styles.detailMetaLabel}>Cost:</span>
-          <span data-testid="detail-cost">{fmtCost(row.totalCostUsd)}</span>
+          <span data-testid="detail-cost">{fmtCost(row.costUsd)}</span>
         </span>
         <span className={styles.detailMetaItem}>
           <span className={styles.detailMetaLabel}>Cwd:</span>
