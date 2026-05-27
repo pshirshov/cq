@@ -163,6 +163,22 @@ afterEach(() => { teardown(); });
 // Tests
 // ---------------------------------------------------------------------------
 
+// Helper: emit a settings.get_result with default values so the deferred
+// chat.start fires. Tests that don't care about model values use this.
+function emitSettingsResult(manager: FakeManager, model = "claude-opus-4-7[1m]"): void {
+  act(() => {
+    manager.emit({
+      type: "settings.get_result",
+      seq: 99,
+      ts: Date.now(),
+      requestSeq: 0,
+      model,
+      permissionMode: "bypassPermissions",
+      hideSdkEvents: false,
+    } as ServerFrame);
+  });
+}
+
 describe("ChatTab auto-start (D-UX-1)", () => {
   test("(a) fires chat.start on first ALIVE transition when no session is active", () => {
     const manager = new FakeManager(makeStats()); // starts non-ALIVE
@@ -184,6 +200,12 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     // Transition to ALIVE.
     act(() => { manager.push(ALIVE_STATS); });
 
+    // D6: chat.start is deferred until settings.get_result arrives.
+    expect(manager.sent.filter((f) => f.type === "chat.start")).toHaveLength(0);
+
+    // Simulate settings.get_result so the deferred start fires.
+    emitSettingsResult(manager);
+
     const starts = manager.sent.filter((f) => f.type === "chat.start");
     expect(starts).toHaveLength(1);
   });
@@ -202,8 +224,9 @@ describe("ChatTab auto-start (D-UX-1)", () => {
       );
     });
 
-    // First ALIVE → auto-start fires (activeSessionId is null → chat.start).
+    // First ALIVE → deferred start; emit settings result to fire it.
     act(() => { manager.push(ALIVE_STATS); });
+    emitSettingsResult(manager);
     const startsAfterFirst = manager.sent.filter((f) => f.type === "chat.start").length;
     expect(startsAfterFirst).toBe(1);
 
@@ -253,8 +276,9 @@ describe("ChatTab auto-start (D-UX-1)", () => {
       );
     });
 
-    // First ALIVE → auto-start fires.
+    // First ALIVE → deferred start; emit settings result to fire it.
     act(() => { manager.push(ALIVE_STATS); });
+    emitSettingsResult(manager);
 
     // Push another ALIVE update without chat.started arriving (still in-flight).
     act(() => {
@@ -306,6 +330,13 @@ describe("ChatTab auto-start (D-UX-1)", () => {
 
     const settingsGets = manager.sent.filter((f) => f.type === "settings.get");
     expect(settingsGets).toHaveLength(1);
+
+    // D6: chat.start is deferred until settings.get_result arrives —
+    // no chat.start in the queue yet.
+    expect(manager.sent.filter((f) => f.type === "chat.start")).toHaveLength(0);
+
+    // Emit settings.get_result so the deferred chat.start fires.
+    emitSettingsResult(manager);
 
     // settings.get must appear before chat.start in the sent queue
     const settingsGetIdx = manager.sent.findIndex((f) => f.type === "settings.get");
@@ -563,5 +594,43 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     // inProgress should now be false → stop button disabled.
     const stopBtnAfter = container!.querySelector("button[aria-label='Stop generation']") as HTMLButtonElement | null;
     expect(stopBtnAfter!.disabled).toBe(true);
+  });
+
+  test("(Q6) deferred chat.start uses model from settings.get_result, not React default", () => {
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    // ALIVE edge → settings.get sent, chat.start deferred.
+    act(() => { manager.push(ALIVE_STATS); });
+    expect(manager.sent.filter((f) => f.type === "settings.get")).toHaveLength(1);
+    expect(manager.sent.filter((f) => f.type === "chat.start")).toHaveLength(0);
+
+    // Emit settings.get_result with a specific model.
+    act(() => {
+      manager.emit({
+        type: "settings.get_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: 0,
+        model: "claude-haiku-4-5",
+        permissionMode: "default",
+        hideSdkEvents: true,
+      } as ServerFrame);
+    });
+
+    // chat.start should now be in the queue with the model from settings.
+    const starts = manager.sent.filter((f) => f.type === "chat.start");
+    expect(starts).toHaveLength(1);
+    expect((starts[0] as { model: string }).model).toBe("claude-haiku-4-5");
   });
 });

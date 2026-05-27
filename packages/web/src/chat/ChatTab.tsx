@@ -68,6 +68,11 @@ export function ChatTab(): React.ReactElement {
   // close frame). 20 s is chosen to be well beyond any realistic server RTT
   // while still bounding the stuck-true window.
   const rejoinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True when ALIVE edge fired but chat.start is deferred until settings.get_result
+  // arrives (D41/D6). Once settings.get_result lands this is cleared and chat.start
+  // is sent. Safety: a fallback timer fires chat.start after 3 s if no result arrives.
+  const chatStartDeferredRef = useRef(false);
+  const settingsFallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // D33: chat.started fires twice per new session (early stub + late real-init).
   // We must only clear chatEvents on the FIRST one — otherwise live events
   // received between the two (notably the server's echo of the user's
@@ -335,10 +340,31 @@ export function ChatTab(): React.ReactElement {
         showToast({ level: "error", text: errFrame.message });
       } else if (frame.type === "settings.get_result") {
         const r = frame as SettingsGetResult;
+        // Apply persisted settings. Use functional-update form for model and
+        // permissionMode so modelRef/permissionModeRef are updated synchronously
+        // via their own useEffects before we fire chat.start below.
+        const newModel = r.model !== null ? r.model : modelRef.current;
+        const newPermMode = r.permissionMode !== null ? (r.permissionMode as PermissionMode) : permissionModeRef.current;
         if (r.model !== null) setModel(r.model);
         if (r.permissionMode !== null) setPermissionMode(r.permissionMode as PermissionMode);
         setHideSdkEvents(r.hideSdkEvents);
         settingsLoadedRef.current = true;
+        // D6: fire the deferred chat.start now that we have persisted settings.
+        if (chatStartDeferredRef.current) {
+          chatStartDeferredRef.current = false;
+          if (settingsFallbackTimeoutRef.current !== null) {
+            clearTimeout(settingsFallbackTimeoutRef.current);
+            settingsFallbackTimeoutRef.current = null;
+          }
+          const startFrame: ChatStart = {
+            type: "chat.start",
+            seq: seqRef.current++,
+            ts: Date.now(),
+            model: newModel,
+            permissionMode: newPermMode,
+          };
+          manager.send(startFrame);
+        }
       }
     });
     return unsub;
@@ -359,6 +385,11 @@ export function ChatTab(): React.ReactElement {
     if (wasAlive && !isAlive) {
       setInProgress(false);
       chatStartPendingRef.current = false;
+      chatStartDeferredRef.current = false;
+      if (settingsFallbackTimeoutRef.current !== null) {
+        clearTimeout(settingsFallbackTimeoutRef.current);
+        settingsFallbackTimeoutRef.current = null;
+      }
       rejoinPendingRef.current = false;
       return;
     }
@@ -402,16 +433,30 @@ export function ChatTab(): React.ReactElement {
       return;
     }
 
+    // D6: defer chat.start until settings.get_result arrives so the first
+    // auto-start carries persisted values (model, permissionMode, hideSdkEvents)
+    // rather than React defaults. chatStartPendingRef is set now to prevent
+    // duplicate sends from further stats updates while we wait.
     chatStartPendingRef.current = true;
-    const frame: ChatStart = {
-      type: "chat.start",
-      seq: seqRef.current++,
-      ts: Date.now(),
-      model,
-      permissionMode,
-    };
-    manager.send(frame);
-  }, [stats]); // intentional: only re-run when stats changes; model/permissionMode are captured at call time
+    chatStartDeferredRef.current = true;
+    // Safety fallback: if settings.get_result does not arrive within 3 s
+    // (e.g. the server rejects settings.get), fire chat.start with whatever
+    // model/permissionMode are in state at that point.
+    if (settingsFallbackTimeoutRef.current !== null) clearTimeout(settingsFallbackTimeoutRef.current);
+    settingsFallbackTimeoutRef.current = setTimeout(() => {
+      settingsFallbackTimeoutRef.current = null;
+      if (!chatStartDeferredRef.current) return; // already fired via settings.get_result
+      chatStartDeferredRef.current = false;
+      const fallback: ChatStart = {
+        type: "chat.start",
+        seq: seqRef.current++,
+        ts: Date.now(),
+        model: modelRef.current,
+        permissionMode: permissionModeRef.current,
+      };
+      manager.send(fallback);
+    }, 3_000);
+  }, [stats]); // intentional: only re-run when stats changes; model/permissionMode read from refs
 
   // D41: persist model/permissionMode/hideSdkEvents on every change.
   // Skip sending until settings have been loaded (settingsLoadedRef.current === true)
