@@ -490,6 +490,38 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
+    // D41. UI settings: get returns defaults on fresh DB
+    // -----------------------------------------------------------------------
+    test("D41: settings.get returns defaults on fresh persistence", () => {
+      const s = p.settings.get();
+      expect(s.model).toBeNull();
+      expect(s.permissionMode).toBeNull();
+      expect(s.hideSdkEvents).toBe(false);
+    });
+
+    // -----------------------------------------------------------------------
+    // D41. UI settings: set model; get reflects it
+    // -----------------------------------------------------------------------
+    test("D41: settings.set model; get returns updated model", () => {
+      p.settings.set({ model: "claude-opus-4-7" });
+      const s = p.settings.get();
+      expect(s.model).toBe("claude-opus-4-7");
+      expect(s.permissionMode).toBeNull();
+      expect(s.hideSdkEvents).toBe(false);
+    });
+
+    // -----------------------------------------------------------------------
+    // D41. UI settings: set hideSdkEvents; prior model preserved
+    // -----------------------------------------------------------------------
+    test("D41: settings.set hideSdkEvents; prior model is preserved", () => {
+      p.settings.set({ model: "claude-opus-4-7" });
+      p.settings.set({ hideSdkEvents: true });
+      const s = p.settings.get();
+      expect(s.model).toBe("claude-opus-4-7");
+      expect(s.hideSdkEvents).toBe(true);
+    });
+
+    // -----------------------------------------------------------------------
     // 15. reapOrphans: running rows become stopped; completed rows unchanged
     // -----------------------------------------------------------------------
     test("reapOrphans transitions running rows to stopped, leaves completed unchanged", () => {

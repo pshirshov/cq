@@ -1,5 +1,6 @@
 import type { SessionRow, InvocationRow, HistoryRow, HistoryRowFull } from "@cq/shared";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { UiSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Filter / sort / page helpers
@@ -88,6 +89,11 @@ export interface Persistence {
     append(invocationId: string, event: SDKMessage): void;
     readAll(invocationId: string): AsyncIterable<SDKMessage>;
     close(invocationId: string): void;
+  };
+
+  settings: {
+    get(): UiSettings;
+    set(patch: Partial<UiSettings>): void;
   };
 
   withTx<T>(fn: () => T): T;

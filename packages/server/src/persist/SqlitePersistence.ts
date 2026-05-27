@@ -7,9 +7,11 @@ import { MIGRATIONS, runMigrations } from "./migrations.js";
 import { SessionStore } from "./sessions.js";
 import { InvocationStore } from "./invocations.js";
 import { SqliteEventLog } from "./events.js";
+import { SettingsStore } from "./settings.js";
 import { tryAcquireDbLock } from "./cqLock.js";
 import type { CqLock } from "./cqLock.js";
 import type { Persistence, SessionFilter, SortSpec, PageSpec, PagedResult } from "./Persistence.js";
+import type { UiSettings } from "./settings.js";
 import type { SessionRow, InvocationRow } from "@cq/shared";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Logger } from "../log/logger.js";
@@ -27,6 +29,7 @@ export class SqlitePersistence implements Persistence {
   private readonly sessionStore: SessionStore;
   private readonly invocationStore: InvocationStore;
   private readonly eventLog: SqliteEventLog;
+  private readonly settingsStore: SettingsStore;
   private _closed = false;
   /** Lock held by this instance; only set for file-backed DBs. */
   private _lock: CqLock | null = null;
@@ -47,6 +50,7 @@ export class SqlitePersistence implements Persistence {
     this.sessionStore = new SessionStore(this.db);
     this.invocationStore = new InvocationStore(this.db);
     this.eventLog = new SqliteEventLog(dir);
+    this.settingsStore = new SettingsStore(this.db);
 
     if (!isMemory) {
       // D29: Use a PID-file lock so that only the process that owns the lock
@@ -110,6 +114,11 @@ export class SqlitePersistence implements Persistence {
     readAll: (invocationId: string): AsyncIterable<SDKMessage> =>
       this.eventLog.readAll(invocationId),
     close: (invocationId: string): void => this.eventLog.close(invocationId),
+  };
+
+  readonly settings = {
+    get: (): UiSettings => this.settingsStore.get(),
+    set: (patch: Partial<UiSettings>): void => this.settingsStore.set(patch),
   };
 
   withTx<T>(fn: () => T): T {

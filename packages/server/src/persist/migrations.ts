@@ -103,6 +103,22 @@ CREATE INDEX IF NOT EXISTS idx_invocation_resumed_from ON invocation(resumed_fro
 UPDATE invocation SET status='failed' WHERE status='errored';
 `,
   },
+  {
+    // D41: persist the three top-bar UI settings server-side (model, permission
+    // mode, hide-sdk-events toggle). A single global row (id=1) is sufficient
+    // because cq is single-user. NULL in model/permission_mode means "not yet
+    // set — client uses its own default".
+    version: 4,
+    up: `
+CREATE TABLE IF NOT EXISTS ui_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  model TEXT,
+  permission_mode TEXT,
+  hide_sdk_events INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO ui_settings (id, model, permission_mode, hide_sdk_events) VALUES (1, NULL, NULL, 0);
+`,
+  },
 ];
 
 export function runMigrations(db: Database, migrations: Migration[]): void {

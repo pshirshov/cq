@@ -1,4 +1,4 @@
-import { ClientFrame, type ServerHbPong, type SessionState, type ChatError, type HistoryListResult, type HistoryGetResult, type HistoryReplayEvent, type HistoryReplayDone, type HistoryUpdate } from "@cq/shared";
+import { ClientFrame, type ServerHbPong, type SessionState, type ChatError, type HistoryListResult, type HistoryGetResult, type HistoryReplayEvent, type HistoryReplayDone, type HistoryUpdate, type SettingsGetResult } from "@cq/shared";
 import { FRAME_VALIDATION_FAILED } from "@cq/shared";
 import type { Logger } from "../log/logger";
 import { createHeartbeat, type HeartbeatHandle } from "./heartbeat";
@@ -26,6 +26,7 @@ type HistoryGetResultPayload = Omit<HistoryGetResult, "seq" | "ts">;
 type HistoryReplayEventPayload = Omit<HistoryReplayEvent, "seq" | "ts">;
 type HistoryReplayDonePayload = Omit<HistoryReplayDone, "seq" | "ts">;
 type HistoryUpdatePayload = Omit<HistoryUpdate, "seq" | "ts">;
+type SettingsGetResultPayload = Omit<SettingsGetResult, "seq" | "ts">;
 
 // ---------------------------------------------------------------------------
 // WsSession — per-connection state and message dispatch
@@ -254,6 +255,28 @@ export class WsSession {
         this.sendFrame(ws, confirmPayload);
         break;
       }
+      case "settings.get": {
+        if (this.persistence === null) break;
+        const s = this.persistence.settings.get();
+        const settingsPayload: SettingsGetResultPayload = {
+          type: "settings.get_result",
+          requestSeq: frame.seq,
+          model: s.model,
+          permissionMode: s.permissionMode,
+          hideSdkEvents: s.hideSdkEvents,
+        };
+        this.sendFrame(ws, settingsPayload);
+        break;
+      }
+      case "settings.set": {
+        if (this.persistence === null) break;
+        const patch: Partial<{ model: string | null; permissionMode: string | null; hideSdkEvents: boolean }> = {};
+        if (frame.model !== undefined) patch.model = frame.model;
+        if (frame.permissionMode !== undefined) patch.permissionMode = frame.permissionMode;
+        if (frame.hideSdkEvents !== undefined) patch.hideSdkEvents = frame.hideSdkEvents;
+        this.persistence.settings.set(patch);
+        break;
+      }
       // All other client frames are accepted but not yet dispatched (PR-07+)
       default:
         // Accepted; no-op until later PRs wire the handlers.
@@ -339,7 +362,7 @@ export class WsSession {
    * Sends a frame to the client, injecting `seq` and `ts` automatically.
    * `payload` must contain all fields except `seq` and `ts`.
    */
-  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload | HistoryListResultPayload | HistoryGetResultPayload | HistoryReplayEventPayload | HistoryReplayDonePayload | HistoryUpdatePayload): void {
+  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload | HistoryListResultPayload | HistoryGetResultPayload | HistoryReplayEventPayload | HistoryReplayDonePayload | HistoryUpdatePayload | SettingsGetResultPayload): void {
     const seq = this.outboundSeq++;
     const ts = Date.now();
     ws.send(JSON.stringify({ ...payload, seq, ts }));

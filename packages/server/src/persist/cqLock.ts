@@ -20,7 +20,7 @@ export interface CqLock {
  */
 export function tryAcquireDbLock(
   dbPath: string,
-  logger?: { warn(msg: string, data: object): void },
+  logger?: { warn(msg: string, data?: Record<string, unknown>): void },
 ): CqLock {
   const lockPath = `${dbPath}.lock`;
   const noop = (): void => {};

@@ -288,6 +288,23 @@ export const SessionRequestState = z.object({
 });
 export type SessionRequestState = z.infer<typeof SessionRequestState>;
 
+export const SettingsGet = z.object({
+  type: z.literal("settings.get"),
+  seq,
+  ts,
+});
+export type SettingsGet = z.infer<typeof SettingsGet>;
+
+export const SettingsSet = z.object({
+  type: z.literal("settings.set"),
+  seq,
+  ts,
+  model: z.string().nullable().optional(),
+  permissionMode: z.string().nullable().optional(),
+  hideSdkEvents: z.boolean().optional(),
+});
+export type SettingsSet = z.infer<typeof SettingsSet>;
+
 // ---------------------------------------------------------------------------
 // § 3.4 Server → client application frames
 // ---------------------------------------------------------------------------
@@ -434,6 +451,17 @@ export const SessionState = z.object({
 });
 export type SessionState = z.infer<typeof SessionState>;
 
+export const SettingsGetResult = z.object({
+  type: z.literal("settings.get_result"),
+  seq,
+  ts,
+  requestSeq: z.number(),
+  model: z.string().nullable(),
+  permissionMode: z.string().nullable(),
+  hideSdkEvents: z.boolean(),
+});
+export type SettingsGetResult = z.infer<typeof SettingsGetResult>;
+
 // ---------------------------------------------------------------------------
 // Discriminated unions for inbound validation (plan § 3)
 // ---------------------------------------------------------------------------
@@ -456,6 +484,8 @@ export const ClientFrame = z.discriminatedUnion("type", [
   HistoryGet,
   HistoryDelete,
   SessionRequestState,
+  SettingsGet,
+  SettingsSet,
 ]);
 export type ClientFrame = z.infer<typeof ClientFrame>;
 
@@ -480,5 +510,6 @@ export const ServerFrame = z.discriminatedUnion("type", [
   HistoryReplayDone,
   HistoryUpdate,
   SessionState,
+  SettingsGetResult,
 ]);
 export type ServerFrame = z.infer<typeof ServerFrame>;

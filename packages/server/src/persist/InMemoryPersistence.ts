@@ -9,6 +9,7 @@ import type {
   InvocationFilter,
   InvocationSortSpec,
 } from "./Persistence.js";
+import type { UiSettings } from "./settings.js";
 import { InMemoryEventLog } from "./events.js";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +45,7 @@ export class InMemoryPersistence implements Persistence {
   private readonly sessionMap = new Map<string, SessionRow>();
   private readonly invocationMap = new Map<string, InvocationRow>();
   private readonly eventLog = new InMemoryEventLog();
+  private _uiSettings: UiSettings = { model: null, permissionMode: null, hideSdkEvents: false };
 
   readonly sessions = {
     insert: (row: SessionRow): void => {
@@ -278,6 +280,13 @@ export class InMemoryPersistence implements Persistence {
     readAll: (invocationId: string): AsyncIterable<SDKMessage> =>
       this.eventLog.readAll(invocationId),
     close: (invocationId: string): void => this.eventLog.close(invocationId),
+  };
+
+  readonly settings = {
+    get: (): UiSettings => ({ ...this._uiSettings }),
+    set: (patch: Partial<UiSettings>): void => {
+      this._uiSettings = { ...this._uiSettings, ...patch };
+    },
   };
 
   withTx<T>(fn: () => T): T {

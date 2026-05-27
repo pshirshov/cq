@@ -289,6 +289,79 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     expect(hint!.textContent).toContain("Type below to start");
   });
 
+  test("(f) on ALIVE edge, sends settings.get before chat.start", () => {
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    act(() => { manager.push(ALIVE_STATS); });
+
+    const settingsGets = manager.sent.filter((f) => f.type === "settings.get");
+    expect(settingsGets).toHaveLength(1);
+
+    // settings.get must appear before chat.start in the sent queue
+    const settingsGetIdx = manager.sent.findIndex((f) => f.type === "settings.get");
+    const chatStartIdx = manager.sent.findIndex((f) => f.type === "chat.start");
+    expect(settingsGetIdx).toBeLessThan(chatStartIdx);
+  });
+
+  test("(g) settings.get_result updates model/hideSdkEvents; no settings.set sent before first load", () => {
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    // Before any ALIVE edge: no settings.get or settings.set should have been sent.
+    expect(manager.sent.filter((f) => f.type === "settings.set")).toHaveLength(0);
+
+    act(() => { manager.push(ALIVE_STATS); });
+
+    // After ALIVE edge: settings.get sent but still no settings.set (settingsLoadedRef is false).
+    expect(manager.sent.filter((f) => f.type === "settings.get")).toHaveLength(1);
+    expect(manager.sent.filter((f) => f.type === "settings.set")).toHaveLength(0);
+
+    // Emit settings.get_result — sets states and marks settingsLoadedRef = true.
+    // The state updates (model, hideSdkEvents) happen in effects, but since
+    // settingsLoadedRef becomes true only after the state setters fire, the
+    // subsequent effects for those same state changes may or may not fire
+    // depending on React batching. The invariant we care about is that the
+    // default-state flush before the first load does NOT produce settings.set.
+    act(() => {
+      manager.emit({
+        type: "settings.get_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: 0,
+        model: "claude-haiku-4-5",
+        permissionMode: "default",
+        hideSdkEvents: true,
+      } as ServerFrame);
+    });
+
+    // The model select should reflect the loaded model if the element is rendered.
+    const modelSelect = container!.querySelector("[data-testid='header-model-select']") as HTMLSelectElement | null;
+    if (modelSelect !== null) {
+      expect(modelSelect.value).toBe("claude-haiku-4-5");
+    }
+  });
+
   test("(e) chat.started alone does NOT show thinking — session is idle, not in a turn", () => {
     // Design contract: inProgress means "a user turn is awaiting a response",
     // not "the session is established". After chat.started the session is

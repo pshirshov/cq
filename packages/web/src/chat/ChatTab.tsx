@@ -36,7 +36,7 @@ import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import { Detail } from "../history/Detail";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult } from "@cq/shared";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
@@ -94,6 +94,11 @@ export function ChatTab(): React.ReactElement {
 
   // ---- D26: Hide SDK events toggle ----
   const [hideSdkEvents, setHideSdkEvents] = useState(false);
+
+  // ---- D41: UI settings persistence ----
+  // settingsLoadedRef guards against echoing defaults back to the server on
+  // the very first render before settings.get_result has been received.
+  const settingsLoadedRef = useRef(false);
 
   // ---- D30: Subagent transcript overlay ----
   // When set, renders the Detail component as a modal over the chat stream.
@@ -278,6 +283,12 @@ export function ChatTab(): React.ReactElement {
       } else if (frame.type === "chat.error") {
         const errFrame = frame as ChatError;
         showToast({ level: "error", text: errFrame.message });
+      } else if (frame.type === "settings.get_result") {
+        const r = frame as SettingsGetResult;
+        if (r.model !== null) setModel(r.model);
+        if (r.permissionMode !== null) setPermissionMode(r.permissionMode as PermissionMode);
+        setHideSdkEvents(r.hideSdkEvents);
+        settingsLoadedRef.current = true;
       }
     });
     return unsub;
@@ -313,6 +324,16 @@ export function ChatTab(): React.ReactElement {
     // User pressed New Session or Resume — they'll send their own chat.start.
     if (userInitiatedStartRef.current) return;
 
+    // D41: fetch persisted UI settings on each ALIVE edge so settings are
+    // restored after reconnect. Sent before chat.start so the settings.get_result
+    // can arrive and update model/permissionMode before the start fires.
+    const settingsGetFrame: SettingsGet = {
+      type: "settings.get",
+      seq: seqRef.current++,
+      ts: Date.now(),
+    };
+    manager.send(settingsGetFrame);
+
     chatStartPendingRef.current = true;
     const frame: ChatStart = {
       type: "chat.start",
@@ -323,6 +344,42 @@ export function ChatTab(): React.ReactElement {
     };
     manager.send(frame);
   }, [stats]); // intentional: only re-run when stats changes; model/permissionMode are captured at call time
+
+  // D41: persist model/permissionMode/hideSdkEvents on every change.
+  // Skip sending until settings have been loaded (settingsLoadedRef.current === true)
+  // so the initial render with default values does not clobber persisted settings.
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    const frame: SettingsSet = {
+      type: "settings.set",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      model,
+    };
+    manager.send(frame);
+  }, [model]); // intentional: only watch model
+
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    const frame: SettingsSet = {
+      type: "settings.set",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      permissionMode,
+    };
+    manager.send(frame);
+  }, [permissionMode]); // intentional: only watch permissionMode
+
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    const frame: SettingsSet = {
+      type: "settings.set",
+      seq: seqRef.current++,
+      ts: Date.now(),
+      hideSdkEvents,
+    };
+    manager.send(frame);
+  }, [hideSdkEvents]); // intentional: only watch hideSdkEvents
 
   function handleSubmit(text: string, attachments: Attachment[] = []): void {
     if (activeSessionId === null) return;
