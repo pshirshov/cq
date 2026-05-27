@@ -40,6 +40,17 @@ Goal: fix 6 issues surfaced by manual dogfooding. Constraint from /vsm-loop invo
 
 Acceptance for each: corresponding test/path described in defects.md; `bun run check` 0; `bun run e2e` still 6/6.
 
+## Active — outer-4 (third-round dogfooding fixes)
+
+Goal: fix 4 UX defects surfaced by dogfooding (D23–D26). Commit-per-defect; `bun run check` green after all four.
+
+- [x] **D23** — History list: one row per session. `invocations.ts` + `InMemoryPersistence.ts`. ROW_NUMBER() CTE deduplicates to latest invocation per session; sub-agent children excluded via `agent_name='main' AND parent_invocation_id IS NULL`. Commit: `8142fcf`.
+- [x] **D24** — User messages appear in chat stream. `Stream.tsx`: add `kind:"user"` to `RenderedMessage`, handle `sdkType="user"`, render via `MessageBubble role="user"`. Commit: `400bfb4`.
+- [x] **D25** — Empty assistant bubbles suppressed. `Stream.tsx`: skip `MessageBubble` render when text is empty and thinkingBlocks is empty. Commit: `4f9d2ef`.
+- [x] **D26** — SDK event labels + hide toggle. `UnknownCard.tsx` label rewrite; `Stream.tsx` `hideSdkEvents` prop; `Header.tsx` checkbox; `ChatTab.tsx` wiring. Commit: `d9436e2`.
+
+`bun run check` 473/473; 6/6 e2e (re-run after all four commits).
+
 ## Post-discharge fixes
 
 - `fix: install real SDK binary (PR-20-D01) + verify Candidate-A spike (PR-31-D01)` — Pinned `@anthropic-ai/claude-agent-sdk-linux-x64@0.3.150` in `packages/server/package.json`; added `resolveNativeBinaryPath()` to bridge.ts; added real-SDK test cases to `sdk-stub.test.ts`, `mcp-inheritance.test.ts`, and `ask-question.test.ts`; updated `MockAnthropicHTTP` to handle `HEAD /` probe and multi-round `scriptedResponder`; confirmed Candidate-A (synthetic tool_result injection) works against real subprocess. 399 tests pass (3 new).
