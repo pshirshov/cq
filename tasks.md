@@ -70,7 +70,7 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] **PR-01** — Haiku-generated session titles (server-side + persist + tests).
 - [x] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
 - [x] **PR-03** — Add Resume button column in History tab (top-level finished main only).
-- [ ] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
+- [x] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
 - [ ] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
 
 Cross-cutting (locked):
@@ -79,6 +79,10 @@ Cross-cutting (locked):
 - [x] `@anthropic-ai/sdk` added to `packages/server` only.
 - [x] Subagent predicate in `List.tsx` = `agentName !== 'main'`.
 - [x] User-triggered rejoin (live session) goes away; only auto-refresh rejoin remains.
+
+### PR-04 completed (2026-05-28)
+
+Deleted `packages/web/src/chat/ResumePicker.tsx` and `packages/e2e/tests/resume-running-rejoin.spec.ts`. Stripped `Header.tsx` of the `Resume from history` button, the dialog mount, `showResumePicker` state, the `handleResume*`/`handleRejoin` helpers, and the `onResumeSession`/`onRejoinSession` props. `ChatTab.tsx`: dropped `handleRejoinSession` (its only caller was the deleted dialog branch; the D47 auto-refresh `chat.rejoin` send-path is inline and unaffected) and removed both props from the Header element. `header.test.ts`: dropped the deleted prop from defaultProps. `bun run check` → 538 pass. `grep -r ResumePicker|resume-picker|resume-session-btn packages/{web,server,e2e,shared}/{src,test,tests}` returns zero hits.
 
 ### PR-03 completed (2026-05-28)
 

@@ -586,25 +586,10 @@ export function ChatTab(): React.ReactElement {
     manager.send(frame);
   }
 
-  function handleRejoinSession(sessionId: string): void {
-    // D48: user selected a running session from history — rejoin it.
-    userInitiatedStartRef.current = true;
-    rejoinPendingRef.current = true;
-    // Safety: self-clear rejoinPendingRef after 20 s (see auto-start block).
-    if (rejoinTimeoutRef.current !== null) clearTimeout(rejoinTimeoutRef.current);
-    rejoinTimeoutRef.current = setTimeout(() => {
-      rejoinPendingRef.current = false;
-      rejoinTimeoutRef.current = null;
-    }, 20_000);
-    chatStartPendingRef.current = true;
-    const frame: ChatRejoin = {
-      type: "chat.rejoin",
-      seq: seqRef.current++,
-      ts: Date.now(),
-      sessionId,
-    };
-    manager.send(frame);
-  }
+  // PR-04 (resume-rework) removed handleRejoinSession: its only caller was
+  // the legacy header dialog "click a running session" branch, deleted in
+  // PR-04. The auto-refresh ChatRejoin send path (D47, near the ALIVE-edge
+  // effect above) is inline and unaffected.
 
   // PR-03: consume cross-tab resume requests posted by HistoryTab. The
   // SessionContext.requestResume(invocationId) call sets a pending request;
@@ -698,8 +683,6 @@ export function ChatTab(): React.ReactElement {
         inProgress={inProgress}
         runningSubagents={subagentCounts.running}
         onNewSession={handleNewSession}
-        onResumeSession={handleResumeSession}
-        onRejoinSession={handleRejoinSession}
         hideSdkEvents={hideSdkEvents}
         onHideSdkEventsChange={setHideSdkEvents}
       />
