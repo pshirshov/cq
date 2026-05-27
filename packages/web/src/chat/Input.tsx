@@ -294,7 +294,7 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
             className={styles.stopButton}
             onClick={onInterrupt}
             type="button"
-            aria-label="Stop generation (Ctrl+S)"
+            aria-label="Stop generation"
             title="Stop generation (Ctrl+S)"
           >
             Stop
