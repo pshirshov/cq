@@ -141,7 +141,19 @@ export class FsLedgerStore implements LedgerStore {
     this.initialised = true;
   }
 
+  /**
+   * Releases in-process state after waiting for every in-flight mutation
+   * to complete. D-LED-06: the previous implementation cleared `mutexes`
+   * immediately, so a caller that raced `dispose()` against a slow
+   * mutation could observe the next caller building a fresh mutex that
+   * did not serialise with the in-flight one. Draining each chain via a
+   * no-op `mutex.run()` flushes the tail before clearing.
+   */
   async dispose(): Promise<void> {
+    const drains = Array.from(this.mutexes.values()).map((m) =>
+      m.run(async () => undefined),
+    );
+    await Promise.all(drains);
     this.ledgers.clear();
     this.mutexes.clear();
     this.initialised = false;

@@ -12,7 +12,7 @@
 - [x] **D-LED-03** — Deleted dead `void createAskUserQuestionMcpServer` import + statement from bridge.ts. `ask-question.test.ts:144` still uses the export so the function remains in askUserQuestion.ts. `bun run check` -> 594 pass / 0 fail.
 - [x] **D-LED-04** — `docs/ledgers.yaml` added to `.gitignore`; `git rm` removed the tracked empty registry.
 - [x] **D-LED-05** — `cloneFields` return type corrected to `Record<string, FieldValue>`; cast removed. Typecheck still clean.
-- [ ] **D-LED-06** — `dispose()` drains in-flight mutations + concurrency test.
+- [x] **D-LED-06** — `FsLedgerStore.dispose()` now awaits every per-ledger mutex chain via a no-op `mutex.run()` before clearing internal state. New test in `concurrency.test.ts`: 20 queued updates + dispose race; asserts updates resolve before dispose returns.
 - [ ] **D-LED-07** — Strengthen 50-parallel-update test (monotonic updatedAt with injected `now`; final-state `updatedAt===49` assertion).
 
 ## Cycle outer-5 — discharged

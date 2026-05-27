@@ -121,6 +121,40 @@ describe("FsLedgerStore concurrency", () => {
     expect(ledger.counters.item).toBeGreaterThanOrEqual(N);
   });
 
+  it("dispose() drains in-flight mutations before returning (D-LED-06)", async () => {
+    const store = await setup();
+    await store.createMilestone("defects", { title: "M-one" });
+    const item = await store.createItem("defects", "M1", {
+      status: "open",
+      fields: { severity: "minor", location: "x.ts", description: "init" },
+    });
+
+    // Queue many updates. They serialise through the per-ledger mutex; the
+    // first one is already in flight when we call dispose(). The contract
+    // is that dispose() awaits every queued mutation before clearing
+    // internal state.
+    const N = 20;
+    const updates: Array<Promise<{ updatedAt: number }>> = [];
+    for (let i = 0; i < N; i++) {
+      updates.push(
+        store.updateItem("defects", item.id, {
+          fields: { counter: String(i) },
+        }),
+      );
+    }
+
+    let updatesSettledFirst = false;
+    const updatesAll = Promise.all(updates).then(() => {
+      updatesSettledFirst = true;
+    });
+
+    await store.dispose();
+
+    // dispose() must not return until every queued mutation has resolved.
+    expect(updatesSettledFirst).toBe(true);
+    await updatesAll; // sanity: no unhandled rejections.
+  });
+
   it("concurrent updates to different ledgers run without cross-blocking", async () => {
     // Build a store with two ledgers.
     const dir = await mkdtemp(path.join(tmpdir(), "ledger-conc-multi-"));
