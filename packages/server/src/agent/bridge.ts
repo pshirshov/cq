@@ -1039,15 +1039,15 @@ export class Bridge {
       if (this.active === session) {
         this.active = null;
         session.queue.end();
+        // Reject any pending permission requests — the session is over.
+        this.permissionBroker.rejectAll();
+        this.permissionBroker.clearSendFrame();
+        // Cancel any pending elicitation requests — the session is over.
+        this.elicitationBroker.rejectAll();
+        this.elicitationBroker.clearSendFrame();
+        // Cancel any pending AskUserQuestion broker promises — the session is over.
+        this.askBroker.rejectAll();
       }
-      // Reject any pending permission requests — the session is over.
-      this.permissionBroker.rejectAll();
-      this.permissionBroker.clearSendFrame();
-      // Cancel any pending elicitation requests — the session is over.
-      this.elicitationBroker.rejectAll();
-      this.elicitationBroker.clearSendFrame();
-      // Cancel any pending AskUserQuestion broker promises — the session is over.
-      this.askBroker.rejectAll();
     }
   }
 
