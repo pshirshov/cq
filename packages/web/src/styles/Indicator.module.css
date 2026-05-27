@@ -20,6 +20,18 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
+}
+
+/* Inline variant: embedded in the tab bar at 2/3 size. */
+.indicatorInline {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 9px;
 
   /* PR-14: relative so the SVG ring overlay (position:absolute) stays inside */
   /* Note: `position:fixed` already establishes a containing block, but adding

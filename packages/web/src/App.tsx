@@ -33,7 +33,6 @@ export default function App(): React.ReactElement {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <ToastStack />
-      <Indicator />
       <nav className={styles.tabs} role="tablist" aria-label="Main navigation">
         <button
           role="tab"
@@ -51,6 +50,9 @@ export default function App(): React.ReactElement {
         >
           History
         </button>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 12 }}>
+          <Indicator inline />
+        </div>
       </nav>
       <SessionProvider>
         <div

@@ -87,6 +87,8 @@ export interface IndicatorProps {
     pongTimeoutMs: number;
     staleGraceMs: number;
   };
+  /** If true, render embedded (e.g. inside a tab bar) at 2/3 size and no fixed positioning. */
+  inline?: boolean;
 }
 
 /**
@@ -112,7 +114,7 @@ export interface IndicatorProps {
  * <ConnectionProvider value={manager}> in the application root (main.tsx) or
  * in test harnesses.
  */
-export function Indicator({ ringOpts }: IndicatorProps): React.ReactElement {
+export function Indicator({ ringOpts, inline = false }: IndicatorProps): React.ReactElement {
   const manager = useConnection();
   const stats = useConnectionStats();
   const [now, setNow] = useState<number>(() => Date.now());
@@ -187,7 +189,7 @@ export function Indicator({ ringOpts }: IndicatorProps): React.ReactElement {
     <>
       <div
         id="ws-indicator"
-        className={`${styles.indicator ?? ""} ${colorClass}`}
+        className={`${styles.indicator ?? ""} ${inline ? (styles.indicatorInline ?? "") : ""} ${colorClass}`}
         data-state={ws}
         aria-label={ariaLabel}
         aria-live="polite"
@@ -203,8 +205,8 @@ export function Indicator({ ringOpts }: IndicatorProps): React.ReactElement {
           <CountdownRing
             remaining={ringInfo.remaining}
             total={ringInfo.total}
-            size={32}
-            strokeWidth={3}
+            size={inline ? 22 : 32}
+            strokeWidth={inline ? 2 : 3}
             ariaHidden
           />
         )}
