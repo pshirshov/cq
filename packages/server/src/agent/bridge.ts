@@ -1037,12 +1037,26 @@ export class Bridge {
         ? "failed"
         : "stopped";
 
-    this.persistence.invocations.update(childInvocationId, {
+    // D45: task_notification carries usage.{total_tokens, tool_uses, duration_ms}
+    // for the subagent. We can populate the child row's token count from
+    // total_tokens (no input/output split available — store in inputTokens as a
+    // single aggregate; cost remains 0 because the SDK does not report
+    // per-subagent cost).
+    const patch: Partial<InvocationRow> = {
       endedAt,
       durationMs: durationMs ?? null,
       status,
-    });
-    this.sendHistoryUpdate(ws, childInvocationId, { endedAt, durationMs, status });
+    };
+    const usage = (msg as { usage?: { total_tokens?: number; tool_uses?: number } }).usage;
+    if (usage !== undefined && typeof usage.total_tokens === "number") {
+      patch.inputTokens = usage.total_tokens;
+    }
+    if (usage !== undefined && typeof usage.tool_uses === "number" && usage.tool_uses > 0) {
+      // Authoritative count from the SDK; overrides the per-message accumulator.
+      patch.toolCallCount = usage.tool_uses;
+    }
+    this.persistence.invocations.update(childInvocationId, patch);
+    this.sendHistoryUpdate(ws, childInvocationId, { endedAt, durationMs, status, ...patch });
     this.logger.info("bridge.task_notification", {
       chatSessionId: session.chatSessionId,
       taskId: msg.task_id,
