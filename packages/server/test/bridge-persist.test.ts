@@ -11,162 +11,19 @@
 
 import { describe, it, expect } from "bun:test";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
-import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { QueryFactory } from "../src/agent/bridge";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence.js";
 import { SqlitePersistence } from "../src/persist/SqlitePersistence.js";
-import type { Logger } from "../src/log/logger";
-
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  async waitForFrames(type: string, count = 1, timeoutMs = 3000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(10);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}`,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MockQuery factory
-// ---------------------------------------------------------------------------
-
-type MockQuery = Query & { interruptCalled: boolean };
-
-function makeMockQuery(script: SDKMessage[]): MockQuery {
-  let scriptIndex = 0;
-  let done = false;
-
-  const obj = {
-    [Symbol.asyncIterator]() { return this; },
-    next(): Promise<IteratorResult<SDKMessage, void>> {
-      if (done) return Promise.resolve({ value: undefined, done: true as const });
-      if (scriptIndex < script.length) {
-        const msg = script[scriptIndex++]!;
-        return Promise.resolve({ value: msg, done: false as const });
-      }
-      done = true;
-      return Promise.resolve({ value: undefined, done: true as const });
-    },
-    return(): Promise<IteratorResult<SDKMessage, void>> {
-      done = true;
-      return Promise.resolve({ value: undefined, done: true as const });
-    },
-    throw(err?: unknown): Promise<IteratorResult<SDKMessage, void>> {
-      done = true;
-      return Promise.reject(err);
-    },
-    async interrupt(): Promise<void> { obj.interruptCalled = true; done = true; },
-    async setPermissionMode() {},
-    async setModel() {},
-    async setMaxThinkingTokens() {},
-    async applyFlagSettings() {},
-    async initializationResult() { throw new Error("not implemented"); },
-    async supportedCommands() { return []; },
-    async supportedModels() { return []; },
-    async supportedAgents() { return []; },
-    async mcpServerStatus() { return []; },
-    async getContextUsage() { throw new Error("not implemented"); },
-    async readFile() { return null; },
-    async reloadPlugins() { throw new Error("not implemented"); },
-    async accountInfo() { throw new Error("not implemented"); },
-    async rewindFiles() { throw new Error("not implemented"); },
-    async seedReadState() {},
-    async reconnectMcpServer() {},
-    async toggleMcpServer() {},
-    async setMcpServers() { throw new Error("not implemented"); },
-    async streamInput() {},
-    async stopTask() {},
-    async backgroundTasks() { return false; },
-    close() { done = true; },
-    interruptCalled: false,
-  };
-
-  return obj as unknown as MockQuery;
-}
-
-// ---------------------------------------------------------------------------
-// SDK message factories
-// ---------------------------------------------------------------------------
-
-function makeInitMessage(overrides: Record<string, unknown> = {}): SDKMessage {
-  return {
-    type: "system",
-    subtype: "init",
-    agents: [],
-    apiKeySource: "user",
-    betas: [],
-    claude_code_version: "0.0.0-test",
-    cwd: "/tmp",
-    tools: [],
-    mcp_servers: [],
-    model: "claude-test",
-    permissionMode: "default",
-    slash_commands: [],
-    output_style: "text",
-    skills: [],
-    plugins: [],
-    uuid: "00000000-0000-4000-a000-000000000001",
-    session_id: "00000000-0000-4000-a000-000000000002",
-    ...overrides,
-  } as SDKMessage;
-}
-
-function makeAssistantMessage(text: string): SDKMessage {
-  return {
-    type: "assistant",
-    message: {
-      id: "msg_test",
-      type: "message",
-      role: "assistant",
-      content: [{ type: "text", text }],
-      model: "claude-test",
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-    },
-    parent_tool_use_id: null,
-    uuid: "00000000-0000-4000-a000-000000000003",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as unknown as SDKMessage;
-}
+import {
+  noopLogger,
+  MockWsSocket,
+  makeMockQuery,
+  makeInitMessage,
+  makeAssistantMessage,
+  makeChatStart,
+} from "./helpers/mockBridge";
 
 function makeAssistantMessageWithToolUse(toolUseId: string, toolName: string): SDKMessage {
   return {
@@ -231,10 +88,6 @@ function makeTaskNotificationMessage(taskId: string, toolUseId: string): SDKMess
 // ---------------------------------------------------------------------------
 // Bridge factory helpers
 // ---------------------------------------------------------------------------
-
-function makeChatStart(): import("@cq/shared").ChatStart {
-  return { type: "chat.start", seq: 0, ts: Date.now() };
-}
 
 function makeBridgeWithPersistence(
   script: SDKMessage[],

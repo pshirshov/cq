@@ -11,138 +11,23 @@
 
 import { describe, it, expect } from "bun:test";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
+import type { QueryFactory } from "../src/agent/bridge";
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
-import type { Logger } from "../src/log/logger";
+import {
+  noopLogger,
+  MockWsSocket,
+  patchStubs,
+  makeInitMessage,
+  makeAssistantMessage,
+  makeChatStart,
+  makeChatInterrupt,
+  type MockQuery,
+} from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
-// Noop logger
+// Local bridge factory
 // ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  /** Wait until at least `count` frames of `type` have been received. */
-  async waitForFrames(type: string, count = 1, timeoutMs = 3000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(10);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}`,
-    );
-  }
-
-  /** Snapshot the count of chat.event frames received so far. */
-  eventCount(): number {
-    return this.framesOfType("chat.event").length;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MockQuery helpers
-// ---------------------------------------------------------------------------
-
-type MockQuery = Query & { interruptCalled: boolean };
-
-function patchStubs(obj: object): void {
-  const stubs: Record<string, unknown> = {
-    mcpServerStatus: async () => [],
-    supportedCommands: async () => [],
-    supportedModels: async () => [],
-    supportedAgents: async () => [],
-    setPermissionMode: async () => {},
-    setModel: async () => {},
-    setMaxThinkingTokens: async () => {},
-    applyFlagSettings: async () => {},
-    streamInput: async () => {},
-    stopTask: async () => {},
-    backgroundTasks: async () => false,
-    reconnectMcpServer: async () => {},
-    toggleMcpServer: async () => {},
-    seedReadState: async () => {},
-    readFile: async () => null,
-    getContextUsage: async () => { throw new Error("not implemented"); },
-    initializationResult: async () => { throw new Error("not implemented"); },
-    reloadPlugins: async () => { throw new Error("not implemented"); },
-    accountInfo: async () => { throw new Error("not implemented"); },
-    rewindFiles: async () => { throw new Error("not implemented"); },
-    setMcpServers: async () => { throw new Error("not implemented"); },
-  };
-  for (const [k, v] of Object.entries(stubs)) {
-    (obj as Record<string, unknown>)[k] = v;
-  }
-}
-
-function makeInitMessage(): SDKMessage {
-  return {
-    type: "system",
-    subtype: "init",
-    agents: [],
-    apiKeySource: "user",
-    betas: [],
-    claude_code_version: "0.0.0-test",
-    cwd: "/tmp",
-    tools: [],
-    mcp_servers: [],
-    model: "claude-test",
-    permissionMode: "default",
-    slash_commands: [],
-    output_style: "text",
-    skills: [],
-    plugins: [],
-    uuid: "00000000-0000-4000-a000-000000000001",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as SDKMessage;
-}
-
-function makeAssistantMessage(n: number): SDKMessage {
-  return {
-    type: "assistant",
-    message: {
-      id: `msg_test_${n}`,
-      type: "message",
-      role: "assistant",
-      content: [{ type: "text", text: `message ${n}` }],
-      model: "claude-test",
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-    },
-    parent_tool_use_id: null,
-    uuid: `00000000-0000-4000-a000-00000000000${n}`,
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as unknown as SDKMessage;
-}
 
 function makeBridge(queryFactory: QueryFactory): { bridge: Bridge; ws: MockWsSocket } {
   const registry = new SessionRegistry();
@@ -153,14 +38,6 @@ function makeBridge(queryFactory: QueryFactory): { bridge: Bridge; ws: MockWsSoc
     cwd: "/tmp/test",
   });
   return { bridge, ws: new MockWsSocket() };
-}
-
-function makeChatStart(): import("@cq/shared").ChatStart {
-  return { type: "chat.start", seq: 0, ts: Date.now() };
-}
-
-function makeChatInterrupt(sessionId: string): import("@cq/shared").ChatInterrupt {
-  return { type: "chat.interrupt", seq: 1, ts: Date.now(), sessionId };
 }
 
 // ---------------------------------------------------------------------------

@@ -21,8 +21,8 @@ import { createReplayBuffer } from "../src/seq/replayBuffer";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
 import type { SessionState as RegistrySessionState } from "../src/seq/sessionRegistry";
 import { WsSession, type WsSessionData } from "../src/ws/session";
-import type { Logger } from "../src/log/logger";
 import type { ChatEvent } from "@cq/shared";
+import { noopLogger } from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,14 +41,6 @@ function makeChatEvent(overrides: Partial<ChatEvent> = {}): ChatEvent {
     ...overrides,
   };
 }
-
-/** Minimal logger stub satisfying the Logger interface. */
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
 
 /** Minimal WS socket stub compatible with WsSession's structural WsSocket type. */
 type SentRecord = string;

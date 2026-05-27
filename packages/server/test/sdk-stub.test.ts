@@ -24,59 +24,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
+import type { QueryFactory } from "../src/agent/bridge";
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
-import type { Logger } from "../src/log/logger";
 import { startMockAnthropic, DEFAULT_SSE_EVENTS } from "./helpers/MockAnthropicHTTP";
 import type { MockAnthropicHTTP, SSEEvent } from "./helpers/MockAnthropicHTTP";
-
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket — records outbound frames (same as bridge.test.ts)
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  async waitForFrames(type: string, count = 1, timeoutMs = 5000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(20);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; ` +
-      `got ${this.framesOfType(type).length}; all types: ${[...new Set(this.sent.map(f => f.type))].join(", ")}`,
-    );
-  }
-}
+import { noopLogger, MockWsSocket, type ParsedFrame } from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // SSE-fetch QueryFactory

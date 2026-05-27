@@ -16,216 +16,22 @@
 
 import { describe, it, expect } from "bun:test";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
-import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { QueryFactory } from "../src/agent/bridge";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence";
-import type { Logger } from "../src/log/logger";
-
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket — records outbound frames; structurally matches WsSocket.
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-  readonly closed: Array<{ code?: number; reason?: string }> = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(code?: number, reason?: string): void {
-    this.closed.push({
-      ...(code !== undefined ? { code } : {}),
-      ...(reason !== undefined ? { reason } : {}),
-    });
-  }
-
-  /** Return all frames of a given type, in order. */
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  /** Wait until at least `count` frames of `type` have been received. */
-  async waitForFrames(type: string, count = 1, timeoutMs = 3000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(10);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}`,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MockQuery — an AsyncGenerator that yields a canned script of SDKMessages.
-// Implements the Query interface's control methods as stubs.
-// ---------------------------------------------------------------------------
-
-type MockQueryScript = SDKMessage[];
-
-/**
- * A mock Query with full stub implementations.
- * Uses `as unknown as Query` to avoid satisfying every TypeScript symbol
- * (e.g. Symbol.asyncDispose introduced in newer lib.esnext.d.ts).
- */
-type MockQuery = Query & { interruptCalled: boolean };
-
-function makeMockQuery(script: MockQueryScript): MockQuery {
-  let interruptCalled = false;
-  let scriptIndex = 0;
-  let done = false;
-
-  const obj = {
-    // AsyncGenerator protocol
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-    next(): Promise<IteratorResult<SDKMessage, void>> {
-      if (done) return Promise.resolve({ value: undefined, done: true as const });
-      if (scriptIndex < script.length) {
-        const msg = script[scriptIndex++]!;
-        return Promise.resolve({ value: msg, done: false as const });
-      }
-      done = true;
-      return Promise.resolve({ value: undefined, done: true as const });
-    },
-    return(): Promise<IteratorResult<SDKMessage, void>> {
-      done = true;
-      return Promise.resolve({ value: undefined, done: true as const });
-    },
-    throw(err?: unknown): Promise<IteratorResult<SDKMessage, void>> {
-      done = true;
-      return Promise.reject(err);
-    },
-    // Query control methods
-    async interrupt(): Promise<void> {
-      interruptCalled = true;
-      obj.interruptCalled = true;
-      done = true;
-    },
-    async setPermissionMode() {},
-    async setModel() {},
-    async setMaxThinkingTokens() {},
-    async applyFlagSettings() {},
-    async initializationResult() { throw new Error("not implemented in mock"); },
-    async supportedCommands() { return []; },
-    async supportedModels() { return []; },
-    async supportedAgents() { return []; },
-    async mcpServerStatus() { return []; },
-    async getContextUsage() { throw new Error("not implemented in mock"); },
-    async readFile() { return null; },
-    async reloadPlugins() { throw new Error("not implemented in mock"); },
-    async accountInfo() { throw new Error("not implemented in mock"); },
-    async rewindFiles() { throw new Error("not implemented in mock"); },
-    async seedReadState() {},
-    async reconnectMcpServer() {},
-    async toggleMcpServer() {},
-    async setMcpServers() { throw new Error("not implemented in mock"); },
-    async streamInput() {},
-    async stopTask() {},
-    async backgroundTasks() { return false; },
-    close() { done = true; },
-    interruptCalled,
-  };
-
-  return obj as unknown as MockQuery;
-}
-
-/** Patch a MockQuery with all stubs needed for the hanging generator tests. */
-function patchWithStubs(mockQuery: object): void {
-  const stubs: Record<string, unknown> = {
-    mcpServerStatus: async () => [],
-    supportedCommands: async () => [],
-    supportedModels: async () => [],
-    supportedAgents: async () => [],
-    setPermissionMode: async () => {},
-    setModel: async () => {},
-    setMaxThinkingTokens: async () => {},
-    applyFlagSettings: async () => {},
-    streamInput: async () => {},
-    stopTask: async () => {},
-    backgroundTasks: async () => false,
-    reconnectMcpServer: async () => {},
-    toggleMcpServer: async () => {},
-    seedReadState: async () => {},
-    readFile: async () => null,
-    getContextUsage: async () => { throw new Error("not implemented"); },
-    initializationResult: async () => { throw new Error("not implemented"); },
-    reloadPlugins: async () => { throw new Error("not implemented"); },
-    accountInfo: async () => { throw new Error("not implemented"); },
-    rewindFiles: async () => { throw new Error("not implemented"); },
-    setMcpServers: async () => { throw new Error("not implemented"); },
-  };
-  for (const [k, v] of Object.entries(stubs)) {
-    (mockQuery as Record<string, unknown>)[k] = v;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// SDKSystemMessage factory helper
-// ---------------------------------------------------------------------------
-
-function makeInitMessage(overrides: Record<string, unknown> = {}): SDKMessage {
-  return {
-    type: "system",
-    subtype: "init",
-    agents: [],
-    apiKeySource: "user",
-    betas: [],
-    claude_code_version: "0.0.0-test",
-    cwd: "/tmp",
-    tools: [],
-    mcp_servers: [],
-    model: "claude-test",
-    permissionMode: "default",
-    slash_commands: [],
-    output_style: "text",
-    skills: [],
-    plugins: [],
-    uuid: "00000000-0000-4000-a000-000000000001",
-    session_id: "00000000-0000-4000-a000-000000000002",
-    ...overrides,
-  } as SDKMessage;
-}
-
-function makeAssistantMessage(text: string): SDKMessage {
-  return {
-    type: "assistant",
-    message: {
-      id: "msg_test",
-      type: "message",
-      role: "assistant",
-      content: [{ type: "text", text }],
-      model: "claude-test",
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-    },
-    parent_tool_use_id: null,
-    uuid: "00000000-0000-4000-a000-000000000003",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as unknown as SDKMessage;
-}
+import {
+  noopLogger,
+  MockWsSocket,
+  makeMockQuery,
+  patchStubs as patchWithStubs,
+  makeInitMessage,
+  makeAssistantMessage,
+  makeChatStart,
+  makeChatInput,
+  makeChatInterrupt,
+  type MockQuery,
+} from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // Bridge factory helper
@@ -244,37 +50,6 @@ function makeBridge(mockQuery: ReturnType<typeof makeMockQuery>): {
     cwd: "/tmp/test",
   });
   return { bridge, registry };
-}
-
-// ---------------------------------------------------------------------------
-// ChatStart frame factory
-// ---------------------------------------------------------------------------
-
-function makeChatStart(): import("@cq/shared").ChatStart {
-  return {
-    type: "chat.start",
-    seq: 0,
-    ts: Date.now(),
-  };
-}
-
-function makeChatInput(sessionId: string, text: string): import("@cq/shared").ChatInput {
-  return {
-    type: "chat.input",
-    seq: 1,
-    ts: Date.now(),
-    sessionId,
-    text,
-  };
-}
-
-function makeChatInterrupt(sessionId: string): import("@cq/shared").ChatInterrupt {
-  return {
-    type: "chat.interrupt",
-    seq: 2,
-    ts: Date.now(),
-    sessionId,
-  };
 }
 
 // ---------------------------------------------------------------------------

@@ -21,79 +21,16 @@ import { Bridge } from "../src/agent/bridge";
 import type { QueryFactory, WsSocket } from "../src/agent/bridge";
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
-import type { Logger } from "../src/log/logger";
-
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  async waitForFrames(type: string, count = 1, timeoutMs = 3000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(10);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}`,
-    );
-  }
-}
+import {
+  noopLogger,
+  MockWsSocket,
+  makeInitMessage,
+  type ParsedFrame,
+} from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // MockQuery factory (hangs until resolveHang called; yields init message first)
 // ---------------------------------------------------------------------------
-
-function makeInitMessage(): SDKMessage {
-  return {
-    type: "system",
-    subtype: "init",
-    agents: [],
-    apiKeySource: "user",
-    betas: [],
-    claude_code_version: "0.0.0-test",
-    cwd: "/tmp",
-    tools: [],
-    mcp_servers: [],
-    model: "claude-test",
-    permissionMode: "default",
-    slash_commands: [],
-    output_style: "text",
-    skills: [],
-    plugins: [],
-    uuid: "00000000-0000-4000-a000-000000000001",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as SDKMessage;
-}
 
 type HangingQueryResult = {
   queryFactory: QueryFactory;

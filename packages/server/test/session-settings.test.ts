@@ -10,18 +10,11 @@
 import { describe, test, expect } from "bun:test";
 import { WsSession, type WsSessionData } from "../src/ws/session.js";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence.js";
-import type { Logger } from "../src/log/logger.js";
+import { noopLogger } from "./helpers/mockBridge.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
 
 interface ParsedFrame {
   type: string;

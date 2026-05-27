@@ -10,59 +10,20 @@
 
 import { describe, it, expect } from "bun:test";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
+import type { QueryFactory } from "../src/agent/bridge";
 import type { Query, SDKMessage, Options as SDKOptions } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence.js";
 import { WsSession } from "../src/ws/session";
-import type { Logger } from "../src/log/logger";
 import type { SessionRow, InvocationRow } from "@cq/shared";
+import {
+  noopLogger,
+  MockWsSocket,
+  makeAssistantMessage,
+  type ParsedFrame,
+} from "./helpers/mockBridge";
 
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
 
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  async waitForFrames(type: string, count = 1, timeoutMs = 3000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(10);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; got ${this.framesOfType(type).length}`,
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // MockQuery factory — records the SDKOptions it was called with.
@@ -149,25 +110,6 @@ function makeInitMessage(sdkSessionId = "sdk-session-00000000"): SDKMessage {
     uuid: "00000000-0000-4000-a000-000000000001",
     session_id: sdkSessionId,
   } as SDKMessage;
-}
-
-function makeAssistantMessage(text: string): SDKMessage {
-  return {
-    type: "assistant",
-    message: {
-      id: "msg_test",
-      type: "message",
-      role: "assistant",
-      content: [{ type: "text", text }],
-      model: "claude-test",
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-    },
-    parent_tool_use_id: null,
-    uuid: "00000000-0000-4000-a000-000000000003",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as unknown as SDKMessage;
 }
 
 // ---------------------------------------------------------------------------

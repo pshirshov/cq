@@ -24,59 +24,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
+import type { QueryFactory } from "../src/agent/bridge";
 import type { Query, SDKMessage, Options as SDKOptions } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
-import type { Logger } from "../src/log/logger";
 import { startMockAnthropic } from "./helpers/MockAnthropicHTTP";
 import type { MockAnthropicHTTP } from "./helpers/MockAnthropicHTTP";
-
-// ---------------------------------------------------------------------------
-// Noop logger
-// ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
-
-// ---------------------------------------------------------------------------
-// MockWsSocket
-// ---------------------------------------------------------------------------
-
-interface ParsedFrame {
-  type: string;
-  [key: string]: unknown;
-}
-
-class MockWsSocket implements WsSocket {
-  readonly sent: ParsedFrame[] = [];
-
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ParsedFrame);
-  }
-
-  close(): void {}
-
-  framesOfType(type: string): ParsedFrame[] {
-    return this.sent.filter((f) => f.type === type);
-  }
-
-  async waitForFrames(type: string, count = 1, timeoutMs = 5000): Promise<ParsedFrame[]> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const frames = this.framesOfType(type);
-      if (frames.length >= count) return frames;
-      await Bun.sleep(20);
-    }
-    throw new Error(
-      `Timed out waiting for ${count} frame(s) of type '${type}'; ` +
-      `got ${this.framesOfType(type).length}`,
-    );
-  }
-}
+import { noopLogger, MockWsSocket } from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // Captured-options QueryFactory

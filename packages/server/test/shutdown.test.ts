@@ -16,22 +16,20 @@ import { describe, it, expect } from "bun:test";
 import net from "node:net";
 import { startGracefulShutdown, type ShutdownServer } from "../src/shutdown";
 import { Bridge } from "../src/agent/bridge";
-import type { QueryFactory, WsSocket } from "../src/agent/bridge";
+import type { QueryFactory } from "../src/agent/bridge";
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { WsSocket } from "../src/agent/bridge";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
-import type { Logger } from "../src/log/logger";
 import { InMemoryPersistence } from "../src/persist/InMemoryPersistence.js";
+import {
+  noopLogger,
+  makeInitMessage,
+  patchStubs as patchQueryStubs,
+} from "./helpers/mockBridge";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
 
 async function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -56,56 +54,7 @@ async function getFreePort(): Promise<number> {
 // Stub Query helpers
 // ---------------------------------------------------------------------------
 
-function patchQueryStubs(obj: object): void {
-  const stubs: Record<string, unknown> = {
-    mcpServerStatus: async () => [],
-    supportedCommands: async () => [],
-    supportedModels: async () => [],
-    supportedAgents: async () => [],
-    setPermissionMode: async () => {},
-    setModel: async () => {},
-    setMaxThinkingTokens: async () => {},
-    applyFlagSettings: async () => {},
-    streamInput: async () => {},
-    stopTask: async () => {},
-    backgroundTasks: async () => false,
-    reconnectMcpServer: async () => {},
-    toggleMcpServer: async () => {},
-    seedReadState: async () => {},
-    readFile: async () => null,
-    getContextUsage: async () => { throw new Error("not implemented"); },
-    initializationResult: async () => { throw new Error("not implemented"); },
-    reloadPlugins: async () => { throw new Error("not implemented"); },
-    accountInfo: async () => { throw new Error("not implemented"); },
-    rewindFiles: async () => { throw new Error("not implemented"); },
-    setMcpServers: async () => { throw new Error("not implemented"); },
-  };
-  for (const [k, v] of Object.entries(stubs)) {
-    (obj as Record<string, unknown>)[k] = v;
-  }
-}
 
-function makeInitMessage(): SDKMessage {
-  return {
-    type: "system",
-    subtype: "init",
-    agents: [],
-    apiKeySource: "user",
-    betas: [],
-    claude_code_version: "0.0.0-test",
-    cwd: "/tmp",
-    tools: [],
-    mcp_servers: [],
-    model: "claude-test",
-    permissionMode: "default",
-    slash_commands: [],
-    output_style: "text",
-    skills: [],
-    plugins: [],
-    uuid: "00000000-0000-4000-a000-000000000001",
-    session_id: "00000000-0000-4000-a000-000000000002",
-  } as SDKMessage;
-}
 
 // ---------------------------------------------------------------------------
 // MockShutdownServer — wraps a Bun.serve instance with socket tracking and
