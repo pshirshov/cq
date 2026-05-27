@@ -63,6 +63,11 @@ export function ChatTab(): React.ReactElement {
   const userInitiatedStartRef = useRef(false);
   // True while a chat.rejoin is in-flight on the first ALIVE edge (D47).
   const rejoinPendingRef = useRef(false);
+  // Safety timer that self-clears rejoinPendingRef after 20 s if neither
+  // chat.started nor chat.error arrives (e.g. silent WS partition with no
+  // close frame). 20 s is chosen to be well beyond any realistic server RTT
+  // while still bounding the stuck-true window.
+  const rejoinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // D33: chat.started fires twice per new session (early stub + late real-init).
   // We must only clear chatEvents on the FIRST one — otherwise live events
   // received between the two (notably the server's echo of the user's
@@ -206,6 +211,10 @@ export function ChatTab(): React.ReactElement {
         const started = frame as ChatStarted;
         chatStartPendingRef.current = false;
         rejoinPendingRef.current = false;
+        if (rejoinTimeoutRef.current !== null) {
+          clearTimeout(rejoinTimeoutRef.current);
+          rejoinTimeoutRef.current = null;
+        }
         userInitiatedStartRef.current = false;
         setActiveSessionId(started.sessionId);
         setSessionId(started.sessionId);
@@ -296,6 +305,12 @@ export function ChatTab(): React.ReactElement {
         setElicitationRequests((prev) => [...prev, frame as ChatElicitationRequest]);
       } else if (frame.type === "chat.error") {
         const errFrame = frame as ChatError;
+        // Clear the self-clearing timeout whenever chat.error arrives
+        // (REJOIN_FAILED or otherwise) — the response has landed.
+        if (rejoinTimeoutRef.current !== null) {
+          clearTimeout(rejoinTimeoutRef.current);
+          rejoinTimeoutRef.current = null;
+        }
         // D47: if rejoin failed, clear the stale session from localStorage and
         // fall back to a fresh chat.start so the user is not left stranded.
         if (rejoinPendingRef.current && errFrame.code === "REJOIN_FAILED") {
@@ -369,6 +384,13 @@ export function ChatTab(): React.ReactElement {
     // to rejoin it before falling back to a fresh start.
     if (activeSessionId !== null) {
       rejoinPendingRef.current = true;
+      // Safety: self-clear rejoinPendingRef after 20 s in case the WS
+      // partitions silently (no close frame, no chat.error response).
+      if (rejoinTimeoutRef.current !== null) clearTimeout(rejoinTimeoutRef.current);
+      rejoinTimeoutRef.current = setTimeout(() => {
+        rejoinPendingRef.current = false;
+        rejoinTimeoutRef.current = null;
+      }, 20_000);
       chatStartPendingRef.current = true;
       const rejoinFrame: ChatRejoin = {
         type: "chat.rejoin",
@@ -512,6 +534,12 @@ export function ChatTab(): React.ReactElement {
     // D48: user selected a running session from history — rejoin it.
     userInitiatedStartRef.current = true;
     rejoinPendingRef.current = true;
+    // Safety: self-clear rejoinPendingRef after 20 s (see auto-start block).
+    if (rejoinTimeoutRef.current !== null) clearTimeout(rejoinTimeoutRef.current);
+    rejoinTimeoutRef.current = setTimeout(() => {
+      rejoinPendingRef.current = false;
+      rejoinTimeoutRef.current = null;
+    }, 20_000);
     chatStartPendingRef.current = true;
     const frame: ChatRejoin = {
       type: "chat.rejoin",
