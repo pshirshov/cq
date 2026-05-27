@@ -67,6 +67,17 @@ const fieldValueSchema = z.union([
 const fieldsSchema = z.record(z.string(), fieldValueSchema);
 
 /**
+ * D-LED-01: caller-supplied milestone/item ids cannot contain `/`, `.`, or
+ * whitespace — anything that could escape the filesystem path
+ * `FsLedgerStore` derives from them. Mirrors `SAFE_ID_RE` in `core.ts`; we
+ * re-declare here so Zod surfaces the validation error at the MCP layer
+ * before the call ever reaches the store.
+ */
+const safeIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]+$/, "id may only contain A-Za-z0-9_-");
+
+/**
  * The MCP SDK is strict about input schemas being plain Zod object shapes
  * (key → Zod type), not a full ZodObject. Each tool below declares its
  * input schema as such a record literal.
@@ -118,7 +129,7 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
     "Update a milestone's title and/or description. Items are not affected.",
     {
       ledger_id: z.string(),
-      milestone_id: z.string(),
+      milestone_id: safeIdSchema,
       title: z.string().optional(),
       description: z.string().optional(),
     } as const,
@@ -164,10 +175,10 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
     "Create a new item under a milestone. Status must be in the schema's statusValues. Fields must satisfy the schema (required fields present, types match).",
     {
       ledger_id: z.string(),
-      milestone_id: z.string(),
+      milestone_id: safeIdSchema,
       status: z.string(),
       fields: fieldsSchema,
-      id: z.string().optional(),
+      id: safeIdSchema.optional(),
     } as const,
     async (args) => {
       const init: { id?: string; status: string; fields: Record<string, FieldValue> } = {
@@ -187,7 +198,7 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
       ledger_id: z.string(),
       title: z.string(),
       description: z.string().optional(),
-      id: z.string().optional(),
+      id: safeIdSchema.optional(),
     } as const,
     async (args) => {
       const init: { id?: string; title: string; description?: string } = { title: args.title };
@@ -217,7 +228,7 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
     "Archive a milestone (move it to docs/archive/<ledger>/<id>.md). Refused if any item is not in a terminal status.",
     {
       ledger_id: z.string(),
-      milestone_id: z.string(),
+      milestone_id: safeIdSchema,
       summary: z.string(),
     } as const,
     async (args) => {

@@ -135,6 +135,20 @@ export class DuplicateIdError extends LedgerError {
   }
 }
 
+/**
+ * Thrown when a caller-supplied milestone/item id contains characters that
+ * could escape the filesystem path derived from it (e.g. "..", "/", spaces).
+ * Only `A-Za-z0-9_-` are permitted. D-LED-01.
+ */
+export class InvalidIdError extends LedgerError {
+  constructor(kind: "milestone" | "item", id: string) {
+    super(
+      `Invalid ${kind} id "${id}": only A-Za-z0-9_- are allowed`,
+    );
+    this.name = "InvalidIdError";
+  }
+}
+
 export class InvalidStatusError extends LedgerError {
   constructor(status: string, allowed: string[]) {
     super(`Invalid status "${status}"; allowed: ${allowed.join(", ")}`);

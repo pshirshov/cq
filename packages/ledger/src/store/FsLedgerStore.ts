@@ -179,6 +179,7 @@ export class FsLedgerStore implements LedgerStore {
       );
     }
     const absPath = path.resolve(this.docsDir, ptr.path);
+    this.assertWithinDocsRoot(absPath);
     const text = await fs.readFile(absPath, "utf8");
     return parseArchive(text);
   }
@@ -279,8 +280,9 @@ export class FsLedgerStore implements LedgerStore {
         summary,
         relPath,
       );
-      await fs.mkdir(archiveSubdir, { recursive: true });
-      const archivePath = path.join(archiveSubdir, archiveFileName);
+      const archivePath = path.resolve(archiveSubdir, archiveFileName);
+      this.assertWithinDocsRoot(archivePath);
+      await fs.mkdir(path.dirname(archivePath), { recursive: true });
       await atomicWrite(archivePath, serializeArchiveImpl(milestone));
       await this.writeLedgerFile(ledger);
       return { ...pointer };
@@ -348,6 +350,23 @@ export class FsLedgerStore implements LedgerStore {
 
   private assertInit(): void {
     if (!this.initialised) throw new LedgerError("FsLedgerStore not initialised");
+  }
+
+  /**
+   * Defense-in-depth (D-LED-01): after resolving a filesystem path that
+   * incorporates caller-supplied data (a milestone id, an archive-pointer
+   * path), refuse to read or write if the result is not inside `docsDir`.
+   * Catches future regressions even if id validation slips.
+   */
+  private assertWithinDocsRoot(resolvedAbsPath: string): void {
+    if (
+      resolvedAbsPath !== this.docsDir &&
+      !resolvedAbsPath.startsWith(this.docsDir + path.sep)
+    ) {
+      throw new LedgerError(
+        `archive path escapes docs root: ${resolvedAbsPath}`,
+      );
+    }
   }
 }
 

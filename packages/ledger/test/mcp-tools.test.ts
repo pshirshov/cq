@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
+import { z } from "zod";
 import {
   InMemoryLedgerStore,
   LEDGER_TOOL_NAMES,
@@ -152,6 +153,86 @@ describe("ledger MCP tools", () => {
     );
     expect(ptr.pointer.id).toBe("M1");
     expect(ptr.pointer.path).toBe("./archive/todos/M1.md");
+  });
+
+  // D-LED-01 — Zod-layer rejection of unsafe ids.
+  describe("D-LED-01 — Zod id validation", () => {
+    const badIds = ["../etc/passwd", "a/b", "a b", "a.b"];
+    function parseInput(
+      tools: ReturnType<typeof createLedgerMcpTools>,
+      name: string,
+      args: Record<string, unknown>,
+    ): { success: boolean } {
+      const t = tools.find((x) => x.name === name);
+      if (t === undefined) throw new Error(`tool not found: ${name}`);
+      return z.object(t.inputSchema).safeParse(args);
+    }
+
+    it("create_milestone rejects unsafe ids at the Zod boundary", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      for (const badId of badIds) {
+        const r = parseInput(tools, "create_milestone", {
+          ledger_id: "todos",
+          title: "x",
+          id: badId,
+        });
+        expect(r.success).toBe(false);
+      }
+    });
+
+    it("create_item rejects unsafe ids (item id and milestone_id)", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      for (const badId of badIds) {
+        const rItem = parseInput(tools, "create_item", {
+          ledger_id: "todos",
+          milestone_id: "M1",
+          status: "open",
+          fields: {},
+          id: badId,
+        });
+        expect(rItem.success).toBe(false);
+        const rMile = parseInput(tools, "create_item", {
+          ledger_id: "todos",
+          milestone_id: badId,
+          status: "open",
+          fields: {},
+        });
+        expect(rMile.success).toBe(false);
+      }
+    });
+
+    it("update_milestone and archive_milestone reject unsafe milestone_id", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      for (const badId of badIds) {
+        expect(
+          parseInput(tools, "update_milestone", {
+            ledger_id: "todos",
+            milestone_id: badId,
+          }).success,
+        ).toBe(false);
+        expect(
+          parseInput(tools, "archive_milestone", {
+            ledger_id: "todos",
+            milestone_id: badId,
+            summary: "x",
+          }).success,
+        ).toBe(false);
+      }
+    });
+
+    it("safe ids parse cleanly (positive control)", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      const r = parseInput(tools, "create_milestone", {
+        ledger_id: "todos",
+        title: "x",
+        id: "M-ok_1",
+      });
+      expect(r.success).toBe(true);
+    });
   });
 
   it("search_items returns items matching fields", async () => {

@@ -1,9 +1,23 @@
 # cq — active task ledger
 
-**Cycle:** outer-5 / `@cq/ledger` build. **Discharged.**
-**Goal:** Ship `packages/ledger` (markdown-backed ledger library) + in-process MCP tool surface registered on the existing `cq` server, end-to-end agent-callable per Q12 acceptance.
-**Accepted plan:** [`docs/drafts/20260527-2330-ledger-plan.md`](docs/drafts/20260527-2330-ledger-plan.md).
-**Discharge evidence:** `bun run check` → 558 pass / 0 fail (was 524 baseline; +34 ledger-related tests); `bun run e2e` → 16/16 pass (was 15; +1 ledger-create spec).
+**Cycle:** outer-6 / `@cq/ledger` defect-fix (D-LED-01..D-LED-07). **In progress.**
+**Goal:** Discharge 7 defects raised against the outer-5 ledger build (3 blocking + 4 polish).
+**Accepted plan:** [`docs/drafts/20260528-1200-ledger-defect-fix-plan.md`](docs/drafts/20260528-1200-ledger-defect-fix-plan.md).
+**Baseline (post outer-5):** `bun test packages/ledger` → 33/33; `bun run check` → 558/558; `bun run e2e` → 16/16.
+
+## Active — outer-6 (defect-fix)
+
+- [ ] **D-LED-01** — CRITICAL path-traversal: id regex in core.ts + Zod + FsLedgerStore defense-in-depth + new path-traversal.test.ts.
+- [ ] **D-LED-02** — Schema validation gaps in `create_ledger` (terminal subset / em-dash / reserved field names / field-name regex) at Zod, parseSchema, and shared validator layers.
+- [ ] **D-LED-03** — Delete dead back-compat `void createAskUserQuestionMcpServer` in bridge.ts (ask-question.test.ts:144 has live caller — keep the export).
+- [ ] **D-LED-04** — `docs/ledgers.yaml` to `.gitignore` + `git rm`.
+- [ ] **D-LED-05** — `cloneFields` return type correction (`Record<string, never>` → `Record<string, FieldValue>`).
+- [ ] **D-LED-06** — `dispose()` drains in-flight mutations + concurrency test.
+- [ ] **D-LED-07** — Strengthen 50-parallel-update test (monotonic updatedAt with injected `now`; final-state `updatedAt===49` assertion).
+
+## Cycle outer-5 — discharged
+
+**Discharge:** `bun run check` 558/558; `bun run e2e` 16/16.
 
 ## Milestones — historical (cq core)
 

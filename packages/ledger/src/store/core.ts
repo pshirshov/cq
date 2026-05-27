@@ -16,6 +16,7 @@ import type {
 } from "../types.js";
 import {
   DuplicateIdError,
+  InvalidIdError,
   InvalidStatusError,
   ItemNotFoundError,
   MilestoneNotFoundError,
@@ -32,6 +33,20 @@ import type {
 
 const MILESTONE_ID_RE = /^M(\d+)$/;
 const ITEM_ID_RE = /^[A-Za-z]+(\d+)$/;
+
+/**
+ * Caller-supplied milestone/item ids must match this regex. The set is
+ * deliberately narrow — no `/`, no `.`, no whitespace — so an id cannot
+ * escape the filesystem path that `FsLedgerStore` derives from it
+ * (`./archive/<ledger>/<id>.md`). D-LED-01.
+ */
+export const SAFE_ID_RE = /^[A-Za-z0-9_-]+$/;
+
+function assertSafeId(kind: "milestone" | "item", id: string): void {
+  if (!SAFE_ID_RE.test(id)) {
+    throw new InvalidIdError(kind, id);
+  }
+}
 
 export function findMilestone(ledger: Ledger, milestoneId: string): Milestone {
   for (const m of ledger.milestones) if (m.id === milestoneId) return m;
@@ -112,6 +127,7 @@ export function applyCreateItem(
   validateFields(ledger, init.fields, /*creating*/ true);
   let id: string;
   if (init.id !== undefined) {
+    assertSafeId("item", init.id);
     if (itemIdExists(ledger, init.id)) throw new DuplicateIdError("item", init.id);
     id = init.id;
     const n = numericPart(init.id, ITEM_ID_RE);
@@ -126,6 +142,8 @@ export function applyCreateItem(
       ledger.counters.item += 1;
       id = itemIdPrefix(ledger) + String(ledger.counters.item);
     }
+    // Defense-in-depth: the auto-generated id must also satisfy the safe regex.
+    assertSafeId("item", id);
   }
   const item: Item = {
     id,
@@ -145,6 +163,7 @@ export function applyCreateMilestone(
 ): Milestone {
   let id: string;
   if (init.id !== undefined) {
+    assertSafeId("milestone", init.id);
     if (milestoneIdExists(ledger, init.id)) throw new DuplicateIdError("milestone", init.id);
     id = init.id;
     const n = numericPart(init.id, MILESTONE_ID_RE);
@@ -158,6 +177,8 @@ export function applyCreateMilestone(
       ledger.counters.milestone += 1;
       id = "M" + String(ledger.counters.milestone);
     }
+    // Defense-in-depth: the auto-generated id must also satisfy the safe regex.
+    assertSafeId("milestone", id);
   }
   const milestone: Milestone = {
     id,
