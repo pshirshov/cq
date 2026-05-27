@@ -82,8 +82,9 @@ test("stop: Stop button interrupts in-progress response", async ({ cq, mock, pag
   // Budget 25 s to cover the SDK interrupt-and-drain latency.
   await expect(cq.textarea).toBeEnabled({ timeout: 25_000 });
 
-  // Stop button must not be visible.
-  await expect(cq.stopButton).not.toBeVisible({ timeout: 5_000 });
+  // D49: Stop button is always rendered now (so layout doesn't shift on
+  // turn boundaries), but must be DISABLED when nothing is in flight.
+  await expect(cq.stopButton).toBeDisabled({ timeout: 5_000 });
 
   // Verify there is no unhandled console error.
   const errors: string[] = [];

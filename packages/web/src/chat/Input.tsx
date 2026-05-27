@@ -248,11 +248,15 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // Ctrl+S to interrupt while in-progress.
+  // D49: Ctrl+S to interrupt — fires only when there's something to stop
+  // (parent passes `disabled` to mean "turn in progress"). The handler is
+  // installed unconditionally; the gate is inside the handler so the same
+  // ref check applies whether the user clicks the button or hits the chord.
   useEffect(() => {
-    if (disabled !== true || onInterrupt === undefined) return;
+    if (onInterrupt === undefined) return;
     function handleGlobalKeyDown(e: KeyboardEvent): void {
       if (e.key === "s" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        if (disabled !== true) return; // nothing to stop
         e.preventDefault();
         onInterrupt!();
       }
@@ -260,6 +264,10 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [disabled, onInterrupt]);
+
+  const inProgress = disabled === true;
+  const canSend = !isEmpty;
+  const canStop = inProgress && onInterrupt !== undefined;
 
   return (
     <div
@@ -278,39 +286,44 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
       )}
       <AttachmentList attachments={attachments} onRemove={handleRemoveAttachment} />
       <div className={styles.inputRow}>
+        {/* D49: textarea is NEVER disabled — typing while busy queues a
+            follow-up message through the SDK's AsyncIterable<UserMessage>.
+            The send button is disabled when the textarea is empty; the
+            stop button is disabled when nothing is in flight. */}
         <textarea
           ref={ref}
           className={styles.textarea}
-          disabled={disabled}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           onPaste={handlePaste}
-          placeholder="Enter to send, Shift+Enter for newline"
+          placeholder={inProgress ? "Type to queue a follow-up…" : "Enter to send, Shift+Enter for newline"}
           rows={3}
           aria-label="Chat input"
         />
-        {disabled === true && onInterrupt !== undefined ? (
+        <div className={styles.buttonStack}>
+          <button
+            className={styles.sendButton}
+            onClick={doSubmit}
+            type="button"
+            disabled={!canSend}
+            aria-label="Send message"
+            title="Send (Enter)"
+          >
+            Send
+            <span className={styles.kbdHint}>Enter</span>
+          </button>
           <button
             className={styles.stopButton}
-            onClick={onInterrupt}
+            onClick={canStop ? onInterrupt : undefined}
             type="button"
+            disabled={!canStop}
             aria-label="Stop generation"
             title="Stop generation (Ctrl+S)"
           >
             Stop
             <span className={styles.kbdHint}>Ctrl+S</span>
           </button>
-        ) : (
-          <button
-            className={styles.sendButton}
-            onClick={doSubmit}
-            type="button"
-            disabled={isEmpty}
-            aria-label="Send message"
-          >
-            Send
-          </button>
-        )}
+        </div>
       </div>
     </div>
   );

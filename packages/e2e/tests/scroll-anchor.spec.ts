@@ -21,7 +21,9 @@ import { makeTextSSEEvents } from "../fixtures/adminMock.ts";
 // precondition assertion fires on a taller display.
 function makeLongReply(index: number): string {
   const line = `Reply ${index}: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.`;
-  return Array.from({ length: 60 }, (_, i) => `${line} (line ${i + 1})`).join("\n");
+  // D49 increased footer height (stacked Send+Stop) — clientHeight shrank.
+  // Bump line count to keep overflow guaranteed.
+  return Array.from({ length: 120 }, (_, i) => `${line} (line ${i + 1})`).join("\n");
 }
 
 test("scroll-anchor: jump-to-latest appears on scroll-up and scrolls back", async ({
@@ -36,8 +38,8 @@ test("scroll-anchor: jump-to-latest appears on scroll-up and scrolls back", asyn
   for (let i = 0; i < messageCount; i++) {
     await mock.script(makeTextSSEEvents(makeLongReply(i + 1)));
     await cq.sendMessage(`Message ${i + 1}`);
-    // Wait for the response before sending the next.
-    await expect(cq.textarea).toBeEnabled({ timeout: 25_000 });
+    // D49: textarea always enabled; wait for Stop disabled (turn end).
+    await expect(cq.stopButton).toBeDisabled({ timeout: 25_000 });
   }
 
   // Verify the stream has content.

@@ -229,7 +229,8 @@ describe("a11y: Input", () => {
       );
     });
 
-    const stopBtn = container!.querySelector("button");
+    // D49: both Send and Stop buttons are always rendered; target Stop by label.
+    const stopBtn = container!.querySelector("button[aria-label='Stop generation']");
     expect(stopBtn).not.toBeNull();
     expect(stopBtn!.getAttribute("aria-label")).toBe("Stop generation");
   });

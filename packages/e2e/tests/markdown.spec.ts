@@ -48,8 +48,8 @@ test("markdown: fenced code block is highlighted and copy button works", async (
   const codeBlock = page.locator("[data-testid='code-block-typescript']");
   await codeBlock.waitFor({ state: "visible", timeout: 25_000 });
 
-  // Wait for the textarea to re-enable (response complete).
-  await expect(cq.textarea).toBeEnabled({ timeout: 25_000 });
+  // D49: textarea is always enabled now; signal "turn done" via Stop disabled.
+  await expect(cq.stopButton).toBeDisabled({ timeout: 25_000 });
 
   // The Shiki-highlighted HTML should contain a <pre> element.
   const preEl = codeBlock.locator("pre");

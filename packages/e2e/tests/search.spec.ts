@@ -20,10 +20,15 @@ test("search: Ctrl+F opens search, finds matches, navigation works", async ({ cq
   await expect(cq.textarea).toBeEnabled({ timeout: 10_000 });
 
   // Send two messages whose replies contain the marker.
+  // D49: textarea is always enabled (typing-while-busy queues), so we can't
+  // use it as the "turn finished" signal. Wait for the response text to land
+  // in the stream and for the Stop button to be disabled (== turn ended).
   for (let i = 0; i < 2; i++) {
-    await mock.script(makeTextSSEEvents(`Response ${i + 1}: contains ${MARKER} here.`));
+    const responseText = `Response ${i + 1}: contains ${MARKER} here.`;
+    await mock.script(makeTextSSEEvents(responseText));
     await cq.sendMessage(`query ${i + 1}`);
-    await expect(cq.textarea).toBeEnabled({ timeout: 25_000 });
+    await cq.waitForTextInStream(responseText, 25_000);
+    await expect(cq.stopButton).toBeDisabled({ timeout: 25_000 });
   }
 
   // Open search.
