@@ -85,7 +85,12 @@ export function MessageBubble({
     >
       {/* Top row: role label + timestamp + copy button */}
       <div className={styles.meta}>
-        <span className={styles.roleLabel}>{role}</span>
+        <span
+          className={styles.roleLabel}
+          style={role === "unknown" ? { textTransform: "none" } : undefined}
+        >
+          {role === "unknown" ? "Claude SDK" : role}
+        </span>
         {timeText.length > 0 && (
           <span className={styles.timestamp} aria-label={`Sent at ${timeText}`}>{timeText}</span>
         )}
