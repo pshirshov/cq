@@ -466,30 +466,35 @@ export function ChatTab(): React.ReactElement {
           currentMatch={displayCurrentMatch}
         />
       )}
-      {/* F2: Scrollable stream — owns its own overflow */}
-      <Stream
-        chatEvents={chatEvents}
-        onQuestionReply={handleQuestionReply}
-        inProgress={inProgress}
-        searchQuery={searchQuery}
-        activeMatchIndex={activeMatchIndex}
-        onScrolledUp={handleScrolledUp}
-        scrollToBottom={triggerScrollToBottom}
-        onScrollToBottomDone={handleScrollToBottomDone}
-        hideSdkEvents={hideSdkEvents}
-      />
-      {/* F2: Jump-to-latest button — floats above footer when user scrolled up */}
-      {userScrolledUp && (
-        <button
-          className={tabStyles.jumpButton}
-          onClick={handleJumpToLatest}
-          type="button"
-          data-testid="jump-to-latest-btn"
-          aria-label="Jump to latest message"
-        >
-          ↓ Jump to latest
-        </button>
-      )}
+      {/* F2: Scrollable stream — owns its own overflow.
+          Wrapped in a position:relative box so the Jump-to-latest button
+          (positioned absolute, bottom-right) anchors inside the messages
+          viewport instead of the whole ChatTab (where it overlapped the
+          Input row). */}
+      <div className={tabStyles.streamWrap}>
+        <Stream
+          chatEvents={chatEvents}
+          onQuestionReply={handleQuestionReply}
+          inProgress={inProgress}
+          searchQuery={searchQuery}
+          activeMatchIndex={activeMatchIndex}
+          onScrolledUp={handleScrolledUp}
+          scrollToBottom={triggerScrollToBottom}
+          onScrollToBottomDone={handleScrollToBottomDone}
+          hideSdkEvents={hideSdkEvents}
+        />
+        {userScrolledUp && (
+          <button
+            className={tabStyles.jumpButton}
+            onClick={handleJumpToLatest}
+            type="button"
+            data-testid="jump-to-latest-btn"
+            aria-label="Jump to latest message"
+          >
+            ↓ Jump to latest
+          </button>
+        )}
+      </div>
       {permissionRequests.map((req) => (
         <PermissionPrompt
           key={req.permissionRequestId}

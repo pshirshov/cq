@@ -15,6 +15,20 @@
   position: relative;
 }
 
+/* ---- Stream wrapper (F2) ----
+   position:relative + flex:1 establishes the containing block for the
+   absolute-positioned Jump-to-latest button so it stays inside the
+   messages viewport (D27 — was overlapping the Input row). */
+
+.streamWrap {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ---- Sticky footer (F1) ---- */
 
 .footer {
