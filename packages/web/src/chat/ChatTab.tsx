@@ -462,6 +462,7 @@ export function ChatTab(): React.ReactElement {
     if (activeSessionId !== null) {
       handleInterrupt();
     }
+    clearedForSessionRef.current = null;
     userInitiatedStartRef.current = true;
     chatStartPendingRef.current = true;
     const frame: ChatStart = {
@@ -481,6 +482,7 @@ export function ChatTab(): React.ReactElement {
     if (activeSessionId !== null) {
       handleInterrupt();
     }
+    clearedForSessionRef.current = null;
     userInitiatedStartRef.current = true;
     chatStartPendingRef.current = true;
     const frame: ChatStart = {
