@@ -383,6 +383,7 @@ test("HistoryListResult round-trips", () => {
     costUsd: 0,
     promptExcerpt: "Hello",
     title: "My Chat",
+    resumedFromInvocationId: null,
   };
   const frame = {
     type: "history.list_result" as const,
@@ -417,6 +418,7 @@ test("HistoryGetResult round-trips", () => {
     sdkSessionId: null,
     eventLogPath: "var/db/events/abc.jsonl",
     parentInvocationId: null,
+    resumedFromInvocationId: null,
     totalInputTokens: 100,
     totalOutputTokens: 50,
     totalCostUsd: 0.001,

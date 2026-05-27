@@ -123,6 +123,7 @@ function makeHistoryRow(overrides: Partial<HistoryRow> = {}): HistoryRow {
     costUsd: 0.001,
     promptExcerpt: "hello world",
     title: "Test session",
+    resumedFromInvocationId: null,
     ...overrides,
   };
 }

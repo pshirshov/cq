@@ -249,7 +249,29 @@ export class Bridge {
       // this.active is now null
     }
 
-    const { sessionId: chatSessionId } = this.registry.create();
+    // Determine chatSessionId: reuse prior session when resuming, create fresh otherwise.
+    let chatSessionId: string;
+    let isResumption = false;
+    let resumedFromInvocationId: string | null = null;
+
+    if (frame.resumeFromInvocationId !== undefined) {
+      const priorInv = this.persistence.invocations.get(frame.resumeFromInvocationId);
+      const priorSession = priorInv !== undefined
+        ? this.persistence.sessions.get(priorInv.sessionId)
+        : undefined;
+      if (priorInv !== undefined && priorSession !== undefined) {
+        chatSessionId = priorSession.id;
+        isResumption = true;
+        resumedFromInvocationId = frame.resumeFromInvocationId;
+        this.registry.register(chatSessionId);
+      } else {
+        this.logger.warn("bridge.resume_unknown_invocation", { invocationId: frame.resumeFromInvocationId });
+        chatSessionId = this.registry.create().sessionId;
+      }
+    } else {
+      chatSessionId = this.registry.create().sessionId;
+    }
+
     const invocationId = crypto.randomUUID();
     const queue = new AsyncQueue<SDKUserMessage>();
     const startedAt = Date.now();
@@ -350,15 +372,11 @@ export class Bridge {
     if (frame.model !== undefined) {
       sdkOptions.model = frame.model;
     }
-    if (frame.resumeFromInvocationId !== undefined) {
-      // Resolve invocationId → sdk_session_id via persistence, then pass
-      // `resume: sdk_session_id` to the SDK so it can reload conversation state.
-      const invRow = this.persistence.invocations.get(frame.resumeFromInvocationId);
-      if (invRow !== undefined) {
-        const sessionRow = this.persistence.sessions.get(invRow.sessionId);
-        if (sessionRow?.sdkSessionId !== undefined && sessionRow.sdkSessionId !== null) {
-          sdkOptions.resume = sessionRow.sdkSessionId;
-        }
+    if (isResumption) {
+      // Pass the prior session's sdkSessionId so the SDK reattaches to the conversation.
+      const priorSession = this.persistence.sessions.get(chatSessionId);
+      if (priorSession?.sdkSessionId !== undefined && priorSession.sdkSessionId !== null) {
+        sdkOptions.resume = priorSession.sdkSessionId;
       }
     }
 
@@ -369,29 +387,13 @@ export class Bridge {
       });
     }
 
-    // Insert session and top-level invocation rows before the query starts.
-    const sessionRow: SessionRow = {
-      id: chatSessionId,
-      startedAt,
-      endedAt: null,
-      cwd: this.cwd,
-      model: frame.model ?? "",
-      permissionMode: uiMode,
-      totalInputTokens: 0,
-      totalOutputTokens: 0,
-      totalCacheRead: 0,
-      totalCacheCreate: 0,
-      totalCostUsd: 0,
-      endedReason: null,
-      title: "",
-      lastServerSeq: 0,
-      sdkSessionId: null,
-    };
+    // Insert/re-open session and top-level invocation rows before the query starts.
     const invocationEventLogPath = `${chatSessionId}/${invocationId}.jsonl`;
     const invocationRow: InvocationRow = {
       id: invocationId,
       sessionId: chatSessionId,
       parentInvocationId: null,
+      resumedFromInvocationId,
       agentName: "main",
       agentId: null,
       taskId: null,
@@ -409,7 +411,32 @@ export class Bridge {
       eventLogPath: invocationEventLogPath,
     };
     this.persistence.withTx(() => {
-      this.persistence.sessions.insert(sessionRow);
+      if (isResumption) {
+        // Re-open the prior session row (it was closed when the prior invocation ended).
+        this.persistence.sessions.update(chatSessionId, {
+          endedAt: null,
+          endedReason: null,
+        });
+      } else {
+        const sessionRow: SessionRow = {
+          id: chatSessionId,
+          startedAt,
+          endedAt: null,
+          cwd: this.cwd,
+          model: frame.model ?? "",
+          permissionMode: uiMode,
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          totalCacheRead: 0,
+          totalCacheCreate: 0,
+          totalCostUsd: 0,
+          endedReason: null,
+          title: "",
+          lastServerSeq: 0,
+          sdkSessionId: null,
+        };
+        this.persistence.sessions.insert(sessionRow);
+      }
       this.persistence.invocations.insert(invocationRow);
     });
 
@@ -836,6 +863,7 @@ export class Bridge {
       id: childInvocationId,
       sessionId: session.chatSessionId,
       parentInvocationId: session.invocationId,
+      resumedFromInvocationId: null,
       agentName: msg.subagent_type ?? msg.task_type ?? "subagent",
       agentId: null,
       taskId: msg.task_id,

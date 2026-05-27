@@ -48,6 +48,7 @@ function makeInvocation(sessionId: string, overrides: Partial<InvocationRow> = {
     id: uid(),
     sessionId,
     parentInvocationId: null,
+    resumedFromInvocationId: null,
     agentName: "main",
     agentId: null,
     taskId: null,
@@ -342,7 +343,29 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
-    // 14. reapOrphans: running rows become failed; completed rows unchanged
+    // 14. resumedFromInvocationId round-trips through insert → get
+    // -----------------------------------------------------------------------
+    test("resumedFromInvocationId round-trips: set value preserved; null preserved", () => {
+      const session = makeSession();
+      p.sessions.insert(session);
+
+      // First invocation: no resumption
+      const firstInv = makeInvocation(session.id, { resumedFromInvocationId: null });
+      p.invocations.insert(firstInv);
+
+      // Second invocation: resumed from first
+      const secondInv = makeInvocation(session.id, { resumedFromInvocationId: firstInv.id });
+      p.invocations.insert(secondInv);
+
+      const fetchedFirst = p.invocations.get(firstInv.id);
+      expect(fetchedFirst?.resumedFromInvocationId).toBeNull();
+
+      const fetchedSecond = p.invocations.get(secondInv.id);
+      expect(fetchedSecond?.resumedFromInvocationId).toBe(firstInv.id);
+    });
+
+    // -----------------------------------------------------------------------
+    // 15. reapOrphans: running rows become failed; completed rows unchanged
     // -----------------------------------------------------------------------
     test("reapOrphans transitions running rows to failed, leaves completed unchanged", () => {
       const session = makeSession();

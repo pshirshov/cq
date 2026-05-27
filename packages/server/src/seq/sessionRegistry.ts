@@ -44,6 +44,22 @@ export class SessionRegistry {
     return { sessionId, state };
   }
 
+  /**
+   * Register an existing session id (e.g. when resuming a prior session).
+   * If the id is already registered, the existing state is returned unchanged.
+   * Otherwise a new entry with an empty replay buffer is created for it.
+   */
+  register(sessionId: string): SessionState {
+    const existing = this.sessions.get(sessionId);
+    if (existing !== undefined) return existing;
+    const state: SessionState = {
+      sessionId,
+      buffer: createReplayBuffer(),
+    };
+    this.sessions.set(sessionId, state);
+    return state;
+  }
+
   /** Remove a session from the registry. No-op if not found. */
   delete(sessionId: string): void {
     this.sessions.delete(sessionId);

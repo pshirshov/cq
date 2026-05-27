@@ -202,6 +202,7 @@ export class InMemoryPersistence implements Persistence {
           costUsd: r.costUsd,
           promptExcerpt: r.promptExcerpt,
           title: session?.title ?? "",
+          resumedFromInvocationId: r.resumedFromInvocationId,
         };
       });
 
@@ -233,6 +234,7 @@ export class InMemoryPersistence implements Persistence {
         sdkSessionId: session?.sdkSessionId ?? null,
         eventLogPath: r.eventLogPath,
         parentInvocationId: r.parentInvocationId,
+        resumedFromInvocationId: r.resumedFromInvocationId,
         totalInputTokens: session?.totalInputTokens ?? 0,
         totalOutputTokens: session?.totalOutputTokens ?? 0,
         totalCostUsd: session?.totalCostUsd ?? 0,

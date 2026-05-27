@@ -85,6 +85,13 @@ AFTER DELETE ON invocation BEGIN
 END;
 `,
   },
+  {
+    version: 2,
+    up: `
+ALTER TABLE invocation ADD COLUMN resumed_from_invocation_id TEXT NULL REFERENCES invocation(id);
+CREATE INDEX IF NOT EXISTS idx_invocation_resumed_from ON invocation(resumed_from_invocation_id);
+`,
+  },
 ];
 
 export function runMigrations(db: Database, migrations: Migration[]): void {

@@ -67,6 +67,8 @@ export const HistoryRow = z.object({
   costUsd: z.number(),
   promptExcerpt: z.string(),
   title: z.string(),
+  /** Non-null when this invocation was created via "resume from history". */
+  resumedFromInvocationId: uuidStr().nullable(),
 });
 export type HistoryRow = z.infer<typeof HistoryRow>;
 

@@ -26,6 +26,8 @@ export interface InvocationRow {
   id: string; // UUID v4
   sessionId: string;
   parentInvocationId: string | null;
+  /** Non-null when this invocation was started via "resume from history". References the prior invocation. */
+  resumedFromInvocationId: string | null;
   agentName: string; // 'main' for top-level
   agentId: string | null;
   taskId: string | null;

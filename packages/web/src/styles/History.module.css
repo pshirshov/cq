@@ -150,6 +150,12 @@
 .statusFailed { background: #fee2e2; color: #991b1b; }
 .statusStopped { background: #fef3c7; color: #92400e; }
 
+.resumedBadge {
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  cursor: default;
+}
+
 .mono {
   font-family: monospace;
   font-size: 12px;

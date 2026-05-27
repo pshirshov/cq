@@ -402,7 +402,103 @@ describe("Bridge persistence", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Test 5 (E2E-D06): tool_use + result → persisted toolCallCount, costUsd,
+  // Test 5 (E2E-D15): resume from history reuses the same session row
+  // ---------------------------------------------------------------------------
+
+  it("E2E-D15: resume from history uses same sessionId, links invocation via resumedFromInvocationId, one session row", async () => {
+    const persistence = new InMemoryPersistence();
+
+    // --- First chat: a normal session ---
+    const firstScript: SDKMessage[] = [
+      makeInitMessage({ session_id: "sdk-session-abc-001" }),
+      makeAssistantMessage("first answer"),
+    ];
+    const registry = new SessionRegistry();
+    const firstQueryFactory: QueryFactory = () => makeMockQuery(firstScript);
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: firstQueryFactory,
+      cwd: "/tmp/test",
+      persistence,
+    });
+    const firstWs = new MockWsSocket();
+    await bridge.handleChatStart(firstWs, makeChatStart());
+    await firstWs.waitForFrames("chat.done");
+
+    // Capture first invocation id from the chat.started frame.
+    const firstStarted = firstWs.framesOfType("chat.started");
+    expect(firstStarted.length).toBeGreaterThanOrEqual(1);
+    const firstInvocationId = firstStarted[0]!.invocationId as string;
+    const firstSessionId = firstStarted[0]!.sessionId as string;
+
+    // Verify session is closed.
+    const afterFirst = persistence.sessions.list(
+      {},
+      { field: "startedAt", dir: "desc" },
+      { limit: 10, offset: 0 },
+    );
+    expect(afterFirst.total).toBe(1);
+    expect(afterFirst.rows[0]!.endedReason).toBe("completed");
+
+    // --- Second chat: resume from the first invocation ---
+    const secondScript: SDKMessage[] = [
+      makeInitMessage({ session_id: "sdk-session-abc-001" }),
+      makeAssistantMessage("resumed answer"),
+    ];
+    let capturedSdkOptions: import("@anthropic-ai/claude-agent-sdk").Options | undefined;
+    const secondQueryFactory: QueryFactory = ({ options }) => {
+      capturedSdkOptions = options;
+      return makeMockQuery(secondScript);
+    };
+    // Replace queryFactory via a new Bridge instance sharing the same persistence + registry.
+    const bridge2 = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: secondQueryFactory,
+      cwd: "/tmp/test",
+      persistence,
+    });
+    const secondWs = new MockWsSocket();
+    await bridge2.handleChatStart(secondWs, {
+      type: "chat.start",
+      seq: 1,
+      ts: Date.now(),
+      resumeFromInvocationId: firstInvocationId,
+    });
+    await secondWs.waitForFrames("chat.done");
+
+    const secondStarted = secondWs.framesOfType("chat.started");
+    expect(secondStarted.length).toBeGreaterThanOrEqual(1);
+    const secondSessionId = secondStarted[0]!.sessionId as string;
+    const secondInvocationId = secondStarted[0]!.invocationId as string;
+
+    // Same session id
+    expect(secondSessionId).toBe(firstSessionId);
+
+    // Still only ONE session row in persistence
+    const afterSecond = persistence.sessions.list(
+      {},
+      { field: "startedAt", dir: "desc" },
+      { limit: 10, offset: 0 },
+    );
+    expect(afterSecond.total).toBe(1);
+
+    // Two invocations under the same session
+    const invocations = persistence.invocations.listForSession(firstSessionId);
+    expect(invocations).toHaveLength(2);
+
+    const secondInv = invocations.find((r) => r.id === secondInvocationId);
+    expect(secondInv).toBeDefined();
+    expect(secondInv!.sessionId).toBe(firstSessionId);
+    expect(secondInv!.resumedFromInvocationId).toBe(firstInvocationId);
+
+    // SDK options should have carried resume
+    expect(capturedSdkOptions?.resume).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 6 (E2E-D06): tool_use + result → persisted toolCallCount, costUsd,
   //                   inputTokens, outputTokens are non-zero
   // ---------------------------------------------------------------------------
 

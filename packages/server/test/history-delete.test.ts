@@ -58,6 +58,7 @@ function makeInvocation(
     id,
     sessionId,
     parentInvocationId: null,
+    resumedFromInvocationId: null,
     agentName: "main",
     agentId: null,
     taskId: null,

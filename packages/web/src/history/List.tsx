@@ -233,7 +233,17 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
                   data-testid={`history-row-${row.invocationId}`}
                 >
                   <td className={styles.mono}>{fmtDate(row.startedAt)}</td>
-                  <td>{row.agentName}</td>
+                  <td>
+                    {row.agentName}
+                    {row.resumedFromInvocationId != null && (
+                      <span
+                        className={styles.resumedBadge}
+                        title={`Resumed from ${row.resumedFromInvocationId.slice(0, 8)}`}
+                      >
+                        {" "}↻
+                      </span>
+                    )}
+                  </td>
                   <td className={styles.mono}>{row.model}</td>
                   <td className={styles.mono}>{fmtDuration(row.durationMs)}</td>
                   <td className={styles.mono}>{row.toolCallCount}</td>

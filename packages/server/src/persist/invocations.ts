@@ -11,6 +11,7 @@ interface InvocationSqlRow {
   id: string;
   session_id: string;
   parent_invocation_id: string | null;
+  resumed_from_invocation_id: string | null;
   agent_name: string;
   agent_id: string | null;
   task_id: string | null;
@@ -33,6 +34,7 @@ function toRow(r: InvocationSqlRow): InvocationRow {
     id: r.id,
     sessionId: r.session_id,
     parentInvocationId: r.parent_invocation_id,
+    resumedFromInvocationId: r.resumed_from_invocation_id,
     agentName: r.agent_name,
     agentId: r.agent_id,
     taskId: r.task_id,
@@ -88,6 +90,7 @@ function toHistoryRow(r: HistorySqlRow): HistoryRow {
     costUsd: r.cost_usd,
     promptExcerpt: r.prompt_excerpt,
     title: r.title,
+    resumedFromInvocationId: r.resumed_from_invocation_id,
   };
 }
 
@@ -118,15 +121,15 @@ export class InvocationStore {
   constructor(private readonly db: Database) {
     this.stmtInsert = db.prepare(`
       INSERT INTO invocation
-        (id, session_id, parent_invocation_id, agent_name, agent_id,
-         task_id, tool_use_id, model, started_at, ended_at, duration_ms,
-         status, tool_call_count, input_tokens, output_tokens, cost_usd,
-         prompt_excerpt, event_log_path)
+        (id, session_id, parent_invocation_id, resumed_from_invocation_id,
+         agent_name, agent_id, task_id, tool_use_id, model, started_at,
+         ended_at, duration_ms, status, tool_call_count, input_tokens,
+         output_tokens, cost_usd, prompt_excerpt, event_log_path)
       VALUES
-        ($id, $session_id, $parent_invocation_id, $agent_name, $agent_id,
-         $task_id, $tool_use_id, $model, $started_at, $ended_at, $duration_ms,
-         $status, $tool_call_count, $input_tokens, $output_tokens, $cost_usd,
-         $prompt_excerpt, $event_log_path)
+        ($id, $session_id, $parent_invocation_id, $resumed_from_invocation_id,
+         $agent_name, $agent_id, $task_id, $tool_use_id, $model, $started_at,
+         $ended_at, $duration_ms, $status, $tool_call_count, $input_tokens,
+         $output_tokens, $cost_usd, $prompt_excerpt, $event_log_path)
     `);
 
     this.stmtGet = db.prepare<InvocationSqlRow, [string]>(
@@ -143,6 +146,7 @@ export class InvocationStore {
       $id: row.id,
       $session_id: row.sessionId,
       $parent_invocation_id: row.parentInvocationId,
+      $resumed_from_invocation_id: row.resumedFromInvocationId,
       $agent_name: row.agentName,
       $agent_id: row.agentId,
       $task_id: row.taskId,
@@ -254,7 +258,7 @@ export class InvocationStore {
       ).get(params) ?? { n: 0 }).n;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows = this.db.query<HistorySqlRow, any>(
-        `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+        `SELECT i.*, i.resumed_from_invocation_id, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
          FROM invocation i LEFT JOIN session s ON s.id = i.session_id
          ${ftsWhere}
          ORDER BY ${col} ${dir} LIMIT $limit OFFSET $offset`,
@@ -269,7 +273,7 @@ export class InvocationStore {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = this.db.query<HistorySqlRow, any>(
-      `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+      `SELECT i.*, i.resumed_from_invocation_id, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
        ${baseQuery}
        ORDER BY ${col} ${dir} LIMIT $limit OFFSET $offset`,
     ).all({ ...params, $limit: page.limit, $offset: page.offset });
@@ -280,7 +284,7 @@ export class InvocationStore {
   getFull(id: string): HistoryRowFull | undefined {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = this.db.query<HistorySqlRow, any>(
-      `SELECT i.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+      `SELECT i.*, i.resumed_from_invocation_id, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
        FROM invocation i LEFT JOIN session s ON s.id = i.session_id
        WHERE i.id = ?`,
     ).get(id);
