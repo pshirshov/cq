@@ -60,15 +60,10 @@ import { loadMcpServers } from "./mcp";
 import { PermissionBroker } from "./permission";
 import { ElicitationBroker } from "./elicitation";
 import { applyReadOnlyOverlay } from "./readOnlyOverlay";
-import { AskBroker, createAskUserQuestionMcpServer, createAskUserQuestionTool } from "./askUserQuestion";
+import { AskBroker, createAskUserQuestionTool } from "./askUserQuestion";
 import { createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import type { LedgerStore } from "@cq/ledger";
 import { createLedgerMcpTools } from "@cq/ledger";
-
-// Silence the "unused" warning for the legacy single-tool factory; we keep
-// it exported as a back-compat surface for callers that don't have a
-// LedgerStore yet (e.g. some existing tests).
-void createAskUserQuestionMcpServer;
 
 // ---------------------------------------------------------------------------
 // Public API types

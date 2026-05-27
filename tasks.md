@@ -9,7 +9,7 @@
 
 - [x] **D-LED-01** — CRITICAL path-traversal: id regex in core.ts + Zod + FsLedgerStore defense-in-depth + new path-traversal.test.ts. Commit `d4aa017`.
 - [x] **D-LED-02** — Schema validation gaps in `create_ledger` (terminal subset / em-dash / reserved field names / field-name regex) at Zod, parseSchema, and shared validator layers. New `validateSchema()` helper exported from core; called by both adapters' `createLedger`, by `parseSchema`, and mirrored in Zod `schemaSchema`.
-- [ ] **D-LED-03** — Delete dead back-compat `void createAskUserQuestionMcpServer` in bridge.ts (ask-question.test.ts:144 has live caller — keep the export).
+- [x] **D-LED-03** — Deleted dead `void createAskUserQuestionMcpServer` import + statement from bridge.ts. `ask-question.test.ts:144` still uses the export so the function remains in askUserQuestion.ts. `bun run check` -> 594 pass / 0 fail.
 - [ ] **D-LED-04** — `docs/ledgers.yaml` to `.gitignore` + `git rm`.
 - [ ] **D-LED-05** — `cloneFields` return type correction (`Record<string, never>` → `Record<string, FieldValue>`).
 - [ ] **D-LED-06** — `dispose()` drains in-flight mutations + concurrency test.
