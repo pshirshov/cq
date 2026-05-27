@@ -231,7 +231,7 @@ describe("a11y: Input", () => {
 
     const stopBtn = container!.querySelector("button");
     expect(stopBtn).not.toBeNull();
-    expect(stopBtn!.getAttribute("aria-label")).toBe("Stop generation");
+    expect(stopBtn!.getAttribute("aria-label")).toBe("Stop generation (Ctrl+S)");
   });
 });
 

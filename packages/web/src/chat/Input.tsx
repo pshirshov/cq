@@ -245,6 +245,19 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // Ctrl+S to interrupt while in-progress.
+  useEffect(() => {
+    if (disabled !== true || onInterrupt === undefined) return;
+    function handleGlobalKeyDown(e: KeyboardEvent): void {
+      if (e.key === "s" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        onInterrupt!();
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [disabled, onInterrupt]);
+
   return (
     <div
       className={styles.container}
@@ -261,38 +274,41 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
         />
       )}
       <AttachmentList attachments={attachments} onRemove={handleRemoveAttachment} />
-      <textarea
-        ref={ref}
-        className={styles.textarea}
-        disabled={disabled}
-        onKeyDown={handleKeyDown}
-        onInput={handleInput}
-        onPaste={handlePaste}
-        placeholder="Enter to send, Shift+Enter for newline"
-        rows={3}
-        aria-label="Chat input"
-      />
-      {disabled === true && onInterrupt !== undefined && (
-        <button
-          className={styles.stopButton}
-          onClick={onInterrupt}
-          type="button"
-          aria-label="Stop generation"
-        >
-          Stop
-        </button>
-      )}
-      {disabled !== true && (
-        <button
-          className={styles.sendButton}
-          onClick={doSubmit}
-          type="button"
-          disabled={isEmpty}
-          aria-label="Send message"
-        >
-          Send
-        </button>
-      )}
+      <div className={styles.inputRow}>
+        <textarea
+          ref={ref}
+          className={styles.textarea}
+          disabled={disabled}
+          onKeyDown={handleKeyDown}
+          onInput={handleInput}
+          onPaste={handlePaste}
+          placeholder="Enter to send, Shift+Enter for newline"
+          rows={3}
+          aria-label="Chat input"
+        />
+        {disabled === true && onInterrupt !== undefined ? (
+          <button
+            className={styles.stopButton}
+            onClick={onInterrupt}
+            type="button"
+            aria-label="Stop generation (Ctrl+S)"
+            title="Stop generation (Ctrl+S)"
+          >
+            Stop
+            <span className={styles.kbdHint}>Ctrl+S</span>
+          </button>
+        ) : (
+          <button
+            className={styles.sendButton}
+            onClick={doSubmit}
+            type="button"
+            disabled={isEmpty}
+            aria-label="Send message"
+          >
+            Send
+          </button>
+        )}
+      </div>
     </div>
   );
 }
