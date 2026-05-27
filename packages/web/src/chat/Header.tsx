@@ -266,6 +266,7 @@ export function Header({
 
         {/* resume from history button */}
         <button
+          type="button"
           className={styles.newSessionBtn}
           onClick={handleResumeClick}
           data-testid="resume-session-btn"
@@ -275,6 +276,7 @@ export function Header({
 
         {/* new session button */}
         <button
+          type="button"
           className={styles.newSessionBtn}
           onClick={handleNewSessionClick}
           data-testid="new-session-btn"

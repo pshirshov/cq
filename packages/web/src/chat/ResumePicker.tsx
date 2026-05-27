@@ -86,6 +86,7 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
 
   return (
     <div
+      role="presentation"
       style={{
         position: "fixed",
         inset: 0,
@@ -99,6 +100,9 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
       data-testid="resume-picker-backdrop"
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Resume from history"
         style={{
           background: "#252526",
           border: "1px solid #555",
@@ -115,6 +119,7 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
           fontSize: 13,
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Escape") { onCancel(); } }}
         data-testid="resume-picker-dialog"
       >
         <h3 style={{ margin: 0, fontFamily: "sans-serif", fontSize: 15, fontWeight: 600 }}>
@@ -142,6 +147,8 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
             {rows.map((row) => (
               <li
                 key={row.invocationId}
+                role="button"
+                tabIndex={0}
                 style={{
                   padding: "8px 10px",
                   borderRadius: 4,
@@ -162,6 +169,20 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
                     onRejoin(row.sessionId);
                   } else {
                     onSelect(row.invocationId);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (
+                      row.status === "running" &&
+                      row.sessionId === activeSessionId &&
+                      onRejoin !== undefined
+                    ) {
+                      onRejoin(row.sessionId);
+                    } else {
+                      onSelect(row.invocationId);
+                    }
                   }
                 }}
                 data-testid={`resume-row-${row.invocationId}`}
@@ -192,6 +213,7 @@ export function ResumePicker({ onSelect, onRejoin, activeSessionId, onCancel }: 
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button
+            type="button"
             style={{
               padding: "5px 14px",
               background: "#3a3a3a",
