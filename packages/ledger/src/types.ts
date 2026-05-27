@@ -159,7 +159,7 @@ export class NonTerminalItemsError extends LedgerError {
 }
 
 export class LedgerBusyError extends LedgerError {
-  constructor(ledgerId: string, holder: { pid: number; hostname: string }) {
+  constructor(ledgerId: string, holder: { pid: number; hostname: string; startedAt?: number }) {
     super(
       `Ledger ${ledgerId} is locked by pid ${holder.pid} on ${holder.hostname}`,
     );

@@ -14,3 +14,18 @@ export * from "./parser/parse.js";
 export * from "./parser/serialize.js";
 export { parseFrontmatter, serializeFrontmatter } from "./parser/frontmatter.js";
 export type { ParsedFrontmatter } from "./parser/frontmatter.js";
+export type {
+  LedgerStore,
+  CreateItemInit,
+  CreateMilestoneInit,
+  UpdateItemPatch,
+  UpdateMilestonePatch,
+} from "./store/LedgerStore.js";
+export { FsLedgerStore } from "./store/FsLedgerStore.js";
+export type { FsLedgerStoreOpts } from "./store/FsLedgerStore.js";
+export { InMemoryLedgerStore } from "./store/InMemoryLedgerStore.js";
+export type { InMemoryLedgerStoreOpts } from "./store/InMemoryLedgerStore.js";
+export { AsyncMutex } from "./store/mutex.js";
+export { Lockfile } from "./store/lockfile.js";
+export type { LockfileOpts, LockHolder } from "./store/lockfile.js";
+export { parseRegistry, serializeRegistry, parseSchema, EMPTY_REGISTRY } from "./registry.js";
