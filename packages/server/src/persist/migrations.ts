@@ -147,7 +147,13 @@ export function runMigrations(db: Database, migrations: Migration[]): void {
     .sort((a, b) => a.version - b.version);
 
   for (const migration of pending) {
-    db.exec(migration.up);
-    db.run("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", [migration.version]);
+    // Wrap each migration's DDL + version bump in a single transaction.
+    // This guarantees atomicity: either both the schema change and the version
+    // record are committed, or neither is — so a mid-migration crash cannot
+    // leave the DB in a partially-applied state that would re-run on the next start.
+    db.transaction(() => {
+      db.exec(migration.up);
+      db.run("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", [migration.version]);
+    })();
   }
 }
