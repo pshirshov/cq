@@ -60,6 +60,11 @@ export function ChatTab(): React.ReactElement {
   const chatStartPendingRef = useRef(false);
   // True when the user explicitly triggered new/resume session — prevents auto-start racing.
   const userInitiatedStartRef = useRef(false);
+  // D33: chat.started fires twice per new session (early stub + late real-init).
+  // We must only clear chatEvents on the FIRST one — otherwise live events
+  // received between the two (notably the server's echo of the user's
+  // typed input) get wiped before the assistant reply lands.
+  const clearedForSessionRef = useRef<string | null>(null);
 
   // --- Header state (PR-25) ---
   const [cwd, setCwd] = useState<string>("");
@@ -206,13 +211,22 @@ export function ChatTab(): React.ReactElement {
           }
           if (parsed.length > 0) setSlashCommands(parsed);
         }
-        // Reset usage counters for new session.
-        setInputTokens(0);
-        setOutputTokens(0);
-        setCostUsd(0);
-        // Clear previous conversation.
-        setChatEvents([]);
-        // If a resume replay was requested, fire history.get now.
+        // D33: only reset/wipe on the FIRST chat.started per session.
+        // The SDK init triggers a second chat.started carrying full initInfo,
+        // and that one would otherwise wipe events received in between
+        // (notably the server's echo of the user's just-typed input).
+        if (clearedForSessionRef.current !== started.sessionId) {
+          clearedForSessionRef.current = started.sessionId;
+          // Reset usage counters for new session.
+          setInputTokens(0);
+          setOutputTokens(0);
+          setCostUsd(0);
+          // Clear previous conversation.
+          setChatEvents([]);
+        }
+        // Fire replay whenever the user clicked Resume, regardless of whether
+        // the chat.started was the first or second for this session. The
+        // pendingReplayInvocationIdRef self-consumes (null after first read).
         const replayId = pendingReplayInvocationIdRef.current;
         if (replayId !== null) {
           pendingReplayInvocationIdRef.current = null;
@@ -226,24 +240,25 @@ export function ChatTab(): React.ReactElement {
           manager.send(histGetFrame);
         }
       } else if (frame.type === "history.replay_event") {
-        // Prepend replay events before live events (ordinal ordering guaranteed by server).
+        // D33: append replay events in arrival order. The server streams
+        // them in chronological order (ordinal 0, 1, 2, ...), so plain
+        // append preserves order. The prior implementation prepended,
+        // which reversed the transcript after resume.
         const replayEvt = frame as unknown as HistoryReplayEvent;
-        // Convert replay event to a synthetic ChatEvent so Stream can render it.
         const synthetic: ChatEvent = {
           type: "chat.event",
           seq: replayEvt.ordinal,
           ts: replayEvt.ts,
-          sessionId: replayEvt.invocationId, // use invocationId as placeholder sessionId
+          sessionId: replayEvt.invocationId, // placeholder; not used by renderer
           invocationId: replayEvt.invocationId,
           parentInvocationId: null,
           sdkEvent: replayEvt.sdkEvent,
         };
         setChatEvents((prev) => {
-          // Only prepend if this ordinal hasn't been added yet.
           if (prev.some((e) => e.seq === replayEvt.ordinal && e.invocationId === replayEvt.invocationId)) {
             return prev;
           }
-          return [synthetic, ...prev];
+          return [...prev, synthetic];
         });
       } else if (frame.type === "chat.done") {
         // Turn finished — clear in-progress so the textarea re-enables.
