@@ -3,7 +3,7 @@
 **Cycle:** outer-3 / second-round dogfooding fixes (6 defects open).
 **Goal:** ✓ build cq per [`./prompt.md`](./prompt.md). Discharge condition met: all five milestones `[x]` and archived; `bun run check` exits 0 (tsc + eslint + 399 tests); `bun run start --cwd <real-dir>` launches; sample prompt round-trips verified via PR-51 e2e + post-discharge real-SDK tests (`sdk-stub.test.ts`, `ask-question.test.ts`) running the bundled CLI binary against `MockAnthropicHTTP`. M1 E2E now drives a real client `Manager` in-process against the fixture server.
 **Accepted plan:** [`docs/drafts/20260526-0037-cq-plan.md`](docs/drafts/20260526-0037-cq-plan.md) (2294 lines, G2c-patched).
-**Defects:** [`./defects.md`](./defects.md). _6 open from user dogfooding: `E2E-D04` (SESSION_BUSY on tab switch / resume), `E2E-D05` (orphan "running" rows), `E2E-D06` (cost/toolCount=0), `E2E-D07` (default permission mode), `E2E-D08` (model 1M-context entries), `E2E-D09` (Enter to send + Send button). D01–D03 resolved._
+**Defects:** [`./defects.md`](./defects.md). _5 open from user dogfooding: `E2E-D04` (SESSION_BUSY on tab switch / resume), `E2E-D05` (orphan "running" rows), `E2E-D07` (default permission mode), `E2E-D08` (model 1M-context entries), `E2E-D09` (Enter to send + Send button). D01–D03, D06 resolved._
 **Final session log:** [`docs/logs/20260526-final-log.md`](docs/logs/20260526-final-log.md).
 
 ## Milestones — final
@@ -35,7 +35,7 @@ Goal: fix 6 issues surfaced by manual dogfooding. Constraint from /vsm-loop invo
 - [x] **E2E-D08** — Model selector: add `claude-{opus-4-7,sonnet-4-6}[1m]` 1M-context entries. `Header.tsx:36`.
 - [x] **E2E-D09** — Input keymap: bare Enter sends, Shift+Enter newline, IME-safe; add an explicit Send button. `Input.tsx`. Update `input.test.ts`.
 - [ ] **E2E-D05** — Server startup orphan reaper: UPDATE invocation SET status='errored' WHERE status='running' at Bridge construction.
-- [ ] **E2E-D06** — Cost/toolCount persistence: bridge updates invocation row on `tool_use` (increment count) and on `result` (set total cost + tokens). `bridge.ts`.
+- [x] **E2E-D06** — Cost/toolCount persistence: bridge updates invocation row on `tool_use` (increment count) and on `result` (set total cost + tokens). `bridge.ts`. Commit: `31d0e0d`.
 - [ ] **E2E-D04** — SESSION_BUSY on tab-switch / resume. Server-side: `handleChatStart` preempt-replaces an existing session. Client-side: lift `activeSessionId` above ChatTab so tab switches preserve it.
 
 Acceptance for each: corresponding test/path described in defects.md; `bun run check` 0; `bun run e2e` still 6/6.
