@@ -734,6 +734,18 @@ export class Bridge {
           if (Object.keys(patch).length > 0) {
             this.persistence.invocations.update(session.invocationId, patch);
             this.sendHistoryUpdate(ws, session.invocationId, patch);
+            // Drive the live top-bar usage counter (ChatTab listens for chat.usage).
+            const usageState = this.registry.get(session.chatSessionId);
+            const usageSeq = usageState !== undefined ? usageState.buffer.serverSeq + 1 : 0;
+            ws.send(JSON.stringify({
+              type: "chat.usage",
+              seq: usageSeq,
+              ts: Date.now(),
+              sessionId: session.chatSessionId,
+              inputTokens: session.inputTokens,
+              outputTokens: session.outputTokens,
+              costUsd: session.costUsd,
+            }));
           }
 
           const sub = (msg as { subtype?: string }).subtype ?? "";
