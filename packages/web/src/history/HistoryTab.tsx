@@ -60,9 +60,10 @@ export function HistoryTab(): React.ReactElement {
 
       const protocolStatus = currentFilter.status as
         | "completed"
-        | "interrupted"
-        | "errored"
+        | "failed"
+        | "stopped"
         | "running"
+        | "wiped"
         | undefined;
 
       const sent = manager.send({

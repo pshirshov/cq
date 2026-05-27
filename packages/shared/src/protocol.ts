@@ -256,7 +256,7 @@ export const HistoryList = z.object({
     .object({
       agentName: z.string().optional(),
       model: z.string().optional(),
-      status: z.enum(["completed", "interrupted", "errored", "running", "wiped"]).optional(),
+      status: z.enum(["completed", "failed", "stopped", "running", "wiped"]).optional(),
       dateFrom: z.number().optional(),
       dateTo: z.number().optional(),
       search: z.string().optional(),

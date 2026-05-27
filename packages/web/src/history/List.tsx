@@ -161,8 +161,8 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
           <option value="">All statuses</option>
           <option value="running">Running</option>
           <option value="completed">Completed</option>
-          <option value="interrupted">Interrupted</option>
-          <option value="errored">Errored</option>
+          <option value="failed">Failed</option>
+          <option value="stopped">Stopped</option>
           <option value="wiped">Wiped</option>
         </select>
         <input
