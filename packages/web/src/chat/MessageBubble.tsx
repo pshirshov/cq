@@ -45,6 +45,31 @@ function formatTime(ts: number): string {
   return `${h}:${m}`;
 }
 
+/**
+ * Legacy clipboard copy via a hidden textarea + document.execCommand('copy').
+ * Used when navigator.clipboard is unavailable (insecure origin / older
+ * browser). Returns true on success.
+ */
+function legacyCopy(text: string): boolean {
+  if (typeof document === "undefined") return false;
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.top = "-1000px";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 export function MessageBubble({
   role,
   timestamp,
@@ -57,13 +82,30 @@ export function MessageBubble({
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleCopy(): void {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(plainText).then(() => {
-        setCopied(true);
-        if (copyTimeoutRef.current !== null) clearTimeout(copyTimeoutRef.current);
-        copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
-      });
+    function flash(): void {
+      setCopied(true);
+      if (copyTimeoutRef.current !== null) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
     }
+
+    // Modern path: navigator.clipboard. Browsers block this on non-secure
+    // origins (anything other than localhost over plain HTTP), so the cq
+    // dogfooding case (cq --host 0.0.0.0 served over HTTP) silently fails
+    // here. Fall back to the legacy execCommand('copy') trick whenever the
+    // modern API is unavailable OR rejects.
+    const modernAvailable =
+      typeof navigator !== "undefined" &&
+      typeof window !== "undefined" &&
+      navigator.clipboard !== undefined &&
+      window.isSecureContext;
+
+    if (modernAvailable) {
+      navigator.clipboard.writeText(plainText).then(flash).catch(() => {
+        if (legacyCopy(plainText)) flash();
+      });
+      return;
+    }
+    if (legacyCopy(plainText)) flash();
   }
 
   const roleClass =

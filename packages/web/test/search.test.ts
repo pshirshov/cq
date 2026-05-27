@@ -364,6 +364,8 @@ describe("MessageBubble — copy button (F5)", () => {
       },
       configurable: true,
     });
+    // D44 gating: modern path only when isSecureContext === true.
+    Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
 
     const testText = "The message content to copy";
     act(() => {
