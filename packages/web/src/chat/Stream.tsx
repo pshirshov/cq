@@ -1038,9 +1038,14 @@ export function Stream({
           Load older ({hiddenCount} more)
         </button>
       )}
-      {isEmpty && (
+      {isEmpty && mode !== "replay" && (
         <div className={styles.emptyState} data-testid="stream-empty-state">
           Type below to start
+        </div>
+      )}
+      {isEmpty && mode === "replay" && (
+        <div className={styles.emptyState} data-testid="stream-empty-state">
+          No events for this invocation.
         </div>
       )}
       <div className={styles.messageList}>

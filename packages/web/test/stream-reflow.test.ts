@@ -477,3 +477,39 @@ describe("D26 — Stream hideSdkEvents prop", () => {
     expect(assistantBubble).not.toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// D37 — replay mode empty-state
+// ---------------------------------------------------------------------------
+
+describe("D37 — Stream replay mode empty-state", () => {
+  test("mode='replay' with empty events does NOT say 'Type below to start'", () => {
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(Stream, { chatEvents: [], mode: "replay" }));
+    });
+    const emptyState = c.querySelector("[data-testid='stream-empty-state']");
+    expect(emptyState).not.toBeNull();
+    expect(emptyState!.textContent).not.toContain("Type below to start");
+  });
+
+  test("mode='live' with empty events shows 'Type below to start'", () => {
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(Stream, { chatEvents: [], mode: "live" }));
+    });
+    const emptyState = c.querySelector("[data-testid='stream-empty-state']");
+    expect(emptyState).not.toBeNull();
+    expect(emptyState!.textContent).toContain("Type below to start");
+  });
+
+  test("mode='replay' with empty events shows neutral placeholder", () => {
+    const c = setup();
+    act(() => {
+      reactRoot!.render(createElement(Stream, { chatEvents: [], mode: "replay" }));
+    });
+    const emptyState = c.querySelector("[data-testid='stream-empty-state']");
+    expect(emptyState).not.toBeNull();
+    expect(emptyState!.textContent).toContain("No events for this invocation");
+  });
+});
