@@ -234,6 +234,9 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
                 >
                   <td className={styles.mono}>{fmtDate(row.startedAt)}</td>
                   <td>
+                    {row.agentName !== "main" && (
+                      <span title="Subagent invocation" style={{ marginRight: 4 }}>↪</span>
+                    )}
                     {row.agentName}
                     {row.resumedFromInvocationId != null && (
                       <span

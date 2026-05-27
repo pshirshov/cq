@@ -433,6 +433,63 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
+    // D35: list() shows subagent rows as distinct rows; main rows deduped per session
+    // -----------------------------------------------------------------------
+    test("D35: list() shows subagent row as distinct entry; main invocations deduped per session", () => {
+      const now = Date.now();
+
+      const session = makeSession({ title: "S-D35" });
+      p.sessions.insert(session);
+
+      // A = top-level main (earlier)
+      const invA = makeInvocation(session.id, {
+        agentName: "main",
+        parentInvocationId: null,
+        startedAt: now + 1000,
+        promptExcerpt: "main-A",
+      });
+      // B = subagent child of A
+      const invB = makeInvocation(session.id, {
+        agentName: "general-purpose",
+        parentInvocationId: invA.id,
+        startedAt: now + 1500,
+        promptExcerpt: "subagent-B",
+      });
+      // C = main resumed from A (later)
+      const invC = makeInvocation(session.id, {
+        agentName: "main",
+        parentInvocationId: null,
+        resumedFromInvocationId: invA.id,
+        startedAt: now + 2000,
+        promptExcerpt: "main-C",
+      });
+
+      p.invocations.insert(invA);
+      p.invocations.insert(invB);
+      p.invocations.insert(invC);
+
+      const result = p.invocations.list(
+        {},
+        { field: "startedAt", dir: "desc" },
+        { limit: 50, offset: 0 },
+      );
+
+      // Two rows: C (latest main, deduped over A) and B (subagent, distinct row).
+      expect(result.total).toBe(2);
+      expect(result.rows).toHaveLength(2);
+
+      const ids = result.rows.map((r) => r.invocationId);
+      expect(ids).toContain(invC.id);
+      expect(ids).toContain(invB.id);
+      // A must NOT appear (deduped out by C).
+      expect(ids).not.toContain(invA.id);
+
+      const subRow = result.rows.find((r) => r.invocationId === invB.id);
+      expect(subRow).toBeDefined();
+      expect(subRow!.agentName).toBe("general-purpose");
+    });
+
+    // -----------------------------------------------------------------------
     // 15. reapOrphans: running rows become failed; completed rows unchanged
     // -----------------------------------------------------------------------
     test("reapOrphans transitions running rows to failed, leaves completed unchanged", () => {

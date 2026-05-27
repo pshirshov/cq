@@ -226,31 +226,18 @@ export class InvocationStore {
       params.$date_to = filter.dateTo;
     }
 
-    // Only top-level invocations (agent_name='main', parent_invocation_id IS NULL)
-    // contribute to the history list. Sub-agent children are excluded.
-    conditions.push("i.agent_name = 'main'");
-    conditions.push("i.parent_invocation_id IS NULL");
-
-    const where = `WHERE ${conditions.join(" AND ")}`;
+    // Build the two halves of the union:
+    //  1. main_latest: deduplicated top-level main invocations (one per session, the latest).
+    //  2. subs: all subagent invocations (parent_invocation_id IS NOT NULL or agent_name != 'main').
+    // User filters apply to both halves.
+    const userWhere = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
     const col = INVOCATION_SORT_MAP[sort.field] ?? "i.started_at";
     const dir = sort.dir === "desc" ? "DESC" : "ASC";
-
-    // The history list shows ONE row per session — the latest invocation by
-    // started_at. We use ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY
-    // started_at DESC) = 1 to select exactly the latest invocation per session.
-    const latestCte = `
-      WITH ranked AS (
-        SELECT i.*,
-               ROW_NUMBER() OVER (PARTITION BY i.session_id ORDER BY i.started_at DESC) AS rn
-        FROM invocation i
-        ${where}
-      )
-    `;
+    const colDeduped = col.replace("i.", "u.");
 
     // FTS search: run as a separate query when search is provided, then intersect ids.
     if (filter.search) {
       const safeQuery = `"${filter.search.replace(/"/g, '""')}"`;
-      // FTS matches any invocation in the session; we still only show the latest.
       const ftsSessionIds = new Set<string>(
         this.db
           .query<{ session_id: string }, [string]>(
@@ -261,45 +248,73 @@ export class InvocationStore {
       );
       if (ftsSessionIds.size === 0) return { rows: [], total: 0 };
       const sessionIdList = [...ftsSessionIds].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
-      const ftsConditions = [...conditions, `i.session_id IN (${sessionIdList})`];
-      const ftsWhere = `WHERE ${ftsConditions.join(" AND ")}`;
+      const ftsExtra = `AND i.session_id IN (${sessionIdList})`;
       const ftsCte = `
-        WITH ranked AS (
-          SELECT i.*,
-                 ROW_NUMBER() OVER (PARTITION BY i.session_id ORDER BY i.started_at DESC) AS rn
+        WITH main_latest AS (
+          SELECT i.*, ROW_NUMBER() OVER (PARTITION BY i.session_id ORDER BY i.started_at DESC) AS rn
           FROM invocation i
-          ${ftsWhere}
+          WHERE i.agent_name = 'main' AND i.parent_invocation_id IS NULL
+            ${userWhere} ${ftsExtra}
+        ),
+        subs AS (
+          SELECT i.*, 0 AS rn
+          FROM invocation i
+          WHERE (i.agent_name != 'main' OR i.parent_invocation_id IS NOT NULL)
+            ${userWhere} ${ftsExtra}
+        ),
+        combined AS (
+          SELECT * FROM main_latest WHERE rn = 1
+          UNION ALL
+          SELECT * FROM subs
         )
       `;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const total = (this.db.query<{ n: number }, any>(
-        `${ftsCte} SELECT COUNT(*) AS n FROM ranked WHERE rn = 1`,
+        `${ftsCte} SELECT COUNT(*) AS n FROM combined`,
       ).get(params) ?? { n: 0 }).n;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows = this.db.query<HistorySqlRow, any>(
         `${ftsCte}
-         SELECT ranked.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
-         FROM ranked
-         LEFT JOIN session s ON s.id = ranked.session_id
-         WHERE rn = 1
-         ORDER BY ${col.replace("i.", "ranked.")} ${dir} LIMIT $limit OFFSET $offset`,
+         SELECT u.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+         FROM combined u
+         LEFT JOIN session s ON s.id = u.session_id
+         ORDER BY ${colDeduped} ${dir} LIMIT $limit OFFSET $offset`,
       ).all({ ...params, $limit: page.limit, $offset: page.offset });
       return { rows: rows.map(toHistoryRow), total };
     }
 
+    const unionCte = `
+      WITH main_latest AS (
+        SELECT i.*, ROW_NUMBER() OVER (PARTITION BY i.session_id ORDER BY i.started_at DESC) AS rn
+        FROM invocation i
+        WHERE i.agent_name = 'main' AND i.parent_invocation_id IS NULL
+          ${userWhere}
+      ),
+      subs AS (
+        SELECT i.*, 0 AS rn
+        FROM invocation i
+        WHERE (i.agent_name != 'main' OR i.parent_invocation_id IS NOT NULL)
+          ${userWhere}
+      ),
+      combined AS (
+        SELECT * FROM main_latest WHERE rn = 1
+        UNION ALL
+        SELECT * FROM subs
+      )
+    `;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const total = (this.db.query<{ n: number }, any>(
-      `${latestCte} SELECT COUNT(*) AS n FROM ranked WHERE rn = 1`,
+      `${unionCte} SELECT COUNT(*) AS n FROM combined`,
     ).get(params) ?? { n: 0 }).n;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = this.db.query<HistorySqlRow, any>(
-      `${latestCte}
-       SELECT ranked.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
-       FROM ranked
-       LEFT JOIN session s ON s.id = ranked.session_id
-       WHERE rn = 1
-       ORDER BY ${col.replace("i.", "ranked.")} ${dir} LIMIT $limit OFFSET $offset`,
+      `${unionCte}
+       SELECT u.*, s.title, s.cwd, s.permission_mode, s.ended_reason, s.sdk_session_id, s.total_input_tokens, s.total_output_tokens, s.total_cost_usd
+       FROM combined u
+       LEFT JOIN session s ON s.id = u.session_id
+       ORDER BY ${colDeduped} ${dir} LIMIT $limit OFFSET $offset`,
     ).all({ ...params, $limit: page.limit, $offset: page.offset });
 
     return { rows: rows.map(toHistoryRow), total };

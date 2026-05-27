@@ -146,50 +146,61 @@ export class InMemoryPersistence implements Persistence {
       sort: InvocationSortSpec,
       page: PageSpec,
     ): PagedResult<HistoryRow> => {
-      // Only top-level main-agent invocations (mirrors the SQLite query).
-      let rows = [...this.invocationMap.values()].filter(
-        (r) => r.agentName === "main" && r.parentInvocationId === null,
+      const applyUserFilters = (rows: InvocationRow[]): InvocationRow[] => {
+        if (filter.agentName !== undefined) {
+          rows = rows.filter((r) => r.agentName === filter.agentName);
+        }
+        if (filter.model !== undefined) {
+          rows = rows.filter((r) => r.model === filter.model);
+        }
+        if (filter.status !== undefined) {
+          rows = rows.filter((r) => r.status === filter.status);
+        }
+        if (filter.dateFrom !== undefined) {
+          rows = rows.filter((r) => r.startedAt >= filter.dateFrom!);
+        }
+        if (filter.dateTo !== undefined) {
+          rows = rows.filter((r) => r.startedAt <= filter.dateTo!);
+        }
+        if (filter.search) {
+          const q = filter.search.toLowerCase();
+          // For FTS, keep sessions that have at least one matching invocation.
+          const matchingSessionIds = new Set(
+            [...this.invocationMap.values()]
+              .filter(
+                (r) =>
+                  r.promptExcerpt.toLowerCase().includes(q) ||
+                  r.agentName.toLowerCase().includes(q),
+              )
+              .map((r) => r.sessionId),
+          );
+          rows = rows.filter((r) => matchingSessionIds.has(r.sessionId));
+        }
+        return rows;
+      };
+
+      // Half 1: top-level main invocations, deduped to latest per session.
+      const mainRows = applyUserFilters(
+        [...this.invocationMap.values()].filter(
+          (r) => r.agentName === "main" && r.parentInvocationId === null,
+        ),
       );
-
-      if (filter.agentName !== undefined) {
-        rows = rows.filter((r) => r.agentName === filter.agentName);
-      }
-      if (filter.model !== undefined) {
-        rows = rows.filter((r) => r.model === filter.model);
-      }
-      if (filter.status !== undefined) {
-        rows = rows.filter((r) => r.status === filter.status);
-      }
-      if (filter.dateFrom !== undefined) {
-        rows = rows.filter((r) => r.startedAt >= filter.dateFrom!);
-      }
-      if (filter.dateTo !== undefined) {
-        rows = rows.filter((r) => r.startedAt <= filter.dateTo!);
-      }
-      if (filter.search) {
-        const q = filter.search.toLowerCase();
-        // For FTS, keep sessions that have at least one matching invocation.
-        const matchingSessionIds = new Set(
-          [...this.invocationMap.values()]
-            .filter(
-              (r) =>
-                r.promptExcerpt.toLowerCase().includes(q) ||
-                r.agentName.toLowerCase().includes(q),
-            )
-            .map((r) => r.sessionId),
-        );
-        rows = rows.filter((r) => matchingSessionIds.has(r.sessionId));
-      }
-
-      // One row per session — the latest invocation by startedAt.
       const latestBySession = new Map<string, InvocationRow>();
-      for (const r of rows) {
+      for (const r of mainRows) {
         const existing = latestBySession.get(r.sessionId);
         if (existing === undefined || r.startedAt > existing.startedAt) {
           latestBySession.set(r.sessionId, r);
         }
       }
-      const deduped = [...latestBySession.values()];
+
+      // Half 2: subagent invocations (pass through unfiltered by session dedup).
+      const subRows = applyUserFilters(
+        [...this.invocationMap.values()].filter(
+          (r) => r.agentName !== "main" || r.parentInvocationId !== null,
+        ),
+      );
+
+      const deduped = [...latestBySession.values(), ...subRows];
 
       const key = sort.field as keyof InvocationRow;
       deduped.sort((a, b) => {
