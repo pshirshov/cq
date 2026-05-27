@@ -698,6 +698,16 @@ function messagePlainText(msg: RenderedMessage): string {
 }
 
 /**
+ * Searchable text for a message — narrower than messagePlainText (which is
+ * the copy-button payload). Unknown SDK-event cards return "" here so that
+ * search Ctrl+F doesn't match text buried inside raw event JSON payloads.
+ */
+function messageSearchableText(msg: RenderedMessage): string {
+  if (msg.kind === "unknown") return "";
+  return messagePlainText(msg);
+}
+
+/**
  * Given a search query and an ordered list of messages, return the indices
  * (into messages[]) that contain a case-insensitive substring match.
  */
@@ -706,7 +716,7 @@ export function computeMatchIndices(messages: RenderedMessage[], query: string):
   const lower = query.toLowerCase();
   const indices: number[] = [];
   for (let i = 0; i < messages.length; i++) {
-    const text = messagePlainText(messages[i]!);
+    const text = messageSearchableText(messages[i]!);
     if (text.toLowerCase().includes(lower)) {
       indices.push(i);
     }
