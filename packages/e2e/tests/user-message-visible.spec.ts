@@ -22,13 +22,19 @@ test("user-message-visible: typed input renders as a user bubble", async ({ cq, 
   await cq.sendMessage(userText);
 
   // The user bubble must appear in the stream with role="user".
-  // We assert: (a) at least one element with data-role="user" exists;
-  //            (b) its visible text contains exactly what the user typed.
   const userBubble = cq.page.locator("[data-role='user']").first();
   await expect(userBubble).toBeVisible({ timeout: 5_000 });
   await expect(userBubble).toContainText(userText);
 
-  // Sanity: the assistant response also rendered so the flow completed.
+  // Wait for the assistant reply to land — this drives the late chat.started
+  // frame from the SDK. D33: the user bubble must SURVIVE this; the prior
+  // bug wiped chatEvents on every chat.started, including the late one.
   await cq.waitForTextInStream("acknowledged", 25_000);
   await expect(cq.textarea).toBeEnabled({ timeout: 25_000 });
+
+  // Re-assert the user bubble after the assistant reply has rendered.
+  // If chatEvents was wiped by the second chat.started, the user bubble
+  // would be gone by now.
+  await expect(cq.page.locator("[data-role='user']").first()).toBeVisible();
+  await expect(cq.page.locator("[data-role='user']").first()).toContainText(userText);
 });
