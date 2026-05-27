@@ -355,12 +355,27 @@ export class Connection {
     let data: unknown;
     try {
       data = JSON.parse(e.data as string) as unknown;
-    } catch {
-      return; // Ignore non-JSON frames
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("WS frame: invalid JSON", {
+        err: err instanceof Error ? err.message : String(err),
+        preview: typeof e.data === "string" ? e.data.slice(0, 80) : "(non-string)",
+      });
+      return;
     }
 
     const result = ServerFrameSchema.safeParse(data);
-    if (!result.success) return;
+    if (!result.success) {
+      // Surface schema validation failures so silent frame-drop bugs are
+      // diagnosable. The tradeoff is that legitimately-unknown future frame
+      // types will also log; that's acceptable for a development tool.
+      // eslint-disable-next-line no-console
+      console.warn("WS frame rejected by schema", {
+        type: (data as { type?: unknown })?.type,
+        issues: result.error.issues.slice(0, 3),
+      });
+      return;
+    }
 
     const frame = result.data;
 

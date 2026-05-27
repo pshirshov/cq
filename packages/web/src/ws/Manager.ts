@@ -417,7 +417,12 @@ export class Manager {
     try {
       socket.send(JSON.stringify(frame));
       return true;
-    } catch {
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("Manager.send: socket.send threw", {
+        type: frame.type,
+        err: err instanceof Error ? err.message : String(err),
+      });
       return false;
     }
   }

@@ -218,8 +218,11 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
     }
     Promise.all(pending).then((resolved) => {
       setAttachments((prev) => [...prev, ...resolved]);
-    }).catch(() => {
-      // Individual file conversion errors are non-fatal; silently skip.
+    }).catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn("Input: attachment conversion failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
     });
   }
 

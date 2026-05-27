@@ -56,8 +56,9 @@ export function CodeBlock({ lang, code }: CodeBlockProps): React.ReactElement {
         if (!isBundledLang(lang)) {
           try {
             await hl.loadLanguage(normLang as Parameters<typeof hl.loadLanguage>[0]);
-          } catch {
-            // Language unavailable — render raw; do not update state.
+          } catch (err: unknown) {
+            // eslint-disable-next-line no-console
+            console.warn("CodeBlock: loadLanguage failed", { lang: normLang, err: err instanceof Error ? err.message : String(err) });
             return;
           }
         }
@@ -66,8 +67,9 @@ export function CodeBlock({ lang, code }: CodeBlockProps): React.ReactElement {
           theme: "github-dark",
         });
         if (!cancelled) setHighlightedHtml(html);
-      } catch {
-        // Silently stay on raw fallback.
+      } catch (err: unknown) {
+        // eslint-disable-next-line no-console
+        console.warn("CodeBlock: codeToHtml failed", { lang: normLang, err: err instanceof Error ? err.message : String(err) });
       }
     }
 

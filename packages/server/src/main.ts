@@ -51,7 +51,11 @@ function shutdown(): void {
   shuttingDown = true;
   shutdownFn()
     .then(() => process.exit(0))
-    .catch(() => process.exit(1));
+    .catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error("shutdown failed", err);
+      process.exit(1);
+    });
 }
 
 process.on("SIGINT", shutdown);
