@@ -193,6 +193,11 @@ type ActiveSession = {
   readonly startedAt: number;
   /** Map from SDK task_id to child InvocationRow.id (for task finalisation). */
   readonly taskInvocationMap: Map<string, string>;
+  /** Running accumulators updated on each assistant/result message within the session. */
+  toolCallCount: number;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
 };
 
 export class Bridge {
@@ -414,6 +419,10 @@ export class Bridge {
       uiMode,
       startedAt,
       taskInvocationMap: new Map(),
+      toolCallCount: 0,
+      costUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0,
     };
     this.active = session;
 
@@ -671,6 +680,26 @@ export class Bridge {
         // All other messages → chat.event via replay buffer.
         this.sendEvent(ws, session, msg);
 
+        // Count tool_use content blocks on assistant messages.
+        if (msg.type === "assistant") {
+          const content = (msg as Record<string, unknown> & { message?: { content?: unknown } })
+            .message?.content;
+          if (Array.isArray(content)) {
+            const toolUses = (content as Array<{ type: string }>).filter(
+              (b) => b.type === "tool_use",
+            ).length;
+            if (toolUses > 0) {
+              session.toolCallCount += toolUses;
+              this.persistence.invocations.update(session.invocationId, {
+                toolCallCount: session.toolCallCount,
+              });
+              this.sendHistoryUpdate(ws, session.invocationId, {
+                toolCallCount: session.toolCallCount,
+              });
+            }
+          }
+        }
+
         // End-of-turn marker. The SDK emits exactly one `result` per turn
         // (subtype 'success' on normal completion, 'error_*' on failure).
         // The client treats chat.done as "turn finished; textarea re-enables;
@@ -678,6 +707,29 @@ export class Bridge {
         // so the next chat.input can drive another turn through the same
         // subprocess — that's the SDK's multi-turn semantics.
         if ((msg as { type?: string }).type === "result") {
+          // Accumulate cost + token counts from the result message onto the invocation row.
+          const resultMsg = msg as {
+            total_cost_usd?: number;
+            usage?: { input_tokens?: number; output_tokens?: number };
+          };
+          const patch: Partial<InvocationRow> = {};
+          if (typeof resultMsg.total_cost_usd === "number") {
+            session.costUsd += resultMsg.total_cost_usd;
+            patch.costUsd = session.costUsd;
+          }
+          if (typeof resultMsg.usage?.input_tokens === "number") {
+            session.inputTokens += resultMsg.usage.input_tokens;
+            patch.inputTokens = session.inputTokens;
+          }
+          if (typeof resultMsg.usage?.output_tokens === "number") {
+            session.outputTokens += resultMsg.usage.output_tokens;
+            patch.outputTokens = session.outputTokens;
+          }
+          if (Object.keys(patch).length > 0) {
+            this.persistence.invocations.update(session.invocationId, patch);
+            this.sendHistoryUpdate(ws, session.invocationId, patch);
+          }
+
           const sub = (msg as { subtype?: string }).subtype ?? "";
           const turnDone: ChatDone["reason"] = sub.startsWith("error")
             ? "errored"

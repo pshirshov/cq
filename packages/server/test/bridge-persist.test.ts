@@ -168,6 +168,39 @@ function makeAssistantMessage(text: string): SDKMessage {
   } as unknown as SDKMessage;
 }
 
+function makeAssistantMessageWithToolUse(toolUseId: string, toolName: string): SDKMessage {
+  return {
+    type: "assistant",
+    message: {
+      id: "msg_tool",
+      type: "message",
+      role: "assistant",
+      content: [
+        { type: "text", text: "Running a tool" },
+        { type: "tool_use", id: toolUseId, name: toolName, input: { command: "echo hi" } },
+      ],
+      model: "claude-test",
+      stop_reason: "tool_use",
+      stop_sequence: null,
+      usage: { input_tokens: 20, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+    },
+    parent_tool_use_id: null,
+    uuid: "00000000-0000-4000-a000-000000000004",
+    session_id: "00000000-0000-4000-a000-000000000002",
+  } as unknown as SDKMessage;
+}
+
+function makeResultMessage(totalCostUsd: number, inputTokens: number, outputTokens: number): SDKMessage {
+  return {
+    type: "result",
+    subtype: "success",
+    total_cost_usd: totalCostUsd,
+    usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    uuid: "00000000-0000-4000-a000-000000000005",
+    session_id: "00000000-0000-4000-a000-000000000002",
+  } as unknown as SDKMessage;
+}
+
 function makeTaskStartedMessage(taskId: string, toolUseId: string): SDKMessage {
   return {
     type: "system",
@@ -366,5 +399,54 @@ describe("Bridge persistence", () => {
     const finalUpdate = updates.find((u) => u.invocationId === invocationId);
     expect(finalUpdate).toBeDefined();
     expect((finalUpdate!.patch as Record<string, unknown>).status).toBe("completed");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 5 (E2E-D06): tool_use + result → persisted toolCallCount, costUsd,
+  //                   inputTokens, outputTokens are non-zero
+  // ---------------------------------------------------------------------------
+
+  it("E2E-D06: assistant tool_use bumps toolCallCount; result message persists costUsd + tokens", async () => {
+    const persistence = new InMemoryPersistence();
+    const script: SDKMessage[] = [
+      makeInitMessage(),
+      makeAssistantMessageWithToolUse("toolu_bash_001", "Bash"),
+      makeResultMessage(0.0042, 150, 75),
+    ];
+    const { bridge, ws } = makeBridgeWithPersistence(script, persistence);
+
+    await bridge.handleChatStart(ws, makeChatStart());
+    await ws.waitForFrames("chat.done");
+
+    const sessions = persistence.sessions.list(
+      {},
+      { field: "startedAt", dir: "desc" },
+      { limit: 10, offset: 0 },
+    );
+    const sessionId = sessions.rows[0]!.id;
+    const invocations = persistence.invocations.listForSession(sessionId);
+    expect(invocations).toHaveLength(1);
+    const inv = invocations[0]!;
+
+    // tool_use block in assistant message should have been counted.
+    expect(inv.toolCallCount).toBe(1);
+
+    // result message fields should be reflected on the row.
+    expect(inv.costUsd).toBeCloseTo(0.0042, 6);
+    expect(inv.inputTokens).toBe(150);
+    expect(inv.outputTokens).toBe(75);
+
+    // history.update frames should have carried the updated values.
+    const updates = ws.framesOfType("history.update");
+    const toolCountUpdate = updates.find(
+      (u) => (u.patch as Record<string, unknown>).toolCallCount === 1,
+    );
+    expect(toolCountUpdate).toBeDefined();
+
+    const costUpdate = updates.find(
+      (u) => typeof (u.patch as Record<string, unknown>).costUsd === "number" &&
+        ((u.patch as Record<string, unknown>).costUsd as number) > 0,
+    );
+    expect(costUpdate).toBeDefined();
   });
 });
