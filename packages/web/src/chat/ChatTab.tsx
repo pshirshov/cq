@@ -73,6 +73,11 @@ export function ChatTab(): React.ReactElement {
   const [cwd, setCwd] = useState<string>("");
   const [model, setModel] = useState<string>("claude-opus-4-7[1m]");
   const [permissionMode, setPermissionMode] = useState<PermissionMode>("bypassPermissions");
+  // Refs that always hold the latest model/permissionMode so closures
+  // in effects (e.g. REJOIN_FAILED handler) read fresh values. Same
+  // pattern as sortRef/filterRef/pageRef in HistoryTab.
+  const modelRef = useRef(model);
+  const permissionModeRef = useRef(permissionMode);
   const [inputTokens, setInputTokens] = useState(0);
   const [outputTokens, setOutputTokens] = useState(0);
   const [costUsd, setCostUsd] = useState(0);
@@ -102,6 +107,11 @@ export function ChatTab(): React.ReactElement {
   // settingsLoadedRef guards against echoing defaults back to the server on
   // the very first render before settings.get_result has been received.
   const settingsLoadedRef = useRef(false);
+
+  // Keep modelRef/permissionModeRef in sync so closures (REJOIN_FAILED handler)
+  // always read the latest values without stale-closure capture.
+  useEffect(() => { modelRef.current = model; }, [model]);
+  useEffect(() => { permissionModeRef.current = permissionMode; }, [permissionMode]);
 
   // ---- D30: Subagent transcript overlay ----
   // When set, renders the Detail component as a modal over the chat stream.
@@ -292,15 +302,16 @@ export function ChatTab(): React.ReactElement {
           rejoinPendingRef.current = false;
           chatStartPendingRef.current = false;
           setActiveSessionId(null);
-          // Fire a fresh start. model/permissionMode are read from current state
-          // via the ref snapshot captured in the outer scope by React's closure.
+          // Fire a fresh start. Read model/permissionMode from refs so the
+          // fallback carries the values current at the time of the error,
+          // not the stale closure values from when the effect first ran.
           chatStartPendingRef.current = true;
           const fallbackFrame: ChatStart = {
             type: "chat.start",
             seq: seqRef.current++,
             ts: Date.now(),
-            model,
-            permissionMode,
+            model: modelRef.current,
+            permissionMode: permissionModeRef.current,
           };
           manager.send(fallbackFrame);
           return;

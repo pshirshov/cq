@@ -468,6 +468,56 @@ describe("ChatTab auto-start (D-UX-1)", () => {
     expect(container!.querySelector("[data-testid='stream-empty-state']")).not.toBeNull();
   });
 
+  test("(Q4) REJOIN_FAILED fallback uses current model from ref, not stale closure", () => {
+    // Pre-seed localStorage so auto-start tries chat.rejoin first.
+    try { localStorage.setItem("cq.activeSessionId", "00000000-0000-4000-a000-0000000000aa"); } catch { /* ignore */ }
+
+    const manager = new FakeManager(makeStats());
+    setup();
+
+    act(() => {
+      reactRoot!.render(
+        createElement(ConnectionProvider, { value: manager as never },
+          createElement(SessionProvider, null,
+            createElement(ChatTab),
+          ),
+        ),
+      );
+    });
+
+    // ALIVE edge → sends settings.get + chat.rejoin.
+    act(() => { manager.push(ALIVE_STATS); });
+    expect(manager.sent.filter((f) => f.type === "chat.rejoin")).toHaveLength(1);
+
+    // Simulate settings.get_result arriving with a NEW model before REJOIN_FAILED.
+    act(() => {
+      manager.emit({
+        type: "settings.get_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: 0,
+        model: "claude-haiku-4-5",
+        permissionMode: "default",
+        hideSdkEvents: false,
+      } as ServerFrame);
+    });
+
+    // Server replies with REJOIN_FAILED — fallback chat.start should use the updated model.
+    act(() => {
+      manager.emit({
+        type: "chat.error",
+        seq: 2,
+        ts: Date.now(),
+        code: "REJOIN_FAILED",
+        message: "Session not found",
+      } as ServerFrame);
+    });
+
+    const fallbackStarts = manager.sent.filter((f) => f.type === "chat.start");
+    expect(fallbackStarts).toHaveLength(1);
+    expect((fallbackStarts[0] as { model: string }).model).toBe("claude-haiku-4-5");
+  });
+
   test("(Q3) non-REJOIN chat.error clears inProgress so the UI does not stay busy", () => {
     // Helper component: on mount, sets inProgress=true via SessionContext so we can
     // observe the transition to false when chat.error{code:"SDK_ERROR"} arrives.
