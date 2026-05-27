@@ -265,6 +265,37 @@ describe("PermissionBroker (unit)", () => {
     expect(r1.behavior).toBe("deny");
     expect(r2.behavior).toBe("deny");
   });
+
+  it("QR-P5: request with null sendFrame emits a warn log instead of silently parking", async () => {
+    const broker = new PermissionBroker();
+    // Intentionally do NOT call setSendFrame — sendFrame stays null.
+
+    const warnCalls: Array<[string, Record<string, unknown>]> = [];
+    broker.setLogger({
+      debug: () => {},
+      info: () => {},
+      warn: (event: string, ctx: Record<string, unknown>) => { warnCalls.push([event, ctx]); },
+      error: () => {},
+    });
+
+    const resultPromise = broker.request({
+      sessionId: "00000000-0000-0000-0000-000000000001",
+      invocationId: "00000000-0000-0000-0000-000000000002",
+      toolName: "Bash",
+      toolUseId: "toolu_warn_01",
+      input: { command: "ls" },
+    });
+
+    // The warn must have fired synchronously during request().
+    expect(warnCalls).toHaveLength(1);
+    expect(warnCalls[0]![0]).toBe("permission.sendFrame_null_request_parked");
+    expect(warnCalls[0]![1].toolName).toBe("Bash");
+    expect(warnCalls[0]![1].invocationId).toBe("00000000-0000-0000-0000-000000000002");
+
+    // The pending entry still exists; resolve it so the test does not leak.
+    broker.rejectAll();
+    await resultPromise;
+  });
 });
 
 // ---------------------------------------------------------------------------

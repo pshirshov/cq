@@ -239,7 +239,9 @@ export class Bridge {
     this.cwd = path.resolve(opts.cwd);
     this.home = opts.home;
     this.permissionBroker = opts.permissionBroker ?? new PermissionBroker();
+    this.permissionBroker.setLogger(this.logger);
     this.elicitationBroker = opts.elicitationBroker ?? new ElicitationBroker();
+    this.elicitationBroker.setLogger(this.logger);
     this.askBroker = opts.askBroker ?? new AskBroker();
     this.persistence = opts.persistence ?? new InMemoryPersistence();
   }

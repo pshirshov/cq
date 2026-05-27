@@ -14,6 +14,7 @@
 
 import type { ElicitationRequest, ElicitationResult } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatElicitationRequest } from "@cq/shared";
+import type { Logger } from "../log/logger.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -35,6 +36,12 @@ export type SendElicitationFrame = (frame: ChatElicitationRequest) => void;
 export class ElicitationBroker {
   private readonly pending = new Map<string, (result: ElicitationResult) => void>();
   private sendFrame: SendElicitationFrame | null = null;
+  private logger: Logger | null = null;
+
+  /** Attach a structured logger. Optional; defaults to no logging. */
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
 
   /**
    * Attach the WS send callback for the current active session.
@@ -85,8 +92,15 @@ export class ElicitationBroker {
       this.pending.set(elicitationId, resolve);
     });
 
+    // Best-effort: log a warning when the transport is absent so operators know
+    // the request is parked. The pending entry remains resolvable on reconnect.
     if (this.sendFrame !== null) {
       this.sendFrame(frame);
+    } else {
+      this.logger?.warn("elicitation.sendFrame_null_request_parked", {
+        elicitationId,
+        sessionId,
+      });
     }
 
     return promise;

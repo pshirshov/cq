@@ -11,6 +11,7 @@
 
 import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatPermissionRequest } from "@cq/shared";
+import type { Logger } from "../log/logger.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -45,6 +46,12 @@ export type SendFrame = (frame: ChatPermissionRequest) => void;
 export class PermissionBroker {
   private readonly pending = new Map<string, (result: PermissionResult) => void>();
   private sendFrame: SendFrame | null = null;
+  private logger: Logger | null = null;
+
+  /** Attach a structured logger. Optional; defaults to no logging. */
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
 
   /**
    * Attach the WS send callback for the current active session.
@@ -92,10 +99,17 @@ export class PermissionBroker {
     });
 
     // Best-effort: if the WS is not connected the frame is dropped.
-    // The SDK will eventually time out or the user reconnects and the
-    // pending entry remains resolvable.
+    // Log a warning so operators know a request is parked without a live transport.
+    // The pending entry remains resolvable: when the client reconnects and calls
+    // setSendFrame(), the bridge re-sends any deferred permission prompts.
     if (this.sendFrame !== null) {
       this.sendFrame(frame);
+    } else {
+      this.logger?.warn("permission.sendFrame_null_request_parked", {
+        toolName: req.toolName,
+        invocationId: req.invocationId,
+        permissionRequestId,
+      });
     }
 
     return promise;
