@@ -163,13 +163,12 @@ function fireDrop(el: HTMLElement, files: File[]): void {
 }
 
 /**
- * Fire the send chord (Ctrl+Enter on Linux) to trigger submit.
+ * Fire the send key (bare Enter) to trigger submit.
  */
 function fireSend(ta: HTMLTextAreaElement): void {
   act(() => { ta.focus(); });
   const e = new KeyboardEvent("keydown", {
     key: "Enter",
-    ctrlKey: true,
     bubbles: true,
     cancelable: true,
   });

@@ -1,22 +1,18 @@
 /**
- * input.test.ts — F-16 cross-platform send chord + IME passthrough.
+ * input.test.ts — Input keymap contract (E2E-D09).
  *
- * Six named cases per the PR-21 brief:
- *   1. Ctrl+Enter on Linux/Windows submits
- *   2. Cmd+Enter on macOS submits
- *   3. Cmd+Enter on Linux does NOT submit (and Ctrl+Enter on macOS does NOT)
- *   4. Shift+Enter inserts newline (no submit)
- *   5. Esc blurs the textarea
- *   6. Enter during isComposing does NOT submit
+ * Six named cases for the new send-on-Enter contract:
+ *   1. bare Enter submits
+ *   2. Shift+Enter inserts newline (no submit)
+ *   3. Esc blurs textarea
+ *   4. Enter during isComposing does NOT submit (IME safety)
+ *   5. Send button click submits
+ *   6. Send button is disabled when input is empty
  *
  * Strategy:
  *   Input uses an uncontrolled textarea (ref-based value read). Tests seed
  *   the textarea value by setting ta.value directly (no React state involved,
  *   no DOM events needed to populate the value).
- *
- *   Platform is controlled by stubbing navigator.platform via Object.defineProperty.
- *   isSendChord is tested directly (pure function) for belt-and-suspenders
- *   platform-gate assertions.
  *
  * Known happy-dom + React 19 friction:
  *   Dispatching a keydown event on a textarea WITHOUT first focusing it causes
@@ -75,34 +71,8 @@ function teardown(): void {
 afterEach(() => { teardown(); });
 
 // ---------------------------------------------------------------------------
-// navigator.platform stub helpers
-// ---------------------------------------------------------------------------
-
-/** Stub navigator.platform for the duration of a single test. */
-function stubPlatform(value: string): void {
-  Object.defineProperty(navigator, "platform", {
-    value,
-    writable: true,
-    configurable: true,
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Build a minimal object that satisfies the KeyboardEvent duck-type used by
- * isSendChord(). Only used for pure-function assertions.
- */
-function fakeKey(init: { key: string; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }): KeyboardEvent {
-  return {
-    key: init.key,
-    ctrlKey: init.ctrlKey ?? false,
-    metaKey: init.metaKey ?? false,
-    shiftKey: init.shiftKey ?? false,
-  } as unknown as KeyboardEvent;
-}
 
 /**
  * Render <Input onSubmit={spy} /> and return the textarea element.
@@ -138,76 +108,51 @@ function fireKeydown(
 }
 
 // ---------------------------------------------------------------------------
-// F-16 test cases
+// isSendChord pure-function contract (belt-and-suspenders)
 // ---------------------------------------------------------------------------
 
-describe("Input — F-16 cross-platform send chord + IME passthrough", () => {
-
-  test("Ctrl+Enter on Linux/Windows submits", () => {
-    stubPlatform("Linux x86_64");
-    setup();
-
-    // Verify isSendChord pure logic: Ctrl+Enter → true on non-mac.
-    expect(isSendChord(fakeKey({ key: "Enter", ctrlKey: true }))).toBe(true);
-    expect(isSendChord(fakeKey({ key: "Enter", metaKey: true }))).toBe(false);
-
-    // Full component: set textarea value directly (uncontrolled), fire Ctrl+Enter.
-    const received: string[] = [];
-    const ta = renderInput((t) => received.push(t));
-    ta.value = "hello linux";
-    act(() => { ta.focus(); });
-    fireKeydown(ta, { key: "Enter", ctrlKey: true });
-
-    expect(received).toHaveLength(1);
-    expect(received[0]).toBe("hello linux");
+describe("isSendChord — pure function", () => {
+  test("bare Enter returns true", () => {
+    const e = new KeyboardEvent("keydown", { key: "Enter" });
+    expect(isSendChord(e)).toBe(true);
   });
 
-  test("Cmd+Enter on macOS submits", () => {
-    stubPlatform("MacIntel");
-    setup();
+  test("Shift+Enter returns false", () => {
+    const e = new KeyboardEvent("keydown", { key: "Enter", shiftKey: true });
+    expect(isSendChord(e)).toBe(false);
+  });
 
-    expect(isSendChord(fakeKey({ key: "Enter", metaKey: true }))).toBe(true);
-    expect(isSendChord(fakeKey({ key: "Enter", ctrlKey: true }))).toBe(false);
+  test("Ctrl+Enter returns false", () => {
+    const e = new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true });
+    expect(isSendChord(e)).toBe(false);
+  });
+
+  test("Meta+Enter returns false", () => {
+    const e = new KeyboardEvent("keydown", { key: "Enter", metaKey: true });
+    expect(isSendChord(e)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Component integration cases (E2E-D09 contract)
+// ---------------------------------------------------------------------------
+
+describe("Input — E2E-D09 keymap contract", () => {
+
+  test("bare Enter submits", () => {
+    setup();
 
     const received: string[] = [];
     const ta = renderInput((t) => received.push(t));
-    ta.value = "hello mac";
+    ta.value = "hello world";
     act(() => { ta.focus(); });
-    fireKeydown(ta, { key: "Enter", metaKey: true });
+    fireKeydown(ta, { key: "Enter" });
 
     expect(received).toHaveLength(1);
-    expect(received[0]).toBe("hello mac");
-  });
-
-  test("Cmd+Enter on Linux does NOT submit; Ctrl+Enter on macOS does NOT submit", () => {
-    // Half 1: platform = Linux → metaKey chord must not match.
-    stubPlatform("Linux x86_64");
-    expect(isSendChord(fakeKey({ key: "Enter", metaKey: true }))).toBe(false);
-
-    setup();
-    const received1: string[] = [];
-    const ta1 = renderInput((t) => received1.push(t));
-    ta1.value = "linux meta";
-    act(() => { ta1.focus(); });
-    fireKeydown(ta1, { key: "Enter", metaKey: true });
-    expect(received1).toHaveLength(0);
-    teardown();
-
-    // Half 2: platform = macOS → ctrlKey chord must not match.
-    stubPlatform("MacIntel");
-    expect(isSendChord(fakeKey({ key: "Enter", ctrlKey: true }))).toBe(false);
-
-    setup();
-    const received2: string[] = [];
-    const ta2 = renderInput((t) => received2.push(t));
-    ta2.value = "mac ctrl";
-    act(() => { ta2.focus(); });
-    fireKeydown(ta2, { key: "Enter", ctrlKey: true });
-    expect(received2).toHaveLength(0);
+    expect(received[0]).toBe("hello world");
   });
 
   test("Shift+Enter inserts newline (does NOT submit)", () => {
-    stubPlatform("Linux x86_64");
     setup();
 
     const received: string[] = [];
@@ -223,7 +168,6 @@ describe("Input — F-16 cross-platform send chord + IME passthrough", () => {
   });
 
   test("Esc blurs the textarea", () => {
-    stubPlatform("Linux x86_64");
     setup();
 
     const ta = renderInput(() => { /* no-op */ });
@@ -235,18 +179,52 @@ describe("Input — F-16 cross-platform send chord + IME passthrough", () => {
     expect(document.activeElement).not.toBe(ta);
   });
 
-  test("Enter during isComposing does NOT submit (IME passthrough)", () => {
-    stubPlatform("Linux x86_64");
+  test("Enter during isComposing does NOT submit (IME safety)", () => {
     setup();
 
     const received: string[] = [];
     const ta = renderInput((t) => received.push(t));
     ta.value = "composing text";
     act(() => { ta.focus(); });
-    // Fire the send chord (Ctrl+Enter on Linux) but with isComposing = true.
-    fireKeydown(ta, { key: "Enter", ctrlKey: true, isComposing: true });
+    // Fire bare Enter but with isComposing = true (IME in progress).
+    fireKeydown(ta, { key: "Enter", isComposing: true });
 
     expect(received).toHaveLength(0);
+  });
+
+  test("Send button click submits", () => {
+    setup();
+
+    const received: string[] = [];
+    renderInput((t) => received.push(t));
+
+    // Find the Send button.
+    const btn = container!.querySelector("button[aria-label='Send message']") as HTMLButtonElement | null;
+    if (!btn) throw new Error("Send button not found");
+
+    // Seed textarea value directly (uncontrolled).
+    const ta = container!.querySelector("textarea") as HTMLTextAreaElement;
+    ta.value = "click submit";
+
+    // Fire an input event so the component sees the value change and enables the button.
+    act(() => { ta.dispatchEvent(new Event("input", { bubbles: true })); });
+
+    act(() => { btn.click(); });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toBe("click submit");
+  });
+
+  test("Send button is disabled when input is empty", () => {
+    setup();
+
+    renderInput(() => { /* no-op */ });
+
+    const btn = container!.querySelector("button[aria-label='Send message']") as HTMLButtonElement | null;
+    if (!btn) throw new Error("Send button not found");
+
+    // On initial render the textarea is empty → button must be disabled.
+    expect(btn.disabled).toBe(true);
   });
 
 });

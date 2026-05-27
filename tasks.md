@@ -33,7 +33,7 @@ Goal: fix 6 issues surfaced by manual dogfooding. Constraint from /vsm-loop invo
 
 - [x] **E2E-D07** — Default permission mode = `bypassPermissions`. `ChatTab.tsx:71`. Trivial.
 - [x] **E2E-D08** — Model selector: add `claude-{opus-4-7,sonnet-4-6}[1m]` 1M-context entries. `Header.tsx:36`.
-- [ ] **E2E-D09** — Input keymap: bare Enter sends, Shift+Enter newline, IME-safe; add an explicit Send button. `Input.tsx`. Update `input.test.ts`.
+- [x] **E2E-D09** — Input keymap: bare Enter sends, Shift+Enter newline, IME-safe; add an explicit Send button. `Input.tsx`. Update `input.test.ts`.
 - [ ] **E2E-D05** — Server startup orphan reaper: UPDATE invocation SET status='errored' WHERE status='running' at Bridge construction.
 - [ ] **E2E-D06** — Cost/toolCount persistence: bridge updates invocation row on `tool_use` (increment count) and on `result` (set total cost + tokens). `bridge.ts`.
 - [ ] **E2E-D04** — SESSION_BUSY on tab-switch / resume. Server-side: `handleChatStart` preempt-replaces an existing session. Client-side: lift `activeSessionId` above ChatTab so tab switches preserve it.

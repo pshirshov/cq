@@ -66,7 +66,7 @@ export class CqPage {
   }
 
   /**
-   * Type text into the chat textarea and submit with Ctrl+Enter.
+   * Type text into the chat textarea and submit with Enter.
    * Waits for the textarea to be enabled (session idle) before filling.
    * Does NOT wait for the response — call waitForResponse() separately.
    */
@@ -81,7 +81,7 @@ export class CqPage {
     );
     await this.textarea.click();
     await this.textarea.fill(text);
-    await this.page.keyboard.press("Control+Enter");
+    await this.page.keyboard.press("Enter");
   }
 
   /**

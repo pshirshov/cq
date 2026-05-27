@@ -2,7 +2,7 @@
  * Input.tsx — multi-line textarea for chat input.
  *
  * Props:
- *   onSubmit(text, attachments): called when the user triggers the send chord.
+ *   onSubmit(text, attachments): called when the user triggers send (Enter or Send button).
  *   onInterrupt():               called when the Stop button is clicked.
  *   disabled:                    passed through to the textarea.
  *   slashCommands:               list of slash commands for autocomplete popover (PR-34).
@@ -15,21 +15,18 @@
  *   that fires when keydown events bubble through controlled form elements.
  *
  * Key behaviours:
- *   Send chord  — Cmd+Enter on macOS, Ctrl+Enter elsewhere.
- *                 Determined via isSendChord(e), which calls isMacPlatform()
- *                 from lib/platform.ts.
- *   Shift+Enter — default textarea behaviour (newline). preventDefault NOT
- *                 called so the browser inserts \n.
- *   Enter alone — default textarea behaviour (newline). No submit. Deliberate
- *                 product choice: plain Enter never submits; the explicit
- *                 Cmd/Ctrl chord is required (unambiguous across IME and
- *                 keyboard layouts).
- *   Esc         — if popover open: close popover. Otherwise blurs the textarea.
- *   isComposing — when e.isComposing is true the handler returns early,
- *                 passing all key events through to the IME composition
- *                 session. Prevents accidental submit on Enter-to-confirm
- *                 a CJK candidate. (F-16 IME safety requirement.)
- *                 Also prevents opening the slash popover during composition.
+ *   Send         — bare Enter (no modifiers, not composing). Determined via
+ *                  isSendChord(e). An explicit Send button is also shown when
+ *                  not disabled (i.e. not in-progress).
+ *   Shift+Enter  — default textarea behaviour (newline). preventDefault NOT
+ *                  called so the browser inserts \n.
+ *   Ctrl/Cmd+Enter — treated like any other modifier-chord: does NOT send.
+ *   Esc          — if popover open: close popover. Otherwise blurs the textarea.
+ *   isComposing  — when e.isComposing is true the handler returns early,
+ *                  passing all key events through to the IME composition
+ *                  session. Prevents accidental submit on Enter-to-confirm
+ *                  a CJK candidate. (F-16 IME safety requirement.)
+ *                  Also prevents opening the slash popover during composition.
  *
  * Slash-command autocomplete (PR-34):
  *   Typing `/` at position 0 (or at the start of any line) while NOT composing
@@ -45,7 +42,6 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { isMacPlatform } from "../lib/platform";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { fileToAttachment } from "../lib/attachment";
 import type { Attachment } from "../lib/attachment";
@@ -62,17 +58,18 @@ export interface InputProps {
 }
 
 /**
- * Returns true when the keyboard event represents the platform-appropriate
- * send chord: Cmd+Enter on macOS, Ctrl+Enter on Linux / Windows / other.
+ * Returns true when the keyboard event should trigger a send:
+ * bare Enter with no modifier keys and not during IME composition.
  *
- * Exported so tests can call it directly against stubbed navigator.platform.
+ * Exported so tests can call it directly.
  */
 export function isSendChord(e: KeyboardEvent | React.KeyboardEvent): boolean {
   if (e.key !== "Enter") return false;
-  if (isMacPlatform()) {
-    return e.metaKey && !e.ctrlKey;
-  }
-  return e.ctrlKey && !e.metaKey;
+  if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return false;
+  // IME safety: never send mid-composition.
+  const native = "nativeEvent" in e ? (e as React.KeyboardEvent).nativeEvent : (e as KeyboardEvent);
+  if (native.isComposing === true) return false;
+  return true;
 }
 
 export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: InputProps): React.ReactElement {
@@ -82,6 +79,9 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filteredCommands, setFilteredCommands] = useState<SlashCommand[]>([]);
+
+  // --- Send button empty-state tracking ---
+  const [isEmpty, setIsEmpty] = useState(true);
 
   // --- Attachment state (PR-35) ---
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -179,26 +179,33 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
       // (Nothing to do here; onInput will fire after the character lands.)
     }
 
-    if (isSendChord(e.nativeEvent)) {
+    if (isSendChord(e)) {
       e.preventDefault();
-      const text = ref.current?.value ?? "";
-      const trimmed = text.trim();
-      if (trimmed.length > 0 || attachments.length > 0) {
-        onSubmit(trimmed, attachments);
-        if (ref.current) ref.current.value = "";
-        setPopoverOpen(false);
-        setAttachments([]);
-      }
+      doSubmit();
       return;
     }
 
-    // Shift+Enter and plain Enter both fall through to default textarea
+    // Shift+Enter and modifier+Enter fall through to default textarea
     // behaviour, which inserts a newline. No explicit handling needed.
+  }
+
+  /** Shared submit logic used by keydown handler and Send button. */
+  function doSubmit(): void {
+    const text = ref.current?.value ?? "";
+    const trimmed = text.trim();
+    if (trimmed.length > 0 || attachments.length > 0) {
+      onSubmit(trimmed, attachments);
+      if (ref.current) ref.current.value = "";
+      setIsEmpty(true);
+      setPopoverOpen(false);
+      setAttachments([]);
+    }
   }
 
   function handleInput(e: React.FormEvent<HTMLTextAreaElement>): void {
     const ta = e.currentTarget;
     syncPopover(ta.value, ta.selectionStart ?? ta.value.length);
+    setIsEmpty(ta.value.trim().length === 0);
   }
 
   /** Collect files from a FileList and add them as Attachment objects to state. */
@@ -261,7 +268,7 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
         onKeyDown={handleKeyDown}
         onInput={handleInput}
         onPaste={handlePaste}
-        placeholder="Cmd+Enter to send"
+        placeholder="Enter to send, Shift+Enter for newline"
         rows={3}
         aria-label="Chat input"
       />
@@ -273,6 +280,17 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
           aria-label="Stop generation"
         >
           Stop
+        </button>
+      )}
+      {disabled !== true && (
+        <button
+          className={styles.sendButton}
+          onClick={doSubmit}
+          type="button"
+          disabled={isEmpty}
+          aria-label="Send message"
+        >
+          Send
         </button>
       )}
     </div>
