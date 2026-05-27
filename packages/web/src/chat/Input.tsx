@@ -55,6 +55,8 @@ export interface InputProps {
   onInterrupt?: () => void;
   disabled?: boolean;
   slashCommands?: SlashCommand[];
+  /** D49: number of user messages queued while the SDK is mid-turn. */
+  queueCount?: number;
 }
 
 /**
@@ -72,7 +74,7 @@ export function isSendChord(e: KeyboardEvent | React.KeyboardEvent): boolean {
   return true;
 }
 
-export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: InputProps): React.ReactElement {
+export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [], queueCount = 0 }: InputProps): React.ReactElement {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // --- Slash popover state ---
@@ -296,10 +298,19 @@ export function Input({ onSubmit, onInterrupt, disabled, slashCommands = [] }: I
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           onPaste={handlePaste}
-          placeholder={inProgress ? "Type to queue a follow-up…" : "Enter to send, Shift+Enter for newline"}
+          placeholder={inProgress ? "Type to queue a follow-up (sent after current response)" : "Enter to send, Shift+Enter for newline"}
           rows={3}
           aria-label="Chat input"
         />
+        {queueCount > 0 && (
+          <span
+            className={styles.queueBadge}
+            data-testid="queue-badge"
+            title={`${queueCount} message${queueCount === 1 ? "" : "s"} queued`}
+          >
+            {queueCount} queued
+          </span>
+        )}
         <div className={styles.buttonStack}>
           <button
             className={styles.sendButton}

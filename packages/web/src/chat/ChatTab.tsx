@@ -57,6 +57,9 @@ export function ChatTab(): React.ReactElement {
   const { activeSessionId, setActiveSessionId, inProgress, setInProgress } = useSession();
   const seqRef = useRef(0);
   const [chatEvents, setChatEvents] = useState<ChatEvent[]>([]);
+  // D49: count of user messages submitted while a turn was already in progress
+  // (queued by the server's SDK queue). Cleared to 0 on each chat.done boundary.
+  const [queuedUserMessageCount, setQueuedUserMessageCount] = useState(0);
   // True between sending chat.start/chat.rejoin and receiving chat.started — prevents duplicate starts.
   const chatStartPendingRef = useRef(false);
   // True when the user explicitly triggered new/resume session — prevents auto-start racing.
@@ -297,6 +300,8 @@ export function ChatTab(): React.ReactElement {
         // Turn finished — clear in-progress so the textarea re-enables.
         // Keep activeSessionId set: the session stays alive for multi-turn.
         setInProgress(false);
+        // D49: clear the queued-message counter at each turn boundary.
+        setQueuedUserMessageCount(0);
       } else if (frame.type === "chat.event") {
         setChatEvents((prev) => [...prev, frame as ChatEvent]);
       } else if (frame.type === "chat.usage") {
@@ -509,7 +514,13 @@ export function ChatTab(): React.ReactElement {
       }
     }
 
-    setInProgress(true);
+    // D49: if a turn is already in progress, the message will be queued by the
+    // SDK on the server side. Increment the counter to show a "queued" badge.
+    if (inProgress) {
+      setQueuedUserMessageCount((n) => n + 1);
+    } else {
+      setInProgress(true);
+    }
     const seq = seqRef.current++;
     const frame: ChatInput = {
       type: "chat.input",
@@ -750,6 +761,7 @@ export function ChatTab(): React.ReactElement {
           onInterrupt={handleInterrupt}
           disabled={inProgress}
           slashCommands={slashCommands}
+          queueCount={queuedUserMessageCount}
         />
       </div>
     </div>
