@@ -24,6 +24,10 @@ const manager = new Manager({
   // Manager defaults) so the production wiring is visible at the entry point
   // and the wiring path matches the one tests exercise.
   crypto: defaultCryptoProvider(),
+  // Persistent reconnection: don't give up after the default 15 attempts.
+  // Dogfooding showed the page going terminal during long server outages
+  // (e.g. while the developer was restarting cq) and never recovering.
+  maxAttempts: Number.POSITIVE_INFINITY,
 });
 
 const root = document.getElementById("root");
