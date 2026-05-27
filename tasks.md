@@ -11,7 +11,7 @@
 - [x] **D-LED-02** — Schema validation gaps in `create_ledger` (terminal subset / em-dash / reserved field names / field-name regex) at Zod, parseSchema, and shared validator layers. New `validateSchema()` helper exported from core; called by both adapters' `createLedger`, by `parseSchema`, and mirrored in Zod `schemaSchema`.
 - [x] **D-LED-03** — Deleted dead `void createAskUserQuestionMcpServer` import + statement from bridge.ts. `ask-question.test.ts:144` still uses the export so the function remains in askUserQuestion.ts. `bun run check` -> 594 pass / 0 fail.
 - [x] **D-LED-04** — `docs/ledgers.yaml` added to `.gitignore`; `git rm` removed the tracked empty registry.
-- [ ] **D-LED-05** — `cloneFields` return type correction (`Record<string, never>` → `Record<string, FieldValue>`).
+- [x] **D-LED-05** — `cloneFields` return type corrected to `Record<string, FieldValue>`; cast removed. Typecheck still clean.
 - [ ] **D-LED-06** — `dispose()` drains in-flight mutations + concurrency test.
 - [ ] **D-LED-07** — Strengthen 50-parallel-update test (monotonic updatedAt with injected `now`; final-state `updatedAt===49` assertion).
 

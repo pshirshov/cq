@@ -26,6 +26,7 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import type {
   ArchivePointer,
+  FieldValue,
   Item,
   Ledger,
   LedgerSchema,
@@ -440,11 +441,11 @@ function cloneItem(i: Item): Item {
   };
 }
 
-function cloneFields(f: Record<string, unknown>): Record<string, never> {
+function cloneFields(f: Record<string, FieldValue>): Record<string, FieldValue> {
   // Returns a shallow-cloned record. Array values are also cloned.
-  const out: Record<string, unknown> = {};
+  const out: Record<string, FieldValue> = {};
   for (const [k, v] of Object.entries(f)) {
     out[k] = Array.isArray(v) ? [...v] : v;
   }
-  return out as Record<string, never>;
+  return out;
 }
