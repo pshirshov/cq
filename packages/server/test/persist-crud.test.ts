@@ -281,6 +281,47 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
+    // QR-P2: delete invocation cascades to children and grandchildren
+    // -----------------------------------------------------------------------
+    test("QR-P2: delete parent invocation removes children and grandchildren", () => {
+      const session = makeSession();
+      p.sessions.insert(session);
+
+      const parent = makeInvocation(session.id, { agentName: "main" });
+      const child1 = makeInvocation(session.id, {
+        agentName: "sub1",
+        parentInvocationId: parent.id,
+      });
+      const child2 = makeInvocation(session.id, {
+        agentName: "sub2",
+        parentInvocationId: parent.id,
+      });
+      const grandchild = makeInvocation(session.id, {
+        agentName: "sub1a",
+        parentInvocationId: child1.id,
+      });
+
+      p.invocations.insert(parent);
+      p.invocations.insert(child1);
+      p.invocations.insert(child2);
+      p.invocations.insert(grandchild);
+
+      // Verify all 4 exist before deletion.
+      expect(p.invocations.get(parent.id)).toBeDefined();
+      expect(p.invocations.get(child1.id)).toBeDefined();
+      expect(p.invocations.get(child2.id)).toBeDefined();
+      expect(p.invocations.get(grandchild.id)).toBeDefined();
+
+      p.invocations.delete(parent.id);
+
+      // All 4 rows must be gone.
+      expect(p.invocations.get(parent.id)).toBeUndefined();
+      expect(p.invocations.get(child1.id)).toBeUndefined();
+      expect(p.invocations.get(child2.id)).toBeUndefined();
+      expect(p.invocations.get(grandchild.id)).toBeUndefined();
+    });
+
+    // -----------------------------------------------------------------------
     // 10. Delete session cascades to invocations
     // -----------------------------------------------------------------------
     test("delete session cascades to invocations", () => {

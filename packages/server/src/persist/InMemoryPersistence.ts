@@ -124,6 +124,13 @@ export class InMemoryPersistence implements Persistence {
     },
 
     delete: (id: string): void => {
+      // Mirror SQLite's ON DELETE CASCADE: recursively delete all descendants
+      // before removing the row itself, so in-memory and SQLite behaviour align.
+      for (const [childId, child] of this.invocationMap) {
+        if (child.parentInvocationId === id) {
+          this.invocations.delete(childId);
+        }
+      }
       this.invocationMap.delete(id);
     },
 
