@@ -28,6 +28,7 @@ import {
   findItem,
   findMilestone,
   searchItems,
+  validateSchema,
 } from "./core.js";
 import type {
   CreateItemInit,
@@ -138,6 +139,8 @@ export class InMemoryLedgerStore implements LedgerStore {
 
   async createLedger(name: string, schema: LedgerSchema): Promise<Ledger> {
     this.assertInit();
+    // D-LED-02: defensively validate the schema before storing it.
+    validateSchema(schema);
     if (this.ledgers.has(name)) throw new DuplicateIdError("ledger", name);
     const ledger = freshLedger(name, schema);
     this.ledgers.set(name, ledger);

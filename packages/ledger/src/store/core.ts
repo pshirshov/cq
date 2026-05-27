@@ -48,6 +48,72 @@ function assertSafeId(kind: "milestone" | "item", id: string): void {
   }
 }
 
+/**
+ * Status values become markdown headings via the em-dash separator
+ * `### <id> — <status>`; a status containing `—` would break heading
+ * round-trip. Restrict to alphanumerics, space, dash, underscore.
+ * D-LED-02.
+ */
+const STATUS_VALUE_RE = /^[A-Za-z0-9 _-]+$/;
+
+/**
+ * Field names are stable identifiers (no spaces, no `:` that would
+ * collide with the field-list YAML serialization, no em-dash). Mirrors
+ * the JS identifier convention. D-LED-02.
+ */
+const FIELD_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Reserved field names that collide with intrinsic Item fields. D-LED-02. */
+const RESERVED_FIELD_NAMES = new Set(["createdAt", "updatedAt"]);
+
+/**
+ * Validate a LedgerSchema against the invariants every layer must honour
+ * (Zod tool schema, on-disk registry, adapter constructors). Called
+ * defensively at every entry point so a schema that slips past one layer
+ * is still caught by the next. D-LED-02.
+ *
+ * Invariants:
+ *  - `statusValues` is non-empty and every entry matches STATUS_VALUE_RE.
+ *  - Every `terminalStatuses` entry is also in `statusValues`.
+ *  - Every field name matches FIELD_NAME_RE and is not reserved.
+ */
+export function validateSchema(schema: {
+  statusValues: string[];
+  terminalStatuses: string[];
+  fields: Record<string, { type: string; required: boolean }>;
+}): void {
+  if (schema.statusValues.length === 0) {
+    throw new SchemaValidationError("statusValues must be non-empty");
+  }
+  for (const sv of schema.statusValues) {
+    if (!STATUS_VALUE_RE.test(sv)) {
+      throw new SchemaValidationError(
+        `status value "${sv}" contains disallowed characters; allowed: A-Za-z0-9, space, dash, underscore`,
+      );
+    }
+  }
+  const svSet = new Set(schema.statusValues);
+  for (const t of schema.terminalStatuses) {
+    if (!svSet.has(t)) {
+      throw new SchemaValidationError(
+        `terminalStatuses entry "${t}" is not in statusValues`,
+      );
+    }
+  }
+  for (const name of Object.keys(schema.fields)) {
+    if (RESERVED_FIELD_NAMES.has(name)) {
+      throw new SchemaValidationError(
+        `field name "${name}" is reserved (collides with intrinsic Item field)`,
+      );
+    }
+    if (!FIELD_NAME_RE.test(name)) {
+      throw new SchemaValidationError(
+        `field name "${name}" must match /^[A-Za-z_][A-Za-z0-9_]*$/`,
+      );
+    }
+  }
+}
+
 export function findMilestone(ledger: Ledger, milestoneId: string): Milestone {
   for (const m of ledger.milestones) if (m.id === milestoneId) return m;
   throw new MilestoneNotFoundError(ledger.id, milestoneId);

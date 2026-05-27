@@ -155,6 +155,97 @@ describe("ledger MCP tools", () => {
     expect(ptr.pointer.path).toBe("./archive/todos/M1.md");
   });
 
+  // D-LED-02 — Zod-layer rejection of invalid schemas at create_ledger.
+  describe("D-LED-02 — Zod schema validation in create_ledger", () => {
+    function parseCreateLedger(
+      tools: ReturnType<typeof createLedgerMcpTools>,
+      args: Record<string, unknown>,
+    ): { success: boolean } {
+      const t = tools.find((x) => x.name === "create_ledger");
+      if (t === undefined) throw new Error("create_ledger not found");
+      return z.object(t.inputSchema).safeParse(args);
+    }
+
+    it("rejects terminalStatuses not in statusValues", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      expect(
+        parseCreateLedger(tools, {
+          name: "x",
+          schema: {
+            statusValues: ["open"],
+            terminalStatuses: ["done"],
+            fields: {},
+          },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("rejects status values containing em-dash", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      expect(
+        parseCreateLedger(tools, {
+          name: "x",
+          schema: {
+            statusValues: ["open", "in—progress"],
+            terminalStatuses: [],
+            fields: {},
+          },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("rejects reserved field names createdAt/updatedAt", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      for (const name of ["createdAt", "updatedAt"]) {
+        expect(
+          parseCreateLedger(tools, {
+            name: "x",
+            schema: {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { [name]: { type: "timestamp", required: false } },
+            },
+          }).success,
+        ).toBe(false);
+      }
+    });
+
+    it("rejects field names with spaces or leading digits", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      for (const name of ["bad name", "1bad", "with:colon"]) {
+        expect(
+          parseCreateLedger(tools, {
+            name: "x",
+            schema: {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { [name]: { type: "string", required: false } },
+            },
+          }).success,
+        ).toBe(false);
+      }
+    });
+
+    it("accepts a clean schema (positive control)", async () => {
+      const store = await buildStore();
+      const tools = createLedgerMcpTools(store);
+      expect(
+        parseCreateLedger(tools, {
+          name: "x",
+          schema: {
+            statusValues: ["open", "done"],
+            terminalStatuses: ["done"],
+            fields: { note: { type: "string", required: false } },
+          },
+        }).success,
+      ).toBe(true);
+    });
+  });
+
   // D-LED-01 — Zod-layer rejection of unsafe ids.
   describe("D-LED-01 — Zod id validation", () => {
     const badIds = ["../etc/passwd", "a/b", "a b", "a.b"];

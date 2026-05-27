@@ -246,5 +246,83 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         await factory.teardown?.(store);
       }
     });
+
+    // D-LED-02: every adapter must reject the same set of bad schemas at
+    // createLedger boundary, so a future adapter cannot drift.
+    describe("D-LED-02 — createLedger rejects invalid schemas", () => {
+      it("terminalStatuses must be a subset of statusValues", async () => {
+        const store = await factory.build([]);
+        try {
+          await expect(
+            store.createLedger("x", {
+              statusValues: ["open"],
+              terminalStatuses: ["done"], // not in statusValues
+              fields: {},
+            }),
+          ).rejects.toThrow(/terminalStatuses entry "done" is not in statusValues/);
+        } finally {
+          await factory.teardown?.(store);
+        }
+      });
+
+      it("status values containing em-dash are rejected", async () => {
+        const store = await factory.build([]);
+        try {
+          await expect(
+            store.createLedger("x", {
+              statusValues: ["open", "in—progress"],
+              terminalStatuses: [],
+              fields: {},
+            }),
+          ).rejects.toThrow(/disallowed characters/);
+        } finally {
+          await factory.teardown?.(store);
+        }
+      });
+
+      it("reserved field names (createdAt/updatedAt) are rejected", async () => {
+        const store = await factory.build([]);
+        try {
+          await expect(
+            store.createLedger("x", {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { createdAt: { type: "timestamp", required: false } },
+            }),
+          ).rejects.toThrow(/reserved/);
+          await expect(
+            store.createLedger("y", {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { updatedAt: { type: "timestamp", required: false } },
+            }),
+          ).rejects.toThrow(/reserved/);
+        } finally {
+          await factory.teardown?.(store);
+        }
+      });
+
+      it("field names violating the identifier regex are rejected", async () => {
+        const store = await factory.build([]);
+        try {
+          await expect(
+            store.createLedger("x", {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { "bad name": { type: "string", required: false } },
+            }),
+          ).rejects.toThrow(/must match/);
+          await expect(
+            store.createLedger("y", {
+              statusValues: ["open"],
+              terminalStatuses: [],
+              fields: { "1bad": { type: "string", required: false } },
+            }),
+          ).rejects.toThrow(/must match/);
+        } finally {
+          await factory.teardown?.(store);
+        }
+      });
+    });
   });
 }

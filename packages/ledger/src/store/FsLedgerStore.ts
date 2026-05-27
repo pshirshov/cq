@@ -53,6 +53,7 @@ import {
   findItem,
   findMilestone,
   searchItems,
+  validateSchema,
 } from "./core.js";
 import type {
   CreateItemInit,
@@ -246,6 +247,8 @@ export class FsLedgerStore implements LedgerStore {
         `invalid ledger name "${name}": only A-Za-z0-9_- are allowed`,
       );
     }
+    // D-LED-02: defensively validate the schema before storing it.
+    validateSchema(schema);
     if (this.ledgers.has(name)) {
       throw new DuplicateIdError("ledger", name);
     }

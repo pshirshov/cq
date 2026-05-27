@@ -23,6 +23,7 @@ import type {
   LedgerSchema,
 } from "./types.js";
 import { SchemaValidationError } from "./types.js";
+import { validateSchema } from "./store/core.js";
 
 const FIELD_TYPES: ReadonlyArray<FieldType> = [
   "string",
@@ -92,13 +93,6 @@ export function parseSchema(raw: unknown): LedgerSchema {
   }
   const sv = statusValues as string[];
   const ts = terminalStatuses as string[];
-  for (const t of ts) {
-    if (!sv.includes(t)) {
-      throw new SchemaValidationError(
-        `schema.terminalStatuses entry "${t}" is not in statusValues`,
-      );
-    }
-  }
   const fieldsRaw = s["fields"];
   const fields: Record<string, FieldSpec> = {};
   if (fieldsRaw !== undefined && fieldsRaw !== null) {
@@ -109,6 +103,9 @@ export function parseSchema(raw: unknown): LedgerSchema {
       fields[key] = parseFieldSpec(key, val);
     }
   }
+  // D-LED-02: enforce cross-layer invariants (terminal subset, em-dash-free
+  // status values, field name regex, reserved field names).
+  validateSchema({ statusValues: sv, terminalStatuses: ts, fields });
   return { statusValues: sv, terminalStatuses: ts, fields };
 }
 

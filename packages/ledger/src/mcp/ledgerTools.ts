@@ -48,11 +48,44 @@ const fieldSpecSchema = z.object({
   required: z.boolean(),
 });
 
-const schemaSchema = z.object({
-  statusValues: z.array(z.string()).min(1),
-  terminalStatuses: z.array(z.string()),
-  fields: z.record(z.string(), fieldSpecSchema),
-});
+// D-LED-02: status values must round-trip through the markdown heading
+// `### <id> — <status>`; the em-dash separator forbids `—` inside the value.
+// Restricting to A-Za-z0-9, space, dash, underscore is the brief's
+// recommendation and also rejects other heading-corrupting characters.
+const statusValueSchema = z
+  .string()
+  .min(1)
+  .regex(
+    /^[A-Za-z0-9 _-]+$/,
+    "status value may only contain A-Za-z0-9, space, dash, underscore",
+  );
+
+// D-LED-02: field names become YAML keys; restrict to identifier-style
+// names and forbid the intrinsic Item field names.
+const RESERVED_FIELD_NAMES_ZOD = ["createdAt", "updatedAt"];
+const fieldNameSchema = z
+  .string()
+  .regex(
+    /^[A-Za-z_][A-Za-z0-9_]*$/,
+    "field name must match /^[A-Za-z_][A-Za-z0-9_]*$/",
+  )
+  .refine((n) => !RESERVED_FIELD_NAMES_ZOD.includes(n), {
+    message: "field name is reserved (createdAt/updatedAt)",
+  });
+
+const schemaSchema = z
+  .object({
+    statusValues: z.array(statusValueSchema).min(1),
+    terminalStatuses: z.array(z.string()),
+    fields: z.record(fieldNameSchema, fieldSpecSchema),
+  })
+  .refine(
+    (s) => s.terminalStatuses.every((t) => s.statusValues.includes(t)),
+    {
+      message: "every terminalStatuses entry must be in statusValues",
+      path: ["terminalStatuses"],
+    },
+  );
 
 /**
  * Field values may be string, string[], or number (timestamp). The MCP
