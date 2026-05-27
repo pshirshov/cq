@@ -300,7 +300,7 @@ export class Bridge {
     // The bundled CLI binary would inherit these via HOME in a full installation;
     // since the native binary is unavailable in CI (PR-20-D01), we pass them
     // explicitly via Options.mcpServers so the bridge works in both paths.
-    const externalMcpServers = await loadMcpServers(this.home);
+    const externalMcpServers = await loadMcpServers(this.home, this.logger);
     const hasMcpServers = Object.keys(externalMcpServers).length > 0;
 
     // Build the in-process "cq" MCP server for AskUserQuestion interception.

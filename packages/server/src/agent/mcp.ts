@@ -19,6 +19,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { Logger } from "../log/logger.js";
 
 /**
  * Minimal stdio MCP server config shape (from SDK's McpStdioServerConfig).
@@ -35,12 +36,15 @@ export type McpServerConfig = {
  * Load MCP server configurations from `~/.claude/mcp_servers.json`.
  *
  * Returns an empty object if the file does not exist or is unparseable.
- * Errors other than ENOENT are logged to stderr and treated as empty.
+ * Errors other than ENOENT are routed to `logger.warn` when provided,
+ * and silently ignored otherwise (no stderr writes in tests).
  *
- * @param home - Defaults to `process.env.HOME ?? os.homedir()`.
+ * @param home   - Defaults to `process.env.HOME ?? os.homedir()`.
+ * @param logger - Optional structured logger; if omitted, errors are no-ops.
  */
 export async function loadMcpServers(
   home?: string,
+  logger?: Logger,
 ): Promise<Record<string, McpServerConfig>> {
   const homeDir = home ?? process.env["HOME"] ?? "";
   if (!homeDir) return {};
@@ -51,10 +55,8 @@ export async function loadMcpServers(
     raw = await fs.readFile(filePath, "utf-8");
   } catch (err: unknown) {
     if (isEnoent(err)) return {};
-    // Non-ENOENT read error: log and treat as empty rather than crashing.
-    process.stderr.write(
-      `[mcp] warning: could not read ${filePath}: ${String(err)}\n`,
-    );
+    // Non-ENOENT read error: surface via logger.warn; do not write to stderr.
+    logger?.warn("mcp.read_error", { filePath, err: String(err) });
     return {};
   }
 
@@ -62,7 +64,7 @@ export async function loadMcpServers(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    process.stderr.write(`[mcp] warning: could not parse ${filePath} as JSON\n`);
+    logger?.warn("mcp.parse_error", { filePath });
     return {};
   }
 
