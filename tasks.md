@@ -71,7 +71,7 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
 - [x] **PR-03** — Add Resume button column in History tab (top-level finished main only).
 - [x] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
-- [ ] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
+- [x] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
 
 Cross-cutting (locked):
 
@@ -79,6 +79,16 @@ Cross-cutting (locked):
 - [x] `@anthropic-ai/sdk` added to `packages/server` only.
 - [x] Subagent predicate in `List.tsx` = `agentName !== 'main'`.
 - [x] User-triggered rejoin (live session) goes away; only auto-refresh rejoin remains.
+
+### PR-05 completed (2026-05-28)
+
+`List.tsx` session/excerpt cell now branches on `agentName`. Main rows show `title || promptExcerpt || "(no prompt)"` on one line. Subagent rows keep the original two-line layout (`sessionId.slice(0,8)` + prompt excerpt) because their prompts are already meaningful and Q20 explicitly excludes them from Haiku titling. Unit test in `history-list.test.ts` covers the three main-row branches plus the subagent rendering invariance.
+
+Also added a new e2e spec `packages/e2e/tests/history-title-resume.spec.ts` covering the end-to-end flow: send message → Haiku title persisted → switch to History tab → click Resume → assert tab switches to Chat and prior user bubble survives (proves same chatSessionId reused). Extended `packages/e2e/mock-server.ts` to handle non-streaming `/v1/messages` calls (the title generator's path) by parsing the request body, extracting the user's first message from the title prompt, and returning a unique derived title per session so e2e rows are distinguishable in the shared in-memory DB.
+
+While testing the discharge condition, found that `bun run e2e` failed because `cd packages/e2e && playwright test` couldn't find `playwright` on PATH (it lives in `packages/e2e/node_modules/.bin`). Fixed the root `package.json` script to use `bun x playwright test` instead. This was a pre-existing project-script bug surfaced while validating PR-05; verified independent of these changes by reproducing on `git stash`.
+
+Final verification: `bun run check` → 539 pass; `bun run e2e` → 15 pass.
 
 ### PR-04 completed (2026-05-28)
 

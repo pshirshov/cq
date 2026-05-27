@@ -361,6 +361,70 @@ describe("HistoryTab list view", () => {
     console.warn("React fiber access unavailable; structural fallback used for test (4).");
   });
 
+  test("(PR-05) main session/excerpt cell: title preferred, then prompt excerpt, then '(no prompt)'", () => {
+    setup();
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const withTitle = makeHistoryRow({
+      agentName: "main",
+      title: "Generated Haiku Title",
+      promptExcerpt: "the user prompt text",
+    });
+    const withExcerptOnly = makeHistoryRow({
+      agentName: "main",
+      title: "",
+      promptExcerpt: "fallback prompt excerpt",
+    });
+    const withNothing = makeHistoryRow({
+      agentName: "main",
+      title: "",
+      promptExcerpt: "",
+    });
+    const subagent = makeHistoryRow({
+      agentName: "Task",
+      title: "", // even if a Haiku title slipped in, subagents render the old layout
+      promptExcerpt: "subagent prompt text",
+    });
+
+    const sentFrame = manager.sent.find((f) => f.type === "history.list");
+    if (!sentFrame || sentFrame.type !== "history.list") throw new Error("no list frame");
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: sentFrame.seq,
+        total: 4,
+        rows: [withTitle, withExcerptOnly, withNothing, subagent],
+      });
+    });
+
+    const tbody = container!.querySelector("table tbody")!;
+    const trs = tbody.querySelectorAll("tr");
+
+    function sessionCellText(tr: Element): string {
+      // Session/Excerpt column is index 9.
+      const cell = tr.querySelectorAll("td")[9]!;
+      return (cell.textContent ?? "").trim();
+    }
+
+    const trByInv = (invId: string): Element =>
+      Array.from(trs).find((tr) => tr.getAttribute("data-testid") === `history-row-${invId}`)!;
+
+    expect(sessionCellText(trByInv(withTitle.invocationId))).toContain("Generated Haiku Title");
+    expect(sessionCellText(trByInv(withTitle.invocationId))).not.toContain("the user prompt text");
+
+    expect(sessionCellText(trByInv(withExcerptOnly.invocationId))).toContain("fallback prompt excerpt");
+
+    expect(sessionCellText(trByInv(withNothing.invocationId))).toContain("(no prompt)");
+
+    // Subagent row keeps the old two-line layout (session id slice + excerpt).
+    expect(sessionCellText(trByInv(subagent.invocationId))).toContain(subagent.sessionId.slice(0, 8));
+    expect(sessionCellText(trByInv(subagent.invocationId))).toContain("subagent prompt text");
+  });
+
   test("(PR-03) Resume button renders on finished main rows, absent on subagent / active / running rows", () => {
     setup();
     const manager = new FakeManager(makeStats());

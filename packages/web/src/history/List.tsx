@@ -289,12 +289,26 @@ export function List({
                   <td className={styles.mono}>{row.agentName === "main" ? row.inputTokens : ""}</td>
                   <td className={styles.mono}>{row.agentName === "main" ? row.outputTokens : ""}</td>
                   <td>
-                    <div className={styles.mono} style={{ fontSize: 11 }}>
-                      {row.title || row.sessionId.slice(0, 8)}
-                    </div>
-                    <div className={styles.excerpt} title={row.promptExcerpt}>
-                      {row.promptExcerpt}
-                    </div>
+                    {/* PR-05: main rows show Haiku-generated title (or first
+                        prompt excerpt as fallback, then "(no prompt)" if both
+                        are empty). Subagent rows keep the old layout: small
+                        session-id line + their existing prompt-excerpt body,
+                        because the subagent's prompt is already meaningful and
+                        we deliberately do not generate titles for them. */}
+                    {row.agentName === "main" ? (
+                      <div className={styles.mono} style={{ fontSize: 11 }}>
+                        {row.title || row.promptExcerpt || "(no prompt)"}
+                      </div>
+                    ) : (
+                      <>
+                        <div className={styles.mono} style={{ fontSize: 11 }}>
+                          {row.sessionId.slice(0, 8)}
+                        </div>
+                        <div className={styles.excerpt} title={row.promptExcerpt}>
+                          {row.promptExcerpt}
+                        </div>
+                      </>
+                    )}
                   </td>
                   {/* PR-03: Resume button — only on finished top-level main rows
                       that are not the currently-active session. */}
