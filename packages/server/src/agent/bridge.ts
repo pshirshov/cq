@@ -555,17 +555,36 @@ export class Bridge {
       resumeFromInvocationId: main.id,
     });
 
+    // Emit chat.started immediately so the client sees the expected sessionId
+    // before any replay frames arrive.  The live handleChatStart below will
+    // emit a second chat.started (chat.started_late) once the SDK subprocess
+    // sends its init message — clients tolerate this sequence.
+    const earlySeq = (() => {
+      const state = this.registry.get(frame.sessionId);
+      return state !== undefined ? state.buffer.serverSeq + 1 : 0;
+    })();
+    const earlyStarted: ChatStarted = {
+      type: "chat.started",
+      seq: earlySeq,
+      ts: Date.now(),
+      sessionId: frame.sessionId,
+      invocationId: main.id,
+      initInfo: { cwd: this.cwd },
+    };
+    ws.send(JSON.stringify(earlyStarted));
+
+    // Replay prior invocation events before spinning up the new live runLoop.
+    // This prevents the SDK's independent chat.started from interleaving with
+    // history.replay_event frames (R3 ordering fix).
+    await this.replayInvocationEvents(ws, frame.seq, main.id);
+
+    // Now start the live session (emits its own chat.started when SDK init arrives).
     await this.handleChatStart(ws, {
       type: "chat.start",
       seq: frame.seq,
       ts: frame.ts,
       resumeFromInvocationId: main.id,
     });
-
-    // Replay the prior invocation's events so the client can restore the
-    // conversation after refresh. handleChatStart has already sent chat.started;
-    // we now stream the historical events using the original invocation's log.
-    await this.replayInvocationEvents(ws, frame.seq, main.id);
   }
 
   /**

@@ -770,6 +770,140 @@ describe("Bridge", () => {
   });
 
   // --------------------------------------------------------------------------
+  // R3: rejoin Case B replay ordering — history.replay_event frames must
+  //     arrive BEFORE the second chat.started from the new SDK subprocess
+  // --------------------------------------------------------------------------
+  it("R3: rejoin Case B — replay events arrive before the live SDK chat.started", async () => {
+    // Build a persistence store with a completed session + invocation + events.
+    const persistence = new InMemoryPersistence();
+    const sessionId = "00000000-0000-4000-b000-000000000001";
+    const invocationId = "00000000-0000-4000-b000-000000000002";
+    const now = Date.now();
+
+    const sessionRow = {
+      id: sessionId,
+      startedAt: now - 5000,
+      endedAt: now - 1000,
+      cwd: "/tmp/test",
+      model: "claude-test",
+      permissionMode: "default" as const,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCacheRead: 0,
+      totalCacheCreate: 0,
+      totalCostUsd: 0,
+      endedReason: "completed" as const,
+      title: "prior",
+      lastServerSeq: 0,
+      sdkSessionId: null,
+    };
+    persistence.sessions.insert(sessionRow);
+
+    const invRow = {
+      id: invocationId,
+      sessionId,
+      parentInvocationId: null as null,
+      resumedFromInvocationId: null as null,
+      agentName: "main",
+      agentId: null as null,
+      taskId: null as null,
+      toolUseId: null as null,
+      model: "claude-test",
+      startedAt: now - 5000,
+      endedAt: now - 1000,
+      durationMs: 4000,
+      status: "completed" as const,
+      toolCallCount: 0,
+      inputTokens: 1,
+      outputTokens: 1,
+      costUsd: 0,
+      promptExcerpt: "hello",
+      eventLogPath: `${sessionId}/${invocationId}.jsonl`,
+      ownerPid: null as null,
+    };
+    persistence.invocations.insert(invRow);
+
+    // Append a couple of SDK events so replay has something to emit.
+    const evtMsg = makeAssistantMessage("prior assistant reply");
+    persistence.events.append(invocationId, evtMsg);
+    persistence.events.append(invocationId, evtMsg);
+
+    // The new live query (spawned by handleChatStart inside rejoin) hangs after init.
+    let resolveNew!: () => void;
+    const hangNew = new Promise<void>((r) => { resolveNew = r; });
+    const newGen = (async function* (): AsyncGenerator<SDKMessage, void> {
+      yield makeInitMessage();
+      await hangNew;
+    })();
+    const newQuery = newGen as unknown as MockQuery;
+    patchWithStubs(newQuery);
+    newQuery.interrupt = async () => { resolveNew(); };
+    newQuery.close = () => { resolveNew(); };
+
+    const registry = new SessionRegistry();
+    registry.register(sessionId); // pre-register so seqs work
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => newQuery,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatRejoin(ws, {
+      type: "chat.rejoin",
+      seq: 1,
+      ts: Date.now(),
+      sessionId,
+    });
+
+    // Wait for replay_done to ensure replay has fully emitted.
+    await ws.waitForFrames("history.replay_done", 1);
+
+    // Collect all frames in order.
+    const allFrames = ws.sent;
+
+    // Find positions of key frame types.
+    const firstStartedIdx = allFrames.findIndex((f) => f.type === "chat.started");
+    const firstReplayIdx = allFrames.findIndex((f) => f.type === "history.replay_event");
+    const replayDoneIdx = allFrames.findIndex((f) => f.type === "history.replay_done");
+
+    // chat.started must come before any replay events.
+    expect(firstStartedIdx).toBeGreaterThanOrEqual(0);
+    expect(firstReplayIdx).toBeGreaterThanOrEqual(0);
+    expect(replayDoneIdx).toBeGreaterThanOrEqual(0);
+    expect(firstStartedIdx).toBeLessThan(firstReplayIdx);
+    expect(firstReplayIdx).toBeLessThan(replayDoneIdx);
+
+    // At least 2 replay events (we appended 2).
+    expect(ws.framesOfType("history.replay_event").length).toBeGreaterThanOrEqual(2);
+
+    // The SECOND chat.started (from the live SDK init) must arrive AFTER replay_done.
+    const startedFrames = ws.framesOfType("chat.started");
+    if (startedFrames.length >= 2) {
+      const secondStartedIdx = allFrames.lastIndexOf(startedFrames[startedFrames.length - 1]!);
+      expect(secondStartedIdx).toBeGreaterThan(replayDoneIdx);
+    }
+
+    // No history.replay_event after the second chat.started.
+    const allReplayEvents = allFrames
+      .map((f, i) => ({ f, i }))
+      .filter(({ f }) => f.type === "history.replay_event");
+    const lastReplayIdx = allReplayEvents.length > 0
+      ? allReplayEvents[allReplayEvents.length - 1]!.i
+      : -1;
+    if (startedFrames.length >= 2) {
+      const secondStartedIdx = allFrames.indexOf(startedFrames[1]!);
+      // lastReplayIdx must be before secondStartedIdx.
+      expect(lastReplayIdx).toBeLessThan(secondStartedIdx);
+    }
+
+    resolveNew();
+    await bridge.shutdown();
+  });
+
+  // --------------------------------------------------------------------------
   // D47: chat.rejoin — unknown session id returns REJOIN_FAILED
   // --------------------------------------------------------------------------
   it("chat.rejoin with an unknown session id returns chat.error{REJOIN_FAILED}", async () => {
