@@ -255,7 +255,17 @@ function makeSubagentEntry(sdkEvent: Record<string, unknown>, ts: number): Subag
   const description = typeof sdkEvent["description"] === "string" ? sdkEvent["description"] : "";
   const subagent_type = typeof sdkEvent["subagent_type"] === "string" ? sdkEvent["subagent_type"] : "Task";
   const agent_name = subagent_type.charAt(0).toUpperCase() + subagent_type.slice(1);
-  const baseTask = { task_id, agent_name, task_description: description, status: "running" as const };
+  // D30: child_invocation_id is injected by the bridge (not present on the raw SDK message).
+  const childInvocationId = typeof sdkEvent["child_invocation_id"] === "string"
+    ? sdkEvent["child_invocation_id"]
+    : undefined;
+  const baseTask = {
+    task_id,
+    agent_name,
+    task_description: description,
+    status: "running" as const,
+    ...(childInvocationId !== undefined ? { childInvocationId } : {}),
+  };
   const task: SubagentTask =
     typeof rawToolUseId === "string"
       ? { ...baseTask, tool_use_id: rawToolUseId }
@@ -684,6 +694,7 @@ function renderMessages(
   searchQuery = "",
   activeMatchKey = "",
   hideSdkEvents = false,
+  onSubagentClicked?: (childInvocationId: string) => void,
 ): React.ReactNode[] {
   return messages.map((msg) => {
     // D26: when hideSdkEvents is true, suppress unknown (raw SDK event) cards.
@@ -766,7 +777,10 @@ function renderMessages(
       );
     }
     if (msg.kind === "subagent") {
-      const nestedChildren = renderMessages(msg.children, onQuestionReply, searchQuery, activeMatchKey, hideSdkEvents);
+      // D30: when a childInvocationId is available and a click handler is wired,
+      // SubagentCard renders a compact "View transcript →" link instead of
+      // inlining the full transcript.
+      const nestedChildren = renderMessages(msg.children, onQuestionReply, searchQuery, activeMatchKey, hideSdkEvents, onSubagentClicked);
       return createElement(
         MessageBubble,
         {
@@ -776,7 +790,14 @@ function renderMessages(
           plainText: msg.task.task_description,
           isActiveMatch: false,
         },
-        createElement(SubagentCard, { task: msg.task }, ...nestedChildren),
+        createElement(
+          SubagentCard,
+          {
+            task: msg.task,
+            ...(onSubagentClicked !== undefined ? { onViewTranscript: onSubagentClicked } : {}),
+          },
+          ...nestedChildren,
+        ),
       );
     }
     // unknown
@@ -845,6 +866,12 @@ export interface StreamProps {
    * Default: false.
    */
   hideSdkEvents?: boolean;
+  /**
+   * D30: called when the user clicks "View transcript →" on a SubagentCard.
+   * Receives the child invocation id. When undefined, the compact link is not
+   * rendered (full transcript inlined as before).
+   */
+  onSubagentClicked?: (childInvocationId: string) => void;
 }
 
 export function Stream({
@@ -858,6 +885,7 @@ export function Stream({
   scrollToBottom = false,
   onScrollToBottomDone,
   hideSdkEvents = false,
+  onSubagentClicked,
 }: StreamProps): React.ReactElement {
   const messages = useMemo(() => computeRenderedMessages(chatEvents), [chatEvents]);
 
@@ -986,7 +1014,7 @@ export function Stream({
         </div>
       )}
       <div className={styles.messageList}>
-        {renderMessages(visibleMessages, effectiveReply, searchQuery, activeMatchKey, hideSdkEvents)}
+        {renderMessages(visibleMessages, effectiveReply, searchQuery, activeMatchKey, hideSdkEvents, onSubagentClicked)}
       </div>
       {showThinking && (
         <div className={styles.thinkingIndicator} data-testid="stream-thinking">

@@ -34,6 +34,7 @@ import { PermissionPrompt } from "./PermissionPrompt";
 import type { PermissionDecision } from "./PermissionPrompt";
 import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
+import { Detail } from "../history/Detail";
 import type { PermissionMode } from "./Header";
 import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError } from "@cq/shared";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
@@ -88,6 +89,18 @@ export function ChatTab(): React.ReactElement {
 
   // ---- D26: Hide SDK events toggle ----
   const [hideSdkEvents, setHideSdkEvents] = useState(false);
+
+  // ---- D30: Subagent transcript overlay ----
+  // When set, renders the Detail component as a modal over the chat stream.
+  const [subagentDetailId, setSubagentDetailId] = useState<string | null>(null);
+
+  const handleSubagentClicked = useCallback((childInvocationId: string) => {
+    setSubagentDetailId(childInvocationId);
+  }, []);
+
+  function handleSubagentDetailClose(): void {
+    setSubagentDetailId(null);
+  }
 
   // ---- F4: Search state ----
   const [searchOpen, setSearchOpen] = useState(false);
@@ -485,7 +498,15 @@ export function ChatTab(): React.ReactElement {
           scrollToBottom={triggerScrollToBottom}
           onScrollToBottomDone={handleScrollToBottomDone}
           hideSdkEvents={hideSdkEvents}
+          onSubagentClicked={handleSubagentClicked}
         />
+        {/* D30: Subagent transcript overlay — mounts Detail for the selected child invocation. */}
+        {subagentDetailId !== null && (
+          <Detail
+            invocationId={subagentDetailId}
+            onClose={handleSubagentDetailClose}
+          />
+        )}
         {userScrolledUp && (
           <button
             className={tabStyles.jumpButton}

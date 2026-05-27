@@ -28,10 +28,23 @@ export interface SubagentTask {
   status: SubagentStatus;
   /** Live progress summary from task_progress events (agentProgressSummaries). */
   summary?: string;
+  /**
+   * Child invocation id for the History Detail link.
+   * Set by the bridge when a task_started row is persisted.
+   * When present, the card renders a compact "View transcript →" button
+   * instead of inlining the full transcript.
+   */
+  childInvocationId?: string;
 }
 
 export interface SubagentCardProps {
   task: SubagentTask;
+  /**
+   * Called when the user clicks "View transcript →".
+   * Receives the child invocation id. When undefined, the full transcript
+   * is inlined in the card (legacy fallback for events without an id).
+   */
+  onViewTranscript?: (childInvocationId: string) => void;
   children?: React.ReactNode;
 }
 
@@ -50,7 +63,9 @@ function badgeClass(status: SubagentStatus): string {
   }
 }
 
-export function SubagentCard({ task, children }: SubagentCardProps): React.ReactElement {
+export function SubagentCard({ task, onViewTranscript, children }: SubagentCardProps): React.ReactElement {
+  const canLink = task.childInvocationId !== undefined && onViewTranscript !== undefined;
+
   return (
     <div
       className={styles.card}
@@ -69,8 +84,19 @@ export function SubagentCard({ task, children }: SubagentCardProps): React.React
         {task.summary !== undefined && task.summary !== "" && (
           <span className={styles.summary}>{task.summary}</span>
         )}
+        {canLink && (
+          <button
+            className={styles.transcriptLink}
+            onClick={() => onViewTranscript!(task.childInvocationId!)}
+            data-testid="subagent-view-transcript"
+            type="button"
+          >
+            View transcript →
+          </button>
+        )}
       </div>
-      {children !== undefined && (
+      {/* Only render inline children when there is no transcript link available. */}
+      {!canLink && children !== undefined && (
         <div className={styles.children} data-testid="subagent-children">
           {children}
         </div>

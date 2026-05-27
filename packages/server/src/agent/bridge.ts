@@ -724,8 +724,9 @@ export class Bridge {
           continue;
         }
 
-        // Persist the raw SDK event to the JSONL log.
-        this.persistence.events.append(session.invocationId, msg);
+        // D30: fwdMsg may be augmented (e.g. with child_invocation_id on task_started)
+        // before persisting and forwarding. Starts as the raw SDK message.
+        let fwdMsg: SDKMessage = msg;
 
         // Intercept SDKElicitationCompleteMessage to resolve URL-mode elicitations.
         if (isElicitationCompleteMessage(msg)) {
@@ -736,9 +737,11 @@ export class Bridge {
         }
 
         // Handle task_started: insert a child invocation row.
+        // D30: inject the child_invocation_id into the forwarded event so the
+        // renderer can attach a "View transcript →" link to the SubagentCard.
         if (isTaskStartedMessage(msg)) {
-          this.handleTaskStarted(session, ws, msg as SDKTaskStartedMessage);
-          // Still forward as a chat.event.
+          const childInvId = this.handleTaskStarted(session, ws, msg as SDKTaskStartedMessage);
+          fwdMsg = { ...msg, child_invocation_id: childInvId } as unknown as SDKMessage;
         }
 
         // Handle task_notification: finalise the child invocation row.
@@ -747,8 +750,11 @@ export class Bridge {
           // Still forward as a chat.event.
         }
 
+        // Persist the raw SDK event to the JSONL log (with any augmentations).
+        this.persistence.events.append(session.invocationId, fwdMsg);
+
         // All other messages → chat.event via replay buffer.
-        this.sendEvent(ws, session, msg);
+        this.sendEvent(ws, session, fwdMsg);
 
         // Count tool_use content blocks on assistant messages.
         // If parent_tool_use_id identifies a known child invocation, credit that
@@ -936,7 +942,7 @@ export class Bridge {
     session: ActiveSession,
     ws: WsSocket,
     msg: SDKTaskStartedMessage,
-  ): void {
+  ): string {
     const childInvocationId = crypto.randomUUID();
     session.taskInvocationMap.set(msg.task_id, childInvocationId);
     // Build the tool_use_id → child invocation id index so we can route
@@ -977,6 +983,7 @@ export class Bridge {
       taskId: msg.task_id,
       childInvocationId,
     });
+    return childInvocationId;
   }
 
   private handleTaskNotification(
