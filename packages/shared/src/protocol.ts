@@ -60,7 +60,7 @@ export const HistoryRow = z.object({
   startedAt: z.number(),
   endedAt: z.number().nullable(),
   durationMs: z.number().nullable(),
-  status: z.enum(["running", "completed", "failed", "stopped"]),
+  status: z.enum(["running", "completed", "failed", "stopped", "wiped"]),
   toolCallCount: z.number(),
   inputTokens: z.number(),
   outputTokens: z.number(),
@@ -248,7 +248,7 @@ export const HistoryList = z.object({
     .object({
       agentName: z.string().optional(),
       model: z.string().optional(),
-      status: z.enum(["completed", "interrupted", "errored", "running"]).optional(),
+      status: z.enum(["completed", "interrupted", "errored", "running", "wiped"]).optional(),
       dateFrom: z.number().optional(),
       dateTo: z.number().optional(),
       search: z.string().optional(),

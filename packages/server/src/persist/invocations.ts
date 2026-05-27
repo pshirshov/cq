@@ -20,7 +20,7 @@ interface InvocationSqlRow {
   started_at: number;
   ended_at: number | null;
   duration_ms: number | null;
-  status: "running" | "completed" | "failed" | "stopped";
+  status: "running" | "completed" | "failed" | "stopped" | "wiped";
   tool_call_count: number;
   input_tokens: number;
   output_tokens: number;
@@ -367,9 +367,10 @@ export class InvocationStore {
 
   /**
    * One-shot startup reaper: marks 'running' invocation rows whose owner
-   * process is no longer alive as 'stopped'. Status 'stopped' (not 'failed')
-   * because no SDK error occurred; only PIDs whose process is no longer alive
-   * are reaped.
+   * process is no longer alive as 'wiped'. Status 'wiped' (not 'stopped', not
+   * 'failed') because the cq process restarted while these rows were running —
+   * the owner is now dead, which is distinct from both a user-interrupted row
+   * ('stopped') and an SDK-error row ('failed').
    *
    * Per-row liveness check (D42):
    * - Rows with owner_pid IS NULL are NEVER reaped — unknown owner, safest
@@ -377,7 +378,7 @@ export class InvocationStore {
    * - Rows owned by this process (owner_pid === process.pid) are never reaped
    *   (they are live by definition).
    * - Rows whose owner_pid refers to a dead process (ESRCH from kill(pid,0))
-   *   are transitioned to 'stopped'.
+   *   are transitioned to 'wiped'.
    *
    * Idempotent — run once at SqlitePersistence construction (after migrations).
    */
@@ -402,7 +403,7 @@ export class InvocationStore {
       if (alive) continue;
       this.db.run(
         `UPDATE invocation
-           SET status='stopped',
+           SET status='wiped',
                ended_at=COALESCE(ended_at, ?),
                duration_ms=COALESCE(duration_ms, ? - started_at)
          WHERE id = ?`,

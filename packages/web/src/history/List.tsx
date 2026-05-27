@@ -82,6 +82,7 @@ function statusClass(status: HistoryRow["status"]): string {
     case "completed": return styles.statusCompleted!;
     case "failed": return styles.statusFailed!;
     case "stopped": return styles.statusStopped!;
+    case "wiped": return styles.statusWiped!;
   }
 }
 
@@ -162,6 +163,7 @@ export function List({ rows, sort, filter, loading, onSort, onFilter, onRowClick
           <option value="completed">Completed</option>
           <option value="interrupted">Interrupted</option>
           <option value="errored">Errored</option>
+          <option value="wiped">Wiped</option>
         </select>
         <input
           className={styles.filterInput}

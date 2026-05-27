@@ -149,6 +149,7 @@
 .statusCompleted { background: #dcfce7; color: #166534; }
 .statusFailed { background: #fee2e2; color: #991b1b; }
 .statusStopped { background: #fef3c7; color: #92400e; }
+.statusWiped { background: #475569; color: #fff; }
 
 .resumedBadge {
   font-size: 11px;

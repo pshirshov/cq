@@ -526,7 +526,7 @@ function runSuite(label: string, factory: () => Persistence): void {
     // 15. reapOrphans: running rows with a dead ownerPid become stopped;
     //     completed rows unchanged
     // -----------------------------------------------------------------------
-    test("reapOrphans transitions running rows to stopped, leaves completed unchanged", () => {
+    test("reapOrphans transitions running rows to wiped, leaves completed unchanged", () => {
       const session = makeSession();
       p.sessions.insert(session);
 
@@ -557,7 +557,7 @@ function runSuite(label: string, factory: () => Persistence): void {
       // SQLite adapter reaps; InMemory no-op returns 0.
       if (reaped > 0) {
         const updated = p.invocations.get(runningInv.id);
-        expect(updated?.status).toBe("stopped");
+        expect(updated?.status).toBe("wiped");
         expect(updated?.endedAt).toBeGreaterThanOrEqual(now);
         expect(updated?.durationMs).toBeGreaterThan(0);
       }
@@ -706,7 +706,7 @@ describe("D29: tryAcquireDbLock", () => {
     // Open C — reclaims the stale lock and reaps (ownerPid 999999999 is dead).
     const persC = new SqlitePersistence(dbFile);
     const reaped = persC.invocations.get(runningInv.id);
-    expect(reaped?.status).toBe("stopped");
+    expect(reaped?.status).toBe("wiped");
     persC.close();
   });
 
@@ -735,10 +735,10 @@ describe("D29: tryAcquireDbLock", () => {
     expect(rowB?.status).toBe("running");
     persB.close();
 
-    // Reopen with default runReaper=true — reaper fires and marks row 'stopped'.
+    // Reopen with default runReaper=true — reaper fires and marks row 'wiped'.
     const persC = new SqlitePersistence(dbFile);
     const rowC = persC.invocations.get(runningInv.id);
-    expect(rowC?.status).toBe("stopped");
+    expect(rowC?.status).toBe("wiped");
     persC.close();
   });
 });

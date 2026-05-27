@@ -36,7 +36,7 @@ export interface InvocationRow {
   startedAt: number; // epoch ms
   endedAt: number | null;
   durationMs: number | null;
-  status: "running" | "completed" | "failed" | "stopped";
+  status: "running" | "completed" | "failed" | "stopped" | "wiped";
   toolCallCount: number;
   inputTokens: number;
   outputTokens: number;
