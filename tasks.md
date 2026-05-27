@@ -13,7 +13,7 @@
 - [x] **D-LED-04** — `docs/ledgers.yaml` added to `.gitignore`; `git rm` removed the tracked empty registry.
 - [x] **D-LED-05** — `cloneFields` return type corrected to `Record<string, FieldValue>`; cast removed. Typecheck still clean.
 - [x] **D-LED-06** — `FsLedgerStore.dispose()` now awaits every per-ledger mutex chain via a no-op `mutex.run()` before clearing internal state. New test in `concurrency.test.ts`: 20 queued updates + dispose race; asserts updates resolve before dispose returns.
-- [ ] **D-LED-07** — Strengthen 50-parallel-update test (monotonic updatedAt with injected `now`; final-state `updatedAt===49` assertion).
+- [x] **D-LED-07** — New sibling test in `concurrency.test.ts` (the original 50-update test untouched). Injected `now=()=>tick++`; asserts the 50 returned `updatedAt` values form a strictly-monotonic contiguous block, and the final on-disk `updatedAt` equals `createItem.updatedAt + N` with a counter matching the last-serialised write.
 
 ## Cycle outer-5 — discharged
 

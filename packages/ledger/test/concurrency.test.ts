@@ -20,6 +20,7 @@ import {
   FsLedgerStore,
   parseLedger,
   serializeRegistry,
+  type Item,
   type LedgerSchema,
 } from "../src/index.js";
 
@@ -41,7 +42,7 @@ const schema: LedgerSchema = {
   },
 };
 
-async function setup(): Promise<FsLedgerStore> {
+async function setup(opts: { now?: () => number } = {}): Promise<FsLedgerStore> {
   const dir = await mkdtemp(path.join(tmpdir(), "ledger-conc-"));
   dirs.push(dir);
   const docsDir = path.join(dir, "docs");
@@ -51,7 +52,9 @@ async function setup(): Promise<FsLedgerStore> {
     serializeRegistry({ version: 1, ledgers: [{ name: "defects", schema }] }),
     "utf8",
   );
-  const store = new FsLedgerStore({ root: dir });
+  const fsOpts: { root: string; now?: () => number } = { root: dir };
+  if (opts.now !== undefined) fsOpts.now = opts.now;
+  const store = new FsLedgerStore(fsOpts);
   await store.init();
   return store;
 }
@@ -96,6 +99,61 @@ describe("FsLedgerStore concurrency", () => {
     expect(typeof finalCounter).toBe("string");
     expect(Number(finalCounter)).toBeGreaterThanOrEqual(0);
     expect(Number(finalCounter)).toBeLessThan(N);
+  });
+
+  // D-LED-07: strengthen the 50-parallel-update assertion. The prior test
+  // only checked that *some* counter survived; this case additionally
+  // asserts (a) updatedAt is strictly monotonic across the serialised
+  // writes (via an injected `now` that returns 0,1,2,…), and (b) the final
+  // on-disk state reflects the LAST scheduled write (counter=49,
+  // updatedAt=49 + a baseline offset for the createItem call).
+  it("50 parallel updateItem calls serialise with monotonic updatedAt and final state is the last write (D-LED-07)", async () => {
+    let tick = 0;
+    const store = await setup({ now: () => tick++ });
+    await store.createMilestone("defects", { title: "M-one" });
+    // createItem also consumes a tick (item.createdAt/updatedAt = 0).
+    const item = await store.createItem("defects", "M1", {
+      status: "open",
+      fields: { severity: "minor", location: "x.ts", description: "init" },
+    });
+
+    const N = 50;
+    const updates: Array<Promise<Item>> = [];
+    for (let i = 0; i < N; i++) {
+      updates.push(
+        store.updateItem("defects", item.id, {
+          fields: { counter: String(i) },
+        }),
+      );
+    }
+    const results = await Promise.all(updates);
+
+    // Each update is the only consumer of `now()` from within the mutex'd
+    // critical section. The per-ledger mutex serialises them, so the
+    // sequence of `updatedAt` values returned must be a contiguous,
+    // strictly-monotonic block starting at item.updatedAt + 1.
+    const sorted = [...results].sort((a, b) => a.updatedAt - b.updatedAt);
+    for (let i = 0; i < N; i++) {
+      const r = sorted[i];
+      if (r === undefined) throw new Error("missing result");
+      expect(r.updatedAt).toBe(item.updatedAt + 1 + i);
+    }
+
+    // The final on-disk state corresponds to the last serialised write:
+    // updatedAt = item.updatedAt + N, AND its counter is one of 0..N-1
+    // (whichever happened to be scheduled last). Read the file.
+    const text = await readFile(
+      path.join(dirs[dirs.length - 1] ?? "", "docs", "defects.md"),
+      "utf8",
+    );
+    const parsed = parseLedger(text, { schema });
+    const final = parsed.milestones[0]?.items[0];
+    if (final === undefined) throw new Error("missing parsed item");
+    expect(final.updatedAt).toBe(item.updatedAt + N);
+    // The final counter must match the result whose updatedAt is the max.
+    const winner = sorted[N - 1];
+    if (winner === undefined) throw new Error("missing winner");
+    expect(final.fields["counter"]).toBe(winner.fields["counter"]);
   });
 
   it("50 parallel createItem calls allocate unique monotonic ids", async () => {
