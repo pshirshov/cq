@@ -342,9 +342,9 @@ function runSuite(label: string, factory: () => Persistence): void {
     });
 
     // -----------------------------------------------------------------------
-    // 14. reapOrphans: running rows become errored; completed rows unchanged
+    // 14. reapOrphans: running rows become failed; completed rows unchanged
     // -----------------------------------------------------------------------
-    test("reapOrphans transitions running rows to errored, leaves completed unchanged", () => {
+    test("reapOrphans transitions running rows to failed, leaves completed unchanged", () => {
       const session = makeSession();
       p.sessions.insert(session);
 
@@ -369,7 +369,7 @@ function runSuite(label: string, factory: () => Persistence): void {
       // SQLite adapter reaps; InMemory no-op returns 0.
       if (reaped > 0) {
         const updated = p.invocations.get(runningInv.id);
-        expect(updated?.status).toBe("errored");
+        expect(updated?.status).toBe("failed");
         expect(updated?.endedAt).toBeGreaterThanOrEqual(now);
         expect(updated?.durationMs).toBeGreaterThan(0);
       }
