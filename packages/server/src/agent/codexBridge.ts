@@ -345,6 +345,12 @@ export class CodexBridge implements BackendBridge {
       skipGitRepoCheck: true,
     };
     if (model.length > 0) threadOptions.model = model;
+    // gcn1-2: forward the popup-selected approvalPolicy (4-value codex-sdk
+    // enum) to the SDK so the model's CLI applies it for this thread.
+    // Omitted on the frame → leave the SDK default ("on-request") in effect.
+    if (frame.approvalPolicy !== undefined) {
+      threadOptions.approvalPolicy = frame.approvalPolicy;
+    }
     // Map cq's permissionMode to Codex sandboxMode where applicable.
     // codex-prefixed values are forwarded directly; cq-internal Claude
     // values are not meaningful for Codex (we leave the SDK default).
@@ -414,9 +420,11 @@ export class CodexBridge implements BackendBridge {
           sdkSessionId: priorThreadId,
           platform: "codex",
           effort,
-          // gcn1-1: approvalPolicy is filled in by gcn1-2's ChatStart plumbing.
-          // Stored as NULL until the popup forwards a non-null value.
-          approvalPolicy: null,
+          // gcn1-2: persist the popup's approvalPolicy choice so future
+          // resumes can resurrect it (and the History tab can surface it).
+          // null when the client omitted the field — leaves the codex-sdk
+          // default ("on-request") active.
+          approvalPolicy: frame.approvalPolicy ?? null,
         };
         this.persistence.sessions.insert(sessionRow);
       }

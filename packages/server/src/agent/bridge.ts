@@ -170,6 +170,22 @@ export class Bridge implements BackendBridge {
     // Codex's auth check, and a Claude resume against a Codex row must
     // not pollute Claude's persistence.
     const requestedPlatform: "claude" | "codex" = frame.platform ?? "claude";
+
+    // gcn1-2: approvalPolicy is a Codex-only knob. A Claude request that
+    // sets it is a client bug; reject loudly with a specific code so the
+    // UI can flag the misconfiguration instead of silently dropping the
+    // value. This check runs before the platform-mismatch resume check
+    // because it does not depend on prior session lookup.
+    if (frame.approvalPolicy !== undefined && requestedPlatform === "claude") {
+      this.sendError(
+        ws,
+        null,
+        "approval-policy-on-claude",
+        "approvalPolicy is a Codex-only setting; switch the model dropdown to a Codex model or clear the approval-policy picker.",
+      );
+      return;
+    }
+
     if (frame.resumeFromInvocationId !== undefined) {
       const priorInv = this.persistence.invocations.get(frame.resumeFromInvocationId);
       const priorSession = priorInv !== undefined
