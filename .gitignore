@@ -34,5 +34,8 @@ var/
 *.sqlite-wal
 *.sqlite-shm
 
+# @cq/ledger per-cwd registry (D-LED-04)
+docs/ledgers.yaml
+
 # scratch
 /debug/
