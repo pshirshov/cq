@@ -125,6 +125,8 @@ function makeHistoryRow(overrides: Partial<HistoryRow> = {}): HistoryRow {
     promptExcerpt: "hello world",
     title: "Test session",
     resumedFromInvocationId: null,
+    platform: "claude" as const,
+    effort: "none" as const,
     ...overrides,
   };
 }
@@ -405,8 +407,9 @@ describe("HistoryTab list view", () => {
     const trs = tbody.querySelectorAll("tr");
 
     function sessionCellText(tr: Element): string {
-      // Session/Excerpt column is index 9.
-      const cell = tr.querySelectorAll("td")[9]!;
+      // Session/Excerpt column is now index 11 after gear-5 + codex-8 inserted
+      // Platform (index 9) and Effort (index 10) columns.
+      const cell = tr.querySelectorAll("td")[11]!;
       return (cell.textContent ?? "").trim();
     }
 
@@ -534,5 +537,148 @@ describe("HistoryTab list view", () => {
     expect(cellText(subTr, 6)).toBe("");
     expect(cellText(subTr, 7)).toBe("");
     expect(cellText(subTr, 8)).toBe("");
+  });
+
+  // ---------------------------------------------------------------------------
+  // gear-5 + codex-8: Platform + Effort columns
+  // ---------------------------------------------------------------------------
+  test("(gear-5 + codex-8) main rows show platform + effort; subagent rows show empty", () => {
+    setup();
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const claudeRow = makeHistoryRow({
+      agentName: "main",
+      platform: "claude",
+      effort: "high",
+    });
+    const codexRow = makeHistoryRow({
+      agentName: "main",
+      platform: "codex",
+      effort: "max",
+    });
+    const subRow = makeHistoryRow({
+      agentName: "explorer",
+      platform: "claude",
+      effort: "medium",
+    });
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: manager.sent[0]!.seq,
+        total: 3,
+        rows: [claudeRow, codexRow, subRow],
+      });
+    });
+
+    const claudePlatform = container!.querySelector(
+      `[data-testid='platform-cell-${claudeRow.invocationId}']`,
+    );
+    expect(claudePlatform!.textContent).toBe("claude");
+    const codexPlatform = container!.querySelector(
+      `[data-testid='platform-cell-${codexRow.invocationId}']`,
+    );
+    expect(codexPlatform!.textContent).toBe("codex");
+    const subPlatform = container!.querySelector(
+      `[data-testid='platform-cell-${subRow.invocationId}']`,
+    );
+    expect(subPlatform!.textContent).toBe("");
+
+    const claudeEffort = container!.querySelector(
+      `[data-testid='effort-cell-${claudeRow.invocationId}']`,
+    );
+    expect(claudeEffort!.textContent).toBe("high");
+    const codexEffort = container!.querySelector(
+      `[data-testid='effort-cell-${codexRow.invocationId}']`,
+    );
+    expect(codexEffort!.textContent).toBe("max");
+    const subEffort = container!.querySelector(
+      `[data-testid='effort-cell-${subRow.invocationId}']`,
+    );
+    expect(subEffort!.textContent).toBe("");
+  });
+
+  // ---------------------------------------------------------------------------
+  // codex-8: cross-platform Resume button visibility
+  // ---------------------------------------------------------------------------
+  test("(codex-8) Resume button hidden when row.platform differs from current model's platform", () => {
+    setup();
+    // Pretend the SettingsPopup picked a Claude model. localStorage.cq.model
+    // is what HistoryTab reads.
+    localStorage.setItem("cq.model", "claude-opus-4-7");
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const claudeRow = makeHistoryRow({
+      agentName: "main",
+      platform: "claude",
+      endedAt: Date.now(),
+    });
+    const codexRow = makeHistoryRow({
+      agentName: "main",
+      platform: "codex",
+      endedAt: Date.now(),
+    });
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: manager.sent[0]!.seq,
+        total: 2,
+        rows: [claudeRow, codexRow],
+      });
+    });
+
+    // Claude model is selected, so the Claude row's Resume button is visible
+    // and the Codex row's is hidden.
+    const claudeResume = container!.querySelector(
+      `[data-testid='resume-row-${claudeRow.invocationId}']`,
+    );
+    expect(claudeResume).not.toBeNull();
+    const codexResume = container!.querySelector(
+      `[data-testid='resume-row-${codexRow.invocationId}']`,
+    );
+    expect(codexResume).toBeNull();
+  });
+
+  test("(codex-8) switching localStorage.cq.model to a Codex id swaps visibility", () => {
+    setup();
+    localStorage.setItem("cq.model", "gpt-5.1");
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const claudeRow = makeHistoryRow({
+      agentName: "main",
+      platform: "claude",
+      endedAt: Date.now(),
+    });
+    const codexRow = makeHistoryRow({
+      agentName: "main",
+      platform: "codex",
+      endedAt: Date.now(),
+    });
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: manager.sent[0]!.seq,
+        total: 2,
+        rows: [claudeRow, codexRow],
+      });
+    });
+
+    expect(container!.querySelector(
+      `[data-testid='resume-row-${claudeRow.invocationId}']`,
+    )).toBeNull();
+    expect(container!.querySelector(
+      `[data-testid='resume-row-${codexRow.invocationId}']`,
+    )).not.toBeNull();
   });
 });

@@ -10,7 +10,8 @@
  *   onFilter    — called when any filter input changes
  */
 
-import type { HistoryRow } from "@cq/shared";
+import type { HistoryRow, Platform } from "@cq/shared";
+import { modelToPlatform } from "@cq/shared";
 import styles from "../styles/History.module.css";
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,14 @@ const COLUMNS: ColDef[] = [
   { label: "Cost", sortKey: "costUsd" },
   { label: "In tokens" },
   { label: "Out tokens" },
+  // codex-8: Platform column — "claude" or "codex". Empty on subagent rows
+  // (subagents inherit their parent's platform; the column is meaningless
+  // at the child level and would clutter).
+  { label: "Platform" },
+  // gear-5: Effort column — reasoning-effort tier the session ran with.
+  // Empty on subagent rows (same rule as Cost / Tokens — subagent rows
+  // do not have their own effort knob).
+  { label: "Effort" },
   { label: "Session / Excerpt" },
   // PR-03: rightmost Resume column. Empty cell on subagent / active /
   // unfinished rows; a button on finished top-level main rows.
@@ -136,6 +145,14 @@ export interface ListProps {
    * (SessionContext.requestResume).
    */
   onResumeSession?: (invocationId: string) => void;
+  /**
+   * codex-8: the currently-selected model in the SettingsPopup. Used to
+   * derive `currentPlatform`; the Resume button is hidden when the row's
+   * platform differs from the current platform so the user does not trip
+   * the server's platform-mismatch refusal mid-click. Pre-selecting a
+   * platform-compatible model before resuming is the intended flow.
+   */
+  currentModel?: string;
 }
 
 export function List({
@@ -148,7 +165,11 @@ export function List({
   onRowClick,
   activeSessionId = null,
   onResumeSession,
+  currentModel,
 }: ListProps): React.ReactElement {
+  const currentPlatform: Platform | null = currentModel !== undefined
+    ? modelToPlatform(currentModel)
+    : null;
   return (
     <div className={styles.historyTab}>
       {/* Filter bar */}
@@ -288,6 +309,14 @@ export function List({
                   <td className={styles.mono}>{row.agentName === "main" ? fmtCost(row.costUsd) : ""}</td>
                   <td className={styles.mono}>{row.agentName === "main" ? row.inputTokens : ""}</td>
                   <td className={styles.mono}>{row.agentName === "main" ? row.outputTokens : ""}</td>
+                  {/* codex-8: Platform — empty for subagent rows. */}
+                  <td className={styles.mono} data-testid={`platform-cell-${row.invocationId}`}>
+                    {row.agentName === "main" ? row.platform : ""}
+                  </td>
+                  {/* gear-5: Effort — empty for subagent rows. */}
+                  <td className={styles.mono} data-testid={`effort-cell-${row.invocationId}`}>
+                    {row.agentName === "main" ? row.effort : ""}
+                  </td>
                   <td>
                     {/* PR-05: main rows show Haiku-generated title (or first
                         prompt excerpt as fallback, then "(no prompt)" if both
@@ -310,13 +339,18 @@ export function List({
                       </>
                     )}
                   </td>
-                  {/* PR-03: Resume button — only on finished top-level main rows
-                      that are not the currently-active session. */}
+                  {/* PR-03 + codex-8: Resume button — only on finished top-level
+                      main rows that are not the currently-active session AND
+                      whose platform matches the currently-selected model's
+                      platform. Hiding across platforms is the client-side
+                      defence in depth against the server's platform-mismatch
+                      refusal. */}
                   <td>
                     {row.agentName === "main" &&
                     row.endedAt !== null &&
                     row.sessionId !== activeSessionId &&
-                    onResumeSession !== undefined ? (
+                    onResumeSession !== undefined &&
+                    (currentPlatform === null || currentPlatform === row.platform) ? (
                       <button
                         type="button"
                         className={styles.resumeButton}
