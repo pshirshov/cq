@@ -13,6 +13,13 @@ server is designed for local or trusted-network use only.
 - [Bun](https://bun.sh) ≥ 1.3.13
 - An `ANTHROPIC_API_KEY` environment variable (or a `~/.anthropic` credential
   file recognised by the Claude Agent SDK)
+- For Codex sessions that need the cq ledger MCP tools (`mcp__cq__*`):
+  the `cq-mcp` stdio binary must be resolvable. `bun install` links it
+  into `node_modules/.bin/cq-mcp` via the `@cq/cq-mcp` workspace
+  package; the server's `CodexBridge` walks the `node_modules/.bin`
+  chain at session start to find it. If `cq-mcp` is missing on `PATH`
+  the Codex CLI will report a spawn error when the model first calls
+  one of the `mcp__cq__*` tools.
 
 ## Nix
 
