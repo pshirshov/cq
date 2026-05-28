@@ -91,7 +91,7 @@ import { effortToCodexEffort } from "@cq/shared";
  * interface (per the dual-tests skill) and inspect the options it
  * received to assert the wiring.
  */
-export type CodexFactory = (options?: CodexOptions) => Codex;
+export type CodexFactory = (options?: CodexOptions) => Codex | Promise<Codex>;
 
 /**
  * How the bridge launches the cq-mcp stdio binary. Allows tests to
@@ -286,12 +286,15 @@ export class CodexBridge implements BackendBridge {
     this.registry = opts.registry;
     this.cwd = path.resolve(opts.cwd);
     this.persistence = opts.persistence;
-    this.codexFactory = opts.codexFactory ?? ((options?: CodexOptions): Codex => {
-      // Lazy require to avoid loading the SDK at import time in code paths
-      // (e.g. tests) that never construct a CodexBridge.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-      const { Codex } = require("@openai/codex-sdk") as { Codex: new (o?: CodexOptions) => Codex };
-      return new Codex(options);
+    this.codexFactory = opts.codexFactory ?? (async (options?: CodexOptions): Promise<Codex> => {
+      // Lazy ESM import (codex-sdk is ESM-only — has no `require` export
+      // so a sync `require()` would throw `Cannot find module` at runtime
+      // even though the package is installed). Cached in module scope via
+      // the dynamic import's own module cache.
+      const mod = await import("@openai/codex-sdk");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Ctor = (mod as { Codex: new (o?: CodexOptions) => Codex }).Codex;
+      return new Ctor(options);
     });
     this.detectAuth = opts.detectAuth ?? ((): boolean => defaultDetectCodexAuth());
     this.cqMcpBin = opts.cqMcpBin ?? defaultResolveCqMcpBin();
@@ -376,7 +379,7 @@ export class CodexBridge implements BackendBridge {
         },
       },
     };
-    const codex = this.codexFactory(codexOptions);
+    const codex = await this.codexFactory(codexOptions);
 
     const model = frame.model ?? "";
     const effort: Effort = frame.effort ?? "none";
