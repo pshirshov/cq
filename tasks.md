@@ -6,9 +6,20 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ## Milestones (high-level)
 
+- [x] **outer-11** — D-UNIFASYNC-01 + adversarial sweep for sync/async unions.
 - [x] **outer-10** — close D-CQMCP-E2E + D-CQMCP-NIX (outer-9 follow-ups).
 - [x] **outer-9** — D-GC-1 (Codex ledger MCP) + D-GC-N1 (approvalPolicy).
 - (older milestones in this file)
+
+---
+
+## Milestone outer-11 — D-UNIFASYNC sweep — DISCHARGED
+
+- [x] **D-UNIFASYNC-01** — `CodexFactory` tightened from `Codex | Promise<Codex>` to `Promise<Codex>` per the user's `feedback-uniform-async` rule. Three test factories (`codexBridge.test.ts:120`, `codexBridge-mcp.test.ts:49,98`) updated to `async (...): Promise<Codex> => …`. Adversarial sweep across outer-7..outer-10 for 8 related smells (module-level singletons, lazy-init races, hidden globals, eager construction, dispose drain, `Promise.race` cleanup, sync I/O hot paths) — all candidates either cleared as not-a-smell with explicit citation in the session log or scoped out as pre-existing patterns. Commit `<this>`. `bun run check`: 689/0; `bun run e2e`: 20/0/0; `bun run typecheck`: exit 0.
+
+**Discharge metrics:** `bun run check` 689/0/2459 expect() (unchanged); `bun run e2e` 20/0/0 (unchanged); `bun run typecheck` exit 0; `defects.md` D-UNIFASYNC-01 flipped `[x] resolved`.
+
+**Session log:** [`docs/logs/20260528-1800-unifasync-log.md`](docs/logs/20260528-1800-unifasync-log.md).
 
 ---
 

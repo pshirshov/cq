@@ -91,7 +91,7 @@ import { effortToCodexEffort } from "@cq/shared";
  * interface (per the dual-tests skill) and inspect the options it
  * received to assert the wiring.
  */
-export type CodexFactory = (options?: CodexOptions) => Codex | Promise<Codex>;
+export type CodexFactory = (options?: CodexOptions) => Promise<Codex>;
 
 /**
  * How the bridge launches the cq-mcp stdio binary. Allows tests to
