@@ -23,7 +23,7 @@
 import { useState, useEffect, useRef } from "react";
 import { NewSessionConfirm } from "./NewSessionConfirm";
 import { SettingsPopup } from "./SettingsPopup";
-import type { Effort } from "@cq/shared";
+import type { ApprovalPolicy, Effort } from "@cq/shared";
 import styles from "../styles/Header.module.css";
 
 export type PermissionMode =
@@ -58,6 +58,9 @@ export interface HeaderProps {
   onNewSession: () => void;
   hideSdkEvents: boolean;
   onHideSdkEventsChange: (value: boolean) => void;
+  /** gcn1-3: Codex approvalPolicy — shown in the popup only when platform=codex. */
+  approvalPolicy: ApprovalPolicy;
+  onApprovalPolicyChange: (policy: ApprovalPolicy) => void;
 }
 
 /** Format epoch ms as "mm:ss" elapsed from startedAt to now. */
@@ -91,6 +94,8 @@ export function Header({
   onNewSession,
   hideSdkEvents,
   onHideSdkEventsChange,
+  approvalPolicy,
+  onApprovalPolicyChange,
 }: HeaderProps): React.ReactElement {
   const [showConfirm, setShowConfirm] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -176,6 +181,8 @@ export function Header({
               onEffortChange={onEffortChange}
               hideSdkEvents={hideSdkEvents}
               onHideSdkEventsChange={onHideSdkEventsChange}
+              approvalPolicy={approvalPolicy}
+              onApprovalPolicyChange={onApprovalPolicyChange}
               onClose={() => setSettingsOpen(false)}
               anchorRef={gearBtnRef}
             />
