@@ -20,6 +20,20 @@ const DEFAULT_PAGE_SIZE = 50;
 
 const DEFAULT_SORT: SortState = { key: "startedAt", dir: "desc" };
 
+/**
+ * codex-8: read the user's currently-selected model from localStorage so
+ * the History tab can hide the Resume button for cross-platform rows. The
+ * SettingsPopup writes this key on every change, so a re-render of
+ * HistoryTab picks up the latest value without a context wire.
+ */
+function readCurrentModel(): string | undefined {
+  try {
+    return localStorage.getItem("cq.model") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Map UI sort key to protocol sort key (snake_case). */
 function toProtocolSortKey(key: SortKey): string {
   const map: Record<SortKey, string> = {
@@ -181,6 +195,7 @@ export function HistoryTab(): React.ReactElement {
         onRowClick={(id) => setSelectedInvocationId(id)}
         activeSessionId={activeSessionId}
         onResumeSession={requestResume}
+        {...(readCurrentModel() !== undefined ? { currentModel: readCurrentModel()! } : {})}
       />
       {selectedInvocationId !== null && (
         <Detail

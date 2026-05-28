@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EffortSchema } from "./effort.js";
 
 // ---------------------------------------------------------------------------
 // Common fields (reused inline per plan § 3.1)
@@ -69,6 +70,10 @@ export const HistoryRow = z.object({
   title: z.string(),
   /** Non-null when this invocation was created via "resume from history". */
   resumedFromInvocationId: uuidStr().nullable(),
+  /** Platform the session ran on. Defaults to "claude" for pre-migration rows. */
+  platform: z.enum(["claude", "codex"]),
+  /** Reasoning-effort tier the session was started with. Defaults to "none". */
+  effort: EffortSchema,
 });
 export type HistoryRow = z.infer<typeof HistoryRow>;
 
@@ -130,14 +135,47 @@ export type ClientHbPong = z.infer<typeof ClientHbPong>;
 // § 3.3 Client → server application frames
 // ---------------------------------------------------------------------------
 
+/**
+ * Permission-mode union spans both platforms' valid values. Claude uses the
+ * first seven; Codex uses `codex-read-only | codex-workspace-write |
+ * codex-danger-full-access` (prefixed so the union is unambiguous). The
+ * per-backend bridge rejects values that don't match its platform.
+ */
+export const PermissionModeSchema = z.enum([
+  // Claude / cq-internal
+  "default",
+  "acceptEdits",
+  "bypassPermissions",
+  "plan",
+  "dontAsk",
+  "auto",
+  "read-only",
+  // Codex sandbox modes (mapped 1:1 to codex-sdk's SandboxMode)
+  "codex-read-only",
+  "codex-workspace-write",
+  "codex-danger-full-access",
+]);
+export type PermissionModeValue = z.infer<typeof PermissionModeSchema>;
+
+/** Backend platform the session should run on. */
+export const PlatformSchema = z.enum(["claude", "codex"]);
+
 export const ChatStart = z.object({
   type: z.literal("chat.start"),
   seq,
   ts,
   model: z.string().optional(),
-  permissionMode: z
-    .enum(["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk", "auto", "read-only"])
-    .optional(),
+  permissionMode: PermissionModeSchema.optional(),
+  /** Reasoning-effort knob; defaults to "none" (thinking disabled). */
+  effort: EffortSchema.optional(),
+  /**
+   * Backend the session runs on. Server cross-checks against the resumed
+   * session's prior platform and refuses on mismatch with `chat.error
+   * {code:'platform-mismatch'}`. Optional for backward compatibility; the
+   * facade defaults to "claude" when absent so legacy clients continue to
+   * work.
+   */
+  platform: PlatformSchema.optional(),
   resumeFromInvocationId: uuidStr().optional(),
 });
 export type ChatStart = z.infer<typeof ChatStart>;

@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { Bridge } from "../src/agent/bridge";
+import { Bridge, ClaudeBridge } from "../src/agent/bridge";
 import type { QueryFactory } from "../src/agent/bridge";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
@@ -571,6 +571,8 @@ describe("Bridge", () => {
       title: "prior",
       lastServerSeq: 0,
       sdkSessionId: null,
+      platform: "claude" as const,
+      effort: "none" as const,
     };
     persistence.sessions.insert(sessionRow);
 
@@ -777,5 +779,236 @@ describe("Bridge", () => {
 
     await bridge.shutdown();
     void callCount;
+  });
+
+  // --------------------------------------------------------------------------
+  // codex-3: platform-mismatch refusal
+  //   When `chat.start{resumeFromInvocationId}` is received but the prior
+  //   session's platform differs from the requested platform, the bridge
+  //   must emit `chat.error{code:'platform-mismatch'}` and NOT start the
+  //   session. This is the acceptance test for the cross-platform resume
+  //   guard called out in the cycle brief.
+  // --------------------------------------------------------------------------
+  it("codex-3: cross-platform resume is refused with chat.error{platform-mismatch}", async () => {
+    const persistence = new InMemoryPersistence();
+
+    // Seed a prior session with platform='codex' and a corresponding invocation
+    // so the resume path finds them.
+    const priorSessionId = "00000000-0000-4000-c000-000000000001";
+    const priorInvocationId = "00000000-0000-4000-c000-000000000002";
+    persistence.sessions.insert({
+      id: priorSessionId,
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now() - 30_000,
+      cwd: "/tmp/test",
+      model: "gpt-5.1",
+      permissionMode: "default",
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCacheRead: 0,
+      totalCacheCreate: 0,
+      totalCostUsd: 0,
+      endedReason: "completed",
+      title: "prior codex",
+      lastServerSeq: 0,
+      sdkSessionId: null,
+      platform: "codex",
+      effort: "high",
+    });
+    persistence.invocations.insert({
+      id: priorInvocationId,
+      sessionId: priorSessionId,
+      parentInvocationId: null,
+      resumedFromInvocationId: null,
+      agentName: "main",
+      agentId: null,
+      taskId: null,
+      toolUseId: null,
+      model: "gpt-5.1",
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now() - 30_000,
+      durationMs: 30_000,
+      status: "completed",
+      toolCallCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      promptExcerpt: "hello codex",
+      eventLogPath: `${priorSessionId}/${priorInvocationId}.jsonl`,
+      ownerPid: null,
+    });
+
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => mockQuery,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    // Attempt to resume the codex session with platform='claude' — must refuse.
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      platform: "claude",
+      resumeFromInvocationId: priorInvocationId,
+    });
+
+    // Verify chat.error{code:'platform-mismatch'} was emitted.
+    const errors = ws.framesOfType("chat.error");
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.code).toBe("platform-mismatch");
+    expect(errors[0]!.sessionId).toBe(priorSessionId);
+
+    // Verify no chat.started was emitted (session was refused, not started).
+    expect(ws.framesOfType("chat.started").length).toBe(0);
+
+    // Verify the bridge is not holding an active session.
+    expect(bridge.activeSessionId()).toBeNull();
+
+    // Verify NO new invocation row was inserted (the refusal happens before
+    // any persistence write). Only the seeded prior invocation should exist.
+    const allInvs = persistence.invocations.listForSession(priorSessionId);
+    expect(allInvs.length).toBe(1);
+    expect(allInvs[0]!.id).toBe(priorInvocationId);
+  });
+
+  // --------------------------------------------------------------------------
+  // gear-4: ChatStart.effort → SDK Options.thinking.budget_tokens
+  //   Pass effort='high' and assert the SDK query options carry the
+  //   { thinking: { type: 'enabled', budget_tokens: 16_000 } } shape.
+  //   Pass effort='none' (or omit) and assert no `thinking` key is set.
+  // --------------------------------------------------------------------------
+  it("gear-4: effort='high' forwards thinking.budget_tokens=16000 to SDK Options", async () => {
+    let capturedOpts: unknown = null;
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: ({ options }) => {
+        capturedOpts = options;
+        return mockQuery;
+      },
+      cwd: "/tmp/test",
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      effort: "high",
+    });
+
+    const opts = capturedOpts as Record<string, unknown> | null;
+    expect(opts).not.toBeNull();
+    expect(opts!["thinking"]).toEqual({
+      type: "enabled",
+      budget_tokens: 16_000,
+    });
+
+    await bridge.shutdown();
+  });
+
+  it("gear-4: effort='none' omits the thinking key entirely", async () => {
+    let capturedOpts: unknown = null;
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: ({ options }) => {
+        capturedOpts = options;
+        return mockQuery;
+      },
+      cwd: "/tmp/test",
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      effort: "none",
+    });
+
+    const opts = capturedOpts as Record<string, unknown> | null;
+    expect(opts).not.toBeNull();
+    expect(opts!["thinking"]).toBeUndefined();
+
+    await bridge.shutdown();
+  });
+
+  it("gear-4: effort='max' saturates at 31999 tokens (one below SDK cap)", async () => {
+    let capturedOpts: unknown = null;
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: ({ options }) => {
+        capturedOpts = options;
+        return mockQuery;
+      },
+      cwd: "/tmp/test",
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      effort: "max",
+    });
+
+    const opts = capturedOpts as Record<string, unknown> | null;
+    expect(opts).not.toBeNull();
+    expect(opts!["thinking"]).toEqual({
+      type: "enabled",
+      budget_tokens: 31_999,
+    });
+
+    await bridge.shutdown();
+  });
+
+  // --------------------------------------------------------------------------
+  // codex-3 / defense-in-depth: ClaudeBridge — constructed directly — refuses
+  // platform='codex' on a fresh start. In production the facade (codex-4)
+  // routes Codex frames to CodexBridge so this path is never hit, but the
+  // guard exists in case of misroute.
+  // --------------------------------------------------------------------------
+  it("codex-3: ClaudeBridge (direct) refuses platform='codex' on a fresh start", async () => {
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const claude = new ClaudeBridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => mockQuery,
+      cwd: "/tmp/test",
+    });
+
+    const ws = new MockWsSocket();
+    await claude.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "gpt-5.1",
+      platform: "codex",
+    });
+
+    const errors = ws.framesOfType("chat.error");
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.code).toBe("platform-mismatch");
+    expect(ws.framesOfType("chat.started").length).toBe(0);
+    expect(claude.activeSessionId()).toBeNull();
   });
 });

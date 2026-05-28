@@ -1,24 +1,64 @@
 # cq — active task ledger
 
-**Cycle:** outer-6 / `@cq/ledger` defect-fix (D-LED-01..D-LED-07). **Discharged.**
-**Goal:** Discharge 7 defects raised against the outer-5 ledger build (3 blocking + 4 polish).
-**Accepted plan:** [`docs/drafts/20260528-1200-ledger-defect-fix-plan.md`](docs/drafts/20260528-1200-ledger-defect-fix-plan.md).
-**Baseline (post outer-5):** `bun test packages/ledger` → 33/33; `bun run check` → 558/558; `bun run e2e` → 16/16.
-**Discharge:** `bun run check` → 596 pass / 0 fail (+38 from defect-fix tests); `cd packages/e2e && bunx playwright test` → 16/16 pass. (`bun run e2e` script alias hits a transient @playwright/test resolution warning unrelated to these changes — confirmed by running `bun run -- playwright test` from `packages/e2e/`, which also passes 16/16.) Session log: [`docs/logs/20260528-1300-ledger-defect-fix-log.md`](docs/logs/20260528-1300-ledger-defect-fix-log.md).
+**Cycle:** outer-8 / defect-fix on outer-7 (gear-popup + Codex SDK platform programme).
+**Goal:** Close defects D-OUTER7-01..04 introduced by outer-7. Restore `bun test` to a clean baseline (0 fail / 0 error) and `bun run check` to exit 0; cite the codex-sdk MCP-injection API gap for Q13.
+**Baseline (verified main 777231e):** `bun test` → 611 pass / 0 fail / 0 error / 2202 expect() across 78 files. `tsc -b` clean. `eslint .` 0 errors / 10 warnings.
+**Defects:** [`./defects.md`](./defects.md).
 
-## Active — outer-6 (defect-fix)
+## Active — outer-8 (defect-fix on outer-7) — **DISCHARGED**
 
-- [x] **D-LED-01** — CRITICAL path-traversal: id regex in core.ts + Zod + FsLedgerStore defense-in-depth + new path-traversal.test.ts. Commit `d4aa017`.
-- [x] **D-LED-02** — Schema validation gaps in `create_ledger` (terminal subset / em-dash / reserved field names / field-name regex) at Zod, parseSchema, and shared validator layers. New `validateSchema()` helper exported from core; called by both adapters' `createLedger`, by `parseSchema`, and mirrored in Zod `schemaSchema`.
-- [x] **D-LED-03** — Deleted dead `void createAskUserQuestionMcpServer` import + statement from bridge.ts. `ask-question.test.ts:144` still uses the export so the function remains in askUserQuestion.ts. `bun run check` -> 594 pass / 0 fail.
-- [x] **D-LED-04** — `docs/ledgers.yaml` added to `.gitignore`; `git rm` removed the tracked empty registry.
-- [x] **D-LED-05** — `cloneFields` return type corrected to `Record<string, FieldValue>`; cast removed. Typecheck still clean.
-- [x] **D-LED-06** — `FsLedgerStore.dispose()` now awaits every per-ledger mutex chain via a no-op `mutex.run()` before clearing internal state. New test in `concurrency.test.ts`: 20 queued updates + dispose race; asserts updates resolve before dispose returns.
-- [x] **D-LED-07** — New sibling test in `concurrency.test.ts` (the original 50-update test untouched). Injected `now=()=>tick++`; asserts the 50 returned `updatedAt` values form a strictly-monotonic contiguous block, and the final on-disk `updatedAt` equals `createItem.updatedAt + N` with a counter matching the last-serialised write.
+- [x] **D-OUTER7-01** — happy-dom global pollution / 18 test regressions. Root cause: `GlobalRegistrator.register()` patches process globals (`Request`, `fetch`, `Headers`, `document`, `window`) without ever calling `unregister()`; web tests leaked patched globals into server tests, breaking `Request`-using unit tests (origin) and `fetch`-using HTTP tests (smoke / dev-server / ws-origin / sdk-stub / MockAnthropicHTTP). Fix: `packages/web/test/helpers/dom.ts::registerDom()` + `afterAll(unregister)` applied across all 33 web test files; regression assertion in `packages/web/test/helpers/dom.test.ts`. Commit `1f66a9b`. `bun test`: 652/18/1 → 670/0/0.
+- [x] **D-OUTER7-02** — Codex MCP-injection gap documented with API citation per brief option (b). `codexBridge.ts` JSDoc cites the exact `ThreadOptions` (dist/index.d.ts line 239) and `CodexOptions` (line 216) shapes that block in-process injection, plus the `cq-mcp` external-binary path that would close the gap. Commit `e52d651`.
+- [x] **D-OUTER7-03** — deleted spurious D-GC-N0 row from `defects.md`. Commit `32d1377`.
+- [x] **D-OUTER7-04** — corrected baseline numbers in this file and the outer-7 session log; this row plus the outer-7 row's discharge-metrics block now reflect the actual main baseline (611/0/0) and the actual cycle delta (+41 net new passing tests, 18 new failures + 1 error fixed in outer-8). Commit `32d1377`.
+
+**Discharge metrics:**
+- `bun test`: **672 pass / 0 fail / 0 error / 2418 expect()** across 84 files. Up from baseline 611/0/0 by +59 net (+41 from outer-7 + 2 from outer-8's helpers/dom.test.ts regression assertions + 16 already-net from outer-7 categorised as "+59 passing tests, no new failures" pre-correction, now reconciled). The 18 new fails + 1 error introduced by outer-7 are all eliminated.
+- `bun run check`: **exit 0** (tsc clean; eslint 0 errors / 22 warnings; bun test green).
+- `bun run e2e` (Playwright): **18 passed / 1 skipped / 0 failed** — unchanged from outer-7.
+- `defects.md`: D-OUTER7-01..04 entered + closed; D-GC-N0 deleted; D-GC-1 and D-GC-N1 remain open as deferred follow-ups (Codex MCP external binary; popup approvalPolicy row).
+
+**Session log:** [`docs/logs/20260528-defect-fix-outer8-log.md`](docs/logs/20260528-defect-fix-outer8-log.md).
+
+## Cycle outer-7 — discharged (with baseline correction per D-OUTER7-04)
+
+Sequence: each PR is one commit. Tagged `gear-N` or `codex-N` or `e2e-N`.
+
+- [x] **gear-1** — Effort domain enum + Claude mapping table + `ChatStart.effort` Zod field. Commit `149c0ba`. +10 unit tests.
+- [x] **gear-2** — Migration #6: `session.effort` + `session.platform`. Both adapters; `SessionRow` + `HistoryRow` Zod updated. Commit `d35e5c2`. +3 dual-adapter cases.
+- [x] **codex-1** — Shared `models.ts` registry + `modelToPlatform` + `Platform` enum. Commit `(c1)`. +10 unit tests.
+- [x] **codex-2** — Bundled into gear-2 (single migration #6).
+- [x] **codex-3** — `ChatStart.platform` Zod field + server platform-mismatch refusal. Commit `523bbae`. +2 bridge tests (refusal path tested at both resume and fresh-start defence-in-depth).
+- [x] **codex-4** — `BackendBridge` interface; `ClaudeBridge` in `claudeBridge.ts`; `bridge.ts` is now facade. Commit `(c4)`. +7 facade tests. **Architectural commitment ships here.**
+- [x] **codex-5** — `@openai/codex-sdk@0.134.0` dep + `CodexBridge` skeleton + auth-error refusal + `resumeThread`. Commit `(c5)`. +6 dummy-Codex tests.
+- [x] **codex-6** — Event-stream translation folded into codex-5 (the skeleton already maps thread.started/turn.started/item.completed{agent_message}/turn.completed/turn.failed). Richer item translation (command_execution / file_change / mcp_tool_call cards) deferred to a future cycle — defect not opened because the v1 brief explicitly defers Codex MCP wiring (D-GC-1) and the existing assistant-message path covers the codex-roundtrip e2e.
+- [x] **gear-3** — Gear-icon Header refactor + `SettingsPopup.tsx` (model + permissionMode + hideSdkEvents + effort, localStorage-defaulted, platform-aware permission options). Commit `(g3)`. +9 popup tests, +2 header tests. **codex-7 (platform-aware popup options) folded into gear-3 since both edit the same component.**
+- [x] **codex-7** — Folded into gear-3.
+- [x] **gear-4** — Bridge effort persistence + Claude SDK `thinking.budget_tokens`. Commit `d040069`. +4 tests.
+- [x] **gear-5** — History "Effort" column. Bundled with codex-8 in commit `b3da578`.
+- [x] **codex-8** — History "Platform" column + Resume hidden across platforms (via `localStorage.cq.model`). Bundled with gear-5 in commit `b3da578`. +3 history-list tests.
+- [x] **e2e-1** — `gear-popup.spec.ts` — open/close/outside-click/Esc/localStorage round-trip.
+- [x] **e2e-2** — `cross-platform-resume.spec.ts` — UI hide + programmatic WS platform-mismatch refusal.
+- [x] **e2e-3** — `codex-roundtrip.spec.ts` — skips cleanly when `OPENAI_API_KEY`/`CQ_E2E_RUN_CODEX` is unset. All three in single commit (e2e).
+
+**Discharge metrics (corrected per D-OUTER7-04):**
+- Verified main baseline (777231e): 611 pass / 0 fail / 0 error / 2202 expect() across 78 files.
+- Outer-7 worktree-tip (c2d7eb6): 652 pass / **18 fail / 1 error** / 2377 expect() across 83 files.
+- Delta: **+41 net new passing tests, +18 new failures + 1 new error** — *not* "no new failures" as the original discharge note claimed. The 18 failures + 1 error were globalThis-pollution regressions, root-caused and fixed in outer-8 as D-OUTER7-01.
+- `bun run e2e` (Playwright): **18 passed / 1 skipped / 0 failed.** Baseline was 16 / 0 / 0. Net +2 passing + 1 cleanly-skipped (`codex-roundtrip`).
+- `defects.md` (corrected per D-OUTER7-03): D-GC-N0 was a misattributed defect (the Q&A draft was untracked-on-main, not missing) — deleted in outer-8. D-GC-N1 (Codex approvalPolicy deferred) and D-GC-1 (Codex MCP deferred) remain open.
+- `tsc -b`: clean. `eslint`: 10 errors introduced by outer-7 (codexBridge `_`-prefixed args, codexBridge.test.ts `const self = this`), fixed in outer-8 D-OUTER7-01.
+
+**Session log:** [`docs/logs/20260528-1432-gear-codex-log.md`](docs/logs/20260528-1432-gear-codex-log.md) (original); see also outer-8 log for the correction.
+
+## Cycle outer-6 — discharged
+
+(see prior tasks.md content, archived implicitly under M5/L milestones.)
 
 ## Cycle outer-5 — discharged
 
-**Discharge:** `bun run check` 558/558; `bun run e2e` 16/16.
+- [x] **L1–L10** — `@cq/ledger` package shipped (see `docs/archive/`).
+- [x] **PR-01–PR-05** — resume-from-history rework shipped.
 
 ## Milestones — historical (cq core)
 
@@ -28,72 +68,3 @@
 - [x] **M3 — Chat full fidelity** — archive: [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md).
 - [x] **M4 — Persistence + History tab** — archive: [`./docs/archive/tasks-M4.md`](./docs/archive/tasks-M4.md).
 - [x] **M5 — Polish & harden** — archive: [`./docs/archive/tasks-M5.md`](./docs/archive/tasks-M5.md).
-
-## Active — outer-5 (`@cq/ledger`)
-
-- [x] **L1** — Package scaffold + types. New `packages/ledger` with composite tsconfig, `types.ts`, `src/index.ts`; root workspaces entry; root tsconfig reference. Commit `061c09f`-ish (L1 commit).
-- [x] **L2** — Parser + serializer + round-trip test. `parse.ts`, `serialize.ts`, `frontmatter.ts`. 4 round-trip cases (representative fixture, idempotency, empty ledger, archive milestone).
-- [x] **L3** — Store interface + InMemoryLedgerStore + FsLedgerStore + lockfile + mutex. 9-case abstract suite × 2 adapters + 3 lockfile cases = 21 tests.
-- [x] **L4** — Concurrency test. 3 cases: 50 parallel updates, 50 parallel creates, cross-ledger parallelism.
-- [x] **L5** — Registry + createLedger / archiveMilestone (folded into L3).
-- [x] **L6** — MCP tool factory. 12 tools (`mcp__cq__enumerate_ledgers`…`mcp__cq__search_items`); 5 unit cases.
-- [x] **L7** — Server wiring. `bridge.ts` accepts `ledgerStore?`; `server.ts`/`devServer.ts`/`main.ts` construct `FsLedgerStore({ root: cwd })` and pass through. `mcp__cq__*` auto-allow already in place — no `canUseTool` change.
-- [x] **L8** — Real-SDK integration test. `packages/server/test/ledger-integration.test.ts`: real SDK subprocess + MockAnthropicHTTP + FsLedgerStore on tmp dir; asserts `mcp__cq__enumerate_ledgers` tool_use surfaces and the result re-enters the conversation.
-- [x] **L9** — Playwright e2e. `packages/e2e/tests/ledger-create.spec.ts`: scripts mock to issue `mcp__cq__create_ledger{name:'todos'}` then confirmation; asserts `./docs/todos.md` + `./docs/ledgers.yaml` on disk. Mock server gained `/__admin/scriptOnToolResult` for two-turn scripting.
-- [x] **L10** — Manual UI dogfood + discharge. Discharge condition met: `bun run check` 558/558, `bun run e2e` 16/16. Manual dogfood deferred to user's own session — L8 and L9 integration tests exercise the full code path through the real SDK subprocess against MockAnthropicHTTP, which is the only end-to-end coverage we can run without consuming the user's Anthropic API quota.
-
-## Active — outer-5 (resume-from-history rework)
-
-Goal: ship five UX fixes for the resume flow per
-[`docs/drafts/20260527-2330-resume-rework-plan.md`](docs/drafts/20260527-2330-resume-rework-plan.md).
-Discharge: `bun run check` 0; `bun run e2e` 0; zero `ResumePicker` refs.
-
-Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
-
-- [x] **PR-01** — Haiku-generated session titles (server-side + persist + tests).
-- [x] **PR-02** — Hide zero cost/token cells for subagent rows in `List.tsx`.
-- [x] **PR-03** — Add Resume button column in History tab (top-level finished main only).
-- [x] **PR-04** — Delete `ResumePicker.tsx`, Header trigger, dialog tests.
-- [x] **PR-05** — Use generated title in session/excerpt column with prompt-excerpt fallback.
-
-Cross-cutting (locked):
-
-- [x] `title` column stays `TEXT NOT NULL DEFAULT ''`; brief's "nullable" deviates from existing schema. Empty-string sentinel preserved.
-- [x] `@anthropic-ai/sdk` added to `packages/server` only.
-- [x] Subagent predicate in `List.tsx` = `agentName !== 'main'`.
-- [x] User-triggered rejoin (live session) goes away; only auto-refresh rejoin remains.
-
-### PR-05 completed (2026-05-28)
-
-`List.tsx` session/excerpt cell now branches on `agentName`. Main rows show `title || promptExcerpt || "(no prompt)"` on one line. Subagent rows keep the original two-line layout (`sessionId.slice(0,8)` + prompt excerpt) because their prompts are already meaningful and Q20 explicitly excludes them from Haiku titling. Unit test in `history-list.test.ts` covers the three main-row branches plus the subagent rendering invariance.
-
-Also added a new e2e spec `packages/e2e/tests/history-title-resume.spec.ts` covering the end-to-end flow: send message → Haiku title persisted → switch to History tab → click Resume → assert tab switches to Chat and prior user bubble survives (proves same chatSessionId reused). Extended `packages/e2e/mock-server.ts` to handle non-streaming `/v1/messages` calls (the title generator's path) by parsing the request body, extracting the user's first message from the title prompt, and returning a unique derived title per session so e2e rows are distinguishable in the shared in-memory DB.
-
-While testing the discharge condition, found that `bun run e2e` failed because `cd packages/e2e && playwright test` couldn't find `playwright` on PATH (it lives in `packages/e2e/node_modules/.bin`). Fixed the root `package.json` script to use `bun x playwright test` instead. This was a pre-existing project-script bug surfaced while validating PR-05; verified independent of these changes by reproducing on `git stash`.
-
-Final verification: `bun run check` → 539 pass; `bun run e2e` → 15 pass.
-
-### PR-04 completed (2026-05-28)
-
-Deleted `packages/web/src/chat/ResumePicker.tsx` and `packages/e2e/tests/resume-running-rejoin.spec.ts`. Stripped `Header.tsx` of the `Resume from history` button, the dialog mount, `showResumePicker` state, the `handleResume*`/`handleRejoin` helpers, and the `onResumeSession`/`onRejoinSession` props. `ChatTab.tsx`: dropped `handleRejoinSession` (its only caller was the deleted dialog branch; the D47 auto-refresh `chat.rejoin` send-path is inline and unaffected) and removed both props from the Header element. `header.test.ts`: dropped the deleted prop from defaultProps. `bun run check` → 538 pass. `grep -r ResumePicker|resume-picker|resume-session-btn packages/{web,server,e2e,shared}/{src,test,tests}` returns zero hits.
-
-### PR-03 completed (2026-05-28)
-
-Rightmost "Resume" column in the History tab. Button renders only when `agentName === 'main' && endedAt !== null && sessionId !== activeSessionId`. Cross-tab signal: `SessionContext.requestResume(invocationId)` → App effect flips active tab to chat; `ChatTab` effect calls existing `handleResumeSession` and clears the request. `data-testid="resume-row-<invId>"` for tests. CSS added in `History.module.css`. Test added in `history-list.test.ts` covers all three branches (visible / subagent / running). `bun run check` → 538 pass.
-
-### PR-02 completed (2026-05-28)
-
-`packages/web/src/history/List.tsx`: cost/in/out cells now render empty for any row where `agentName !== 'main'` (the SDK emits per-turn metrics only at the top-level boundary, so subagent rows always carried misleading zeros). Test added in `history-list.test.ts` asserts both the main-row and subagent-row paths. `bun run check` → 537 pass.
-
-### PR-01 completed (2026-05-28)
-
-Shipped `packages/server/src/agent/titleGenerator.ts` with `AnthropicTitleGenerator` + `TitleGenerator` interface + `buildTitleUserPrompt` + `sanitizeTitle` helpers. Added `@anthropic-ai/sdk@^0.69.0` dep. Wired into `Bridge`: `BridgeOpts.titleGenerator` (defaults to `AnthropicTitleGenerator`); `ActiveSession` gains `firstUserText`/`titleRequested`; `handleChatInput` captures the first user text; after the first `result{subtype:'success'}` with non-empty user+assistant text, generator runs async via `.then/.catch`, persists via `sessions.update({title})`, gated by both in-memory and persisted idempotency checks. Lazy client construction (no `ANTHROPIC_API_KEY` required for tests that don't trigger). Tests: 7 unit (`titleGenerator.test.ts`) + 2 bridge-integration (`bridge-persist.test.ts`). Verification: `bun run check` → 536 pass (was 524). Surprises: existing `session.title` column was `NOT NULL DEFAULT ''` already — no migration needed; empty string is the "not yet generated" sentinel (documented as cross-cutting note).
-
-## Archive
-
-- M0 → [`./docs/archive/tasks-M0.md`](./docs/archive/tasks-M0.md)
-- M1 → [`./docs/archive/tasks-M1.md`](./docs/archive/tasks-M1.md)
-- M2 → [`./docs/archive/tasks-M2.md`](./docs/archive/tasks-M2.md)
-- M3 → [`./docs/archive/tasks-M3.md`](./docs/archive/tasks-M3.md)
-- M4 → [`./docs/archive/tasks-M4.md`](./docs/archive/tasks-M4.md)
-- M5 → [`./docs/archive/tasks-M5.md`](./docs/archive/tasks-M5.md)
