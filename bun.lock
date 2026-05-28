@@ -14,6 +14,21 @@
         "typescript-eslint": "^8.34.0",
       },
     },
+    "packages/cq-mcp": {
+      "name": "@cq/cq-mcp",
+      "version": "0.0.1",
+      "bin": {
+        "cq-mcp": "./src/main.ts",
+      },
+      "dependencies": {
+        "@cq/ledger": "workspace:*",
+        "@modelcontextprotocol/sdk": "1.29.0",
+        "zod": "^4.0.0",
+      },
+      "devDependencies": {
+        "bun-types": "^1.1.0",
+      },
+    },
     "packages/e2e": {
       "name": "@cq/e2e",
       "version": "0.0.1",
@@ -49,6 +64,7 @@
         "@anthropic-ai/claude-agent-sdk": "0.3.150",
         "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.150",
         "@anthropic-ai/sdk": "^0.69.0",
+        "@cq/cq-mcp": "workspace:*",
         "@cq/ledger": "workspace:*",
         "@cq/shared": "workspace:*",
         "@openai/codex-sdk": "0.134.0",
@@ -109,6 +125,8 @@
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.69.0", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-L92d2q47BSq+7slUqHBL1d2DwloulZotYGCTDt9AYRtPmYF+iK6rnwq9JaZwPPJgk+LenbcbQ/nj6gfaDFsl9w=="],
 
     "@babel/runtime": ["@babel/runtime@7.29.7", "", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
+
+    "@cq/cq-mcp": ["@cq/cq-mcp@workspace:packages/cq-mcp"],
 
     "@cq/e2e": ["@cq/e2e@workspace:packages/e2e"],
 

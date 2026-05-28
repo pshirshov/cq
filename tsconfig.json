@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/shared" },
     { "path": "./packages/ledger" },
+    { "path": "./packages/cq-mcp" },
     { "path": "./packages/server" },
     { "path": "./packages/web" }
   ]
