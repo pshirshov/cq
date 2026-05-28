@@ -780,4 +780,127 @@ describe("Bridge", () => {
     await bridge.shutdown();
     void callCount;
   });
+
+  // --------------------------------------------------------------------------
+  // codex-3: platform-mismatch refusal
+  //   When `chat.start{resumeFromInvocationId}` is received but the prior
+  //   session's platform differs from the requested platform, the bridge
+  //   must emit `chat.error{code:'platform-mismatch'}` and NOT start the
+  //   session. This is the acceptance test for the cross-platform resume
+  //   guard called out in the cycle brief.
+  // --------------------------------------------------------------------------
+  it("codex-3: cross-platform resume is refused with chat.error{platform-mismatch}", async () => {
+    const persistence = new InMemoryPersistence();
+
+    // Seed a prior session with platform='codex' and a corresponding invocation
+    // so the resume path finds them.
+    const priorSessionId = "00000000-0000-4000-c000-000000000001";
+    const priorInvocationId = "00000000-0000-4000-c000-000000000002";
+    persistence.sessions.insert({
+      id: priorSessionId,
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now() - 30_000,
+      cwd: "/tmp/test",
+      model: "gpt-5.1",
+      permissionMode: "default",
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCacheRead: 0,
+      totalCacheCreate: 0,
+      totalCostUsd: 0,
+      endedReason: "completed",
+      title: "prior codex",
+      lastServerSeq: 0,
+      sdkSessionId: null,
+      platform: "codex",
+      effort: "high",
+    });
+    persistence.invocations.insert({
+      id: priorInvocationId,
+      sessionId: priorSessionId,
+      parentInvocationId: null,
+      resumedFromInvocationId: null,
+      agentName: "main",
+      agentId: null,
+      taskId: null,
+      toolUseId: null,
+      model: "gpt-5.1",
+      startedAt: Date.now() - 60_000,
+      endedAt: Date.now() - 30_000,
+      durationMs: 30_000,
+      status: "completed",
+      toolCallCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      promptExcerpt: "hello codex",
+      eventLogPath: `${priorSessionId}/${priorInvocationId}.jsonl`,
+      ownerPid: null,
+    });
+
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => mockQuery,
+      cwd: "/tmp/test",
+      persistence,
+    });
+
+    // Attempt to resume the codex session with platform='claude' — must refuse.
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      platform: "claude",
+      resumeFromInvocationId: priorInvocationId,
+    });
+
+    // Verify chat.error{code:'platform-mismatch'} was emitted.
+    const errors = ws.framesOfType("chat.error");
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.code).toBe("platform-mismatch");
+    expect(errors[0]!.sessionId).toBe(priorSessionId);
+
+    // Verify no chat.started was emitted (session was refused, not started).
+    expect(ws.framesOfType("chat.started").length).toBe(0);
+
+    // Verify the bridge is not holding an active session.
+    expect(bridge.activeSessionId()).toBeNull();
+
+    // Verify NO new invocation row was inserted (the refusal happens before
+    // any persistence write). Only the seeded prior invocation should exist.
+    const allInvs = persistence.invocations.listForSession(priorSessionId);
+    expect(allInvs.length).toBe(1);
+    expect(allInvs[0]!.id).toBe(priorInvocationId);
+  });
+
+  // --------------------------------------------------------------------------
+  // codex-3: explicit platform='codex' on a fresh start is also refused by
+  // ClaudeBridge — the facade (codex-4) routes those to CodexBridge; if a
+  // misrouted frame ever reaches here, the bridge must refuse, not silently
+  // treat it as Claude.
+  // --------------------------------------------------------------------------
+  it("codex-3: ClaudeBridge refuses platform='codex' on a fresh start", async () => {
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const { bridge } = makeBridge(mockQuery);
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "gpt-5.1",
+      platform: "codex",
+    });
+
+    const errors = ws.framesOfType("chat.error");
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.code).toBe("platform-mismatch");
+    expect(ws.framesOfType("chat.started").length).toBe(0);
+    expect(bridge.activeSessionId()).toBeNull();
+  });
 });

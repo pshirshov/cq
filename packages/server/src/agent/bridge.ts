@@ -296,6 +296,37 @@ export class Bridge {
   // ---------------------------------------------------------------------------
 
   async handleChatStart(ws: WsSocket, frame: ChatStart): Promise<void> {
+    // codex-3: this bridge only handles platform='claude'. Cross-platform
+    // resume must be refused BEFORE preempting the active session so an
+    // accidental mismatch does not destroy the live session.
+    const requestedPlatform: "claude" | "codex" = frame.platform ?? "claude";
+    if (frame.resumeFromInvocationId !== undefined) {
+      const priorInv = this.persistence.invocations.get(frame.resumeFromInvocationId);
+      const priorSession = priorInv !== undefined
+        ? this.persistence.sessions.get(priorInv.sessionId)
+        : undefined;
+      if (priorSession !== undefined && priorSession.platform !== requestedPlatform) {
+        this.sendError(
+          ws,
+          priorSession.id,
+          "platform-mismatch",
+          `Cannot resume a ${priorSession.platform} session with a ${requestedPlatform} model; switch the model dropdown back to a ${priorSession.platform} model and try again.`,
+        );
+        return;
+      }
+    }
+    // ClaudeBridge only handles Claude sessions. If the facade routes a
+    // Codex frame here, refuse rather than silently downgrading.
+    if (requestedPlatform !== "claude") {
+      this.sendError(
+        ws,
+        null,
+        "platform-mismatch",
+        `ClaudeBridge cannot handle platform='${requestedPlatform}'.`,
+      );
+      return;
+    }
+
     // Preempt any active session before starting a new one (E2E-D04).
     if (this.active !== null) {
       this.logger.info("bridge.chat_start_preempt", {

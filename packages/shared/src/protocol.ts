@@ -157,6 +157,9 @@ export const PermissionModeSchema = z.enum([
 ]);
 export type PermissionModeValue = z.infer<typeof PermissionModeSchema>;
 
+/** Backend platform the session should run on. */
+export const PlatformSchema = z.enum(["claude", "codex"]);
+
 export const ChatStart = z.object({
   type: z.literal("chat.start"),
   seq,
@@ -165,6 +168,14 @@ export const ChatStart = z.object({
   permissionMode: PermissionModeSchema.optional(),
   /** Reasoning-effort knob; defaults to "none" (thinking disabled). */
   effort: EffortSchema.optional(),
+  /**
+   * Backend the session runs on. Server cross-checks against the resumed
+   * session's prior platform and refuses on mismatch with `chat.error
+   * {code:'platform-mismatch'}`. Optional for backward compatibility; the
+   * facade defaults to "claude" when absent so legacy clients continue to
+   * work.
+   */
+  platform: PlatformSchema.optional(),
   resumeFromInvocationId: uuidStr().optional(),
 });
 export type ChatStart = z.infer<typeof ChatStart>;
