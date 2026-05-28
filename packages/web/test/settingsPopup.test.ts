@@ -62,6 +62,8 @@ function defaultProps(overrides: Partial<HeaderProps> = {}): HeaderProps {
     onNewSession: () => undefined,
     hideSdkEvents: false,
     onHideSdkEventsChange: () => undefined,
+    approvalPolicy: "on-request",
+    onApprovalPolicyChange: () => undefined,
     ...overrides,
   };
 }
@@ -181,5 +183,43 @@ describe("SettingsPopup", () => {
       sel.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(chosenModel).toBe("gpt-5.1");
+  });
+
+  // -------------------------------------------------------------------------
+  // gcn1-3: approvalPolicy row is platform-gated and Codex-only
+  // -------------------------------------------------------------------------
+  test("gcn1-3: approval-policy row is absent for Claude models", () => {
+    const c = renderHeader(defaultProps({ model: "claude-opus-4-7" }));
+    openPopup(c);
+    expect(c.querySelector("[data-testid='approval-policy-select']")).toBeNull();
+  });
+
+  test("gcn1-3: approval-policy row is present for Codex models with the 4 SDK values", () => {
+    const c = renderHeader(defaultProps({ model: "gpt-5.1" }));
+    openPopup(c);
+    const sel = c.querySelector("[data-testid='approval-policy-select']") as HTMLSelectElement;
+    expect(sel).not.toBeNull();
+    const optionValues = Array.from(sel.options).map((o) => o.value);
+    expect(optionValues).toEqual(["never", "on-request", "on-failure", "untrusted"]);
+  });
+
+  test("gcn1-3: changing the approval-policy fires onApprovalPolicyChange with the chosen value", () => {
+    let chosen: string | null = null;
+    const c = renderHeader(
+      defaultProps({
+        model: "gpt-5.1",
+        approvalPolicy: "on-request",
+        onApprovalPolicyChange: (p) => { chosen = p; },
+      }),
+    );
+    openPopup(c);
+    const sel = c.querySelector("[data-testid='approval-policy-select']") as HTMLSelectElement;
+    expect(sel).not.toBeNull();
+    expect(sel.value).toBe("on-request");
+    act(() => {
+      sel.value = "untrusted";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(chosen).toBe("untrusted");
   });
 });

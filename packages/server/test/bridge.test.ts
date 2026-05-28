@@ -879,6 +879,41 @@ describe("Bridge", () => {
   });
 
   // --------------------------------------------------------------------------
+  // gcn1-2: approvalPolicy on Claude must be refused
+  //   approvalPolicy is a Codex-only enum. If a chat.start frame
+  //   targets platform='claude' but carries a non-undefined
+  //   approvalPolicy, the facade must emit
+  //   `chat.error{code:'approval-policy-on-claude'}` and refuse to
+  //   start the session.
+  // --------------------------------------------------------------------------
+  it("gcn1-2: chat.start{platform:'claude', approvalPolicy:'never'} is refused", async () => {
+    const mockQuery = makeMockQuery([makeInitMessage()]);
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => mockQuery,
+      cwd: "/tmp/test",
+    });
+
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, {
+      type: "chat.start",
+      seq: 0,
+      ts: Date.now(),
+      model: "claude-opus-4-7",
+      platform: "claude",
+      approvalPolicy: "never",
+    });
+
+    const errors = ws.framesOfType("chat.error");
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.code).toBe("approval-policy-on-claude");
+    expect(ws.framesOfType("chat.started").length).toBe(0);
+    expect(bridge.activeSessionId()).toBeNull();
+  });
+
+  // --------------------------------------------------------------------------
   // gear-4: ChatStart.effort → SDK Options.thinking.budget_tokens
   //   Pass effort='high' and assert the SDK query options carry the
   //   { thinking: { type: 'enabled', budget_tokens: 16_000 } } shape.

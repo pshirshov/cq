@@ -1,11 +1,32 @@
 # cq — active task ledger
 
-**Cycle:** outer-8 / defect-fix on outer-7 (gear-popup + Codex SDK platform programme).
-**Goal:** Close defects D-OUTER7-01..04 introduced by outer-7. Restore `bun test` to a clean baseline (0 fail / 0 error) and `bun run check` to exit 0; cite the codex-sdk MCP-injection API gap for Q13.
-**Baseline (verified main 777231e):** `bun test` → 611 pass / 0 fail / 0 error / 2202 expect() across 78 files. `tsc -b` clean. `eslint .` 0 errors / 10 warnings.
+**Cycle:** outer-9 / defect-closure on D-GC-1 (Codex ledger MCP via external stdio binary) + D-GC-N1 (Codex approvalPolicy popup row).
+**Goal:** Ship `packages/cq-mcp` stdio MCP binary that exposes the 12 `mcp__cq__*` ledger tools; wire `CodexBridge` to spawn it per session through `CodexOptions.config.mcp_servers.cq`. Expose Codex `approvalPolicy` (4-value enum) as a second gear-popup row when platform=codex; persist on session row via migration #7; plumb through `ChatStart`; forward in `ThreadOptions.approvalPolicy`.
+**Baseline (verified worktree f5d02d7):** `bun test` → 672 pass / 0 fail / 0 error / 2418 expect() across 84 files. `tsc -b` clean. `bun run e2e` (per outer-8 ledger): 18 passed / 1 skipped.
 **Defects:** [`./defects.md`](./defects.md).
 
-## Active — outer-8 (defect-fix on outer-7) — **DISCHARGED**
+## Active — outer-9 (defect-closure: D-GC-1 + D-GC-N1)
+
+Sequence (one commit per PR; tags `cq-mcp-N`, `gc1-N`, `gcn1-N`):
+
+- [x] **cq-mcp-1+2+3** — new `@cq/cq-mcp` workspace + `src/main.ts` stdio binary + `test/main.test.ts` end-to-end via the MCP `Client`. Pinned `@modelcontextprotocol/sdk@1.29.0`. Bin linked at `packages/server/node_modules/.bin/cq-mcp` after adding `@cq/cq-mcp` to server's deps. Schemas mirror `packages/ledger/src/mcp/ledgerTools.ts`; `ask_user_question` deliberately not exposed (deferred — needs WS bridging). Commit `7e3f693`. `bun run check`: 675/0.
+- [x] **gc1-1** — `CodexBridge` per-session construction wires `CodexOptions.config.mcp_servers.cq = { command, args: […, "--cwd", cwd] }`. `defaultResolveCqMcpBin()` walks `node_modules/.bin/cq-mcp` with bun-source fallback. Factory signature widened to `(options?: CodexOptions) => Codex`. Test in `codexBridge-mcp.test.ts` asserts both explicit-bin and default-resolver paths. Commit `f2c5f61`. `bun run check`: 677/0.
+- [x] **gc1-2** — README.md notes the `cq-mcp` bin prerequisite for Codex-ledger sessions. D-GC-1 closed in `defects.md` with shipping-artifact citations. Follow-ups filed: `D-CQMCP-NIX` (Nix closure verification) and `D-CQMCP-E2E` (codex-roundtrip MCP step when auth is available).
+- [x] **gcn1-1** — Migration #7 (`approval_policy TEXT NULL`), `SessionRow` + `HistoryRow` Zod, both adapters' insert/update/JOIN, persist-crud round-trip + update + history-join tests. Commit `688037e`. `bun run check`: 683/0.
+- [x] **gcn1-2** — `ChatStart.approvalPolicy` optional Zod field; facade refusal on Claude + non-null; `CodexBridge` forwards to `ThreadOptions.approvalPolicy` and persists on the session row. Tests in `codexBridge.test.ts` and `bridge.test.ts`. Commit `a8760e8`. `bun run check`: 686/0.
+- [x] **gcn1-3** — `SettingsPopup` renders the platform-gated "Approval policy" row (4 SDK values, default `on-request`); `ChatTab` hydrates from `localStorage['cq.codex.approvalPolicy']`, threads through Header, spreads onto every `chat.start` via `approvalPolicyFor(model, value)`. Tests in `settingsPopup.test.ts`. D-GC-N1 closed in `defects.md`.
+
+**Inner-loop discipline:** Each PR is one commit. Each PR's verification is run before its commit. `bun run check` must remain 0 between PRs except mid-`cq-mcp-1` where new package types are wired (we still gate at the next commit boundary).
+
+**Discharge metrics:**
+- `bun run check`: **689 pass / 0 fail / 0 error / 2459 expect()** across 86 files. Up from baseline 672/0 by +17 new tests, +2 new files (`cq-mcp/test/main.test.ts`, `server/test/codexBridge-mcp.test.ts`).
+- `bun run e2e` (Playwright): **18 passed / 1 skipped / 0 failed** — unchanged from outer-8 baseline.
+- `tsc -b` clean; `eslint .` 0 errors.
+- `defects.md`: D-GC-1 + D-GC-N1 closed; D-CQMCP-NIX + D-CQMCP-E2E filed.
+
+**Session log:** [`docs/logs/20260528-1500-outer9-log.md`](docs/logs/20260528-1500-outer9-log.md).
+
+## Cycle outer-8 (defect-fix on outer-7) — DISCHARGED
 
 - [x] **D-OUTER7-01** — happy-dom global pollution / 18 test regressions. Root cause: `GlobalRegistrator.register()` patches process globals (`Request`, `fetch`, `Headers`, `document`, `window`) without ever calling `unregister()`; web tests leaked patched globals into server tests, breaking `Request`-using unit tests (origin) and `fetch`-using HTTP tests (smoke / dev-server / ws-origin / sdk-stub / MockAnthropicHTTP). Fix: `packages/web/test/helpers/dom.ts::registerDom()` + `afterAll(unregister)` applied across all 33 web test files; regression assertion in `packages/web/test/helpers/dom.test.ts`. Commit `1f66a9b`. `bun test`: 652/18/1 → 670/0/0.
 - [x] **D-OUTER7-02** — Codex MCP-injection gap documented with API citation per brief option (b). `codexBridge.ts` JSDoc cites the exact `ThreadOptions` (dist/index.d.ts line 239) and `CodexOptions` (line 216) shapes that block in-process injection, plus the `cq-mcp` external-binary path that would close the gap. Commit `e52d651`.

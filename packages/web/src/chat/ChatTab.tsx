@@ -36,7 +36,7 @@ import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import { Detail } from "../history/Detail";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatRejoin, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult, Effort } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatRejoin, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult, ApprovalPolicy, Effort } from "@cq/shared";
 import { DEFAULT_EFFORT, modelToPlatform } from "@cq/shared";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
@@ -66,6 +66,26 @@ function lsReadEffort(key: string, fallback: Effort): Effort {
   const raw = lsReadString(key, fallback);
   const valid: readonly Effort[] = ["none", "low", "medium", "high", "max"];
   return valid.includes(raw as Effort) ? (raw as Effort) : fallback;
+}
+
+/**
+ * gcn1-3: read the Codex approvalPolicy from localStorage. Defaults to
+ * "on-request" — the codex-sdk default. Validates against the SDK's
+ * 4-value union so a stale or corrupted entry falls back cleanly.
+ */
+function lsReadApprovalPolicy(key: string, fallback: ApprovalPolicy): ApprovalPolicy {
+  const raw = lsReadString(key, fallback);
+  const valid: readonly ApprovalPolicy[] = ["never", "on-request", "on-failure", "untrusted"];
+  return valid.includes(raw as ApprovalPolicy) ? (raw as ApprovalPolicy) : fallback;
+}
+
+/**
+ * gcn1-3: spread of the optional `approvalPolicy` field on ChatStart.
+ * Codex sessions carry the popup-selected value; Claude sessions omit
+ * the field (the facade rejects non-null approvalPolicy on Claude).
+ */
+function approvalPolicyFor(model: string, approvalPolicy: ApprovalPolicy): { approvalPolicy?: ApprovalPolicy } {
+  return modelToPlatform(model) === "codex" ? { approvalPolicy } : {};
 }
 
 function lsWrite(key: string, value: string): void {
@@ -119,12 +139,18 @@ export function ChatTab(): React.ReactElement {
     () => lsReadString("cq.permissionMode", "bypassPermissions") as PermissionMode,
   );
   const [effort, setEffort] = useState<Effort>(() => lsReadEffort("cq.effort", DEFAULT_EFFORT));
+  // gcn1-3: Codex approvalPolicy, hydrated from localStorage. Only sent
+  // on chat.start when the selected model resolves to platform=codex.
+  const [approvalPolicy, setApprovalPolicy] = useState<ApprovalPolicy>(
+    () => lsReadApprovalPolicy("cq.codex.approvalPolicy", "on-request"),
+  );
   // Refs that always hold the latest model/permissionMode/effort so closures
   // in effects (e.g. REJOIN_FAILED handler) read fresh values. Same
   // pattern as sortRef/filterRef/pageRef in HistoryTab.
   const modelRef = useRef(model);
   const permissionModeRef = useRef(permissionMode);
   const effortRef = useRef(effort);
+  const approvalPolicyRef = useRef(approvalPolicy);
   const [inputTokens, setInputTokens] = useState(0);
   const [outputTokens, setOutputTokens] = useState(0);
   const [costUsd, setCostUsd] = useState(0);
@@ -163,6 +189,10 @@ export function ChatTab(): React.ReactElement {
   useEffect(() => { modelRef.current = model; lsWrite("cq.model", model); }, [model]);
   useEffect(() => { permissionModeRef.current = permissionMode; lsWrite("cq.permissionMode", permissionMode); }, [permissionMode]);
   useEffect(() => { effortRef.current = effort; lsWrite("cq.effort", effort); }, [effort]);
+  useEffect(() => {
+    approvalPolicyRef.current = approvalPolicy;
+    lsWrite("cq.codex.approvalPolicy", approvalPolicy);
+  }, [approvalPolicy]);
   useEffect(() => { lsWrite("cq.hideSdkEvents", hideSdkEvents ? "1" : "0"); }, [hideSdkEvents]);
 
   // ---- D30: Subagent transcript overlay ----
@@ -378,6 +408,7 @@ export function ChatTab(): React.ReactElement {
             permissionMode: permissionModeRef.current,
             effort: effortRef.current,
             platform: modelToPlatform(modelRef.current),
+            ...approvalPolicyFor(modelRef.current, approvalPolicyRef.current),
           };
           manager.send(fallbackFrame);
           return;
@@ -410,6 +441,7 @@ export function ChatTab(): React.ReactElement {
             permissionMode: newPermMode,
             effort: effortRef.current,
             platform: modelToPlatform(newModel),
+            ...approvalPolicyFor(newModel, approvalPolicyRef.current),
           };
           manager.send(startFrame);
         }
@@ -503,6 +535,7 @@ export function ChatTab(): React.ReactElement {
         permissionMode: permissionModeRef.current,
         effort: effortRef.current,
         platform: modelToPlatform(modelRef.current),
+        ...approvalPolicyFor(modelRef.current, approvalPolicyRef.current),
       };
       manager.send(fallback);
     }, 3_000);
@@ -608,6 +641,7 @@ export function ChatTab(): React.ReactElement {
       permissionMode,
       effort,
       platform: modelToPlatform(model),
+      ...approvalPolicyFor(model, approvalPolicy),
     };
     manager.send(frame);
   }
@@ -630,6 +664,7 @@ export function ChatTab(): React.ReactElement {
       permissionMode,
       effort,
       platform: modelToPlatform(model),
+      ...approvalPolicyFor(model, approvalPolicy),
       resumeFromInvocationId: invocationId,
     };
     manager.send(frame);
@@ -736,6 +771,8 @@ export function ChatTab(): React.ReactElement {
         onNewSession={handleNewSession}
         hideSdkEvents={hideSdkEvents}
         onHideSdkEventsChange={setHideSdkEvents}
+        approvalPolicy={approvalPolicy}
+        onApprovalPolicyChange={setApprovalPolicy}
       />
       {/* F4: Search bar — shown when open, sits between header and stream */}
       {searchOpen && (

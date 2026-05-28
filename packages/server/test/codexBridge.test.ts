@@ -134,6 +134,7 @@ function makeStart(overrides: Partial<{
   model: string;
   permissionMode: string;
   resumeFromInvocationId: string;
+  approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted";
 }> = {}): import("@cq/shared").ChatStart {
   return {
     type: "chat.start",
@@ -147,6 +148,9 @@ function makeStart(overrides: Partial<{
       : {}),
     ...(overrides.resumeFromInvocationId !== undefined
       ? { resumeFromInvocationId: overrides.resumeFromInvocationId as never }
+      : {}),
+    ...(overrides.approvalPolicy !== undefined
+      ? { approvalPolicy: overrides.approvalPolicy }
       : {}),
   } as import("@cq/shared").ChatStart;
 }
@@ -195,6 +199,32 @@ describe("CodexBridge", () => {
     expect(thread.threadOptions.sandboxMode).toBe("workspace-write");
     expect(thread.threadOptions.workingDirectory).toBe("/tmp/codex-test");
     expect(thread.threadOptions.model).toBe("gpt-5.1");
+    await bridge.shutdown();
+  });
+
+  // gcn1-2: ChatStart.approvalPolicy → ThreadOptions.approvalPolicy + persisted on session row.
+  it("forwards approvalPolicy to ThreadOptions and persists it on the session row", async () => {
+    const { bridge, codex, persistence } = makeBridge({ authed: true });
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart({
+      effort: "medium",
+      approvalPolicy: "untrusted",
+    }));
+    const thread = codex.lastThread!;
+    expect(thread.threadOptions.approvalPolicy).toBe("untrusted");
+    const sessionId = ws.framesOfType("chat.started")[0]!.sessionId as string;
+    expect(persistence.sessions.get(sessionId)!.approvalPolicy).toBe("untrusted");
+    await bridge.shutdown();
+  });
+
+  it("omits approvalPolicy from ThreadOptions when not on the frame; persists null", async () => {
+    const { bridge, codex, persistence } = makeBridge({ authed: true });
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart({ effort: "low" }));
+    const thread = codex.lastThread!;
+    expect(thread.threadOptions.approvalPolicy).toBeUndefined();
+    const sessionId = ws.framesOfType("chat.started")[0]!.sessionId as string;
+    expect(persistence.sessions.get(sessionId)!.approvalPolicy).toBeNull();
     await bridge.shutdown();
   });
 

@@ -20,10 +20,22 @@
  */
 
 import { useEffect, useRef } from "react";
-import type { Effort } from "@cq/shared";
+import type { ApprovalPolicy, Effort } from "@cq/shared";
 import { EFFORT_VALUES, MODELS, modelToPlatform } from "@cq/shared";
 import type { PermissionMode } from "./Header";
 import styles from "../styles/SettingsPopup.module.css";
+
+/**
+ * Codex approvalPolicy options — mirrors @openai/codex-sdk@0.134.0's
+ * ApprovalMode union exactly (see dist/index.d.ts line 235). Default
+ * matches the codex-sdk default ("on-request").
+ */
+const CODEX_APPROVAL_OPTIONS: readonly { value: ApprovalPolicy; label: string }[] = [
+  { value: "never",       label: "never" },
+  { value: "on-request",  label: "on-request" },
+  { value: "on-failure",  label: "on-failure" },
+  { value: "untrusted",   label: "untrusted" },
+] as const;
 
 /** Codex sandbox option set, presented to the popup when platform=codex. */
 const CODEX_SANDBOX_OPTIONS: readonly { value: PermissionMode; label: string }[] = [
@@ -54,6 +66,14 @@ export interface SettingsPopupProps {
   /** Hide SDK events checkbox state. */
   hideSdkEvents: boolean;
   onHideSdkEventsChange: (value: boolean) => void;
+  /**
+   * gcn1-3: Codex approvalPolicy (4-value union). Surfaced as a second
+   * select row only when platform=codex. Default "on-request" matches
+   * the codex-sdk default — null means "don't override" and is treated
+   * the same as "on-request" by the bridge.
+   */
+  approvalPolicy: ApprovalPolicy;
+  onApprovalPolicyChange: (policy: ApprovalPolicy) => void;
   /** Called when the popup should close (Esc / outside-click). */
   onClose: () => void;
   /**
@@ -73,6 +93,8 @@ export function SettingsPopup({
   onEffortChange,
   hideSdkEvents,
   onHideSdkEventsChange,
+  approvalPolicy,
+  onApprovalPolicyChange,
   onClose,
   anchorRef,
 }: SettingsPopupProps): React.ReactElement {
@@ -156,6 +178,23 @@ export function SettingsPopup({
           ))}
         </select>
       </div>
+
+      {platform === "codex" && (
+        <div className={styles.row}>
+          <label htmlFor="settings-approval-policy">Approval policy</label>
+          <select
+            id="settings-approval-policy"
+            className={styles.select}
+            value={approvalPolicy}
+            onChange={(e) => onApprovalPolicyChange(e.currentTarget.value as ApprovalPolicy)}
+            data-testid="approval-policy-select"
+          >
+            {CODEX_APPROVAL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className={styles.row}>
         <label htmlFor="settings-effort">Reasoning effort</label>
