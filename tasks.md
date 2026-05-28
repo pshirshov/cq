@@ -6,6 +6,7 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ## Milestones (high-level)
 
+- [~] **outer-13 / coherence** — Cross-process cache coherence between cq-server and cq-mcp via per-process internal WebSocket channel (`ledger.changed` invalidation). Plan: [`docs/drafts/20260529-0050-plan-coherence.md`](docs/drafts/20260529-0050-plan-coherence.md).
 - [x] **outer-12 / msunify** — Unified `milestones` ledger + drop per-ledger milestone tools + ISO 8601 timestamps. Plan: [`docs/drafts/20260528-2100-plan-msunify.md`](docs/drafts/20260528-2100-plan-msunify.md).
 - [x] **outer-11** — D-UNIFASYNC-01 + adversarial sweep for sync/async unions.
 - [x] **outer-10** — close D-CQMCP-E2E + D-CQMCP-NIX (outer-9 follow-ups).
@@ -13,6 +14,30 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 - (older milestones in this file)
 
 ---
+
+## Active — outer-13 / coherence
+
+**Cycle:** coherence (cross-process cache invalidation cq-server ↔ cq-mcp).
+**Goal:** add per-process internal WebSocket channel delivering `ledger.changed` invalidation notifications so a Codex session's `mcp__cq__create_ledger`/`update_item`/`archive_milestone` writes via cq-mcp are observed by cq-server (and vice versa) without restart.
+**Baseline (verified worktree cb93b00):** `bun run check` 718 pass / 0 fail / 0 error / 2567 expect() across 86 files; `bun run e2e` 20/0/0; `nix build .#default` exit 0 (per outer-12 discharge).
+**Plan:** [`docs/drafts/20260529-0050-plan-coherence.md`](docs/drafts/20260529-0050-plan-coherence.md).
+
+Sequence (one commit per PR; tag `coherence-N`):
+
+- [ ] **coherence-1** — `packages/shared/src/internalProtocol.ts` Zod discriminated-union envelope (`ledger.changed` only this cycle) + path/subprotocol constants + tests.
+- [ ] **coherence-2** — `FsLedgerStore` + `InMemoryLedgerStore`: `onMutation` ctor hook (fires after every successful write, after lockfile release) + `invalidate(ledgerId)` public method (drops cache, re-reads under per-ledger lock; registry-reload fallback for unknown ids). Mirror in dual-tests abstract suite.
+- [ ] **coherence-3** — `packages/server/src/agent/internalWs.ts` (server-side service) + wire `/__internal/cq-mcp` upgrade into `server.ts` + `devServer.ts`; pre-upgrade origin check bypassed for internal path; per-process token authentication via `Sec-WebSocket-Protocol: cq-internal.<token>`; constant-time compare; loop-detection on receive; `RunningServer.internalWsUrl` getter for the bridge.
+- [ ] **coherence-4** — `packages/cq-mcp/src/internalWs.ts` client + `packages/cq-mcp/src/main.ts` startup wiring (5s timeout, exit 2 on failure, standalone-mode preserved when env unset) + `codexBridge.ts` env propagation through `CodexOptions.config.mcp_servers.cq.env`.
+- [ ] **coherence-5** — `packages/server/test/internalWs-integration.test.ts` cross-process integration: spawn real cq-mcp against real cq-server; `create_ledger` via stdio MCP; assert cq-server's `FsLedgerStore` sees it within 1s.
+- [ ] **coherence-6** — Discharge: ledgers, session log, manual scenario, `nix build .#default`.
+
+**Inner-loop discipline:** Each PR is one commit; verification before commit; full `bun run check` green at every PR boundary except PR-1 self-tests its new schema. Adversarial review focus per brief: cache-invalidation race window, token timing-safe compare, port-binding race, codex-sdk env propagation.
+
+---
+
+## Milestone outer-12 — msunify — DISCHARGED
+
+(see archived breakdown below)
 
 ## Active — outer-12 / msunify
 
