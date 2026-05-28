@@ -163,6 +163,29 @@ export class Bridge implements BackendBridge {
   }
 
   async handleChatStart(ws: WsSocket, frame: ChatStart): Promise<void> {
+    // codex-3 + codex-4: the platform-mismatch refusal is the facade's
+    // responsibility, not a backend's. Performing it here guarantees the
+    // refusal short-circuits BEFORE either backend's own auth/initialisation
+    // path runs — a Codex resume against a Claude row must not trip
+    // Codex's auth check, and a Claude resume against a Codex row must
+    // not pollute Claude's persistence.
+    const requestedPlatform: "claude" | "codex" = frame.platform ?? "claude";
+    if (frame.resumeFromInvocationId !== undefined) {
+      const priorInv = this.persistence.invocations.get(frame.resumeFromInvocationId);
+      const priorSession = priorInv !== undefined
+        ? this.persistence.sessions.get(priorInv.sessionId)
+        : undefined;
+      if (priorSession !== undefined && priorSession.platform !== requestedPlatform) {
+        this.sendError(
+          ws,
+          priorSession.id,
+          "platform-mismatch",
+          `Cannot resume a ${priorSession.platform} session with a ${requestedPlatform} model; switch the model dropdown back to a ${priorSession.platform} model and try again.`,
+        );
+        return;
+      }
+    }
+
     const next = this.resolveBackend(frame);
     // Pool=1 across backends: if a different backend is currently active,
     // shut it down before starting on the new one. (Same-backend preempt
@@ -177,12 +200,25 @@ export class Bridge implements BackendBridge {
     }
     this.active = next;
     await next.handleChatStart(ws, frame);
-    // If the start was refused (e.g. platform-mismatch), the backend's
-    // activeSessionId is null and we can release `active` so isBusy()
-    // reports the truth.
+    // If the start was refused (e.g. codex-not-authenticated), the backend's
+    // activeSessionId is null and we release `active` so isBusy() reports
+    // the truth.
     if (next.activeSessionId() === null) {
       this.active = null;
     }
+  }
+
+  /** Facade-level error sender (used for refusals before any backend runs). */
+  private sendError(ws: WsSocket, sessionId: string | null, code: string, message: string): void {
+    ws.send(JSON.stringify({
+      type: "chat.error",
+      seq: 0,
+      ts: Date.now(),
+      ...(sessionId !== null ? { sessionId } : {}),
+      code,
+      message,
+    }));
+    this.opts.logger.warn("bridge.chat_error", { sessionId, code, message });
   }
 
   async handleChatRejoin(ws: WsSocket, frame: ChatRejoin): Promise<void> {

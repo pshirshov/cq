@@ -21,6 +21,21 @@ test("hide-sdk-events: toggle hides and restores unknown SDK event cards", async
   await cq.open();
   await expect(cq.textarea).toBeEnabled({ timeout: 10_000 });
 
+  // The cq-server is shared across all e2e tests, so the server-side
+  // ui_settings.hide_sdk_events may carry over from settings-persist-refresh
+  // or other earlier tests. Force a clean baseline (unchecked) before
+  // asserting the result-card visibility.
+  await cq.page.locator("[data-testid='settings-gear-btn']").click();
+  await expect(cq.page.locator("[data-testid='settings-popup']")).toBeVisible();
+  const toggle = cq.page.locator("[data-testid='hide-sdk-events-toggle']");
+  if (await toggle.isChecked()) {
+    await toggle.uncheck();
+  }
+  await expect(toggle).not.toBeChecked();
+  // Close the popup so it doesn't sit over the stream during the assertion.
+  await cq.page.keyboard.press("Escape");
+  await expect(cq.page.locator("[data-testid='settings-popup']")).not.toBeVisible();
+
   // Script a simple reply so the turn completes and the SDK emits result:success.
   const replyText = "hide-sdk-events-reply";
   await mock.script(makeTextSSEEvents(replyText));
@@ -36,10 +51,9 @@ test("hide-sdk-events: toggle hides and restores unknown SDK event cards", async
   await expect(sdkEventCard).toBeVisible({ timeout: 5_000 });
 
   // gear-3: the "Hide SDK events" toggle now lives inside the SettingsPopup.
-  // Open the popup via the gear button first, then check the toggle.
+  // Reopen the popup to flip the toggle.
   await cq.page.locator("[data-testid='settings-gear-btn']").click();
   await expect(cq.page.locator("[data-testid='settings-popup']")).toBeVisible();
-  const toggle = cq.page.locator("[data-testid='hide-sdk-events-toggle']");
   await toggle.check();
   await expect(sdkEventCard).not.toBeVisible({ timeout: 3_000 });
 
