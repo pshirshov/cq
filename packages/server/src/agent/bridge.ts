@@ -45,13 +45,17 @@ import { AskBroker } from "./askUserQuestion";
 import type { TitleGenerator } from "./titleGenerator";
 import type { LedgerStore } from "@cq/ledger";
 import { ClaudeBridge } from "./claudeBridge";
+import { CodexBridge } from "./codexBridge";
+import type { CodexFactory } from "./codexBridge";
 import type { BackendBridge, WsSocket } from "./backendBridge";
 import type { QueryFactory, BridgeOpts as ClaudeBridgeOpts } from "./claudeBridge";
 
 // Re-export public types so downstream imports of `bridge.ts` keep working.
 export type { WsSocket } from "./backendBridge";
 export type { QueryFactory } from "./claudeBridge";
+export type { CodexFactory } from "./codexBridge";
 export { ClaudeBridge } from "./claudeBridge";
+export { CodexBridge } from "./codexBridge";
 export type { BackendBridge } from "./backendBridge";
 
 /**
@@ -80,6 +84,10 @@ export interface BridgeOpts {
   titleGenerator?: TitleGenerator;
   /** Ledger store; ClaudeBridge passes it to the MCP wiring. */
   ledgerStore?: LedgerStore;
+  /** Override Codex SDK construction for tests. */
+  codexFactory?: CodexFactory;
+  /** Override Codex auth detection for tests. */
+  detectCodexAuth?: () => boolean;
 }
 
 export class Bridge implements BackendBridge {
@@ -87,9 +95,8 @@ export class Bridge implements BackendBridge {
   private readonly persistence: Persistence;
   /** The Claude backend is constructed eagerly so the broker getters always have a target. */
   private readonly claude: ClaudeBridge;
-  /** Codex backend, lazily constructed on the first Codex ChatStart (codex-5). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private codex: BackendBridge | null = null;
+  /** Codex backend, lazily constructed on the first Codex ChatStart. */
+  private codex: CodexBridge | null = null;
   /** The backend that owns the currently-active session, or null. */
   private active: BackendBridge | null = null;
 
@@ -133,18 +140,24 @@ export class Bridge implements BackendBridge {
   }
 
   /**
-   * Resolve which backend should handle a ChatStart. For codex-4 only
-   * Claude is wired; the Codex case still returns the Claude backend so
-   * ClaudeBridge's platform-mismatch guard (codex-3) emits a refusal
-   * frame instead of constructing a stub Codex backend.
+   * Resolve which backend should handle a ChatStart. Codex backend is
+   * lazily constructed on first need so tests that never touch Codex
+   * do not pay the import-time cost.
    */
   private resolveBackend(frame: ChatStart): BackendBridge {
     const requested: "claude" | "codex" = frame.platform ?? "claude";
     if (requested === "codex") {
-      // codex-5 will construct a CodexBridge here. Until then, route to
-      // ClaudeBridge so its codex-3 guard emits the platform-mismatch
-      // refusal cleanly (rather than silently downgrading to Claude).
-      return this.claude;
+      if (this.codex === null) {
+        this.codex = new CodexBridge({
+          logger: this.opts.logger,
+          registry: this.opts.registry,
+          cwd: this.opts.cwd,
+          persistence: this.persistence,
+          ...(this.opts.codexFactory !== undefined ? { codexFactory: this.opts.codexFactory } : {}),
+          ...(this.opts.detectCodexAuth !== undefined ? { detectAuth: this.opts.detectCodexAuth } : {}),
+        });
+      }
+      return this.codex;
     }
     return this.claude;
   }

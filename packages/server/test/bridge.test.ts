@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { Bridge } from "../src/agent/bridge";
+import { Bridge, ClaudeBridge } from "../src/agent/bridge";
 import type { QueryFactory } from "../src/agent/bridge";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { SessionRegistry } from "../src/seq/sessionRegistry";
@@ -879,17 +879,23 @@ describe("Bridge", () => {
   });
 
   // --------------------------------------------------------------------------
-  // codex-3: explicit platform='codex' on a fresh start is also refused by
-  // ClaudeBridge — the facade (codex-4) routes those to CodexBridge; if a
-  // misrouted frame ever reaches here, the bridge must refuse, not silently
-  // treat it as Claude.
+  // codex-3 / defense-in-depth: ClaudeBridge — constructed directly — refuses
+  // platform='codex' on a fresh start. In production the facade (codex-4)
+  // routes Codex frames to CodexBridge so this path is never hit, but the
+  // guard exists in case of misroute.
   // --------------------------------------------------------------------------
-  it("codex-3: ClaudeBridge refuses platform='codex' on a fresh start", async () => {
+  it("codex-3: ClaudeBridge (direct) refuses platform='codex' on a fresh start", async () => {
     const mockQuery = makeMockQuery([makeInitMessage()]);
-    const { bridge } = makeBridge(mockQuery);
+    const registry = new SessionRegistry();
+    const claude = new ClaudeBridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => mockQuery,
+      cwd: "/tmp/test",
+    });
 
     const ws = new MockWsSocket();
-    await bridge.handleChatStart(ws, {
+    await claude.handleChatStart(ws, {
       type: "chat.start",
       seq: 0,
       ts: Date.now(),
@@ -901,6 +907,6 @@ describe("Bridge", () => {
     expect(errors.length).toBe(1);
     expect(errors[0]!.code).toBe("platform-mismatch");
     expect(ws.framesOfType("chat.started").length).toBe(0);
-    expect(bridge.activeSessionId()).toBeNull();
+    expect(claude.activeSessionId()).toBeNull();
   });
 });
