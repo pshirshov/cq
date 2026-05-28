@@ -1,9 +1,10 @@
 # cq — active task ledger
 
-**Cycle:** outer-6 / `@cq/ledger` defect-fix (D-LED-01..D-LED-07). **In progress.**
+**Cycle:** outer-6 / `@cq/ledger` defect-fix (D-LED-01..D-LED-07). **Discharged.**
 **Goal:** Discharge 7 defects raised against the outer-5 ledger build (3 blocking + 4 polish).
 **Accepted plan:** [`docs/drafts/20260528-1200-ledger-defect-fix-plan.md`](docs/drafts/20260528-1200-ledger-defect-fix-plan.md).
 **Baseline (post outer-5):** `bun test packages/ledger` → 33/33; `bun run check` → 558/558; `bun run e2e` → 16/16.
+**Discharge:** `bun run check` → 596 pass / 0 fail (+38 from defect-fix tests); `cd packages/e2e && bunx playwright test` → 16/16 pass. (`bun run e2e` script alias hits a transient @playwright/test resolution warning unrelated to these changes — confirmed by running `bun run -- playwright test` from `packages/e2e/`, which also passes 16/16.) Session log: [`docs/logs/20260528-1300-ledger-defect-fix-log.md`](docs/logs/20260528-1300-ledger-defect-fix-log.md).
 
 ## Active — outer-6 (defect-fix)
 
