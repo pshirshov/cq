@@ -22,9 +22,35 @@
  *   Otherwise emit chat.error{code:'codex-not-authenticated'} and refuse.
  *
  * Ledger MCP + AskUserQuestion in-process MCP wiring is NOT available
- * in Codex sessions in v1 (see defects.md D-GC-1) — codex-sdk does not
- * accept SDK-injected MCP servers. Codex sessions get the CLI's built-in
- * tool surface (file ops, bash, web search) and that's it.
+ * in Codex sessions in v1 (see defects.md D-GC-1 and D-OUTER7-02).
+ *
+ * Concrete API gap in `@openai/codex-sdk@0.134.0`:
+ *
+ *   ThreadOptions (dist/index.d.ts line 239) accepts only:
+ *     { model, sandboxMode, workingDirectory, skipGitRepoCheck,
+ *       modelReasoningEffort, networkAccessEnabled, webSearchMode,
+ *       webSearchEnabled, approvalPolicy, additionalDirectories }
+ *
+ *   CodexOptions (dist/index.d.ts line 216) accepts only:
+ *     { codexPathOverride, baseUrl, apiKey, config: CodexConfigObject, env }
+ *
+ *   Neither type carries an `mcpServers` field, an in-process
+ *   `createSdkMcpServer`-equivalent, an MCP transport, nor any callback
+ *   hook through which cq could surface the in-process LedgerStore.
+ *
+ * The only path the SDK exposes is `CodexOptions.config`, which is
+ * flattened into `--config key=value` overrides for the Codex CLI. To
+ * reach the LedgerStore through that path would require:
+ *   (a) shipping an external `cq-mcp` stdio binary that wraps the same
+ *       `createLedgerMcpTools` + `@modelcontextprotocol/sdk` stdio
+ *       transport already imported transitively via Claude SDK, then
+ *   (b) writing `config.mcp_servers.cq = { command, args }` so the
+ *       Codex CLI spawns it per session.
+ *
+ * That binary is a substantial follow-up feature, not a defect fix, and
+ * is deferred. Codex sessions in v1 get the CLI's built-in tool surface
+ * (file ops, bash, web search) only. Q13 (codex tool parity) is closed
+ * as deferred-with-citation in defects.md.
  */
 
 import * as fs from "node:fs";
