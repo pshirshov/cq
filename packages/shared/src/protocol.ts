@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EffortSchema } from "./effort.js";
 
 // ---------------------------------------------------------------------------
 // Common fields (reused inline per plan § 3.1)
@@ -130,14 +131,36 @@ export type ClientHbPong = z.infer<typeof ClientHbPong>;
 // § 3.3 Client → server application frames
 // ---------------------------------------------------------------------------
 
+/**
+ * Permission-mode union spans both platforms' valid values. Claude uses the
+ * first seven; Codex uses `codex-read-only | codex-workspace-write |
+ * codex-danger-full-access` (prefixed so the union is unambiguous). The
+ * per-backend bridge rejects values that don't match its platform.
+ */
+export const PermissionModeSchema = z.enum([
+  // Claude / cq-internal
+  "default",
+  "acceptEdits",
+  "bypassPermissions",
+  "plan",
+  "dontAsk",
+  "auto",
+  "read-only",
+  // Codex sandbox modes (mapped 1:1 to codex-sdk's SandboxMode)
+  "codex-read-only",
+  "codex-workspace-write",
+  "codex-danger-full-access",
+]);
+export type PermissionModeValue = z.infer<typeof PermissionModeSchema>;
+
 export const ChatStart = z.object({
   type: z.literal("chat.start"),
   seq,
   ts,
   model: z.string().optional(),
-  permissionMode: z
-    .enum(["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk", "auto", "read-only"])
-    .optional(),
+  permissionMode: PermissionModeSchema.optional(),
+  /** Reasoning-effort knob; defaults to "none" (thinking disabled). */
+  effort: EffortSchema.optional(),
   resumeFromInvocationId: uuidStr().optional(),
 });
 export type ChatStart = z.infer<typeof ChatStart>;
