@@ -13,8 +13,8 @@
  *    create_item, create_ledger, search_items.
  *
  * Milestone surface (5) — global, operate against the `milestones` ledger:
- *  - create_milestone(title, description?, blocked?, depends?)
- *  - update_milestone(milestone_id, { title?, description?, status?, blocked?, depends? })
+ *  - create_milestone(title, description?, blockedBy?, dependsOn?)
+ *  - update_milestone(milestone_id, { title?, description?, status?, blockedBy?, dependsOn? })
  *  - fetch_milestone(milestone_id) → { milestone, resolved, references }
  *  - archive_milestone(milestone_id, summary) → { pointer }
  *  - list_milestone_items(milestone_id) → { items: Record<ledger, Item[]> }
@@ -228,12 +228,12 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
 
   const createMilestone = tool(
     "create_milestone",
-    "Create a new milestone in the milestones ledger. Allocates an M<n> id from the milestones ledger's own item counter. The blocked/depends arrays are advisory cross-references (no FK enforcement).",
+    "Create a new milestone in the milestones ledger. Allocates an M<n> id from the milestones ledger's own item counter. The blockedBy/dependsOn arrays are advisory cross-references (no FK enforcement).",
     {
       title: z.string(),
       description: z.string().optional(),
-      blocked: z.array(z.string()).optional(),
-      depends: z.array(z.string()).optional(),
+      blockedBy: z.array(z.string()).optional(),
+      dependsOn: z.array(z.string()).optional(),
       id: safeIdSchema.optional(),
     } as const,
     async (args) => {
@@ -241,12 +241,12 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
         id?: string;
         title: string;
         description?: string;
-        blocked?: string[];
-        depends?: string[];
+        blockedBy?: string[];
+        dependsOn?: string[];
       } = { title: args.title };
       if (args.description !== undefined) init.description = args.description;
-      if (args.blocked !== undefined) init.blocked = args.blocked;
-      if (args.depends !== undefined) init.depends = args.depends;
+      if (args.blockedBy !== undefined) init.blockedBy = args.blockedBy;
+      if (args.dependsOn !== undefined) init.dependsOn = args.dependsOn;
       if (args.id !== undefined) init.id = args.id;
       const milestone = await store.createMilestone(init);
       return jsonResult({ milestone });
@@ -261,22 +261,22 @@ export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
       status: z.string().optional(),
       title: z.string().optional(),
       description: z.string().optional(),
-      blocked: z.array(z.string()).optional(),
-      depends: z.array(z.string()).optional(),
+      blockedBy: z.array(z.string()).optional(),
+      dependsOn: z.array(z.string()).optional(),
     } as const,
     async (args) => {
       const patch: {
         status?: string;
         title?: string;
         description?: string;
-        blocked?: string[];
-        depends?: string[];
+        blockedBy?: string[];
+        dependsOn?: string[];
       } = {};
       if (args.status !== undefined) patch.status = args.status;
       if (args.title !== undefined) patch.title = args.title;
       if (args.description !== undefined) patch.description = args.description;
-      if (args.blocked !== undefined) patch.blocked = args.blocked;
-      if (args.depends !== undefined) patch.depends = args.depends;
+      if (args.blockedBy !== undefined) patch.blockedBy = args.blockedBy;
+      if (args.dependsOn !== undefined) patch.dependsOn = args.dependsOn;
       const milestone = await store.updateMilestone(args.milestone_id, patch);
       return jsonResult({ milestone });
     },

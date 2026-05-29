@@ -8,18 +8,17 @@
  *
  * - `MILESTONES_LEDGER` — fixed ledger name. The library refuses to
  *   `createLedger` a fresh entry under this name (it bootstraps the
- *   entry itself), and refuses to `archiveMilestone` the bootstrap
- *   group `M0`.
+ *   entry itself), and refuses to `archiveMilestone` the active group.
  * - `MILESTONES_ACTIVE_GROUP_ID` — fixed depth-2 group id inside the
  *   milestones ledger. There is exactly one such group; every milestone
- *   item (`M1`, `M2`, …) lives inside it.
- * - `MILESTONES_ACTIVE_GROUP_TITLE` — fixed group title; used by the
- *   parser/serializer when emitting / verifying the depth-2 header
- *   `## M0 — active`.
- * - `MILESTONES_SCHEMA` — canonical schema (Q2 in the msunify brief).
- *   Items use `status ∈ {open, done, postponed, blocked}` with `done` as
- *   the sole terminal status. Fields are `title`, `description`,
- *   `blocked`, `depends`. The latter two are free-form id arrays
+ *   item (`M-AMBIENT`, `M1`, `M2`, …) lives inside it.
+ * - `MILESTONES_ACTIVE_GROUP_TITLE` — fixed group title; the milestones
+ *   ledger's depth-2 header is serialized/parsed as the literal
+ *   `## active` (§8d — no id-shaped `## M0 — active`).
+ * - `MILESTONES_SCHEMA` — canonical schema. Items use
+ *   `status ∈ {open, done, postponed, blocked}` with `done` as the sole
+ *   terminal status. Fields are `title`, `description`, `blockedBy`,
+ *   `dependsOn` (§8c rename). The latter two are free-form id arrays
  *   (advisory cross-references; no FK enforcement).
  */
 
@@ -27,7 +26,13 @@ import type { LedgerSchema } from "./types.js";
 
 export const MILESTONES_LEDGER = "milestones" as const;
 
-export const MILESTONES_ACTIVE_GROUP_ID = "M0" as const;
+/**
+ * Depth-2 group id for the single active-milestones container. As of the
+ * canon cycle (§8d) the on-disk header is the literal `## active` (no
+ * id-shaped `## M0 — active`). This value is the in-memory group id and is
+ * NOT a milestone (no `enumerate_*` ever returns it).
+ */
+export const MILESTONES_ACTIVE_GROUP_ID = "active" as const;
 
 export const MILESTONES_ACTIVE_GROUP_TITLE = "active" as const;
 
@@ -46,8 +51,8 @@ export const MILESTONES_SCHEMA: LedgerSchema = {
   fields: {
     title: { type: "string", required: true },
     description: { type: "string", required: false },
-    blocked: { type: "id[]", required: false },
-    depends: { type: "id[]", required: false },
+    blockedBy: { type: "id[]", required: false },
+    dependsOn: { type: "id[]", required: false },
   },
 };
 

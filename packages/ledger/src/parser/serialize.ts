@@ -14,7 +14,7 @@
  *   # <ledger-id>
  *
  *   ## <milestone-id>                         (non-milestones ledgers)
- *   ## M0 — active                            (milestones ledger only)
+ *   ## active                                 (milestones ledger only, §8d)
  *
  *   <optional description paragraph — milestones ledger only>
  *
@@ -40,7 +40,6 @@ import {
 } from "./frontmatter.js";
 import {
   ISO_TIMESTAMP_RE,
-  MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
   MILESTONES_LEDGER,
 } from "../constants.js";
@@ -88,13 +87,11 @@ export function serializeMilestoneItemArchive(item: Item): string {
 function serializeMilestone(m: Milestone, isMilestonesLedger: boolean): string {
   const parts: string[] = [];
   if (isMilestonesLedger) {
-    // Bootstrap group: always `## M0 — active`. Defensive: assert the id
-    // matches; the store should never construct anything else.
-    const titleForHeading =
-      m.id === MILESTONES_ACTIVE_GROUP_ID
-        ? MILESTONES_ACTIVE_GROUP_TITLE
-        : escapeHeadingText(m.title);
-    parts.push(`## ${m.id} ${EM_DASH} ${titleForHeading}\n`);
+    // §8d: the milestones ledger's single depth-2 group is the literal
+    // `## active` — no id-shaped `## M0 — active`. There is exactly one
+    // such group and its in-memory id is MILESTONES_ACTIVE_GROUP_ID
+    // ("active").
+    parts.push(`## ${MILESTONES_ACTIVE_GROUP_TITLE}\n`);
     if (m.description.length > 0) {
       parts.push("\n");
       parts.push(`${m.description}\n`);

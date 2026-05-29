@@ -4,8 +4,9 @@
  * Two fixtures:
  *   - A non-milestones ledger (defects) — depth-2 headings are bare
  *     `## <id>` with NO title or description.
- *   - The milestones ledger — depth-2 heading is `## M0 — active`;
- *     depth-3 items carry the four-key shape (title/description/blocked/depends).
+ *   - The milestones ledger — depth-2 heading is the literal `## active`
+ *     (§8d); depth-3 items carry the four-key shape
+ *     (title/description/blockedBy/dependsOn).
  *
  * Each fixture is serialized, re-parsed, and asserted equal. The
  * non-milestones serialize+parse path also asserts that the legacy
@@ -122,8 +123,8 @@ function buildMilestonesFixture(): Ledger {
             fields: {
               title: "first milestone",
               description: "First milestone description.",
-              blocked: ["D7"],
-              depends: ["M0"],
+              blockedBy: ["D7"],
+              dependsOn: ["M2"],
             },
           },
           {
@@ -250,7 +251,7 @@ describe("parser round-trip — milestones ledger", () => {
     const m1 = g?.items[0];
     expect(m1?.id).toBe("M1");
     expect(m1?.fields["title"]).toBe("first milestone");
-    expect(m1?.fields["blocked"]).toEqual(["D7"]);
+    expect(m1?.fields["blockedBy"]).toEqual(["D7"]);
   });
 
   it("re-serializing a parsed milestones ledger is byte-stable (idempotent)", () => {
@@ -265,17 +266,25 @@ describe("parser round-trip — milestones ledger", () => {
   });
 
   it("parser rejects > 1 depth-2 groups in the milestones ledger", () => {
-    const bad = `---\nledger: ${MILESTONES_LEDGER}\ncounters:\n  milestone: 0\n  item: 0\narchives: []\n---\n\n# ${MILESTONES_LEDGER}\n\n## M0 — active\n\n## M1 — extra\n`;
+    // Two literal `## active` groups → "exactly one" violation (§8d).
+    const bad = `---\nledger: ${MILESTONES_LEDGER}\ncounters:\n  milestone: 0\n  item: 0\narchives: []\n---\n\n# ${MILESTONES_LEDGER}\n\n## active\n\n## active\n`;
     expect(() =>
       parseLedger(bad, { schema: MILESTONES_SCHEMA, isMilestonesLedger: true }),
     ).toThrow(/exactly one/);
   });
 
-  it("parser rejects a non-M0 depth-2 group in the milestones ledger", () => {
+  it("parser rejects a legacy id-shaped `## M0 — active` group in the milestones ledger (§8d)", () => {
+    const bad = `---\nledger: ${MILESTONES_LEDGER}\ncounters:\n  milestone: 0\n  item: 0\narchives: []\n---\n\n# ${MILESTONES_LEDGER}\n\n## M0 — active\n`;
+    expect(() =>
+      parseLedger(bad, { schema: MILESTONES_SCHEMA, isMilestonesLedger: true }),
+    ).toThrow(/literal "## active"/);
+  });
+
+  it("parser rejects a non-`active` depth-2 group in the milestones ledger", () => {
     const bad = `---\nledger: ${MILESTONES_LEDGER}\ncounters:\n  milestone: 0\n  item: 0\narchives: []\n---\n\n# ${MILESTONES_LEDGER}\n\n## Mwrong — something\n`;
     expect(() =>
       parseLedger(bad, { schema: MILESTONES_SCHEMA, isMilestonesLedger: true }),
-    ).toThrow(/M0/);
+    ).toThrow(/literal "## active"/);
   });
 
   it("milestones-item archive round-trips", () => {

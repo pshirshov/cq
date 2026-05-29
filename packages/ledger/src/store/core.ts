@@ -311,8 +311,8 @@ export function applyCreateItem(
  *
  * Allocates an `M<n>` item id via the ledger's own item counter,
  * places the item under the bootstrap `M0` group, and seeds the four
- * milestone-item fields (`title`, `description?`, `blocked?`,
- * `depends?`) via the standard `applyCreateItem` path.
+ * milestone-item fields (`title`, `description?`, `blockedBy?`,
+ * `dependsOn?`) via the standard `applyCreateItem` path.
  *
  * The caller must have validated that `ledger.id === MILESTONES_LEDGER`.
  */
@@ -328,8 +328,8 @@ export function applyCreateMilestoneItem(
   }
   const fields: Record<string, FieldValue> = { title: init.title };
   if (init.description !== undefined) fields["description"] = init.description;
-  if (init.blocked !== undefined) fields["blocked"] = init.blocked;
-  if (init.depends !== undefined) fields["depends"] = init.depends;
+  if (init.blockedBy !== undefined) fields["blockedBy"] = init.blockedBy;
+  if (init.dependsOn !== undefined) fields["dependsOn"] = init.dependsOn;
   const innerInit: CreateItemInit = { status: "open", fields };
   if (init.id !== undefined) innerInit.id = init.id;
   return applyCreateItem(ledger, MILESTONES_ACTIVE_GROUP_ID, innerInit, now);
@@ -397,8 +397,8 @@ export function applyUpdateMilestoneItem(
   const fields: Record<string, FieldValue> = {};
   if (patch.title !== undefined) fields["title"] = patch.title;
   if (patch.description !== undefined) fields["description"] = patch.description;
-  if (patch.blocked !== undefined) fields["blocked"] = patch.blocked;
-  if (patch.depends !== undefined) fields["depends"] = patch.depends;
+  if (patch.blockedBy !== undefined) fields["blockedBy"] = patch.blockedBy;
+  if (patch.dependsOn !== undefined) fields["dependsOn"] = patch.dependsOn;
   if (Object.keys(fields).length > 0) itemPatch.fields = fields;
   return applyUpdateItem(ledger, milestoneItemId, itemPatch, now);
 }

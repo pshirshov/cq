@@ -265,12 +265,12 @@ export function registerLedgerTools(server: McpServer, store: LedgerStore): void
     "create_milestone",
     {
       description:
-        "Create a new milestone in the milestones ledger. Allocates an M<n> id from the milestones ledger's own item counter. The blocked/depends arrays are advisory cross-references (no FK enforcement).",
+        "Create a new milestone in the milestones ledger. Allocates an M<n> id from the milestones ledger's own item counter. The blockedBy/dependsOn arrays are advisory cross-references (no FK enforcement).",
       inputSchema: {
         title: z.string(),
         description: z.string().optional(),
-        blocked: z.array(z.string()).optional(),
-        depends: z.array(z.string()).optional(),
+        blockedBy: z.array(z.string()).optional(),
+        dependsOn: z.array(z.string()).optional(),
         id: safeIdSchema.optional(),
       },
     },
@@ -279,12 +279,12 @@ export function registerLedgerTools(server: McpServer, store: LedgerStore): void
         id?: string;
         title: string;
         description?: string;
-        blocked?: string[];
-        depends?: string[];
+        blockedBy?: string[];
+        dependsOn?: string[];
       } = { title: args.title };
       if (args.description !== undefined) init.description = args.description;
-      if (args.blocked !== undefined) init.blocked = args.blocked;
-      if (args.depends !== undefined) init.depends = args.depends;
+      if (args.blockedBy !== undefined) init.blockedBy = args.blockedBy;
+      if (args.dependsOn !== undefined) init.dependsOn = args.dependsOn;
       if (args.id !== undefined) init.id = args.id;
       const milestone = await store.createMilestone(init);
       return jsonResult({ milestone });
@@ -301,8 +301,8 @@ export function registerLedgerTools(server: McpServer, store: LedgerStore): void
         status: z.string().optional(),
         title: z.string().optional(),
         description: z.string().optional(),
-        blocked: z.array(z.string()).optional(),
-        depends: z.array(z.string()).optional(),
+        blockedBy: z.array(z.string()).optional(),
+        dependsOn: z.array(z.string()).optional(),
       },
     },
     async (args) => {
@@ -310,14 +310,14 @@ export function registerLedgerTools(server: McpServer, store: LedgerStore): void
         status?: string;
         title?: string;
         description?: string;
-        blocked?: string[];
-        depends?: string[];
+        blockedBy?: string[];
+        dependsOn?: string[];
       } = {};
       if (args.status !== undefined) patch.status = args.status;
       if (args.title !== undefined) patch.title = args.title;
       if (args.description !== undefined) patch.description = args.description;
-      if (args.blocked !== undefined) patch.blocked = args.blocked;
-      if (args.depends !== undefined) patch.depends = args.depends;
+      if (args.blockedBy !== undefined) patch.blockedBy = args.blockedBy;
+      if (args.dependsOn !== undefined) patch.dependsOn = args.dependsOn;
       const milestone = await store.updateMilestone(args.milestone_id, patch);
       return jsonResult({ milestone });
     },

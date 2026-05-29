@@ -10,9 +10,9 @@
  *
  * On init():
  *   - Read ./docs/ledgers.yaml (create with EMPTY_REGISTRY if missing).
- *   - Bootstrap the `milestones` ledger if absent (add entry to
- *     ledgers.yaml with `MILESTONES_SCHEMA`; write an empty file with
- *     the `## M0 — active` group).
+ *   - Bootstrap every canonical ledger if absent (add entries to
+ *     ledgers.yaml with their canonical schema; write empty files;
+ *     the milestones file gets the `## active` group, §8d).
  *   - For each registered ledger, read ./docs/<ledger>.md and parse it
  *     against the schema in the registry. Create an empty file if missing.
  *   - Populate in-memory state.

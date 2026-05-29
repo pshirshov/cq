@@ -9,8 +9,8 @@
  *   - one `heading` depth=1 with the ledger id (optional; informational only)
  *   - zero or more `heading` depth=2 → milestone-groups
  *       - In the bootstrapped `milestones` ledger (isMilestonesLedger=true):
- *         exactly one depth-2 group `## M0 — active`. Em-dash separator
- *         REQUIRED; the parser rejects any other shape.
+ *         exactly one depth-2 group with the literal header `## active`
+ *         (§8d). Any other shape (id form, em-dash) is rejected.
  *       - In every other ledger (isMilestonesLedger=false): the depth-2
  *         heading is bare `## <id>` with NO title or description. Em-dash
  *         is REJECTED (catches leftover legacy `## M3 — title` fixtures
@@ -66,7 +66,7 @@ export interface ParseOpts {
   /**
    * True iff parsing the canonical `milestones` ledger. Switches the
    * depth-2 header grammar:
-   *   - true  → exactly one group `## M0 — active`; em-dash REQUIRED.
+   *   - true  → exactly one group, literal header `## active` (§8d).
    *   - false → bare `## <id>`; em-dash REJECTED.
    * Defaults to false for back-compat with callers that pass only `schema`.
    */
@@ -92,7 +92,7 @@ export function parseLedger(source: string, opts: ParseOpts): Ledger {
   const isMilestonesLedger = opts.isMilestonesLedger === true;
   const milestones = extractMilestones(root, { isMilestonesLedger });
   if (isMilestonesLedger) {
-    // Bootstrap-shape assertion: exactly one depth-2 group with id "M0".
+    // §8d shape assertion: exactly one depth-2 group, header `## active`.
     if (milestones.length !== 1) {
       throw new SchemaValidationError(
         `milestones ledger must contain exactly one depth-2 group, got ${milestones.length}`,
@@ -101,7 +101,7 @@ export function parseLedger(source: string, opts: ParseOpts): Ledger {
     const m = milestones[0];
     if (m === undefined || m.id !== MILESTONES_ACTIVE_GROUP_ID) {
       throw new SchemaValidationError(
-        `milestones ledger's depth-2 group must be "## ${MILESTONES_ACTIVE_GROUP_ID} — ${MILESTONES_ACTIVE_GROUP_TITLE}"`,
+        `milestones ledger's depth-2 group must be the literal "## ${MILESTONES_ACTIVE_GROUP_TITLE}"`,
       );
     }
   }
@@ -146,14 +146,15 @@ export function parseArchive(source: string): Milestone {
  * followed by the field list. No depth-2 wrapper, no frontmatter.
  *
  * Internally implemented by wrapping the body under a synthetic
- * `## M0 — archived` group so the same extractor can be reused; the
- * returned single Item carries milestoneId="M0".
+ * `## active` group so the same extractor can be reused; the returned
+ * single Item carries milestoneId="active".
  */
 export function parseMilestoneItemArchive(source: string): Item {
-  // Inject the synthetic depth-2 wrapper so the extractor can recognise
-  // the depth-3 item heading. The synthetic group title `archived` is
-  // arbitrary; it does not appear anywhere on disk.
-  const wrapped = `## ${MILESTONES_ACTIVE_GROUP_ID} ${EM_DASH} archived\n\n${source}`;
+  // Inject the synthetic depth-2 wrapper (the literal `## active` header
+  // the §8d milestones-ledger grammar expects) so the extractor can
+  // recognise the depth-3 item heading. The wrapper does not appear on
+  // disk; archive files contain only the depth-3 item.
+  const wrapped = `## ${MILESTONES_ACTIVE_GROUP_TITLE}\n\n${source}`;
   const root = parseMarkdown(wrapped);
   const milestones = extractMilestones(root, { isMilestonesLedger: true });
   const group = milestones[0];
@@ -234,15 +235,20 @@ function extractMilestones(
         finalizeMilestone();
         const rawText = headingText(h);
         if (opts.isMilestonesLedger) {
-          // Milestones ledger: em-dash REQUIRED. Parse via splitHeading
-          // and verify the em-dash was present.
-          if (!rawText.includes(EM_DASH)) {
+          // §8d: the milestones ledger's single depth-2 header is the
+          // literal `## active` (no id form, no em-dash). Reject any other
+          // shape (e.g. legacy `## M0 — active` / `## M<id> — title`).
+          if (rawText.trim() !== MILESTONES_ACTIVE_GROUP_TITLE) {
             throw new SchemaValidationError(
-              `milestones ledger depth-2 heading must use the em-dash form "## <id> — <title>"; got: "${rawText.trim()}"`,
+              `milestones ledger depth-2 heading must be the literal "## ${MILESTONES_ACTIVE_GROUP_TITLE}"; got: "${rawText.trim()}". The canon cycle (§8d) dropped the id-shaped "## M0 — active" group label.`,
             );
           }
-          const { id, rest } = splitHeading(rawText);
-          current = { id, title: rest, description: "", items: [] };
+          current = {
+            id: MILESTONES_ACTIVE_GROUP_ID,
+            title: MILESTONES_ACTIVE_GROUP_TITLE,
+            description: "",
+            items: [],
+          };
         } else {
           // Non-milestones ledger: bare ID; em-dash REJECTED with a
           // clear migration-pointer error so leftover legacy fixtures
