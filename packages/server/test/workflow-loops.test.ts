@@ -305,6 +305,74 @@ describe("auto-advance fires exactly once", () => {
   });
 });
 
+describe("resume-on-startup reconcile (closes WF-D02)", () => {
+  it("resumes a goal mid-loop from ledger state after the runtime is dropped + recreated", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+
+    // Runtime A: drive phase 1 → answer → clarify clear → planner writes →
+    // goal=planning. The plan-reviewer THROWS, simulating a crash mid-review.
+    const phaseA = new FakePhaseSubagent();
+    phaseA
+      .enqueue(CLARIFY_REVIEW_SPEC, CLEAR)
+      .enqueue(PLAN_SPEC, PLAN)
+      .setSticky(PLAN_REVIEW_SPEC, () => {
+        throw new Error("simulated crash mid plan-review");
+      });
+    const rtA = makeRuntime(store, phaseA);
+    const { sink: sinkA } = collector();
+    const { goalId, q0 } = await bootstrap(store, rtA, sinkA);
+    await rtA.submitAnswer(q0, "web");
+    await waitForBusyIdle(rtA);
+
+    // Ledger state: goal=planning, all questions answered, planner milestones
+    // written, but no review verdict → review_ready on reconcile.
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("planning");
+    expect(phaseA.calls.get(PLAN_REVIEW_SPEC.toolName)).toBe(1); // ran once, threw
+
+    // Drop runtime A; create runtime B against the SAME store with a satisfied
+    // reviewer. reconcile() must derive review_ready and resume → planned.
+    const phaseB = new FakePhaseSubagent();
+    phaseB.setSticky(PLAN_REVIEW_SPEC, SATISFIED);
+    const rtB = makeRuntime(store, phaseB);
+    const { sink: sinkB, events: eventsB } = collector();
+    rtB.subscribe(sinkB);
+
+    // Sanity: B derives the resumable position from the ledger alone.
+    expect(rtB.derivePosition(goalId)).toEqual({ kind: "review_ready" });
+
+    await rtB.reconcile();
+    await waitForBusyIdle(rtB);
+
+    expect(phaseB.calls.get(PLAN_REVIEW_SPEC.toolName)).toBe(1); // resumed, no double-dispatch
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("planned");
+    expect(eventsB.map((e) => e.status)).toContain("planned");
+
+    await store.dispose();
+  });
+
+  it("a goal awaiting open questions sits idle on reconcile (no dispatch)", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const phaseA = new FakePhaseSubagent();
+    const rtA = makeRuntime(store, phaseA);
+    const { sink } = collector();
+    const { goalId } = await bootstrap(store, rtA, sink); // phase 1 only; q0 still open
+
+    // New runtime, reconcile: the goal has an open question → awaiting_answers.
+    const phaseB = new FakePhaseSubagent();
+    const rtB = makeRuntime(store, phaseB);
+    expect(rtB.derivePosition(goalId)).toEqual({ kind: "awaiting_answers" });
+    await rtB.reconcile();
+    await Bun.sleep(20);
+    // No phase dispatched.
+    expect(phaseB.calls.size).toBe(0);
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("clarifying");
+
+    await store.dispose();
+  });
+});
+
 /** Wait until the runtime's busy slot clears (the async advance chain settled). */
 async function waitForBusyIdle(rt: WorkflowRuntime, timeoutMs = 3000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
