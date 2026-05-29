@@ -197,7 +197,16 @@ export class ClaudeProducer implements WorkflowProducer {
       } catch (err: unknown) {
         this.logger.warn("producer.close_error", { err: String(err) });
       }
-      void drain.catch(() => undefined);
+      // `drain` resolves when the async generator returns — which, after
+      // `q.close()`, happens once the SDK subprocess is fully reaped. Surface it
+      // as the teardown awaitable so the runtime can await real subprocess exit
+      // (the produce call still resolves at submit-time above — timing unchanged).
+      const teardown = drain.then(
+        () => undefined,
+        () => undefined,
+      );
+      if (req.registerTeardown !== undefined) req.registerTeardown(teardown);
+      else void teardown;
     }
   }
 }

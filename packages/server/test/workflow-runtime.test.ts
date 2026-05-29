@@ -181,3 +181,52 @@ describe("WorkflowRuntime phase 1", () => {
     await store.dispose();
   });
 });
+
+describe("WorkflowRuntime.whenDrained — subprocess teardown awaitable (WFL-D02)", () => {
+  it("resolves immediately when nothing is in flight", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const rt = makeRuntime(store, new FakeProducer(CANNED));
+    // No dispatch has run → no pending teardown, no active slot.
+    await rt.whenDrained();
+    await store.dispose();
+  });
+
+  it("blocks until a dispatch's registered teardown promise settles", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+
+    // A producer that resolves its output (submit-time) but registers a teardown
+    // promise we control — modelling query().close() reaping the subprocess
+    // strictly AFTER produce() resolves.
+    let releaseTeardown!: () => void;
+    const teardownGate = new Promise<void>((res) => { releaseTeardown = res; });
+    let teardownRegistered = false;
+    const producer: WorkflowProducer = {
+      produce: (req) => {
+        req.registerTeardown?.(teardownGate);
+        teardownRegistered = true;
+        return Promise.resolve(CANNED);
+      },
+    };
+
+    const rt = makeRuntime(store, producer);
+    const { sink } = collector();
+    const result = await rt.startPlan({ text: "build it", platform: "claude" }, sink);
+    expect(result.outcome).toBe("questions_ready");
+    expect(teardownRegistered).toBe(true);
+
+    // whenDrained must NOT resolve while the teardown is still pending.
+    let drained = false;
+    const drainPromise = rt.whenDrained().then(() => { drained = true; });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(drained).toBe(false);
+
+    // Release the (simulated) subprocess exit → whenDrained resolves.
+    releaseTeardown();
+    await drainPromise;
+    expect(drained).toBe(true);
+
+    await store.dispose();
+  });
+});

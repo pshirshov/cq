@@ -178,6 +178,10 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
           workflow.abortActive();
           bridge.interruptActive();
           await bridge.shutdown();
+          // Await actual workflow-subprocess teardown so no draining child
+          // leaks into the next serial spec (WFL-D02). abortActive() only
+          // signals the abort; whenDrained() blocks until the child is reaped.
+          await workflow.whenDrained();
           return new Response("ok", { status: 200 });
         } catch (err) {
           logger.warn("e2e.interrupt_failed", { err: String(err) });
@@ -194,6 +198,27 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
+      }
+
+      // ── E2E test hook ────────────────────────────────────────────────── //
+      // POST /__e2e/workflow-drain: await full teardown of every workflow SDK
+      // subprocess (producer + loop phases) so a workflow-heavy spec leaves NO
+      // lingering child processes before the next serial spec runs. Unlike the
+      // workflow-idle busy flag — which clears at submit-time, before
+      // query().close() finishes reaping the child — this blocks until the
+      // subprocesses are actually gone (WFL-D02). Only when CQ_E2E_HOOKS=1.
+      if (pathname === "/__e2e/workflow-drain" && process.env["CQ_E2E_HOOKS"] === "1") {
+        if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+        try {
+          await workflow.whenDrained();
+          return new Response(JSON.stringify({ drained: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err) {
+          logger.warn("e2e.workflow_drain_failed", { err: String(err) });
+          return new Response("drain failed", { status: 500 });
+        }
       }
 
       // ── E2E test hook ────────────────────────────────────────────────── //

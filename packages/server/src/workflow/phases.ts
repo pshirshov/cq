@@ -17,6 +17,7 @@
  */
 
 import { z } from "zod";
+import type { TeardownSink } from "./producer.js";
 
 // ---------------------------------------------------------------------------
 // Clarify-reviewer phase (Q5 auto-advance loop).
@@ -109,6 +110,8 @@ export interface PhaseRequest {
   readonly model?: string;
   /** Abort signal — the runtime aborts on shutdown / busy-preempt. */
   readonly signal?: AbortSignal;
+  /** Optional sink for the subprocess-teardown awaitable (see TeardownSink). */
+  readonly registerTeardown?: TeardownSink;
 }
 
 /**

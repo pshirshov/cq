@@ -139,18 +139,15 @@ test("/plan: full clarify→plan→review→planned loop populates the ledgers",
   const questionsMd = await fs.readFile(path.join(cqCwd!, "docs", "questions.md"), "utf8");
   expect(questionsMd).toContain("answered");
 
-  // Let the workflow lane drain so this workflow-heavy spec (4 sequential
-  // headless subprocesses) leaves the shared cq server quiescent before the
-  // next spec's producer cold-starts — reduces cross-spec subprocess contention.
-  const idleDeadline = Date.now() + 15_000;
-  while (Date.now() < idleDeadline) {
-    const r = await fetch(`${cqUrl}/__e2e/workflow-idle`).then((x) => x.json()).catch(() => ({ busy: false }));
-    if (!(r as { busy: boolean }).busy) break;
-    await new Promise((res) => setTimeout(res, 200));
-  }
+  // Fully drain the workflow lane so this workflow-heavy spec (4 sequential
+  // headless subprocesses: producer + clarify + planner + reviewer) leaves NO
+  // lingering child processes before the next serial spec runs (WFL-D02). The
+  // busy flag (workflow-idle) clears at submit-time, BEFORE query().close()
+  // finishes reaping the subprocess — so it is NOT a reliable "drained" signal.
+  // /__e2e/workflow-drain blocks until every workflow subprocess has actually
+  // exited, eliminating the cross-spec CPU contention that intermittently
+  // tipped the timing-sensitive stop.spec.ts.
+  const drainRes = await fetch(`${cqUrl}/__e2e/workflow-drain`, { method: "POST" });
+  expect(drainRes.ok, "workflow-drain hook must report success").toBeTruthy();
   await cq.waitForIdle(15_000).catch(() => undefined);
-  // Tail settle so the last phase subprocess is fully reaped before the next
-  // spec cold-starts its own subprocess (the busy flag clears before q.close()
-  // finishes reaping); avoids tipping timing-sensitive neighbours under load.
-  await new Promise((res) => setTimeout(res, 2_000));
 });

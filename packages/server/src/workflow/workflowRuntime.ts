@@ -119,6 +119,15 @@ export class WorkflowRuntime {
    * → escalate.
    */
   private readonly lastReviseFingerprint = new Map<string, string>();
+  /**
+   * In-flight subprocess-teardown awaitables. Each producer/phase dispatch
+   * registers a promise that resolves when its underlying SDK `query()`
+   * subprocess is fully reaped (its async generator returned after `close()`).
+   * The promise self-removes on settle. `whenDrained()` awaits a snapshot so a
+   * caller can block until no workflow subprocess is still being torn down.
+   * Used by graceful shutdown and E2E teardown; never gates production logic.
+   */
+  private readonly pendingTeardowns = new Set<Promise<void>>();
 
   constructor(opts: WorkflowRuntimeOpts) {
     this.logger = opts.logger;
@@ -130,6 +139,47 @@ export class WorkflowRuntime {
   /** True iff a workflow phase is currently dispatching. */
   isBusy(): boolean {
     return this.active !== null;
+  }
+
+  /**
+   * Register a subprocess-teardown awaitable from a producer/phase dispatch.
+   * The promise resolves when that dispatch's SDK subprocess is fully reaped;
+   * it self-removes from the pending set on settle. Passed into each dispatch
+   * as `registerTeardown`.
+   */
+  private readonly trackTeardown = (settled: Promise<void>): void => {
+    this.pendingTeardowns.add(settled);
+    void settled.finally(() => {
+      this.pendingTeardowns.delete(settled);
+    });
+  };
+
+  /**
+   * Resolve when the workflow lane is fully quiescent: no phase is dispatching
+   * AND every spawned SDK subprocess has been reaped. Unlike `isBusy()` (which
+   * clears at submit-time, before `query().close()` finishes reaping the child),
+   * this awaits actual subprocess exit. Re-checks after each await because a
+   * phase may chain another dispatch (clarify→plan→review run in one slot).
+   * Uniform-async: always returns `Promise<void>`, never a sync/async union.
+   * For graceful shutdown and E2E teardown; does not gate production logic.
+   */
+  async whenDrained(): Promise<void> {
+    // Bound the loop: each iteration must make progress (the pending set shrinks
+    // or the active slot frees). A spinning loop would indicate a teardown that
+    // never settles — fail loud rather than hang silently.
+    const MAX_ROUNDS = 1_000;
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      const snapshot = [...this.pendingTeardowns];
+      if (snapshot.length === 0 && this.active === null) return;
+      if (snapshot.length > 0) {
+        await Promise.allSettled(snapshot);
+        continue;
+      }
+      // No teardowns pending but a phase is still dispatching — yield and re-poll
+      // so a teardown registered by the in-flight dispatch gets captured.
+      await new Promise<void>((res) => setTimeout(res, 25));
+    }
+    throw new Error("whenDrained: workflow lane did not quiesce within bound");
   }
 
   /** Register a lifecycle sink (called by each WsSession on open). */
@@ -200,7 +250,11 @@ export class WorkflowRuntime {
     try {
       this.emitAll({ type: "workflow.event", workflowId, phase: "produce", status: "producing" });
       const producer = this.selectProducer(input.platform);
-      const output = await producer.produce({ text: input.text, signal: abort.signal });
+      const output = await producer.produce({
+        text: input.text,
+        signal: abort.signal,
+        registerTeardown: this.trackTeardown,
+      });
       const goalId = await this.writeArtifacts(output);
       this.goalPlatform.set(goalId, input.platform);
 
@@ -349,6 +403,7 @@ export class WorkflowRuntime {
     const out = await subagent.dispatch(CLARIFY_REVIEW_SPEC, {
       prompt: buildClarifyReviewPrompt(desc, this.qnaFor(goalId)),
       signal,
+      registerTeardown: this.trackTeardown,
     });
 
     if (!out.clear || out.newQuestions.length > 0) {
@@ -380,6 +435,7 @@ export class WorkflowRuntime {
     const plan = await subagent.dispatch(PLAN_SPEC, {
       prompt: buildPlannerPrompt(desc, this.qnaFor(goalId)),
       signal,
+      registerTeardown: this.trackTeardown,
     });
 
     await this.writePlan(goalId, plan);
@@ -406,6 +462,7 @@ export class WorkflowRuntime {
       // folded into the planner prompt on the preceding revise round.
       prompt: buildPlanReviewPrompt(desc, this.qnaFor(goalId), this.planArtifacts(goalId), []),
       signal,
+      registerTeardown: this.trackTeardown,
     });
 
     if (review.satisfied) {
@@ -461,6 +518,7 @@ export class WorkflowRuntime {
     const plan = await subagent.dispatch(PLAN_SPEC, {
       prompt: buildPlannerPrompt(desc, this.qnaFor(goalId)) + this.findingsAddendum(findings),
       signal,
+      registerTeardown: this.trackTeardown,
     });
 
     const fingerprint = this.fingerprintPlan(plan);
