@@ -4,6 +4,29 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: workflow-loops (cycle 3) — make `/plan` converge end-to-end
+
+Plan: [`docs/drafts/20260529-2000-plan-workflow-loops.md`](docs/drafts/20260529-2000-plan-workflow-loops.md).
+Authoritative design: [`docs/drafts/20260529-1710-questions-plan-workflow.md`](docs/drafts/20260529-1710-questions-plan-workflow.md).
+Baseline (verified 9f64579): `bun test` 885 pass / 0 fail. e2e target ≥ 22.
+
+### Milestone M-WFL — PR breakdown
+
+- [ ] **wfl-1** — PhaseSubagent dispatch seam (generic Claude submit-tool) + phase schemas (clarify-review / plan / plan-review) + Codex stub + protocol enum extensions + `question.answer` frame.
+- [ ] **wfl-2** — Loop engine in WorkflowRuntime: clarify + planner + plan-review loops, ledger-as-state position derivation, no-progress liveness guard, lifecycle fan-out. Tested against a FAKE PhaseSubagent.
+- [ ] **wfl-3** — `question.answer` WS handler + auto-advance-exactly-once + runtime subscribe; resume-on-startup reconcile + server wiring. Pool=1 regression preserved.
+- [ ] **wfl-4** — Integration (real Claude SDK via MockAnthropicHTTP) one full clarify→plan→review→planned cycle; E2E spec; banner planning/planned text.
+- [ ] **wfl-5** — Discharge: `bun run check` x2, `nix build`, defects rows, WF-D02→resolved, session log, manual scenario.
+
+### Cross-cutting decisions (workflow-loops, locked)
+- K-WFL-1: workflow position is derived from ledgers (goal.status + open-question count), not in-memory (closes WF-D02). In-memory state = global busy slot + per-goal in-flight latch only.
+- K-WFL-2: NO hard round cap (Q6); plan-review runaway bounded by a no-progress liveness guard (identical planner output + no new questions twice → `escalated` frame, loop stops).
+- K-WFL-3: every ledger write is HARNESS-owned; phase subagents return structured output via a harness-owned in-process submit tool and never touch ledgers.
+- K-WFL-4: plan-review newQuestions re-enter via the clarify-reviewer (re-validate clarity) before re-planning, so the clarity gate is never bypassed.
+- K-WFL-5: lifecycle frames fan out to all subscribed WS sessions (loops are async; `question.answer` may arrive on any connection).
+
+---
+
 ## Cycle: canon — Canonical ledger schemas
 
 Plan: [`docs/drafts/20260529-0000-canonical-ledgers-plan.md`](docs/drafts/20260529-0000-canonical-ledgers-plan.md).
