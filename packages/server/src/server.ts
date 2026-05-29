@@ -98,6 +98,19 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     persistence,
     ledgerStore,
     internalWsToken: internalWs.tokenForChild(),
+    // askproxy / outer-14: ask.reply travels upstream via broadcast (askId
+    // discriminates across connected cq-mcp children).
+    sendAskReply: (msg) => internalWs.broadcast(msg),
+  });
+  // Inbound `ask.request` from a Codex session's cq-mcp drives the browser
+  // ask UI for that session and proxies the answer back (askproxy / outer-14).
+  internalWs.registerHandler("ask.request", async (msg) => {
+    bridge.handleAskRequest({
+      askId: msg.askId,
+      toolUseId: msg.toolUseId,
+      sessionId: msg.sessionId,
+      questions: msg.questions,
+    });
   });
 
   // Track all open WS sockets for graceful close-with-code.

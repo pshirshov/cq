@@ -219,4 +219,58 @@ describe("Bridge facade (codex-4)", () => {
     expect(facade.isBusy()).toBe(false);
     expect(facade.activeSessionId()).toBeNull();
   });
+
+  // -- question_reply dispatch (askproxy / outer-14) ------------------------
+
+  it("routes chat.question_reply to the Claude in-process broker for a Claude session", async () => {
+    // A pre-constructed AskBroker the facade hands to the Claude backend.
+    const askBroker = new AskBroker();
+    const registry = new SessionRegistry();
+    const persistence = new InMemoryPersistence();
+    const { query, release } = hangingMockQuery();
+    const facade = new Bridge({
+      logger: noopLogger,
+      registry,
+      queryFactory: () => query,
+      cwd: "/tmp/test",
+      persistence,
+      askBroker,
+    });
+    const ws = new MockWsSocket();
+    await facade.handleChatStart(ws, { ...makeChatStart(), platform: "claude" });
+    const started = (await ws.waitForFrames("chat.started", 1, 3000))[0]!;
+    const sessionId = started.sessionId as string;
+
+    // Park an ask on the Claude broker, then deliver the reply through the
+    // facade. If the facade routed to a Codex proxy instead, this Promise
+    // would never resolve.
+    const pending = askBroker.ask("tu-claude", [{ q: 1 }]);
+    facade.handleChatQuestionReply(ws, {
+      type: "chat.question_reply",
+      seq: 0,
+      ts: Date.now(),
+      sessionId,
+      invocationId: started.invocationId as string,
+      toolUseId: "tu-claude",
+      answers: { q: "answered" },
+    });
+    const out = await pending;
+    expect(out.answers).toEqual({ q: "answered" });
+
+    release();
+    await facade.shutdown();
+  });
+
+  it("drops an ask.request when no Codex backend has been constructed (Claude-only lifetime)", () => {
+    const { facade } = makeFacade();
+    // No throw, no effect — there is no Codex session a cq-mcp could belong to.
+    expect(() =>
+      facade.handleAskRequest({
+        askId: "ask-1",
+        toolUseId: "tu-1",
+        sessionId: "11111111-2222-3333-4444-555555555555",
+        questions: [{ q: 1 }],
+      }),
+    ).not.toThrow();
+  });
 });
