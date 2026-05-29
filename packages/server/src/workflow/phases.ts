@@ -17,6 +17,7 @@
  */
 
 import { z } from "zod";
+import type { WorkflowSubmitPhase } from "@cq/shared";
 import type { TeardownSink } from "./producer.js";
 
 // ---------------------------------------------------------------------------
@@ -121,12 +122,18 @@ export interface PhaseRequest {
  * parsed, validated value.
  */
 export interface PhaseSpec<O> {
-  /** Tool name suffix; the SDK exposes it as `mcp__wf__<toolName>`. */
+  /** Tool name suffix; the SDK exposes it as `mcp__wf__<toolName>` (Claude path). */
   readonly toolName: string;
   /** Validates the submitted payload; rejects malformed submits at the boundary. */
   readonly schema: z.ZodType<O>;
   /** Short label for logs ("clarify-review", "planner", "plan-review"). */
   readonly label: string;
+  /**
+   * The internal-WS phase discriminator for the Codex relay (codexwf). The
+   * Codex lane primes its cq-mcp child with this so `WorkflowSubmitProxy`
+   * selects the right schema; the Claude lane ignores it.
+   */
+  readonly submitPhase: WorkflowSubmitPhase;
 }
 
 /**
@@ -153,18 +160,21 @@ export const CLARIFY_REVIEW_SPEC: PhaseSpec<ClarifyReviewOutput> = {
   toolName: "submit_clarify_review",
   schema: ClarifyReviewOutputSchema,
   label: "clarify-review",
+  submitPhase: "clarify_review",
 };
 
 export const PLAN_SPEC: PhaseSpec<PlanOutput> = {
   toolName: "submit_plan_doc",
   schema: PlanOutputSchema,
   label: "planner",
+  submitPhase: "plan",
 };
 
 export const PLAN_REVIEW_SPEC: PhaseSpec<PlanReviewOutput> = {
   toolName: "submit_plan_review",
   schema: PlanReviewOutputSchema,
   label: "plan-review",
+  submitPhase: "plan_review",
 };
 
 // ---------------------------------------------------------------------------

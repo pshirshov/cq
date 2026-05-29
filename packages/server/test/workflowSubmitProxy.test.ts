@@ -15,7 +15,6 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { z } from "zod";
 import { WorkflowSubmitProxy } from "../src/workflow/workflowSubmitProxy";
 import { ProducerOutputSchema } from "../src/workflow/producer";
 import { PlanOutputSchema } from "../src/workflow/phases";
