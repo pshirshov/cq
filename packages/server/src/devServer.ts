@@ -70,7 +70,14 @@ export async function startDevServer(
       });
     });
   });
-  const bridge = new Bridge({ logger, registry, cwd, persistence, ledgerStore });
+  const bridge = new Bridge({
+    logger,
+    registry,
+    cwd,
+    persistence,
+    ledgerStore,
+    internalWsToken: internalWs.tokenForChild(),
+  });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const server = (serve as (opts: any) => ReturnType<typeof Bun.serve>)({
@@ -140,6 +147,7 @@ export async function startDevServer(
 
   const boundPort = server.port;
   const internalWsUrl = `ws://127.0.0.1:${boundPort}${INTERNAL_WS_PATH}`;
+  bridge.setInternalWsUrl(internalWsUrl);
   logger.info("cq dev listening", { host, port: boundPort, cwd, dbPath, hmr: true, internalWsUrl });
 
   return {

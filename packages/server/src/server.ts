@@ -84,7 +84,19 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       });
     });
   });
-  const bridge = new Bridge({ logger, registry, cwd, persistence, ledgerStore });
+  // The internal WS URL depends on the bound port, which we only learn
+  // after Bun.serve(...) returns. Wire the bridge with a placeholder
+  // for now; we MUST refresh it before the first Codex session starts.
+  // Approach: a one-shot pre-bind handler that sets it on Bridge. See
+  // below — we mutate the bridge.opts after `server.url` resolves.
+  const bridge = new Bridge({
+    logger,
+    registry,
+    cwd,
+    persistence,
+    ledgerStore,
+    internalWsToken: internalWs.tokenForChild(),
+  });
 
   // Track all open WS sockets for graceful close-with-code.
   type WsHandle = { close(code?: number, reason?: string): void };
@@ -248,6 +260,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   // ephemeral one when port=0.
   const boundPort = server.port;
   const internalWsUrl = `ws://127.0.0.1:${boundPort}${INTERNAL_WS_PATH}`;
+  bridge.setInternalWsUrl(internalWsUrl);
   logger.info("cq listening", { host, port: boundPort, cwd, dbPath, internalWsUrl });
 
   return {
