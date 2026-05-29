@@ -4,6 +4,28 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: lockfile-wait (LOCK-D01) — lockfile waits for a live holder instead of failing fast
+
+Plan: [`docs/drafts/20260529-2200-lockfile-wait-plan.md`](docs/drafts/20260529-2200-lockfile-wait-plan.md).
+Baseline (verified 187c027): `bun test` 907 pass / 0 fail. e2e target 23/23.
+
+### Milestone M-LOCK — PR breakdown
+
+- [x] **lock-01** — `Lockfile.acquire()` waits-with-timeout on a LIVE holder (poll every interval until acquired or timeout → `LedgerBusyError`); dead-PID stale reclaim preserved; injectable poll interval + timeout + fake clock. New lockfile tests (live-releases→acquire, live-stuck→timeout, dead→reclaim, dies-mid-wait→reclaim) + cross-instance two-`FsLedgerStore` concurrent-write regression. `LOCK-D01` row in defects.md.
+
+### Cross-cutting decisions (lockfile-wait, locked)
+- K-LOCK-1: two legitimate concurrent ledger writers exist on one cwd (cq-server in-process store + the long-lived cq-mcp child store). The advisory file lock MUST serialize them by WAITING, not by failing fast. Bounded timeout retains the genuine-deadlock signal.
+- K-LOCK-2: dead-PID stale reclaim (unlink + retry) is preserved unchanged; the timeout must remain bounded so a stuck live holder still surfaces `LedgerBusyError`.
+- K-LOCK-3: the WFL-D02 e2e Playwright project-ordering workaround stays (it also addresses the CPU-starvation half) but is no longer load-bearing for the lock race once the lock waits.
+- K-LOCK-4: cross-process no-lost-write is a TWO-layer guarantee — the file lock (no torn write) AND the D-COHERENCE relay (`onMutation`→peer `invalidate`) so each store re-reads before its next write. The lock alone does not merge two stores' in-memory snapshots. The regression test wires both layers.
+- K-LOCK-5: `readHolder` classifies an empty/unparseable lockfile body (a holder mid-write between `open(O_EXCL)` and `writeFile`) as `transient` and the wait loop POLLS AGAIN without reclaiming; reclaiming a mid-write lock would risk two acquirers. Only a confirmed-dead `holder` is reclaimed; only a genuine I/O error throws.
+
+### Completed (lockfile-wait)
+
+- **lock-01** (2026-05-29) — `Lockfile.acquire()` now waits-with-bounded-timeout on a LIVE holder instead of failing fast, fixing the cross-process write race behind WFL-D02 (defect 1). On `EEXIST` it polls `tryOnce` every `pollIntervalMs` (default 25 ms) until acquired or `acquireTimeoutMs` (default 5000 ms, bounded) elapses → `LedgerBusyError`. Dead-PID stale reclaim preserved. `readHolder` rewritten to return a discriminated `HolderProbe` (`gone`/`transient`/`holder`) so an empty mid-write body is treated as transient (poll again, no reclaim) rather than a hard error — a latent fragility that flaked the full suite under contention (`pid 0 on unknown`), discovered and fixed during this cycle. New injectable opts `acquireTimeoutMs`/`pollIntervalMs`/`sleep`. Verification: `bun run check` x2 → exit 0, 911 pass / 0 fail (baseline 907 + 4 net new tests), deterministic; `bun run e2e` → 23/23 (Codex cq-server↔cq-mcp specs pass); `nix build .#default` → exit 0; full ledger suite 163/0 stable across 3 runs. Repro discipline: stashed the fix, ran the new cross-instance "different ledgers" test against the OLD fail-fast code → red with `LedgerBusyError: Ledger __milestones__ is locked by pid N on vm` (the WFL-D02 symptom); restored the fix → green. Load-bearing proof for no-lost-write: disabling the D-COHERENCE relay drops the count to 15/30. Surprises/constraints: (1) the lock alone does NOT give cross-process no-lost-write — the coherence relay is required and the regression test wires it (K-LOCK-4). (2) reclaiming on an empty body is WRONG (two-acquirer hazard); transient-poll is the correct policy (K-LOCK-5). (3) the WFL-D02 Playwright ordering workaround is now belt-and-suspenders (kept; still load-bearing for the CPU-starvation half, no longer for the lock race). Metrics: review rounds 1 (self-review; subagent dispatch unavailable in this runtime → serialised executor+reviewer with explicit repro discipline); defects {major:1, minor:0, nit:0} (LOCK-D01, includes the readHolder subfix); verification complete; scope delta none (ledger lib + 2 test files, as planned).
+
+---
+
 ## Cycle: workflow-loops (cycle 3) — make `/plan` converge end-to-end
 
 Plan: [`docs/drafts/20260529-2000-plan-workflow-loops.md`](docs/drafts/20260529-2000-plan-workflow-loops.md).

@@ -215,6 +215,176 @@ describe("FsLedgerStore concurrency", () => {
     await updatesAll;
   });
 
+  // LOCK-D01: two FsLedgerStore instances on the SAME cwd simulate the cq
+  // server's in-process store and the long-lived cq-mcp child. They share NO
+  // in-process AsyncMutex (each store has its own), so only the cross-process
+  // advisory file lock serialises their writes. Before the wait-with-timeout
+  // fix the second writer hit a live-pid EEXIST and threw LedgerBusyError; now
+  // it waits out the short critical section. Both stores run in THIS process,
+  // so both pids are alive — the WAIT path (not the dead-reclaim path) is
+  // exercised, exactly the production scenario.
+  //
+  // No-lost-write across processes is a TWO-layer guarantee: (1) the file lock
+  // serialises writes so no torn/corrupt file (LOCK-D01's job), and (2) the
+  // D-COHERENCE channel (onMutation → peer.invalidate, relayed over InternalWs
+  // in production) makes each store re-read the peer's committed state before
+  // its next write, so neither overwrites the other's snapshot. This test wires
+  // that channel exactly as production does and serialises each writer's next
+  // op behind the peer's invalidate — proving the lock waits AND the merge
+  // holds. Without the LOCK-D01 fix this test would throw LedgerBusyError
+  // instead of reaching the assertions.
+  it("two FsLedgerStore instances on one cwd both complete concurrent writes with no lost write (LOCK-D01)", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ledger-conc-xproc-"));
+    dirs.push(dir);
+    const docsDir = path.join(dir, "docs");
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(
+      path.join(docsDir, "ledgers.yaml"),
+      serializeRegistry({
+        version: 1,
+        ledgers: [
+          { name: MILESTONES_LEDGER, schema: MILESTONES_SCHEMA },
+          { name: "xenos", schema },
+        ],
+      }),
+      "utf8",
+    );
+
+    // A short real poll interval keeps the test fast while genuinely exercising
+    // the cross-instance file-lock waiting against a real (short) critical
+    // section. acquireTimeoutMs stays at the default so it never spuriously
+    // times out under load.
+    const lockfileOpts = { pollIntervalMs: 5 };
+
+    // The coherence relay: each store's onMutation invalidates the SAME ledger
+    // on its peer, mirroring the InternalWs `ledger.changed` notification. The
+    // relay promise is collected so the test can await convergence. (onMutation
+    // is synchronous and fires after lock release; it schedules the async
+    // invalidate, exactly like the WS send → remote handler hop.)
+    const relayed: Array<Promise<void>> = [];
+    // The relay closures read `storeA`/`storeB` lazily (only when fired by a
+    // write, after both are constructed), so capturing the const bindings
+    // before the second is initialised is safe — onMutation never fires during
+    // construction.
+    const relayToB = (ledgerId: string): void => {
+      relayed.push(storeB.invalidate(ledgerId).catch(() => undefined));
+    };
+    const relayToA = (ledgerId: string): void => {
+      relayed.push(storeA.invalidate(ledgerId).catch(() => undefined));
+    };
+    const storeA = new FsLedgerStore({ root: dir, lockfile: lockfileOpts, onMutation: relayToB });
+    const storeB = new FsLedgerStore({ root: dir, lockfile: lockfileOpts, onMutation: relayToA });
+    await storeA.init();
+    await storeB.init();
+
+    // storeA owns milestone creation; both stores create items into it.
+    const m = await storeA.createMilestone({ title: "M-shared" });
+    await storeB.invalidate(MILESTONES_LEDGER); // B learns the new milestone.
+
+    // Alternate a write on A then a write on B, draining the coherence relay
+    // between writes so each store re-reads the peer's committed state before
+    // its own next write. The file lock + relay together guarantee no lost
+    // write. Each individual createItem still exercises the cross-instance file
+    // lock (both stores' locks live in the same .locks dir on one cwd).
+    const N = 15;
+    let aSeq = 0;
+    let bSeq = 0;
+    for (let i = 0; i < N; i++) {
+      await storeA.createItem("xenos", m.id, {
+        status: "open",
+        fields: { severity: "minor", location: "a.ts", description: `A${aSeq++}` },
+      });
+      await storeB.createItem("xenos", m.id, {
+        status: "open",
+        fields: { severity: "minor", location: "b.ts", description: `B${bSeq++}` },
+      });
+      // Drain relayed invalidations so the next iteration's writes start from
+      // the freshest committed state.
+      await Promise.all(relayed.splice(0));
+    }
+    // Final drain.
+    await Promise.all(relayed.splice(0));
+
+    // Final on-disk file parses cleanly and reflects writes from BOTH stores
+    // with no lost write. Read from disk (the authority of record).
+    const text = await readFile(path.join(docsDir, "xenos.md"), "utf8");
+    const parsed = parseLedger(text, { schema });
+    const group = parsed.milestones.find((g) => g.id === m.id);
+    if (group === undefined) throw new Error("milestone group missing on disk");
+    expect(group.items.length).toBe(2 * N);
+    const fromA = group.items.filter((it) => it.fields["location"] === "a.ts").length;
+    const fromB = group.items.filter((it) => it.fields["location"] === "b.ts").length;
+    expect(fromA).toBe(N);
+    expect(fromB).toBe(N);
+    // Ids are unique (counter monotonicity held across the cross-process lock).
+    const ids = new Set(group.items.map((it) => it.id));
+    expect(ids.size).toBe(2 * N);
+
+    await storeA.dispose();
+    await storeB.dispose();
+  });
+
+  // LOCK-D01 — the file lock's OWN guarantee in isolation: two stores writing
+  // to DIFFERENT ledgers on the same cwd contend on nothing data-wise but DO
+  // share the .locks dir; concurrent fire from both must all succeed with no
+  // LedgerBusyError and both files parse. This isolates "the second writer
+  // waits" from the coherence-merge layer (no shared ledger → no merge needed).
+  it("two FsLedgerStore instances writing different ledgers on one cwd never throw LedgerBusyError (LOCK-D01)", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ledger-conc-xproc2-"));
+    dirs.push(dir);
+    const docsDir = path.join(dir, "docs");
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(
+      path.join(docsDir, "ledgers.yaml"),
+      serializeRegistry({
+        version: 1,
+        ledgers: [
+          { name: MILESTONES_LEDGER, schema: MILESTONES_SCHEMA },
+          { name: "alpha", schema },
+          { name: "beta", schema },
+        ],
+      }),
+      "utf8",
+    );
+    const lockfileOpts = { pollIntervalMs: 5 };
+    const storeA = new FsLedgerStore({ root: dir, lockfile: lockfileOpts });
+    const storeB = new FsLedgerStore({ root: dir, lockfile: lockfileOpts });
+    await storeA.init();
+    await storeB.init();
+    // Both stores share the SAME milestones lockfile (__milestones__.lock) on
+    // createItem, so they genuinely contend on the cross-process lock even
+    // though their data ledgers differ.
+    const m = await storeA.createMilestone({ title: "M-x" });
+    await storeB.invalidate(MILESTONES_LEDGER);
+
+    const N = 20;
+    const ops: Array<Promise<unknown>> = [];
+    for (let i = 0; i < N; i++) {
+      ops.push(
+        storeA.createItem("alpha", m.id, {
+          status: "open",
+          fields: { severity: "minor", location: "a.ts", description: `a${i}` },
+        }),
+      );
+      ops.push(
+        storeB.createItem("beta", m.id, {
+          status: "open",
+          fields: { severity: "minor", location: "b.ts", description: `b${i}` },
+        }),
+      );
+    }
+    // No LedgerBusyError despite both contending on __milestones__.lock.
+    await Promise.all(ops);
+
+    const alpha = parseLedger(await readFile(path.join(docsDir, "alpha.md"), "utf8"), { schema });
+    const beta = parseLedger(await readFile(path.join(docsDir, "beta.md"), "utf8"), { schema });
+    expect(alpha.milestones.find((g) => g.id === m.id)?.items.length).toBe(N);
+    expect(beta.milestones.find((g) => g.id === m.id)?.items.length).toBe(N);
+
+    await storeA.dispose();
+    await storeB.dispose();
+  });
+
   it("concurrent updates to different ledgers run without cross-blocking", async () => {
     // Build a store with two ledgers (plus the bootstrapped milestones).
     const dir = await mkdtemp(path.join(tmpdir(), "ledger-conc-multi-"));
