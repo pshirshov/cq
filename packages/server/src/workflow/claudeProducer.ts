@@ -1,0 +1,281 @@
+/**
+ * claudeProducer.ts — Claude-backed headless producer (Q8 Claude path).
+ *
+ * Runs its OWN `query()` (via an injectable QueryFactory, default = the SDK's
+ * `query`) with a single in-process MCP tool `submit_plan`. The tool handler
+ * is the HARNESS: it validates the model's payload against
+ * `ProducerOutputSchema` and resolves the dispatch. The producer is given NO
+ * ledger MCP tools, so it CANNOT write ledgers.
+ *
+ * This path NEVER goes through the `Bridge` facade: it constructs its own
+ * query, never registers a `SessionRegistry` session, and never emits
+ * `chat.*` frames. The pool=1 interactive-chat invariant is therefore held by
+ * construction — the interactive `Bridge.active` is untouched.
+ *
+ * A default 120 s timeout bounds a producer that never submits; on timeout
+ * (or abort) the dispatch rejects and the query is closed.
+ */
+
+import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
+import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  Query,
+  Options as SDKOptions,
+  SDKUserMessage,
+} from "@anthropic-ai/claude-agent-sdk";
+import { createRequire } from "node:module";
+import { z } from "zod";
+import type { Logger } from "../log/logger";
+import {
+  ProducerOutputSchema,
+  buildProducerPrompt,
+  type ProduceRequest,
+  type ProducerOutput,
+  type WorkflowProducer,
+} from "./producer.js";
+
+/** Same shape as ClaudeBridge.QueryFactory — injectable for tests. */
+export type QueryFactory = (opts: {
+  prompt: AsyncIterable<SDKUserMessage>;
+  options?: SDKOptions;
+}) => Query;
+
+export interface ClaudeProducerOpts {
+  logger: Logger;
+  cwd: string;
+  /** Override `query()` for tests. Defaults to the real SDK `query`. */
+  queryFactory?: QueryFactory;
+  /** Dispatch timeout in ms. Defaults to 120_000. */
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 120_000;
+
+/**
+ * Zod schema for the `submit_plan` tool input. The producer fills this; the
+ * handler re-validates against the stricter `ProducerOutputSchema` (min
+ * lengths) before resolving so a vacuous `{goal:{description:""},questions:[]}`
+ * is rejected at the harness boundary, not silently written.
+ */
+const submitPlanSchema = {
+  goal: z.object({ description: z.string() }),
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      context: z.string().optional(),
+      suggestions: z.array(z.string()).optional(),
+      recommendation: z.string().optional(),
+    }),
+  ),
+} as const;
+
+export class ClaudeProducer implements WorkflowProducer {
+  private readonly logger: Logger;
+  private readonly cwd: string;
+  private readonly queryFactory: QueryFactory;
+  private readonly timeoutMs: number;
+
+  constructor(opts: ClaudeProducerOpts) {
+    this.logger = opts.logger;
+    this.cwd = opts.cwd;
+    this.queryFactory =
+      opts.queryFactory ??
+      (({ prompt, options }) =>
+        options !== undefined ? sdkQuery({ prompt, options }) : sdkQuery({ prompt }));
+    this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  }
+
+  async produce(req: ProduceRequest): Promise<ProducerOutput> {
+    // The harness resolves this when the producer calls submit_plan with a
+    // valid payload. Rejects on timeout / abort / no-submit-before-stream-end.
+    let resolveOutput!: (out: ProducerOutput) => void;
+    let rejectOutput!: (err: Error) => void;
+    const outputPromise = new Promise<ProducerOutput>((resolve, reject) => {
+      resolveOutput = resolve;
+      rejectOutput = reject;
+    });
+    let submitted = false;
+
+    const submitTool = tool(
+      "submit_plan",
+      "Submit the refined goal description and the clarifying-question batch. Call exactly once.",
+      submitPlanSchema,
+      async (args) => {
+        const parsed = ProducerOutputSchema.safeParse(args);
+        if (!parsed.success) {
+          // Surface the validation failure back to the model so it can retry,
+          // but do NOT resolve — an invalid submit must not write ledgers.
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `submit_plan rejected: ${parsed.error.message}. Fix and resubmit.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        submitted = true;
+        resolveOutput(parsed.data);
+        return {
+          content: [{ type: "text" as const, text: "submit_plan accepted." }],
+        };
+      },
+    );
+
+    const mcpServer = createSdkMcpServer({
+      name: "wf",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: [submitTool] as any,
+    });
+
+    // Bun workaround (mirrors ClaudeBridge.resolveNativeBinaryPath): under
+    // Bun, child_process.spawn of the native CLI binary can intermittently
+    // ENOENT even when the file exists. Passing the explicit path bypasses the
+    // flaky spawn lookup; omitting it caused intermittent producer-startup
+    // hangs (→ timeout) under load in the e2e suite.
+    const nativeBinPath = resolveNativeBinaryPath();
+
+    const options: SDKOptions = {
+      cwd: this.cwd,
+      // Headless: no partial messages, no subagent forwarding, no external MCP.
+      mcpServers: { wf: mcpServer },
+      ...(nativeBinPath !== undefined ? { pathToClaudeCodeExecutable: nativeBinPath } : {}),
+      // Allow the producer to call only the harness tool. Everything else is
+      // denied — the producer must not read/write files or ledgers.
+      canUseTool: async (toolName: string) => {
+        if (toolName === "mcp__wf__submit_plan") {
+          return { behavior: "allow" as const, updatedInput: {} };
+        }
+        return { behavior: "deny" as const, message: "producer may only call submit_plan" };
+      },
+    };
+    if (req.model !== undefined) options.model = req.model;
+
+    // Streaming-input queue: push the single prompt, then leave open until done.
+    const queue = new SingleMessageQueue(buildProducerPrompt(req.text));
+    const q = this.queryFactory({ prompt: queue, options });
+
+    const timer = setTimeout(() => {
+      rejectOutput(new Error(`producer timed out after ${this.timeoutMs}ms without submitting`));
+    }, this.timeoutMs);
+
+    const onAbort = (): void => {
+      rejectOutput(new Error("producer aborted"));
+    };
+    if (req.signal !== undefined) {
+      if (req.signal.aborted) onAbort();
+      else req.signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    // Drive the SDK iteration in the background. If the stream ends before a
+    // submit, reject (a producer that never submitted is a failure).
+    const drain = (async () => {
+      try {
+        for await (const _msg of q) {
+          // Events are intentionally discarded — headless lane does not stream.
+          if (submitted) break;
+        }
+        if (!submitted) {
+          rejectOutput(new Error("producer finished without calling submit_plan"));
+        }
+      } catch (err: unknown) {
+        rejectOutput(err instanceof Error ? err : new Error(String(err)));
+      }
+    })();
+
+    try {
+      return await outputPromise;
+    } finally {
+      clearTimeout(timer);
+      if (req.signal !== undefined) req.signal.removeEventListener("abort", onAbort);
+      // Close the query so the subprocess is reaped; ignore drain errors (the
+      // outcome — resolve or reject — is already decided).
+      try {
+        queue.end();
+        q.close();
+      } catch (err: unknown) {
+        this.logger.warn("producer.close_error", { err: String(err) });
+      }
+      void drain.catch(() => undefined);
+    }
+  }
+}
+
+/**
+ * A one-shot streaming-input queue: yields the single producer prompt, then
+ * blocks until `end()` is called. The SDK requires an AsyncIterable<SDKUserMessage>.
+ */
+class SingleMessageQueue implements AsyncIterator<SDKUserMessage>, AsyncIterable<SDKUserMessage> {
+  private emitted = false;
+  private done = false;
+  private waiter: ((r: IteratorResult<SDKUserMessage>) => void) | null = null;
+  private readonly text: string;
+
+  constructor(text: string) {
+    this.text = text;
+  }
+
+  end(): void {
+    if (this.done) return;
+    this.done = true;
+    if (this.waiter !== null) {
+      const resolve = this.waiter;
+      this.waiter = null;
+      resolve({ value: undefined as unknown as SDKUserMessage, done: true });
+    }
+  }
+
+  next(): Promise<IteratorResult<SDKUserMessage>> {
+    if (!this.emitted) {
+      this.emitted = true;
+      const msg: SDKUserMessage = {
+        type: "user",
+        message: { role: "user", content: this.text } as SDKUserMessage["message"],
+        parent_tool_use_id: null,
+      };
+      return Promise.resolve({ value: msg, done: false });
+    }
+    if (this.done) {
+      return Promise.resolve({ value: undefined as unknown as SDKUserMessage, done: true });
+    }
+    return new Promise((resolve) => {
+      this.waiter = resolve;
+    });
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
+    return this;
+  }
+}
+
+/**
+ * Resolve the native Claude Code CLI binary path under Bun (mirror of
+ * ClaudeBridge.resolveNativeBinaryPath). Returns undefined under Node so the
+ * SDK does its own lookup. See claudeBridge.ts for the full rationale.
+ */
+function resolveNativeBinaryPath(): string | undefined {
+  if (typeof (process.versions as Record<string, unknown>)["bun"] === "undefined") {
+    return undefined;
+  }
+  try {
+    const req = createRequire(import.meta.url);
+    const platform = process.platform;
+    const arch = process.arch;
+    const pkgCandidates = [
+      `@anthropic-ai/claude-agent-sdk-${platform}-${arch}/claude`,
+      `@anthropic-ai/claude-agent-sdk-${platform}-${arch}-musl/claude`,
+    ];
+    for (const pkg of pkgCandidates) {
+      try {
+        const resolved = req.resolve(pkg);
+        if (resolved) return resolved;
+      } catch {
+        // Not found — try next candidate.
+      }
+    }
+  } catch {
+    // Fallback: let the SDK do its own lookup.
+  }
+  return undefined;
+}
