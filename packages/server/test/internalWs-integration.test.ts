@@ -164,20 +164,20 @@ describe("D-COHERENCE — cross-process cache invalidation", () => {
     await withMcpClient(async (client) => {
       await client.callTool({
         name: "create_milestone",
-        arguments: { id: "M-COHERENCE", title: "From the MCP" },
+        arguments: { id: "M9", title: "From the MCP" },
       });
       // The subprocess broadcasts ledger.changed → server invalidates.
       // Poll the server-side store until the milestone shows up.
       await waitFor(() => {
         try {
-          const view = serverLedgerStore!.fetchMilestone("M-COHERENCE");
-          return view.milestone.id === "M-COHERENCE";
+          const view = serverLedgerStore!.fetchMilestone("M9");
+          return view.milestone.id === "M9";
         } catch {
           return false;
         }
       }, 1000);
     });
-    const view = serverLedgerStore!.fetchMilestone("M-COHERENCE");
+    const view = serverLedgerStore!.fetchMilestone("M9");
     expect(view.resolved.title).toBe("From the MCP");
   });
 

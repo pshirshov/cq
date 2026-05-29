@@ -88,10 +88,10 @@ import type {
 import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
 import {
+  CANONICAL_LEDGERS,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
   MILESTONES_LEDGER,
-  MILESTONES_SCHEMA,
 } from "../constants.js";
 
 export interface FsLedgerStoreOpts {
@@ -189,25 +189,23 @@ export class FsLedgerStore implements LedgerStore {
       this.registry = parseRegistry(registryText);
     }
 
-    // Bootstrap milestones ledger if absent.
-    const milestonesEntry = this.registry.ledgers.find(
-      (e) => e.name === MILESTONES_LEDGER,
-    );
-    if (milestonesEntry === undefined) {
-      this.registry.ledgers.push({
-        name: MILESTONES_LEDGER,
-        schema: MILESTONES_SCHEMA,
-      });
-      await this.writeRegistry();
-    } else {
-      // Defensive: if a prior cycle wrote an out-of-band schema, refuse
-      // to start so the divergence is loud.
-      if (!schemasEqual(milestonesEntry.schema, MILESTONES_SCHEMA)) {
+    // Bootstrap every canonical ledger (milestones + the canon-cycle five +
+    // goals) if absent. Refuse to start if any on-disk schema diverged.
+    let registryDirty = false;
+    for (const canonical of CANONICAL_LEDGERS) {
+      const entry = this.registry.ledgers.find((e) => e.name === canonical.name);
+      if (entry === undefined) {
+        this.registry.ledgers.push({ name: canonical.name, schema: canonical.schema });
+        registryDirty = true;
+      } else if (!schemasEqual(entry.schema, canonical.schema)) {
+        // Defensive: a prior cycle / hand-edit wrote an out-of-band schema.
+        // Refuse to start so the divergence is loud.
         throw new BootstrapViolationError(
-          `existing ${MILESTONES_LEDGER} ledger has a different schema than MILESTONES_SCHEMA`,
+          `existing ${canonical.name} ledger has a different schema than its canonical bootstrap schema`,
         );
       }
     }
+    if (registryDirty) await this.writeRegistry();
 
     // Load each ledger (including milestones).
     for (const entry of this.registry.ledgers) {

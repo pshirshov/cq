@@ -52,10 +52,10 @@ import type {
 } from "../types.js";
 import { AsyncMutex } from "./mutex.js";
 import {
+  CANONICAL_LEDGERS,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
   MILESTONES_LEDGER,
-  MILESTONES_SCHEMA,
 } from "../constants.js";
 
 export interface InMemoryLedgerStoreOpts {
@@ -112,17 +112,20 @@ export class InMemoryLedgerStore implements LedgerStore {
 
   async init(): Promise<void> {
     if (this.initialised) return;
-    // Seed user-supplied ledgers (refusing `milestones` here keeps the
-    // bootstrap path the single source of truth for the schema).
+    // Bootstrap the canonical ledgers FIRST so a seed that diverges from
+    // a canonical schema, or re-declares a canonical name, is rejected.
+    this.bootstrapCanonicalLedgers();
+    const canonicalNames = new Set(CANONICAL_LEDGERS.map((c) => c.name));
+    // Seed user-supplied ledgers (refusing any canonical name keeps the
+    // bootstrap path the single source of truth for those schemas).
     for (const { name, schema } of this.initialSeed) {
-      if (name === MILESTONES_LEDGER) {
+      if (canonicalNames.has(name)) {
         throw new BootstrapViolationError(
-          `seed includes "${MILESTONES_LEDGER}"; that ledger is bootstrapped automatically`,
+          `seed includes "${name}"; that ledger is bootstrapped automatically`,
         );
       }
       this.ledgers.set(name, freshLedger(name, schema));
     }
-    this.bootstrapMilestonesLedger();
     this.initialised = true;
   }
 
@@ -309,16 +312,19 @@ export class InMemoryLedgerStore implements LedgerStore {
   }
 
   // --- internals ---
-  private bootstrapMilestonesLedger(): void {
-    if (!this.ledgers.has(MILESTONES_LEDGER)) {
-      const ledger = freshLedger(MILESTONES_LEDGER, MILESTONES_SCHEMA);
-      ledger.milestones.push({
-        id: MILESTONES_ACTIVE_GROUP_ID,
-        title: MILESTONES_ACTIVE_GROUP_TITLE,
-        description: "",
-        items: [],
-      });
-      this.ledgers.set(MILESTONES_LEDGER, ledger);
+  private bootstrapCanonicalLedgers(): void {
+    for (const { name, schema } of CANONICAL_LEDGERS) {
+      if (this.ledgers.has(name)) continue;
+      const ledger = freshLedger(name, schema);
+      if (name === MILESTONES_LEDGER) {
+        ledger.milestones.push({
+          id: MILESTONES_ACTIVE_GROUP_ID,
+          title: MILESTONES_ACTIVE_GROUP_TITLE,
+          description: "",
+          items: [],
+        });
+      }
+      this.ledgers.set(name, ledger);
     }
   }
 

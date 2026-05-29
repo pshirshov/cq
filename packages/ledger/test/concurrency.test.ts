@@ -62,7 +62,7 @@ async function setup(opts: { now?: () => string } = {}): Promise<FsLedgerStore> 
   await mkdir(docsDir, { recursive: true });
   await writeFile(
     path.join(docsDir, "ledgers.yaml"),
-    serializeRegistry({ version: 1, ledgers: [{ name: "defects", schema }] }),
+    serializeRegistry({ version: 1, ledgers: [{ name: "xenos", schema }] }),
     "utf8",
   );
   const fsOpts: { root: string; now?: () => string } = { root: dir };
@@ -76,14 +76,14 @@ describe("FsLedgerStore concurrency", () => {
   it("50 parallel updateItem calls leave a parseable, complete file", async () => {
     const store = await setup();
     const m = await store.createMilestone({ title: "M-one" });
-    const item = await store.createItem("defects", m.id, {
+    const item = await store.createItem("xenos", m.id, {
       status: "open",
       fields: { severity: "minor", location: "x.ts", description: "init" },
     });
 
     const N = 50;
     const updates = Array.from({ length: N }, (_, i) =>
-      store.updateItem("defects", item.id, {
+      store.updateItem("xenos", item.id, {
         fields: { counter: String(i) },
       }),
     );
@@ -93,7 +93,7 @@ describe("FsLedgerStore concurrency", () => {
     const text = await (async () => {
       for (const d of dirs) {
         try {
-          return await readFile(path.join(d, "docs", "defects.md"), "utf8");
+          return await readFile(path.join(d, "docs", "xenos.md"), "utf8");
         } catch {
           /* try next */
         }
@@ -120,7 +120,7 @@ describe("FsLedgerStore concurrency", () => {
     const baseTick = tick; // tick after init
     const m = await store.createMilestone({ title: "M-one" });
     // createItem also consumes a tick (item.createdAt/updatedAt).
-    const item = await store.createItem("defects", m.id, {
+    const item = await store.createItem("xenos", m.id, {
       status: "open",
       fields: { severity: "minor", location: "x.ts", description: "init" },
     });
@@ -129,7 +129,7 @@ describe("FsLedgerStore concurrency", () => {
     const updates: Array<Promise<Item>> = [];
     for (let i = 0; i < N; i++) {
       updates.push(
-        store.updateItem("defects", item.id, {
+        store.updateItem("xenos", item.id, {
           fields: { counter: String(i) },
         }),
       );
@@ -151,7 +151,7 @@ describe("FsLedgerStore concurrency", () => {
 
     // The final on-disk state corresponds to the last serialised write.
     const text = await readFile(
-      path.join(dirs[dirs.length - 1] ?? "", "docs", "defects.md"),
+      path.join(dirs[dirs.length - 1] ?? "", "docs", "xenos.md"),
       "utf8",
     );
     const parsed = parseLedger(text, { schema });
@@ -170,7 +170,7 @@ describe("FsLedgerStore concurrency", () => {
     const N = 50;
     const items = await Promise.all(
       Array.from({ length: N }, (_, i) =>
-        store.createItem("defects", m.id, {
+        store.createItem("xenos", m.id, {
           status: "open",
           fields: {
             severity: "minor",
@@ -182,14 +182,14 @@ describe("FsLedgerStore concurrency", () => {
     );
     const ids = new Set(items.map((it) => it.id));
     expect(ids.size).toBe(N);
-    const ledger = store.fetch("defects");
+    const ledger = store.fetch("xenos");
     expect(ledger.counters.item).toBeGreaterThanOrEqual(N);
   });
 
   it("dispose() drains in-flight mutations before returning (D-LED-06)", async () => {
     const store = await setup();
     const m = await store.createMilestone({ title: "M-one" });
-    const item = await store.createItem("defects", m.id, {
+    const item = await store.createItem("xenos", m.id, {
       status: "open",
       fields: { severity: "minor", location: "x.ts", description: "init" },
     });
@@ -198,7 +198,7 @@ describe("FsLedgerStore concurrency", () => {
     const updates: Array<Promise<Item>> = [];
     for (let i = 0; i < N; i++) {
       updates.push(
-        store.updateItem("defects", item.id, {
+        store.updateItem("xenos", item.id, {
           fields: { counter: String(i) },
         }),
       );

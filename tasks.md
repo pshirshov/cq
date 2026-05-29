@@ -13,7 +13,7 @@ Baseline (verified 83d1dbf): `bun run check` 807 pass / 0 fail / 2778 expect acr
 ### Milestone M-CANON — PR breakdown
 
 - [x] **PR-01** — idPrefix schema field + global prefix uniqueness (§8a, Q-CANL-8). `LedgerSchema.idPrefix?`; `effectiveIdPrefix`/`assertPrefixUnique`/`assertItemIdMatchesPrefix` in core.ts; `DuplicatePrefixError`+`CrossPrefixIdError`; registry + MCP schema round-trip idPrefix; both adapters refuse prefix collision at createLedger (re-checked under registry lock on FS). New `idprefix.test.ts` (14 cases, dual-adapter). Updated path-traversal + cq-mcp fixtures to prefix-valid ids. tsc+eslint clean; ledger+cq-mcp 143/0.
-- [ ] **PR-02** — Bootstrap defects/tasks/hypothesis/questions/decisions/goals (§8, B)
+- [x] **PR-02** — Bootstrap defects/tasks/hypothesis/questions/decisions/goals (§8, B). Canonical schemas + `CANONICAL_LEDGERS` manifest in constants.ts; both adapters bootstrap all 7 on init() (provision-if-absent + divergence guard generalised). `goals` (idPrefix G) added per scope item B. Reworked dual-suite + concurrency/path-traversal/mcp-tools/cq-mcp/internalWs fixtures to non-canonical custom ledgers (widgets/notes/xenos/alpha) so seeds don't collide with bootstrapped names/prefixes; updated enumerate assertions to the full canonical set. Repo-root `docs/` regenerated; new ledger files gitignored (dev-cwd runtime artifacts, like milestones.md). full bun test 821/0 (+14); tsc+eslint clean. CANON-D01 (env hygiene) recorded.
 - [ ] **PR-03** — M-AMBIENT bootstrap milestone (§8b)
 - [ ] **PR-04** — Milestones §8c rename (blocked→blockedBy, depends→dependsOn) + §8d `## active` group
 - [ ] **PR-05** — Fixtures + dual-suite extension + repo docs regen + discharge
