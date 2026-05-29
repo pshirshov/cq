@@ -14,6 +14,7 @@
 import type { Bridge } from "./agent/bridge";
 import type { Persistence } from "./persist/Persistence.js";
 import type { Logger } from "./log/logger";
+import type { WorkflowRuntime } from "./workflow/index";
 
 export type ShutdownServer = {
   markDraining(): void;
@@ -24,6 +25,8 @@ export type ShutdownOpts = {
   server: ShutdownServer;
   persistence: Persistence;
   bridge: Bridge;
+  /** Aborted before the bridge so an in-flight `/plan` producer is reaped. */
+  workflow?: WorkflowRuntime;
   logger: Logger;
   timeoutMs: number;
 };
@@ -34,14 +37,16 @@ export type ShutdownOpts = {
  * the caller is responsible for exiting.
  */
 export async function startGracefulShutdown(opts: ShutdownOpts): Promise<void> {
-  const { server, persistence, bridge, logger, timeoutMs } = opts;
+  const { server, persistence, bridge, workflow, logger, timeoutMs } = opts;
 
   logger.info("shutdown.start", { timeoutMs });
 
   // Step 1: refuse new WebSocket upgrades.
   server.markDraining();
 
-  // Step 2: interrupt the active SDK query.
+  // Step 2: abort any in-flight workflow producer, then interrupt the active
+  // interactive SDK query.
+  workflow?.abortActive();
   bridge.interruptActive();
 
   // Step 3: wait (bounded) for the active session to finish.

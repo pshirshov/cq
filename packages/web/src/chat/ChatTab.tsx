@@ -36,8 +36,9 @@ import { ElicitationCard } from "./Cards/ElicitationCard";
 import type { ElicitationReply } from "./Cards/ElicitationCard";
 import { Detail } from "../history/Detail";
 import type { PermissionMode } from "./Header";
-import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatRejoin, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult, ApprovalPolicy, Effort } from "@cq/shared";
+import type { ChatInput, ChatInterrupt, ChatEvent, ChatStart, ChatRejoin, ChatStarted, ChatUsage, ChatPermissionRequest, ChatPermissionReply, ChatElicitationRequest, ChatElicitationReply, ChatQuestionReply, HistoryGet, HistoryReplayEvent, ChatError, SettingsGet, SettingsSet, SettingsGetResult, ApprovalPolicy, Effort, WorkflowStart, WorkflowEvent } from "@cq/shared";
 import { DEFAULT_EFFORT, modelToPlatform } from "@cq/shared";
+import { WorkflowBanner } from "./WorkflowBanner";
 import { ATTACHMENT_TOTAL_MAX_BYTES, base64DecodedByteLength } from "@cq/shared";
 import type { QuestionReplyPayload } from "./Cards/AskCard";
 import type { SlashCommand } from "./SlashPopover";
@@ -165,6 +166,7 @@ export function ChatTab(): React.ReactElement {
   const [elicitationRequests, setElicitationRequests] = useState<ChatElicitationRequest[]>([]);
   // PR-34: slash commands from initInfo (or sensible defaults).
   const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
+    { name: "/plan", description: "Start a planning workflow for a new goal" },
     { name: "/help" },
     { name: "/clear" },
     { name: "/cwd" },
@@ -172,6 +174,10 @@ export function ChatTab(): React.ReactElement {
     { name: "/cost" },
   ];
   const [slashCommands, setSlashCommands] = useState<SlashCommand[]>(DEFAULT_SLASH_COMMANDS);
+
+  // Q7: latest /plan workflow lifecycle event, surfaced minimally as a banner
+  // in the chat stream. Full Goals-tab rendering is cycle 4.
+  const [workflowEvent, setWorkflowEvent] = useState<WorkflowEvent | null>(null);
 
   // ---- D26: Hide SDK events toggle (default hydrated from localStorage) ----
   const [hideSdkEvents, setHideSdkEvents] = useState<boolean>(
@@ -382,6 +388,15 @@ export function ChatTab(): React.ReactElement {
         setPermissionRequests((prev) => [...prev, frame as ChatPermissionRequest]);
       } else if (frame.type === "chat.elicitation_request") {
         setElicitationRequests((prev) => [...prev, frame as ChatElicitationRequest]);
+      } else if (frame.type === "workflow.event") {
+        // Q7: surface the latest lifecycle event as a banner. An errored
+        // event also raises a toast so the user notices a failure even if the
+        // banner is scrolled off.
+        const wf = frame as WorkflowEvent;
+        setWorkflowEvent(wf);
+        if (wf.status === "errored") {
+          showToast({ level: "error", text: wf.detail ?? "Planning workflow failed" });
+        }
       } else if (frame.type === "chat.error") {
         const errFrame = frame as ChatError;
         // Clear the self-clearing timeout whenever chat.error arrives
@@ -578,6 +593,31 @@ export function ChatTab(): React.ReactElement {
   }, [hideSdkEvents]); // intentional: only watch hideSdkEvents
 
   function handleSubmit(text: string, attachments: Attachment[] = []): void {
+    // Q9: a leading `/plan` routes to the workflow lane (workflow.start)
+    // instead of chat.input. This runs BEFORE the activeSessionId guard
+    // because a planning command lives in its own dispatch lane and does not
+    // depend on the interactive chat session being started — the workflow.start
+    // frame carries no sessionId. `/plan <text>` = new goal; `/plan G<id>
+    // <text>` = continuation (continuation-not-implemented this cycle). The
+    // leading `/plan` token is stripped here; the server registry classifies
+    // the rest.
+    const planMatch = /^\/plan(?:\s+([\s\S]*))?$/.exec(text);
+    if (planMatch !== null) {
+      const rest = (planMatch[1] ?? "").trim();
+      const goalRefMatch = /^(G\d+)\s+([\s\S]*)$/.exec(rest);
+      const frame: WorkflowStart = {
+        type: "workflow.start",
+        seq: seqRef.current++,
+        ts: Date.now(),
+        kind: "plan",
+        text: goalRefMatch !== null ? goalRefMatch[2]!.trim() : rest,
+        platform: modelToPlatform(model),
+        ...(goalRefMatch !== null ? { goalRef: goalRefMatch[1]! } : {}),
+      };
+      manager.send(frame);
+      return;
+    }
+
     if (activeSessionId === null) return;
 
     // Enforce the 5 MB total attachment cap client-side before sending.
@@ -791,6 +831,9 @@ export function ChatTab(): React.ReactElement {
           (positioned absolute, bottom-right) anchors inside the messages
           viewport instead of the whole ChatTab (where it overlapped the
           Input row). */}
+      {workflowEvent !== null && (
+        <WorkflowBanner event={workflowEvent} onDismiss={() => setWorkflowEvent(null)} />
+      )}
       <div className={tabStyles.streamWrap}>
         <Stream
           chatEvents={chatEvents}

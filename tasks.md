@@ -25,6 +25,42 @@ Baseline (verified 83d1dbf): `bun run check` 807 pass / 0 fail / 2778 expect acr
 
 ---
 
+## Cycle: workflow-runtime — `/plan` WorkflowRuntime phase 1 (wf)
+
+Authoritative design: [`docs/drafts/20260529-1710-questions-plan-workflow.md`](docs/drafts/20260529-1710-questions-plan-workflow.md).
+Baseline (97e0ed5): `bun run check` 858 pass / 0 fail. e2e target 21/0/0.
+Scope: foundation + phase 1 ONLY (Q14 cycle 2). NO clarify/plan/review loops, NO planner,
+NO `/plan G<id>` continuation work (parse+route only → continuation-not-implemented error),
+NO Goals-tab UI beyond a minimal lifecycle banner in chat.
+
+### Dispatch-lane design (how it stays clear of pool=1)
+The producer runs in a HEADLESS lane owned by `WorkflowRuntime`, NOT through the `Bridge`
+facade. The runtime calls a backend-agnostic `headlessProduce(...)` that:
+- (Claude) constructs its OWN `query()` via an injectable `QueryFactory`, with a single
+  in-process MCP tool `submit_plan` (harness-owned handler validates `{goal,questions}` and
+  resolves a promise) and NO ledger MCP tools. It never touches `Bridge.active`, never emits
+  `chat.*` frames, never registers a `SessionRegistry` session. Pool=1 interactive chat is
+  therefore structurally undisturbed.
+- (Codex) dispatches `Thread.runStreamed` headlessly; if structured-output forcing differs,
+  document the gap (see defects). Phase 1 ships on Claude; Codex dispatch path wired + tested
+  against a fake, real-Codex deferred if the SDK blocks it.
+The HARNESS writes all ledgers (controls IDs, seeds the mandatory spec milestone, groups
+questions). The producer MUST NOT write ledgers.
+
+### PR breakdown
+- [x] **PR-wf-1** — CommandRegistry + `workflow.start`/`workflow.event` Zod (protocol.ts) + client routing of `/plan` lines. DONE: `parsePlanCommand` (pure/total); both frames added to ClientFrame/ServerFrame unions; ChatTab.handleSubmit routes `/plan` to workflow.start BEFORE the activeSessionId guard (planning is session-independent); `/plan` added to slash commands. 13 tests (command parse + protocol round-trip).
+- [x] **PR-wf-2** — WorkflowRuntime + headless dispatch lane + harness submit tool + ledger writes + in-memory active-workflow registry (busy reject). DONE: ClaudeProducer runs its own `query()` with the harness-owned `submit_plan` tool (no ledger MCP); WorkflowRuntime is the HARNESS (writes goal[clarifying]+spec milestone+questions, links goal); busy-reject; producer-failure leaves no ledger state; `abortActive()` for teardown/shutdown. Bun native-binary spawn workaround mirrored from ClaudeBridge. 14 tests (runtime phase-1 + producer failure-modes + pool=1 regression).
+- [x] **PR-wf-3** — Server wiring (WsSession→registry→WorkflowRuntime; lifecycle frames on the issuing connection) + WorkflowBanner + integration (REAL Claude SDK vs MockAnthropicHTTP: `/plan`→submit_plan→ledgers→questions_ready) + E2E Playwright (`/plan`→banner→3 ledger files). DISCHARGED: `bun run check` exit 0 x2 (885/0, +27); `bun run e2e` 22/22 green 5x deterministic; `nix build .#default` exit 0. WF-D01 (Codex deferred) + WF-D02 (no durable resume, documented) filed.
+
+### Cross-cutting decisions (wf, proposed)
+- K-wf-1: headless lane bypasses `Bridge` entirely (own QueryFactory); pool=1 invariant held by construction.
+- K-wf-2: HARNESS owns all ledger writes; producer gets `submit_plan` only, no ledger MCP.
+- K-wf-3: 2nd concurrent `/plan` → reject-with-busy (Q D recommendation).
+- K-wf-4: `/plan G<id>` parses + routes, returns continuation-not-implemented lifecycle error (Q9).
+- K-wf-5: spec milestone "produce an actionable specification" always seeded, linked from goal (Q11).
+
+---
+
 ## Milestones (high-level)
 
 - [x] **askcard-freeform** — Free-form "Other…" answer affordance on every AskUserQuestion card question (radio + checkbox). Reply protocol/brokers UNCHANGED. Plan: [`docs/drafts/20260529-askcard-freeform-plan.md`](docs/drafts/20260529-askcard-freeform-plan.md). DISCHARGED: check 807/0 (+8), e2e 20/0/0, nix exit 0. Closed ASKCARD-D01; D02/D03 nits resolved by-design. Brokers/protocol untouched. Log: [`docs/logs/20260529-askcard-freeform-log.md`](docs/logs/20260529-askcard-freeform-log.md).

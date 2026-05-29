@@ -9,6 +9,7 @@ import { SessionRegistry } from "./seq/sessionRegistry";
 import { SqlitePersistence } from "./persist/SqlitePersistence.js";
 import { FsLedgerStore } from "@cq/ledger";
 import { INTERNAL_WS_PATH, InternalWsService, type InternalWsConnData } from "./agent/internalWs";
+import { WorkflowRuntime, ClaudeProducer, CodexProducer } from "./workflow/index";
 
 export type ServerConfig = Readonly<{
   host: string;
@@ -27,6 +28,8 @@ export type RunningServer = {
   closeAllSockets(code: number, reason: string): void;
   /** The Bridge instance managing the active SDK query. */
   readonly bridge: Bridge;
+  /** The WorkflowRuntime managing the `/plan` dispatch lane. */
+  readonly workflow: WorkflowRuntime;
   /** The Persistence adapter (needed for close() in shutdown). */
   readonly persistence: SqlitePersistence;
   /**
@@ -102,6 +105,19 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     // discriminates across connected cq-mcp children).
     sendAskReply: (msg) => internalWs.broadcast(msg),
   });
+  // WorkflowRuntime (`/plan`) — own dispatch lane, separate from the pool=1
+  // interactive Bridge. The headless producer constructs its own SDK query
+  // (Claude path) or rejects with a documented gap (Codex, WF-D01); it never
+  // touches Bridge.active. The runtime is the HARNESS that writes the ledgers.
+  const workflow = new WorkflowRuntime({
+    logger,
+    store: ledgerStore,
+    selectProducer: (platform) =>
+      platform === "codex"
+        ? new CodexProducer({ logger })
+        : new ClaudeProducer({ logger, cwd }),
+  });
+
   // Inbound `ask.request` from a Codex session's cq-mcp drives the browser
   // ask UI for that session and proxies the answer back (askproxy / outer-14).
   internalWs.registerHandler("ask.request", async (msg) => {
@@ -144,6 +160,9 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       if (pathname === "/__e2e/interrupt" && process.env["CQ_E2E_HOOKS"] === "1") {
         if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
         try {
+          // Abort any in-flight workflow producer first so its headless SDK
+          // subprocess cannot leak into the next test, then clear the chat.
+          workflow.abortActive();
           bridge.interruptActive();
           await bridge.shutdown();
           return new Response("ok", { status: 200 });
@@ -200,7 +219,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
         }
 
         const sessionId = crypto.randomUUID();
-        const session = new WsSession(sessionId, logger, registry, bridge, persistence);
+        const session = new WsSession(sessionId, logger, registry, bridge, persistence, workflow);
         const upgraded = srv.upgrade(req, { data: { sessionId, session } });
         if (!upgraded) {
           // Bun returns false when the upgrade fails for non-WS requests
@@ -280,6 +299,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
 
   return {
     bridge,
+    workflow,
     persistence,
     internalWsUrl,
     internalWsToken: internalWs.tokenForChild(),

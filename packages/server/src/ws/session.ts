@@ -1,10 +1,12 @@
-import { ClientFrame, type ServerHbPong, type SessionState, type ChatError, type HistoryListResult, type HistoryGetResult, type HistoryReplayEvent, type HistoryReplayDone, type HistoryUpdate, type SettingsGetResult } from "@cq/shared";
+import { ClientFrame, type ServerHbPong, type SessionState, type ChatError, type HistoryListResult, type HistoryGetResult, type HistoryReplayEvent, type HistoryReplayDone, type HistoryUpdate, type SettingsGetResult, type WorkflowEvent } from "@cq/shared";
 import { FRAME_VALIDATION_FAILED } from "@cq/shared";
 import type { Logger } from "../log/logger";
 import { createHeartbeat, type HeartbeatHandle } from "./heartbeat";
 import type { SessionRegistry } from "../seq/sessionRegistry";
 import type { Bridge, WsSocket as BridgeWsSocket } from "../agent/bridge";
 import type { Persistence } from "../persist/Persistence.js";
+import type { WorkflowRuntime } from "../workflow/index.js";
+import { parsePlanCommand } from "../workflow/index.js";
 
 // ---------------------------------------------------------------------------
 // Data attached to each WebSocket connection via ws.data
@@ -27,6 +29,7 @@ type HistoryReplayEventPayload = Omit<HistoryReplayEvent, "seq" | "ts">;
 type HistoryReplayDonePayload = Omit<HistoryReplayDone, "seq" | "ts">;
 type HistoryUpdatePayload = Omit<HistoryUpdate, "seq" | "ts">;
 type SettingsGetResultPayload = Omit<SettingsGetResult, "seq" | "ts">;
+type WorkflowEventPayload = Omit<WorkflowEvent, "seq" | "ts">;
 
 // ---------------------------------------------------------------------------
 // WsSession — per-connection state and message dispatch
@@ -51,13 +54,20 @@ export class WsSession {
   private readonly bridge: Bridge | null;
   /** Persistence — null when not wired (tests that don't need history). */
   private readonly persistence: Persistence | null;
+  /**
+   * WorkflowRuntime — null when not wired (tests / dev mode without a ledger
+   * store). When null, `workflow.start` returns a `workflow.event` errored
+   * frame so the client is not left waiting.
+   */
+  private readonly workflow: WorkflowRuntime | null;
 
-  constructor(sessionId: string, logger: Logger, registry?: SessionRegistry, bridge?: Bridge | null, persistence?: Persistence | null) {
+  constructor(sessionId: string, logger: Logger, registry?: SessionRegistry, bridge?: Bridge | null, persistence?: Persistence | null, workflow?: WorkflowRuntime | null) {
     this.sessionId = sessionId;
     this.logger = logger;
     this.registry = registry ?? null;
     this.bridge = bridge ?? null;
     this.persistence = persistence ?? null;
+    this.workflow = workflow ?? null;
     this.heartbeat = createHeartbeat({
       buildFrame: (payload) => {
         const seq = this.outboundSeq++;
@@ -158,6 +168,10 @@ export class WsSession {
             this.logger.error("ws.bridge_error", { sessionId: this.sessionId, err: String(err) });
           });
         }
+        break;
+      }
+      case "workflow.start": {
+        this.handleWorkflowStart(ws, frame.kind, frame.text, frame.goalRef, frame.platform);
         break;
       }
       case "chat.permission_reply": {
@@ -369,10 +383,76 @@ export class WsSession {
   }
 
   /**
+   * Routes a `/plan …` workflow command (Q7/Q9). The leading `/plan` token is
+   * already stripped client-side; the registry classifies the remainder.
+   * Lifecycle frames are emitted on THIS WS connection (the interactive
+   * session that issued the command). The workflow runs in its own dispatch
+   * lane (the WorkflowRuntime + headless producer) — it does NOT occupy the
+   * pool=1 interactive Bridge session.
+   */
+  private handleWorkflowStart(
+    ws: WsSocket,
+    kind: "plan",
+    text: string,
+    goalRef: string | undefined,
+    platform: "claude" | "codex" | undefined,
+  ): void {
+    if (this.workflow === null) {
+      // No runtime wired — emit an errored lifecycle frame so the client is
+      // not left waiting. Mirrors BRIDGE_UNAVAILABLE for the chat path.
+      const payload: WorkflowEventPayload = {
+        type: "workflow.event",
+        workflowId: crypto.randomUUID(),
+        phase: "produce",
+        status: "errored",
+        detail: "No workflow runtime is configured on this server",
+      };
+      this.sendFrame(ws, payload);
+      return;
+    }
+
+    const emit = (event: WorkflowEventPayload): void => {
+      this.sendFrame(ws, event);
+    };
+
+    const parsed = parsePlanCommand(text, goalRef);
+    switch (parsed.kind) {
+      case "malformed": {
+        emit({
+          type: "workflow.event",
+          workflowId: crypto.randomUUID(),
+          phase: "produce",
+          status: "errored",
+          detail: parsed.reason,
+        });
+        return;
+      }
+      case "plan_continue": {
+        // Parse + route only this cycle (Q9/Q10): continuation-not-implemented.
+        this.workflow.startContinuation(parsed.goalRef, emit);
+        return;
+      }
+      case "plan_new": {
+        // Fire-and-forget: lifecycle frames stream as the run progresses.
+        void this.workflow
+          .startPlan({ text: parsed.text, platform: platform ?? "claude" }, emit)
+          .catch((err: unknown) => {
+            this.logger.error("ws.workflow_error", {
+              sessionId: this.sessionId,
+              kind,
+              err: String(err),
+            });
+          });
+        return;
+      }
+    }
+  }
+
+  /**
    * Sends a frame to the client, injecting `seq` and `ts` automatically.
    * `payload` must contain all fields except `seq` and `ts`.
    */
-  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload | HistoryListResultPayload | HistoryGetResultPayload | HistoryReplayEventPayload | HistoryReplayDonePayload | HistoryUpdatePayload | SettingsGetResultPayload): void {
+  private sendFrame(ws: WsSocket, payload: PongPayload | SessionStatePayload | HistoryListResultPayload | HistoryGetResultPayload | HistoryReplayEventPayload | HistoryReplayDonePayload | HistoryUpdatePayload | SettingsGetResultPayload | WorkflowEventPayload): void {
     const seq = this.outboundSeq++;
     const ts = Date.now();
     ws.send(JSON.stringify({ ...payload, seq, ts }));
