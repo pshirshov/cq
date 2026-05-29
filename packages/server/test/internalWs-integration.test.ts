@@ -156,28 +156,29 @@ async function waitFor(
 
 describe("D-COHERENCE — cross-process cache invalidation", () => {
   it("cq-mcp creates a milestone; server's FsLedgerStore observes it within 1s", async () => {
-    // Sanity: server has no milestones beyond the bootstrap group.
+    // Sanity: server has no milestones beyond the immortal M-AMBIENT
+    // bootstrap milestone (§8b).
     {
       const view = serverLedgerStore!.fetch(MILESTONES_LEDGER);
-      expect(view.milestones[0]?.items.map((it) => it.id) ?? []).toEqual([]);
+      expect(view.milestones[0]?.items.map((it) => it.id) ?? []).toEqual(["M-AMBIENT"]);
     }
     await withMcpClient(async (client) => {
       await client.callTool({
         name: "create_milestone",
-        arguments: { id: "M-COHERENCE", title: "From the MCP" },
+        arguments: { id: "M9", title: "From the MCP" },
       });
       // The subprocess broadcasts ledger.changed → server invalidates.
       // Poll the server-side store until the milestone shows up.
       await waitFor(() => {
         try {
-          const view = serverLedgerStore!.fetchMilestone("M-COHERENCE");
-          return view.milestone.id === "M-COHERENCE";
+          const view = serverLedgerStore!.fetchMilestone("M9");
+          return view.milestone.id === "M9";
         } catch {
           return false;
         }
       }, 1000);
     });
-    const view = serverLedgerStore!.fetchMilestone("M-COHERENCE");
+    const view = serverLedgerStore!.fetchMilestone("M9");
     expect(view.resolved.title).toBe("From the MCP");
   });
 

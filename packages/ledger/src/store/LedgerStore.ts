@@ -69,15 +69,15 @@ export interface CreateItemInit {
 
 /**
  * Init shape for `createMilestone` — the four canonical fields of a
- * milestone-item in the milestones ledger. `blocked` / `depends` are
- * advisory free-form id[] references.
+ * milestone-item in the milestones ledger. `blockedBy` / `dependsOn` are
+ * advisory free-form id[] references (§8c rename).
  */
 export interface CreateMilestoneItemInit {
   id?: string;
   title: string;
   description?: string;
-  blocked?: string[];
-  depends?: string[];
+  blockedBy?: string[];
+  dependsOn?: string[];
 }
 
 /**
@@ -89,8 +89,8 @@ export interface UpdateMilestoneItemPatch {
   status?: string;
   title?: string;
   description?: string;
-  blocked?: string[];
-  depends?: string[];
+  blockedBy?: string[];
+  dependsOn?: string[];
 }
 
 /**

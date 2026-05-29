@@ -51,7 +51,7 @@ async function setupFs(): Promise<{ store: FsLedgerStore; root: string }> {
       version: 1,
       ledgers: [
         { name: MILESTONES_LEDGER, schema: MILESTONES_SCHEMA },
-        { name: "todos", schema },
+        { name: "xenos", schema },
       ],
     }),
     "utf8",
@@ -73,37 +73,39 @@ describe("D-LED-01 — id validation in core helpers", () => {
   });
 
   it.each(badIds)("createItem rejects unsafe explicit id %p", async (badId) => {
-    const store = new InMemoryLedgerStore({ seed: [{ name: "todos", schema }] });
+    const store = new InMemoryLedgerStore({ seed: [{ name: "xenos", schema }] });
     await store.init();
     const m = await store.createMilestone({ title: "m" });
     await expect(
-      store.createItem("todos", m.id, { id: badId, status: "open", fields: {} }),
+      store.createItem("xenos", m.id, { id: badId, status: "open", fields: {} }),
     ).rejects.toThrow(InvalidIdError);
   });
 
   it.each(badIds)("createItem rejects unsafe milestoneId %p (auto-create path)", async (badId) => {
-    const store = new InMemoryLedgerStore({ seed: [{ name: "todos", schema }] });
+    const store = new InMemoryLedgerStore({ seed: [{ name: "xenos", schema }] });
     await store.init();
     // milestone existence check happens before the auto-create validation
     // — either way the call must throw with a typed error (most badIds
     // also fail strict-existence). For ".." / "" we rely on the
     // strict-existence check.
     await expect(
-      store.createItem("todos", badId, { status: "open", fields: {} }),
+      store.createItem("xenos", badId, { status: "open", fields: {} }),
     ).rejects.toThrow();
   });
 
-  it("safe ids are accepted (positive control)", async () => {
-    const store = new InMemoryLedgerStore({ seed: [{ name: "todos", schema }] });
+  it("safe, prefix-matching ids are accepted (positive control)", async () => {
+    const store = new InMemoryLedgerStore({ seed: [{ name: "xenos", schema }] });
     await store.init();
-    const m = await store.createMilestone({ id: "M-safe_1", title: "x" });
-    expect(m.id).toBe("M-safe_1");
-    const it = await store.createItem("todos", "M-safe_1", {
-      id: "T-ok",
+    // Caller-supplied ids must match the ledger's `^<prefix>\d+$` (§8a):
+    // milestones prefix M, the seeded `todos` ledger prefix T.
+    const m = await store.createMilestone({ id: "M7", title: "x" });
+    expect(m.id).toBe("M7");
+    const it = await store.createItem("xenos", "M7", {
+      id: "X42",
       status: "open",
       fields: {},
     });
-    expect(it.id).toBe("T-ok");
+    expect(it.id).toBe("X42");
   });
 });
 
@@ -112,7 +114,7 @@ describe("D-LED-01 — FsLedgerStore defense-in-depth", () => {
     const { store, root } = await setupFs();
     const internalLedgers = (store as unknown as { ledgers: Map<string, Ledger> })
       .ledgers;
-    const todos = internalLedgers.get("todos");
+    const todos = internalLedgers.get("xenos");
     const milestones = internalLedgers.get(MILESTONES_LEDGER);
     if (todos === undefined || milestones === undefined) throw new Error("test bug: not seeded");
     // Use enough `..` segments to escape `<docs>/archive/<ledger>/` AND
@@ -145,7 +147,7 @@ describe("D-LED-01 — FsLedgerStore defense-in-depth", () => {
     ).rejects.toThrow(LedgerError);
 
     const escaped = path.resolve(
-      path.join(root, "docs", "archive", "todos"),
+      path.join(root, "docs", "archive", "xenos"),
       `${forgedId}.md`,
     );
     expect(escaped.startsWith(path.join(root, "docs") + path.sep)).toBe(false);
@@ -159,7 +161,7 @@ describe("D-LED-01 — FsLedgerStore defense-in-depth", () => {
 
     const internalLedgers = (store as unknown as { ledgers: Map<string, Ledger> })
       .ledgers;
-    const ledger = internalLedgers.get("todos");
+    const ledger = internalLedgers.get("xenos");
     if (ledger === undefined) throw new Error("test bug: todos not seeded");
     ledger.archivePointers.push({
       id: "leak",
@@ -167,6 +169,6 @@ describe("D-LED-01 — FsLedgerStore defense-in-depth", () => {
       summary: "forged",
     });
 
-    await expect(store.fetchArchive("todos", "leak")).rejects.toThrow(LedgerError);
+    await expect(store.fetchArchive("xenos", "leak")).rejects.toThrow(LedgerError);
   });
 });

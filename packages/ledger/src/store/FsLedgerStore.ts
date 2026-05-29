@@ -10,9 +10,9 @@
  *
  * On init():
  *   - Read ./docs/ledgers.yaml (create with EMPTY_REGISTRY if missing).
- *   - Bootstrap the `milestones` ledger if absent (add entry to
- *     ledgers.yaml with `MILESTONES_SCHEMA`; write an empty file with
- *     the `## M0 — active` group).
+ *   - Bootstrap every canonical ledger if absent (add entries to
+ *     ledgers.yaml with their canonical schema; write empty files;
+ *     the milestones file gets the `## active` group, §8d).
  *   - For each registered ledger, read ./docs/<ledger>.md and parse it
  *     against the schema in the registry. Create an empty file if missing.
  *   - Populate in-memory state.
@@ -63,9 +63,11 @@ import {
   applyCreateMilestoneItem,
   applyDetachMilestoneGroup,
   applyDetachMilestoneItem,
+  applyEnsureAmbientMilestone,
   applyUpdateItem,
   applyUpdateMilestoneItem,
   assertMilestoneActive,
+  assertPrefixUnique,
   findItem,
   resolveMilestoneView,
   searchItems,
@@ -87,10 +89,11 @@ import type {
 import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
 import {
+  CANONICAL_LEDGERS,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
+  MILESTONES_AMBIENT_ID,
   MILESTONES_LEDGER,
-  MILESTONES_SCHEMA,
 } from "../constants.js";
 
 export interface FsLedgerStoreOpts {
@@ -188,25 +191,23 @@ export class FsLedgerStore implements LedgerStore {
       this.registry = parseRegistry(registryText);
     }
 
-    // Bootstrap milestones ledger if absent.
-    const milestonesEntry = this.registry.ledgers.find(
-      (e) => e.name === MILESTONES_LEDGER,
-    );
-    if (milestonesEntry === undefined) {
-      this.registry.ledgers.push({
-        name: MILESTONES_LEDGER,
-        schema: MILESTONES_SCHEMA,
-      });
-      await this.writeRegistry();
-    } else {
-      // Defensive: if a prior cycle wrote an out-of-band schema, refuse
-      // to start so the divergence is loud.
-      if (!schemasEqual(milestonesEntry.schema, MILESTONES_SCHEMA)) {
+    // Bootstrap every canonical ledger (milestones + the canon-cycle five +
+    // goals) if absent. Refuse to start if any on-disk schema diverged.
+    let registryDirty = false;
+    for (const canonical of CANONICAL_LEDGERS) {
+      const entry = this.registry.ledgers.find((e) => e.name === canonical.name);
+      if (entry === undefined) {
+        this.registry.ledgers.push({ name: canonical.name, schema: canonical.schema });
+        registryDirty = true;
+      } else if (!schemasEqual(entry.schema, canonical.schema)) {
+        // Defensive: a prior cycle / hand-edit wrote an out-of-band schema.
+        // Refuse to start so the divergence is loud.
         throw new BootstrapViolationError(
-          `existing ${MILESTONES_LEDGER} ledger has a different schema than MILESTONES_SCHEMA`,
+          `existing ${canonical.name} ledger has a different schema than its canonical bootstrap schema`,
         );
       }
     }
+    if (registryDirty) await this.writeRegistry();
 
     // Load each ledger (including milestones).
     for (const entry of this.registry.ledgers) {
@@ -220,21 +221,34 @@ export class FsLedgerStore implements LedgerStore {
         if (code !== "ENOENT") throw e;
       }
       let ledger: Ledger;
+      let needsWrite = false;
       if (text === null) {
         ledger = freshLedger(entry.name, entry.schema);
         if (isMilestones) seedBootstrapGroup(ledger);
-        await this.writeLedgerFile(ledger);
+        needsWrite = true;
       } else {
         ledger = parseLedger(text, {
           schema: entry.schema,
           isMilestonesLedger: isMilestones,
         });
         if (isMilestones && ledger.milestones.length === 0) {
-          // Empty milestones file (no M0 group). Seed it and rewrite.
+          // Empty milestones file (no active group). Seed it and rewrite.
           seedBootstrapGroup(ledger);
-          await this.writeLedgerFile(ledger);
+          needsWrite = true;
         }
       }
+      if (isMilestones) {
+        // Bootstrap the immortal M-AMBIENT milestone (§8b) if missing.
+        const before = ledger.milestones.find(
+          (m) => m.id === MILESTONES_ACTIVE_GROUP_ID,
+        )?.items.length;
+        applyEnsureAmbientMilestone(ledger, this.now());
+        const after = ledger.milestones.find(
+          (m) => m.id === MILESTONES_ACTIVE_GROUP_ID,
+        )?.items.length;
+        if (before !== after) needsWrite = true;
+      }
+      if (needsWrite) await this.writeLedgerFile(ledger);
       this.ledgers.set(entry.name, ledger);
     }
     this.initialised = true;
@@ -401,10 +415,13 @@ export class FsLedgerStore implements LedgerStore {
     if (this.ledgers.has(name)) {
       throw new DuplicateIdError("ledger", name);
     }
+    assertPrefixUnique(name, schema, this.registry.ledgers);
     const result = await this.withRegistryLock(async () => {
       if (this.ledgers.has(name)) {
         throw new DuplicateIdError("ledger", name);
       }
+      // Re-check under lock: a concurrent createLedger may have taken the prefix.
+      assertPrefixUnique(name, schema, this.registry.ledgers);
       const ledger = freshLedger(name, schema);
       this.ledgers.set(name, ledger);
       this.registry.ledgers.push({ name, schema });
@@ -559,6 +576,11 @@ export class FsLedgerStore implements LedgerStore {
     if (milestoneId === MILESTONES_ACTIVE_GROUP_ID) {
       throw new BootstrapViolationError(
         `the bootstrap group ${MILESTONES_ACTIVE_GROUP_ID} cannot be archived`,
+      );
+    }
+    if (milestoneId === MILESTONES_AMBIENT_ID) {
+      throw new BootstrapViolationError(
+        `${MILESTONES_AMBIENT_ID} is immortal and cannot be archived`,
       );
     }
     // Phase 1 — verify no non-terminal items in ANY ledger. We dry-run
@@ -816,6 +838,7 @@ function schemasEqual(a: LedgerSchema, b: LedgerSchema): boolean {
   // Cheap structural equality. Ordering of statusValues matters since
   // it affects display, but for schema-divergence-detection we treat
   // order-significant equality as the contract.
+  if ((a.idPrefix ?? undefined) !== (b.idPrefix ?? undefined)) return false;
   if (a.statusValues.length !== b.statusValues.length) return false;
   for (let i = 0; i < a.statusValues.length; i++) {
     if (a.statusValues[i] !== b.statusValues[i]) return false;

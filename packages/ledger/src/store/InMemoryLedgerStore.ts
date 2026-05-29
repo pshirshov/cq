@@ -26,9 +26,11 @@ import {
   applyCreateMilestoneItem,
   applyDetachMilestoneGroup,
   applyDetachMilestoneItem,
+  applyEnsureAmbientMilestone,
   applyUpdateItem,
   applyUpdateMilestoneItem,
   assertMilestoneActive,
+  assertPrefixUnique,
   findItem,
   resolveMilestoneView,
   searchItems,
@@ -51,10 +53,11 @@ import type {
 } from "../types.js";
 import { AsyncMutex } from "./mutex.js";
 import {
+  CANONICAL_LEDGERS,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
+  MILESTONES_AMBIENT_ID,
   MILESTONES_LEDGER,
-  MILESTONES_SCHEMA,
 } from "../constants.js";
 
 export interface InMemoryLedgerStoreOpts {
@@ -111,17 +114,20 @@ export class InMemoryLedgerStore implements LedgerStore {
 
   async init(): Promise<void> {
     if (this.initialised) return;
-    // Seed user-supplied ledgers (refusing `milestones` here keeps the
-    // bootstrap path the single source of truth for the schema).
+    // Bootstrap the canonical ledgers FIRST so a seed that diverges from
+    // a canonical schema, or re-declares a canonical name, is rejected.
+    this.bootstrapCanonicalLedgers();
+    const canonicalNames = new Set(CANONICAL_LEDGERS.map((c) => c.name));
+    // Seed user-supplied ledgers (refusing any canonical name keeps the
+    // bootstrap path the single source of truth for those schemas).
     for (const { name, schema } of this.initialSeed) {
-      if (name === MILESTONES_LEDGER) {
+      if (canonicalNames.has(name)) {
         throw new BootstrapViolationError(
-          `seed includes "${MILESTONES_LEDGER}"; that ledger is bootstrapped automatically`,
+          `seed includes "${name}"; that ledger is bootstrapped automatically`,
         );
       }
       this.ledgers.set(name, freshLedger(name, schema));
     }
-    this.bootstrapMilestonesLedger();
     this.initialised = true;
   }
 
@@ -261,6 +267,11 @@ export class InMemoryLedgerStore implements LedgerStore {
     }
     validateSchema(schema);
     if (this.ledgers.has(name)) throw new DuplicateIdError("ledger", name);
+    assertPrefixUnique(
+      name,
+      schema,
+      Array.from(this.ledgers.values(), (l) => ({ name: l.id, schema: l.schema })),
+    );
     const ledger = freshLedger(name, schema);
     this.ledgers.set(name, ledger);
     const result = materialiseFetchedLedger(ledger, this.getLedger(MILESTONES_LEDGER));
@@ -303,16 +314,21 @@ export class InMemoryLedgerStore implements LedgerStore {
   }
 
   // --- internals ---
-  private bootstrapMilestonesLedger(): void {
-    if (!this.ledgers.has(MILESTONES_LEDGER)) {
-      const ledger = freshLedger(MILESTONES_LEDGER, MILESTONES_SCHEMA);
-      ledger.milestones.push({
-        id: MILESTONES_ACTIVE_GROUP_ID,
-        title: MILESTONES_ACTIVE_GROUP_TITLE,
-        description: "",
-        items: [],
-      });
-      this.ledgers.set(MILESTONES_LEDGER, ledger);
+  private bootstrapCanonicalLedgers(): void {
+    for (const { name, schema } of CANONICAL_LEDGERS) {
+      if (this.ledgers.has(name)) continue;
+      const ledger = freshLedger(name, schema);
+      if (name === MILESTONES_LEDGER) {
+        ledger.milestones.push({
+          id: MILESTONES_ACTIVE_GROUP_ID,
+          title: MILESTONES_ACTIVE_GROUP_TITLE,
+          description: "",
+          items: [],
+        });
+        // Bootstrap the immortal M-AMBIENT milestone (§8b).
+        applyEnsureAmbientMilestone(ledger, this.now());
+      }
+      this.ledgers.set(name, ledger);
     }
   }
 
@@ -331,6 +347,11 @@ export class InMemoryLedgerStore implements LedgerStore {
     if (milestoneId === MILESTONES_ACTIVE_GROUP_ID) {
       throw new BootstrapViolationError(
         `the bootstrap group ${MILESTONES_ACTIVE_GROUP_ID} cannot be archived`,
+      );
+    }
+    if (milestoneId === MILESTONES_AMBIENT_ID) {
+      throw new BootstrapViolationError(
+        `${MILESTONES_AMBIENT_ID} is immortal and cannot be archived`,
       );
     }
     // Phase 1: verify no non-terminal items in ANY ledger.
@@ -477,13 +498,15 @@ function freshLedger(name: string, schema: LedgerSchema): Ledger {
 }
 
 function cloneSchema(s: LedgerSchema): LedgerSchema {
-  return {
+  const out: LedgerSchema = {
     statusValues: [...s.statusValues],
     terminalStatuses: [...s.terminalStatuses],
     fields: Object.fromEntries(
       Object.entries(s.fields).map(([k, v]) => [k, { ...v }]),
     ),
   };
+  if (s.idPrefix !== undefined) out.idPrefix = s.idPrefix;
+  return out;
 }
 
 function cloneMilestone(m: Milestone): Milestone {

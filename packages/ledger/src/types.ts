@@ -26,6 +26,18 @@ export interface LedgerSchema {
   terminalStatuses: string[];
   /** Per-field schema. Field names are stable identifiers (no spaces). */
   fields: Record<string, FieldSpec>;
+  /**
+   * Item-id prefix for this ledger (Q-CANL-8). Auto-allocated item ids are
+   * `<idPrefix><n>` and caller-supplied ids must match `^<idPrefix>\d+$`.
+   * Optional in the on-disk/wire form; when absent it defaults to the first
+   * uppercase letter of the ledger name (`defects` → `D`). Must be a
+   * non-empty run of `[A-Za-z][A-Za-z0-9]*`.
+   *
+   * Prefixes are GLOBALLY UNIQUE across ledgers — this is what makes item
+   * ids unique across the whole store. `createLedger` refuses a colliding
+   * prefix with `DuplicatePrefixError`.
+   */
+  idPrefix?: string;
 }
 
 /**
@@ -190,6 +202,36 @@ export class InvalidIdError extends LedgerError {
       `Invalid ${kind} id "${id}": only A-Za-z0-9_- are allowed`,
     );
     this.name = "InvalidIdError";
+  }
+}
+
+/**
+ * Thrown by `createLedger` when the new ledger's `idPrefix` (explicit or
+ * defaulted) collides with an existing ledger's prefix. Prefix uniqueness
+ * is what guarantees global item-id uniqueness across ledgers (Q-CANL-8).
+ */
+export class DuplicatePrefixError extends LedgerError {
+  constructor(prefix: string, existingLedger: string) {
+    super(
+      `idPrefix "${prefix}" already used by ledger "${existingLedger}"; prefixes must be globally unique`,
+    );
+    this.name = "DuplicatePrefixError";
+  }
+}
+
+/**
+ * Thrown when a caller-supplied item id does not begin with the target
+ * ledger's `idPrefix` followed by digits (`^<idPrefix>\d+$`). Refuses
+ * cross-ledger id supply such as `create_item('tasks', …, id:'D5')`
+ * (Q-CANL-8). The milestones ledger's bootstrap id `M-AMBIENT` is the one
+ * exception, handled before this error fires.
+ */
+export class CrossPrefixIdError extends LedgerError {
+  constructor(itemId: string, ledgerId: string, idPrefix: string) {
+    super(
+      `item id "${itemId}" does not match ledger "${ledgerId}" prefix "${idPrefix}" (expected ^${idPrefix}\\d+$)`,
+    );
+    this.name = "CrossPrefixIdError";
   }
 }
 

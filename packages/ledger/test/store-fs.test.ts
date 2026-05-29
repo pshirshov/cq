@@ -69,7 +69,7 @@ describe("FsLedgerStore — cross-instance invalidate", () => {
   it("A.updateItem then B.invalidate exposes the fresh row to B", async () => {
     const dir = await seedDir([
       {
-        name: "defects",
+        name: "xenos",
         schema: {
           statusValues: ["open", "done"],
           terminalStatuses: ["done"],
@@ -87,15 +87,15 @@ describe("FsLedgerStore — cross-instance invalidate", () => {
       // the WS notification would call B.invalidate(MILESTONES_LEDGER)
       // here; tests do it explicitly.)
       await B.invalidate("milestones");
-      const it = await A.createItem("defects", m.id, {
+      const it = await A.createItem("xenos", m.id, {
         status: "open",
         fields: { note: "from-A" },
       });
       // BEFORE invalidate: B's cache is stale.
-      expect(() => B.fetchItem("defects", it.id)).toThrow(/Item not found/);
-      await B.invalidate("defects");
+      expect(() => B.fetchItem("xenos", it.id)).toThrow(/Item not found/);
+      await B.invalidate("xenos");
       // AFTER invalidate: B sees the row.
-      const fetched = B.fetchItem("defects", it.id);
+      const fetched = B.fetchItem("xenos", it.id);
       expect(fetched.id).toBe(it.id);
       expect(fetched.fields["note"]).toBe("from-A");
     } finally {

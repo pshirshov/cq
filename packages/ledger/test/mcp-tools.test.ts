@@ -11,9 +11,12 @@ import { z } from "zod";
 import {
   InMemoryLedgerStore,
   LEDGER_TOOL_NAMES,
+  CANONICAL_LEDGERS,
   createLedgerMcpTools,
   type LedgerSchema,
 } from "../src/index.js";
+
+const BOOTSTRAPPED = CANONICAL_LEDGERS.map((c) => c.name);
 
 const schema: LedgerSchema = {
   statusValues: ["open", "done"],
@@ -24,7 +27,7 @@ const schema: LedgerSchema = {
 };
 
 async function buildStore() {
-  const store = new InMemoryLedgerStore({ seed: [{ name: "todos", schema }] });
+  const store = new InMemoryLedgerStore({ seed: [{ name: "xenos", schema }] });
   await store.init();
   return store;
 }
@@ -64,7 +67,7 @@ describe("ledger MCP tools", () => {
     const enum1 = decode<{ ledgers: string[] }>(
       await callTool(tools, "enumerate_ledgers", {}),
     );
-    expect(enum1.ledgers).toEqual(["milestones", "todos"]);
+    expect(enum1.ledgers).toEqual([...BOOTSTRAPPED, "xenos"].sort());
 
     await callTool(tools, "create_ledger", {
       name: "alpha",
@@ -77,7 +80,7 @@ describe("ledger MCP tools", () => {
     const enum2 = decode<{ ledgers: string[] }>(
       await callTool(tools, "enumerate_ledgers", {}),
     );
-    expect(enum2.ledgers).toEqual(["alpha", "milestones", "todos"]);
+    expect(enum2.ledgers).toEqual([...BOOTSTRAPPED, "alpha", "xenos"].sort());
 
     const fetched = decode<{
       ledger: { id: string; counters: { milestone: number; item: number } };
@@ -101,18 +104,18 @@ describe("ledger MCP tools", () => {
 
     const it = decode<{ item: { id: string; status: string; milestoneId: string } }>(
       await callTool(tools, "create_item", {
-        ledger_id: "todos",
+        ledger_id: "xenos",
         milestone_id: "M1",
         status: "open",
         fields: { note: "buy milk" },
       }),
     );
-    expect(it.item.id).toBe("T1");
+    expect(it.item.id).toBe("X1");
     expect(it.item.status).toBe("open");
     expect(it.item.milestoneId).toBe("M1");
 
     const fetched = decode<{ item: { fields: Record<string, string> } }>(
-      await callTool(tools, "fetch_item", { ledger_id: "todos", item_id: "T1" }),
+      await callTool(tools, "fetch_item", { ledger_id: "xenos", item_id: "X1" }),
     );
     expect(fetched.item.fields["note"]).toBe("buy milk");
 
@@ -120,8 +123,8 @@ describe("ledger MCP tools", () => {
       item: { status: string; fields: Record<string, string> };
     }>(
       await callTool(tools, "update_item", {
-        ledger_id: "todos",
-        item_id: "T1",
+        ledger_id: "xenos",
+        item_id: "X1",
         status: "done",
         fields: { note: "bought milk" },
       }),
@@ -136,7 +139,7 @@ describe("ledger MCP tools", () => {
 
     await expect(
       callTool(tools, "create_item", {
-        ledger_id: "todos",
+        ledger_id: "xenos",
         milestone_id: "M99",
         status: "open",
         fields: {},
@@ -147,7 +150,7 @@ describe("ledger MCP tools", () => {
     await callTool(tools, "update_milestone", { milestone_id: "M1", status: "done" });
     await expect(
       callTool(tools, "create_item", {
-        ledger_id: "todos",
+        ledger_id: "xenos",
         milestone_id: "M1",
         status: "open",
         fields: {},
@@ -161,7 +164,7 @@ describe("ledger MCP tools", () => {
 
     await callTool(tools, "create_milestone", { title: "x", description: "the x" });
     await callTool(tools, "create_item", {
-      ledger_id: "todos",
+      ledger_id: "xenos",
       milestone_id: "M1",
       status: "open",
       fields: { note: "t1" },
@@ -174,7 +177,7 @@ describe("ledger MCP tools", () => {
     }>(await callTool(tools, "fetch_milestone", { milestone_id: "M1" }));
     expect(fm.milestone.id).toBe("M1");
     expect(fm.resolved.title).toBe("x");
-    expect(fm.references).toEqual({ todos: 1 });
+    expect(fm.references).toEqual({ xenos: 1 });
 
     await callTool(tools, "update_milestone", {
       milestone_id: "M1",
@@ -188,7 +191,7 @@ describe("ledger MCP tools", () => {
     const list = decode<{ items: Record<string, Array<{ id: string }>> }>(
       await callTool(tools, "list_milestone_items", { milestone_id: "M1" }),
     );
-    expect(list.items["todos"]?.[0]?.id).toBe("T1");
+    expect(list.items["xenos"]?.[0]?.id).toBe("X1");
   });
 
   it("archive_milestone (global, 2-level): refuses non-terminal items, succeeds when all terminal", async () => {
@@ -197,7 +200,7 @@ describe("ledger MCP tools", () => {
 
     await callTool(tools, "create_milestone", { title: "x" });
     await callTool(tools, "create_item", {
-      ledger_id: "todos",
+      ledger_id: "xenos",
       milestone_id: "M1",
       status: "open",
       fields: {},
@@ -206,8 +209,8 @@ describe("ledger MCP tools", () => {
       callTool(tools, "archive_milestone", { milestone_id: "M1", summary: "no" }),
     ).rejects.toThrow(/not in terminal status/);
     await callTool(tools, "update_item", {
-      ledger_id: "todos",
-      item_id: "T1",
+      ledger_id: "xenos",
+      item_id: "X1",
       status: "done",
     });
     await callTool(tools, "update_milestone", { milestone_id: "M1", status: "done" });
@@ -339,7 +342,7 @@ describe("ledger MCP tools", () => {
       const tools = createLedgerMcpTools(store);
       for (const badId of badIds) {
         const rItem = parseInput(tools, "create_item", {
-          ledger_id: "todos",
+          ledger_id: "xenos",
           milestone_id: "M1",
           status: "open",
           fields: {},
@@ -347,7 +350,7 @@ describe("ledger MCP tools", () => {
         });
         expect(rItem.success).toBe(false);
         const rMile = parseInput(tools, "create_item", {
-          ledger_id: "todos",
+          ledger_id: "xenos",
           milestone_id: badId,
           status: "open",
           fields: {},
@@ -388,20 +391,20 @@ describe("ledger MCP tools", () => {
     const tools = createLedgerMcpTools(store);
     await callTool(tools, "create_milestone", { title: "x" });
     await callTool(tools, "create_item", {
-      ledger_id: "todos",
+      ledger_id: "xenos",
       milestone_id: "M1",
       status: "open",
       fields: { note: "buy milk" },
     });
     await callTool(tools, "create_item", {
-      ledger_id: "todos",
+      ledger_id: "xenos",
       milestone_id: "M1",
       status: "open",
       fields: { note: "wash car" },
     });
     const hits = decode<{ items: Array<{ id: string }> }>(
-      await callTool(tools, "search_items", { ledger_id: "todos", query: "milk" }),
+      await callTool(tools, "search_items", { ledger_id: "xenos", query: "milk" }),
     );
-    expect(hits.items.map((i) => i.id)).toEqual(["T1"]);
+    expect(hits.items.map((i) => i.id)).toEqual(["X1"]);
   });
 });

@@ -21,7 +21,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { FsLedgerStore, MILESTONES_LEDGER } from "@cq/ledger";
+import { FsLedgerStore, CANONICAL_LEDGERS } from "@cq/ledger";
+
+const BOOTSTRAPPED = CANONICAL_LEDGERS.map((c) => c.name);
 
 /** Resolve the binary path against the worktree's node_modules/.bin. */
 function resolveBinPath(): { command: string; args: string[] } {
@@ -36,7 +38,7 @@ beforeAll(async () => {
   tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cq-mcp-"));
   const store = new FsLedgerStore({ root: tmpRoot });
   await store.init();
-  await store.createLedger("todos", {
+  await store.createLedger("xenos", {
     statusValues: ["open", "done"],
     terminalStatuses: ["done"],
     fields: { note: { type: "string", required: false } },
@@ -104,7 +106,7 @@ describe("cq-mcp stdio binary", () => {
       expect(block).toBeDefined();
       expect(block!.type).toBe("text");
       const decoded = JSON.parse(block!.text) as { ledgers: string[] };
-      expect(decoded.ledgers).toEqual([MILESTONES_LEDGER, "todos"]);
+      expect(decoded.ledgers).toEqual([...BOOTSTRAPPED, "xenos"].sort());
     });
   });
 
@@ -113,7 +115,7 @@ describe("cq-mcp stdio binary", () => {
       await client.callTool({
         name: "create_milestone",
         arguments: {
-          id: "M-CQMCP",
+          id: "M7",
           title: "Validate cq-mcp roundtrip",
         },
       });
@@ -121,8 +123,8 @@ describe("cq-mcp stdio binary", () => {
     // Re-read with a fresh store so in-memory state can't mask the write.
     const verify = new FsLedgerStore({ root: tmpRoot });
     await verify.init();
-    const view = verify.fetchMilestone("M-CQMCP");
-    expect(view.milestone.id).toBe("M-CQMCP");
+    const view = verify.fetchMilestone("M7");
+    expect(view.milestone.id).toBe("M7");
     expect(view.resolved.title).toBe("Validate cq-mcp roundtrip");
     await verify.dispose();
   });
