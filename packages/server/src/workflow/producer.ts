@@ -1,0 +1,78 @@
+/**
+ * producer.ts — the headless "producer" subagent abstraction (Q8).
+ *
+ * The WorkflowRuntime dispatches a producer in a HEADLESS lane that does NOT
+ * stream to the interactive chat WS and does NOT occupy the pool=1
+ * interactive `Bridge.active` session. The producer's sole job is to PRODUCE
+ * a structured `{ goal, questions }` payload; the HARNESS (WorkflowRuntime)
+ * writes the ledgers. The producer MUST NOT touch the ledgers.
+ *
+ * Structured output is forced via a single harness-owned `submit_plan` tool
+ * the producer must call (Claude path); the handler validates the payload
+ * against `ProducerOutputSchema` and resolves the run. This is the
+ * "structured output" mechanism rather than free-text parsing.
+ *
+ * Backends: `ClaudeProducer` ships this cycle. The Codex path is documented
+ * in defects.md (WF-D01) — Codex's structured-output forcing differs and is
+ * deferred; the runtime selects the producer by `platform`.
+ */
+
+import { z } from "zod";
+
+/** One clarifying question the producer proposes. Mirrors the questions ledger fields. */
+export const ProducerQuestionSchema = z.object({
+  question: z.string().min(1),
+  context: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
+  recommendation: z.string().optional(),
+});
+export type ProducerQuestion = z.infer<typeof ProducerQuestionSchema>;
+
+/** The structured payload the producer must submit. */
+export const ProducerOutputSchema = z.object({
+  goal: z.object({
+    description: z.string().min(1),
+  }),
+  questions: z.array(ProducerQuestionSchema).min(1),
+});
+export type ProducerOutput = z.infer<typeof ProducerOutputSchema>;
+
+/** Inputs to a single producer dispatch. */
+export interface ProduceRequest {
+  /** The refined user goal text (already stripped of the `/plan` token). */
+  readonly text: string;
+  /** Optional model override (from the model selection active at /plan time). */
+  readonly model?: string;
+  /** Abort signal — the runtime aborts on busy-preempt or shutdown. */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * A producer dispatches the headless subagent and resolves with the
+ * validated structured output. It rejects on timeout, abort, malformed
+ * output, or a producer that finished without submitting.
+ */
+export interface WorkflowProducer {
+  produce(req: ProduceRequest): Promise<ProducerOutput>;
+}
+
+/**
+ * The single instruction handed to the producer. Kept terse and explicit:
+ * the producer must call `submit_plan` exactly once and must NOT attempt to
+ * write any ledger.
+ */
+export function buildProducerPrompt(text: string): string {
+  return [
+    "You are a planning producer. Given a user's goal, produce:",
+    "1. A refined one-paragraph goal description.",
+    "2. A batch of clarifying questions that must be answered before the goal can be planned.",
+    "",
+    "Each question must have: a `question` (required), optional `context`, optional",
+    "`suggestions` (an array of candidate answers), and an optional `recommendation`.",
+    "",
+    "You MUST call the `submit_plan` tool exactly once with the structured result.",
+    "Do NOT write to any ledger or file. Do NOT ask the user anything directly.",
+    "",
+    `User goal: ${text}`,
+  ].join("\n");
+}

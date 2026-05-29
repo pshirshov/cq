@@ -39,6 +39,7 @@ if (args.dev) {
       server,
       persistence: server.persistence,
       bridge: server.bridge,
+      workflow: server.workflow,
       logger,
       timeoutMs: args.shutdownTimeoutMs,
     });

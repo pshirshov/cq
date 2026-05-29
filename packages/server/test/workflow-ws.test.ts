@@ -1,0 +1,118 @@
+/**
+ * WsSession `/plan` routing tests (PR-wf-3).
+ *
+ * Drives the real WsSession.message dispatch with a workflow.start frame and
+ * a real WorkflowRuntime (InMemoryLedgerStore + FakeProducer). Asserts:
+ *  - lifecycle frames stream to the issuing WS connection in order;
+ *  - a malformed /plan emits a single errored frame;
+ *  - /plan G<id> routes to continuation-not-implemented;
+ *  - workflow === null emits an errored "no runtime" frame.
+ */
+
+import { describe, test, expect } from "bun:test";
+import { WsSession, type WsSessionData } from "../src/ws/session.js";
+import { InMemoryLedgerStore, type LedgerStore } from "@cq/ledger";
+import { WorkflowRuntime, type WorkflowProducer, type ProducerOutput } from "../src/workflow/index.js";
+import { noopLogger } from "./helpers/mockBridge.js";
+
+interface ParsedFrame {
+  type: string;
+  [key: string]: unknown;
+}
+interface MockSocket {
+  sent: ParsedFrame[];
+  send(data: string): void;
+  close(): void;
+  data: WsSessionData;
+}
+function makeMockSocket(session: WsSession): MockSocket {
+  const sock: MockSocket = {
+    sent: [],
+    send(data: string) {
+      sock.sent.push(JSON.parse(data) as ParsedFrame);
+    },
+    close() {},
+    data: { sessionId: session.sessionId, session },
+  };
+  return sock;
+}
+function send(wsSession: WsSession, socket: MockSocket, frame: Record<string, unknown>): void {
+  wsSession.message(socket as Parameters<typeof wsSession.message>[0], JSON.stringify(frame));
+}
+function statuses(socket: MockSocket): string[] {
+  return socket.sent.filter((f) => f.type === "workflow.event").map((f) => f["status"] as string);
+}
+
+const CANNED: ProducerOutput = {
+  goal: { description: "desc" },
+  questions: [{ question: "q1?" }],
+};
+class FakeProducer implements WorkflowProducer {
+  produce(): Promise<ProducerOutput> {
+    return Promise.resolve(CANNED);
+  }
+}
+function makeRuntime(store: LedgerStore): WorkflowRuntime {
+  return new WorkflowRuntime({ logger: noopLogger, store, selectProducer: () => new FakeProducer() });
+}
+
+async function waitFor(pred: () => boolean, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (pred()) return;
+    await Bun.sleep(5);
+  }
+  throw new Error("timed out waiting for predicate");
+}
+
+describe("WsSession /plan routing", () => {
+  test("new /plan streams started→producing→questions_ready", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const ws = new WsSession("conn-1", noopLogger, undefined, null, null, makeRuntime(store));
+    const socket = makeMockSocket(ws);
+
+    send(ws, socket, { type: "workflow.start", seq: 1, ts: Date.now(), kind: "plan", text: "build it", platform: "claude" });
+    await waitFor(() => statuses(socket).includes("questions_ready"));
+    expect(statuses(socket)).toEqual(["started", "producing", "questions_ready"]);
+
+    await store.dispose();
+  });
+
+  test("malformed /plan emits a single errored frame", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const ws = new WsSession("conn-2", noopLogger, undefined, null, null, makeRuntime(store));
+    const socket = makeMockSocket(ws);
+
+    send(ws, socket, { type: "workflow.start", seq: 1, ts: Date.now(), kind: "plan", text: "" });
+    expect(statuses(socket)).toEqual(["errored"]);
+
+    await store.dispose();
+  });
+
+  test("/plan G<id> routes to continuation-not-implemented", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const ws = new WsSession("conn-3", noopLogger, undefined, null, null, makeRuntime(store));
+    const socket = makeMockSocket(ws);
+
+    send(ws, socket, { type: "workflow.start", seq: 1, ts: Date.now(), kind: "plan", goalRef: "G2", text: "add feature" });
+    const evts = socket.sent.filter((f) => f.type === "workflow.event");
+    expect(evts).toHaveLength(1);
+    expect(evts[0]!["status"]).toBe("errored");
+    expect(evts[0]!["detail"]).toContain("not implemented");
+
+    await store.dispose();
+  });
+
+  test("workflow runtime not wired → errored 'no runtime' frame", () => {
+    const ws = new WsSession("conn-4", noopLogger, undefined, null, null, null);
+    const socket = makeMockSocket(ws);
+    send(ws, socket, { type: "workflow.start", seq: 1, ts: Date.now(), kind: "plan", text: "build it" });
+    const evts = socket.sent.filter((f) => f.type === "workflow.event");
+    expect(evts).toHaveLength(1);
+    expect(evts[0]!["status"]).toBe("errored");
+    expect(evts[0]!["detail"]).toContain("No workflow runtime");
+  });
+});
