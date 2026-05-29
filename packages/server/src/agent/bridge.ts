@@ -96,6 +96,12 @@ export interface BridgeOpts {
   internalWsUrl?: string;
   /** Token paired with `internalWsUrl`. */
   internalWsToken?: string;
+  /**
+   * Send an `ask.reply` upstream to cq-mcp (askproxy / outer-14). Wired to
+   * `InternalWsService.broadcast` by server.ts / devServer.ts and forwarded
+   * to the Codex backend. Undefined in tests that do not exercise the proxy.
+   */
+  sendAskReply?: (msg: import("@cq/shared").InternalWsMessage) => void;
 }
 
 export class Bridge implements BackendBridge {
@@ -176,6 +182,7 @@ export class Bridge implements BackendBridge {
           ...(this.opts.detectCodexAuth !== undefined ? { detectAuth: this.opts.detectCodexAuth } : {}),
           ...(this.opts.internalWsUrl !== undefined ? { internalWsUrl: this.opts.internalWsUrl } : {}),
           ...(this.opts.internalWsToken !== undefined ? { internalWsToken: this.opts.internalWsToken } : {}),
+          ...(this.opts.sendAskReply !== undefined ? { sendAskReply: this.opts.sendAskReply } : {}),
         });
       }
       return this.codex;
@@ -290,6 +297,29 @@ export class Bridge implements BackendBridge {
   handleChatQuestionReply(ws: WsSocket, frame: ChatQuestionReply): void {
     const target = this.active ?? this.claude;
     target.handleChatQuestionReply(ws, frame);
+  }
+
+  /**
+   * Route an inbound internal-WS `ask.request` (from a spawned cq-mcp) to
+   * the Codex backend's WS-back-proxy (askproxy / outer-14). Only a Codex
+   * session spawns cq-mcp with the ask tool, so this always targets the
+   * Codex backend; if it has not been constructed yet the request cannot
+   * correspond to any live session and is dropped with a warning.
+   */
+  handleAskRequest(req: {
+    askId: string;
+    toolUseId: string;
+    sessionId: string;
+    questions: unknown[];
+  }): void {
+    if (this.codex === null) {
+      this.opts.logger.warn("bridge.ask_request_no_codex", {
+        askId: req.askId,
+        sessionId: req.sessionId,
+      });
+      return;
+    }
+    this.codex.handleAskRequest(req);
   }
 
   async handleChatReadFileRequest(ws: WsSocket, frame: ChatReadFileRequest): Promise<void> {

@@ -403,3 +403,142 @@ describe("CodexBridge", () => {
     expect(bridge.isBusy()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// ask_user_question WS-back-proxy (askproxy / outer-14)
+// ---------------------------------------------------------------------------
+
+import type { InternalWsMessage } from "@cq/shared";
+
+function makeProxyBridge(): {
+  bridge: CodexBridge;
+  askReplies: InternalWsMessage[];
+} {
+  const persistence = new InMemoryPersistence();
+  const registry = new SessionRegistry();
+  const codex = new DummyCodex();
+  const codexFactory: CodexFactory = async (): Promise<Codex> => codex as unknown as Codex;
+  const askReplies: InternalWsMessage[] = [];
+  const bridge = new CodexBridge({
+    logger: noopLogger,
+    registry,
+    cwd: "/tmp/codex-test",
+    persistence,
+    codexFactory,
+    detectAuth: () => true,
+    sendAskReply: (msg) => askReplies.push(msg),
+    selfPid: 7777,
+  });
+  return { bridge, askReplies };
+}
+
+describe("CodexBridge — ask_user_question proxy", () => {
+  it("emits a synthetic AskUserQuestion chat.event to the active session's socket", async () => {
+    const { bridge } = makeProxyBridge();
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart());
+    const sessionId = ws.framesOfType("chat.started")[0]!.sessionId as string;
+
+    bridge.handleAskRequest({
+      askId: "ask-1",
+      toolUseId: "tu-1",
+      sessionId,
+      questions: [{ question: "Pick", options: ["a", "b"] }],
+    });
+
+    const events = ws.framesOfType("chat.event");
+    expect(events).toHaveLength(1);
+    const sdkEvent = events[0]!.sdkEvent as {
+      type: string;
+      message: { content: Array<{ type: string; name?: string; id?: string; input?: unknown }> };
+    };
+    expect(sdkEvent.type).toBe("assistant");
+    const block = sdkEvent.message.content[0]!;
+    expect(block.type).toBe("tool_use");
+    expect(block.name).toBe("AskUserQuestion");
+    expect(block.id).toBe("tu-1");
+    expect(block.input).toEqual({ questions: [{ question: "Pick", options: ["a", "b"] }] });
+    await bridge.shutdown();
+  });
+
+  it("proxies chat.question_reply back as an ask.reply with the matching askId", async () => {
+    const { bridge, askReplies } = makeProxyBridge();
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart());
+    const sessionId = ws.framesOfType("chat.started")[0]!.sessionId as string;
+
+    bridge.handleAskRequest({
+      askId: "ask-9",
+      toolUseId: "tu-9",
+      sessionId,
+      questions: [{ question: "Q" }],
+    });
+    bridge.handleChatQuestionReply(ws, {
+      type: "chat.question_reply",
+      seq: 0,
+      ts: Date.now(),
+      sessionId,
+      invocationId: ws.framesOfType("chat.started")[0]!.invocationId as string,
+      toolUseId: "tu-9",
+      answers: { Q: ["x", "y"] },
+    });
+
+    expect(askReplies).toHaveLength(1);
+    const reply = askReplies[0]!;
+    expect(reply.type).toBe("ask.reply");
+    if (reply.type === "ask.reply") {
+      expect(reply.askId).toBe("ask-9");
+      expect(reply.answers).toEqual({ Q: ["x", "y"] });
+      expect(reply.sourcePid).toBe(7777);
+    }
+    await bridge.shutdown();
+  });
+
+  it("replies empty (no hang) when ask.request targets a non-active session", async () => {
+    const { bridge, askReplies } = makeProxyBridge();
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart());
+
+    bridge.handleAskRequest({
+      askId: "ask-x",
+      toolUseId: "tu-x",
+      sessionId: "00000000-0000-0000-0000-000000000000",
+      questions: [{ question: "Q" }],
+    });
+    expect(askReplies).toHaveLength(1);
+    const reply = askReplies[0]!;
+    if (reply.type === "ask.reply") {
+      expect(reply.askId).toBe("ask-x");
+      expect(reply.answers).toEqual({});
+    }
+    // No synthetic event was emitted to the (wrong) session's socket.
+    expect(ws.framesOfType("chat.event")).toHaveLength(0);
+    await bridge.shutdown();
+  });
+
+  it("drops a chat.question_reply that arrives after shutdown (stale)", async () => {
+    const { bridge, askReplies } = makeProxyBridge();
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, makeStart());
+    const sessionId = ws.framesOfType("chat.started")[0]!.sessionId as string;
+    const invocationId = ws.framesOfType("chat.started")[0]!.invocationId as string;
+    bridge.handleAskRequest({
+      askId: "ask-1",
+      toolUseId: "tu-1",
+      sessionId,
+      questions: [{ question: "Q" }],
+    });
+    await bridge.shutdown();
+    bridge.handleChatQuestionReply(ws, {
+      type: "chat.question_reply",
+      seq: 0,
+      ts: Date.now(),
+      sessionId,
+      invocationId,
+      toolUseId: "tu-1",
+      answers: { Q: "x" },
+    });
+    // shutdown cleared the correlation → no ask.reply sent.
+    expect(askReplies).toHaveLength(0);
+  });
+});

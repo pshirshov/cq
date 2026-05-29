@@ -28,10 +28,17 @@
  * `mcp__cq__*` tool calls to it. The binary owns an `FsLedgerStore`
  * rooted at `--cwd`, the same root the cq server reads from.
  *
- * AskUserQuestion is intentionally NOT exposed through the cq-mcp
- * binary because it requires a WebSocket round-trip to the user's
- * browser that a standalone process cannot perform. Codex sessions use
- * Codex's native approvalPolicy flow instead.
+ * AskUserQuestion (askproxy / outer-14). The cq-mcp binary now DOES
+ * expose `ask_user_question` for Codex sessions, via a WS-back-proxy over
+ * the outer-13 internal channel: the tool handler in cq-mcp sends an
+ * `ask.request` upstream, this bridge's `AskProxy` drives the browser ask
+ * UI and proxies the user's answer back as `ask.reply`. We forward the
+ * internal-WS connection details (and the new `CQ_SESSION_ID`) through the
+ * Codex CLI's `mcp_servers.cq.env` table so cq-mcp can connect + correlate.
+ * No system prompt is set: the Codex CLI auto-discovers MCP tools via
+ * `tools/list`, so `mcp__cq__ask_user_question` is available to the model
+ * without a prompt hint. (See defects.md ASKPROXY-D01; reopens the
+ * ask_user_question sub-aspect of D-GC-1.)
  *
  * Concrete API shape from `@openai/codex-sdk@0.134.0`:
  *
@@ -62,6 +69,8 @@ import type { Logger } from "../log/logger";
 import type { SessionRegistry } from "../seq/sessionRegistry";
 import type { Persistence } from "../persist/Persistence.js";
 import type { BackendBridge, WsSocket } from "./backendBridge";
+import { AskProxy } from "./askProxy";
+import type { InternalWsMessage } from "@cq/shared";
 import type {
   ChatStart,
   ChatRejoin,
@@ -139,6 +148,16 @@ export interface CodexBridgeOpts {
    */
   internalWsUrl?: string;
   internalWsToken?: string;
+  /**
+   * Send an `ask.reply` envelope upstream to cq-mcp (askproxy / outer-14).
+   * Production wires this to `InternalWsService.broadcast`; the askId
+   * discriminates across connected cq-mcp children. When undefined the
+   * `ask_user_question` proxy still records correlations but its replies
+   * are dropped — tests that do not exercise the proxy leave it undefined.
+   */
+  sendAskReply?: (msg: InternalWsMessage) => void;
+  /** Override process.pid for ask.reply sourcePid (tests). */
+  selfPid?: number;
 }
 
 /** Tracks one Codex session's runtime state. */
@@ -291,6 +310,8 @@ export class CodexBridge implements BackendBridge {
   private readonly cqMcpBin: CqMcpBin;
   private readonly internalWsUrl: string | null;
   private readonly internalWsToken: string | null;
+  private readonly selfPid: number;
+  private readonly askProxy: AskProxy;
   private active: ActiveCodexSession | null = null;
 
   constructor(opts: CodexBridgeOpts) {
@@ -298,6 +319,23 @@ export class CodexBridge implements BackendBridge {
     this.registry = opts.registry;
     this.cwd = path.resolve(opts.cwd);
     this.persistence = opts.persistence;
+    this.selfPid = opts.selfPid ?? process.pid;
+    const sendAskReply = opts.sendAskReply;
+    this.askProxy = new AskProxy({
+      logger: opts.logger,
+      sendReply: (askId, answers): void => {
+        if (sendAskReply === undefined) {
+          this.logger.warn("codex.ask_reply_no_transport", { askId });
+          return;
+        }
+        sendAskReply({
+          type: "ask.reply",
+          askId,
+          answers,
+          sourcePid: this.selfPid,
+        });
+      },
+    });
     this.codexFactory = opts.codexFactory ?? (async (options?: CodexOptions): Promise<Codex> => {
       // Lazy ESM import (codex-sdk is ESM-only — has no `require` export
       // so a sync `require()` would throw `Cannot find module` at runtime
@@ -397,6 +435,10 @@ export class CodexBridge implements BackendBridge {
       cqMcpEntry["env"] = {
         CQ_INTERNAL_WS_URL: this.internalWsUrl,
         CQ_INTERNAL_WS_TOKEN: this.internalWsToken,
+        // askproxy / outer-14: the cq-mcp child puts this on every
+        // ask.request so the server routes the synthetic question event to
+        // the right browser socket and correlates the reply.
+        CQ_SESSION_ID: chatSessionId,
       };
     }
     const codexOptions: CodexOptions = {
@@ -618,8 +660,53 @@ export class CodexBridge implements BackendBridge {
     // Same as above — Codex sessions do not surface elicitation requests.
   }
 
-  handleChatQuestionReply(_ws: WsSocket, _frame: ChatQuestionReply): void {
-    // AskUserQuestion is Claude-MCP-only; see D-GC-1.
+  handleChatQuestionReply(_ws: WsSocket, frame: ChatQuestionReply): void {
+    // askproxy / outer-14: route the browser's answer to the WS-back-proxy,
+    // which sends ask.reply upstream to the cq-mcp that parked the tool
+    // call. The facade only routes here when a Codex session is active, so
+    // a Claude reply can never reach this path (and vice versa).
+    const resolved = this.askProxy.onQuestionReply({
+      sessionId: frame.sessionId,
+      toolUseId: frame.toolUseId,
+      answers: frame.answers,
+    });
+    this.logger.info("codex.question_reply", {
+      toolUseId: frame.toolUseId,
+      sessionId: frame.sessionId,
+      proxied: resolved,
+    });
+  }
+
+  /**
+   * Handle an inbound `ask.request` from a spawned cq-mcp (askproxy /
+   * outer-14). Resolves the live browser socket for the request's
+   * sessionId against the active session and drives the synthetic
+   * AskUserQuestion event to it; the proxy replies immediately with empty
+   * answers if the session is not active (so the cq-mcp tool does not hang).
+   *
+   * Registered by `server.ts` / `devServer.ts` as the `InternalWsService`
+   * `ask.request` handler.
+   */
+  handleAskRequest(req: {
+    askId: string;
+    toolUseId: string;
+    sessionId: string;
+    questions: unknown[];
+  }): void {
+    this.askProxy.onAskRequest(req, (sessionId) => {
+      const session = this.active;
+      if (session === null || session.chatSessionId !== sessionId) return null;
+      return {
+        model: session.model,
+        // Wrap the synthetic SDK message in a chat.event envelope (seq +
+        // replay-buffer append) via the same sender the rest of the bridge
+        // uses, so the browser renders + replays the proxied ask identically
+        // to a native assistant tool_use.
+        emit: (sdkMessage: unknown): void => {
+          this.sendEvent(session.ws, session, sdkMessage);
+        },
+      };
+    });
   }
 
   async handleChatReadFileRequest(ws: WsSocket, frame: ChatReadFileRequest): Promise<void> {
@@ -664,6 +751,11 @@ export class CodexBridge implements BackendBridge {
       endedAt,
       endedReason: session.aborting ? "interrupted" : "completed",
     });
+    // askproxy / outer-14: drop any outstanding ask correlations. The
+    // spawned cq-mcp's channel closes when its session tears down, so its
+    // own broker rejects the parked tool call — the model is not left
+    // hanging on either side. A late chat.question_reply is then stale.
+    this.askProxy.clear();
     this.active = null;
   }
 

@@ -79,6 +79,17 @@ export async function startDevServer(
     persistence,
     ledgerStore,
     internalWsToken: internalWs.tokenForChild(),
+    // askproxy / outer-14: ask.reply travels upstream via broadcast.
+    sendAskReply: (msg) => internalWs.broadcast(msg),
+  });
+  // askproxy / outer-14: inbound ask.request → drive browser ask UI + proxy.
+  internalWs.registerHandler("ask.request", async (msg) => {
+    bridge.handleAskRequest({
+      askId: msg.askId,
+      toolUseId: msg.toolUseId,
+      sessionId: msg.sessionId,
+      questions: msg.questions,
+    });
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
