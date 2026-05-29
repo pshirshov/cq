@@ -103,10 +103,22 @@ export function parseSchema(raw: unknown): LedgerSchema {
       fields[key] = parseFieldSpec(key, val);
     }
   }
+  const idPrefixRaw = s["idPrefix"];
+  let idPrefix: string | undefined;
+  if (idPrefixRaw !== undefined && idPrefixRaw !== null) {
+    if (typeof idPrefixRaw !== "string") {
+      throw new SchemaValidationError("schema.idPrefix must be a string");
+    }
+    idPrefix = idPrefixRaw;
+  }
   // D-LED-02: enforce cross-layer invariants (terminal subset, em-dash-free
-  // status values, field name regex, reserved field names).
-  validateSchema({ statusValues: sv, terminalStatuses: ts, fields });
-  return { statusValues: sv, terminalStatuses: ts, fields };
+  // status values, field name regex, reserved field names, idPrefix shape).
+  const schema: LedgerSchema =
+    idPrefix === undefined
+      ? { statusValues: sv, terminalStatuses: ts, fields }
+      : { statusValues: sv, terminalStatuses: ts, fields, idPrefix };
+  validateSchema(schema);
+  return schema;
 }
 
 function parseFieldSpec(name: string, raw: unknown): FieldSpec {
@@ -130,9 +142,8 @@ function parseFieldSpec(name: string, raw: unknown): FieldSpec {
 export function serializeRegistry(registry: LedgerRegistry): string {
   const obj: Record<string, unknown> = {
     version: registry.version,
-    ledgers: registry.ledgers.map((e) => ({
-      name: e.name,
-      schema: {
+    ledgers: registry.ledgers.map((e) => {
+      const schema: Record<string, unknown> = {
         statusValues: e.schema.statusValues,
         terminalStatuses: e.schema.terminalStatuses,
         fields: Object.fromEntries(
@@ -141,8 +152,10 @@ export function serializeRegistry(registry: LedgerRegistry): string {
             { type: v.type, required: v.required },
           ]),
         ),
-      },
-    })),
+      };
+      if (e.schema.idPrefix !== undefined) schema["idPrefix"] = e.schema.idPrefix;
+      return { name: e.name, schema };
+    }),
   };
   return YAML.stringify(obj, { lineWidth: 0 });
 }

@@ -31,6 +31,14 @@ export const MILESTONES_ACTIVE_GROUP_ID = "M0" as const;
 
 export const MILESTONES_ACTIVE_GROUP_TITLE = "active" as const;
 
+/**
+ * Bootstrap milestone id (§8b, Q-CANL-6). Created on init if missing with
+ * `title: "ambient"`, status `open`. Immortal: cannot be archived or moved
+ * to a terminal status. It is the single exception to the `^M\d+$` rule for
+ * caller-supplied milestone ids.
+ */
+export const MILESTONES_AMBIENT_ID = "M-AMBIENT" as const;
+
 export const MILESTONES_SCHEMA: LedgerSchema = {
   statusValues: ["open", "done", "postponed", "blocked"],
   terminalStatuses: ["done"],

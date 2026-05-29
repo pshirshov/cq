@@ -95,11 +95,16 @@ const fieldNameSchema = z
     message: "field name is reserved (createdAt/updatedAt)",
   });
 
+const idPrefixSchema = z
+  .string()
+  .regex(/^[A-Za-z][A-Za-z0-9]*$/, "idPrefix must match /^[A-Za-z][A-Za-z0-9]*$/");
+
 const schemaSchema = z
   .object({
     statusValues: z.array(statusValueSchema).min(1),
     terminalStatuses: z.array(z.string()),
     fields: z.record(fieldNameSchema, fieldSpecSchema),
+    idPrefix: idPrefixSchema.optional(),
   })
   .refine(
     (s) => s.terminalStatuses.every((t) => s.statusValues.includes(t)),

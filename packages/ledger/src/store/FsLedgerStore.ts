@@ -66,6 +66,7 @@ import {
   applyUpdateItem,
   applyUpdateMilestoneItem,
   assertMilestoneActive,
+  assertPrefixUnique,
   findItem,
   resolveMilestoneView,
   searchItems,
@@ -401,10 +402,13 @@ export class FsLedgerStore implements LedgerStore {
     if (this.ledgers.has(name)) {
       throw new DuplicateIdError("ledger", name);
     }
+    assertPrefixUnique(name, schema, this.registry.ledgers);
     const result = await this.withRegistryLock(async () => {
       if (this.ledgers.has(name)) {
         throw new DuplicateIdError("ledger", name);
       }
+      // Re-check under lock: a concurrent createLedger may have taken the prefix.
+      assertPrefixUnique(name, schema, this.registry.ledgers);
       const ledger = freshLedger(name, schema);
       this.ledgers.set(name, ledger);
       this.registry.ledgers.push({ name, schema });
@@ -816,6 +820,7 @@ function schemasEqual(a: LedgerSchema, b: LedgerSchema): boolean {
   // Cheap structural equality. Ordering of statusValues matters since
   // it affects display, but for schema-divergence-detection we treat
   // order-significant equality as the contract.
+  if ((a.idPrefix ?? undefined) !== (b.idPrefix ?? undefined)) return false;
   if (a.statusValues.length !== b.statusValues.length) return false;
   for (let i = 0; i < a.statusValues.length; i++) {
     if (a.statusValues[i] !== b.statusValues[i]) return false;

@@ -17,7 +17,9 @@ import type {
 } from "../types.js";
 import {
   BootstrapViolationError,
+  CrossPrefixIdError,
   DuplicateIdError,
+  DuplicatePrefixError,
   InvalidIdError,
   InvalidStatusError,
   ItemNotFoundError,
@@ -27,7 +29,13 @@ import {
   NonTerminalItemsError,
   SchemaValidationError,
 } from "../types.js";
-import { isIsoTimestamp, MILESTONES_ACTIVE_GROUP_ID, MILESTONES_LEDGER } from "../constants.js";
+import {
+  isIsoTimestamp,
+  MILESTONES_ACTIVE_GROUP_ID,
+  MILESTONES_AMBIENT_ID,
+  MILESTONES_LEDGER,
+} from "../constants.js";
+import type { LedgerSchema } from "../types.js";
 import type {
   CreateItemInit,
   CreateMilestoneItemInit,
@@ -35,7 +43,29 @@ import type {
   UpdateMilestoneItemPatch,
 } from "./LedgerStore.js";
 
-const ITEM_ID_RE = /^[A-Za-z]+(\d+)$/;
+/**
+ * Allowed shape for a ledger's `idPrefix` (Q-CANL-8). A non-empty run of
+ * a leading letter followed by alphanumerics; no digits-only, no symbols.
+ * Keeps `^<idPrefix>\d+$` unambiguous.
+ */
+const ID_PREFIX_RE = /^[A-Za-z][A-Za-z0-9]*$/;
+
+/**
+ * The effective item-id prefix for a ledger: explicit `schema.idPrefix`
+ * when present, else the first uppercase letter of the ledger name. The
+ * single source of truth for both auto-allocation and caller-supplied-id
+ * validation. (§8a.)
+ */
+export function effectiveIdPrefix(name: string, schema: LedgerSchema): string {
+  if (schema.idPrefix !== undefined && schema.idPrefix.length > 0) {
+    return schema.idPrefix;
+  }
+  const first = name[0];
+  if (first === undefined) {
+    throw new SchemaValidationError(`cannot derive idPrefix for empty ledger name`);
+  }
+  return first.toUpperCase();
+}
 
 /**
  * Caller-supplied milestone/item ids must match this regex. The set is
@@ -84,9 +114,15 @@ export function validateSchema(schema: {
   statusValues: string[];
   terminalStatuses: string[];
   fields: Record<string, { type: string; required: boolean }>;
+  idPrefix?: string;
 }): void {
   if (schema.statusValues.length === 0) {
     throw new SchemaValidationError("statusValues must be non-empty");
+  }
+  if (schema.idPrefix !== undefined && !ID_PREFIX_RE.test(schema.idPrefix)) {
+    throw new SchemaValidationError(
+      `idPrefix "${schema.idPrefix}" must match /^[A-Za-z][A-Za-z0-9]*$/`,
+    );
   }
   for (const sv of schema.statusValues) {
     if (!STATUS_VALUE_RE.test(sv)) {
@@ -115,6 +151,28 @@ export function validateSchema(schema: {
       );
     }
   }
+}
+
+/**
+ * Refuse a new ledger whose effective `idPrefix` collides with any
+ * existing ledger's prefix (Q-CANL-8 — prefix uniqueness gives global
+ * item-id uniqueness). `existing` is an iterable of `{name, schema}` for
+ * every currently-registered ledger. Throws `DuplicatePrefixError` on
+ * collision; returns the new ledger's effective prefix on success.
+ */
+export function assertPrefixUnique(
+  newName: string,
+  newSchema: LedgerSchema,
+  existing: Iterable<{ name: string; schema: LedgerSchema }>,
+): string {
+  const prefix = effectiveIdPrefix(newName, newSchema);
+  for (const { name, schema } of existing) {
+    if (name === newName) continue;
+    if (effectiveIdPrefix(name, schema) === prefix) {
+      throw new DuplicatePrefixError(prefix, name);
+    }
+  }
+  return prefix;
 }
 
 export function findItem(ledger: Ledger, itemId: string): { milestone: Milestone; item: Item } {
@@ -214,22 +272,24 @@ export function applyCreateItem(
   }
   assertStatusAllowed(ledger, init.status);
   validateFields(ledger, init.fields, /*creating*/ true);
+  const prefix = effectiveIdPrefix(ledger.id, ledger.schema);
   let id: string;
   if (init.id !== undefined) {
     assertSafeId("item", init.id);
+    assertItemIdMatchesPrefix(ledger, init.id, prefix);
     if (itemIdExists(ledger, init.id)) throw new DuplicateIdError("item", init.id);
     id = init.id;
-    const n = numericPart(init.id, ITEM_ID_RE);
+    const n = numericPart(init.id, perPrefixIdRe(prefix));
     if (n !== null && n >= ledger.counters.item) {
       ledger.counters.item = n + 1;
     }
   } else {
     ledger.counters.item += 1;
-    id = itemIdPrefix(ledger) + String(ledger.counters.item);
+    id = prefix + String(ledger.counters.item);
     // Avoid colliding with a caller-supplied id elsewhere.
     while (itemIdExists(ledger, id)) {
       ledger.counters.item += 1;
-      id = itemIdPrefix(ledger) + String(ledger.counters.item);
+      id = prefix + String(ledger.counters.item);
     }
     // Defense-in-depth: the auto-generated id must also satisfy the safe regex.
     assertSafeId("item", id);
@@ -501,12 +561,24 @@ function assertFieldType(name: string, spec: FieldSpec, value: FieldValue): void
   }
 }
 
-function itemIdPrefix(ledger: Ledger): string {
-  // Derive prefix from the ledger name's first uppercase letter, defaulting
-  // to the first character. e.g. "defects" → "D", "tasks" → "T".
-  const first = ledger.id[0];
-  if (first === undefined) return "X";
-  return first.toUpperCase();
+/** Per-ledger caller-supplied-id regex: `^<prefix>\d+$`. */
+function perPrefixIdRe(prefix: string): RegExp {
+  // prefix is validated against ID_PREFIX_RE upstream, so it has no regex
+  // metacharacters; concatenation is safe.
+  return new RegExp(`^${prefix}(\\d+)$`);
+}
+
+/**
+ * Enforce that a caller-supplied item id begins with the ledger's prefix
+ * followed by digits. The milestones ledger's bootstrap id `M-AMBIENT` is
+ * the single exception (§8a/§8b). Refuses cross-prefix supply such as
+ * `create_item('tasks', …, id:'D5')`.
+ */
+function assertItemIdMatchesPrefix(ledger: Ledger, id: string, prefix: string): void {
+  if (ledger.id === MILESTONES_LEDGER && id === MILESTONES_AMBIENT_ID) return;
+  if (!perPrefixIdRe(prefix).test(id)) {
+    throw new CrossPrefixIdError(id, ledger.id, prefix);
+  }
 }
 
 function itemIdExists(ledger: Ledger, id: string): boolean {

@@ -29,6 +29,7 @@ import {
   applyUpdateItem,
   applyUpdateMilestoneItem,
   assertMilestoneActive,
+  assertPrefixUnique,
   findItem,
   resolveMilestoneView,
   searchItems,
@@ -261,6 +262,11 @@ export class InMemoryLedgerStore implements LedgerStore {
     }
     validateSchema(schema);
     if (this.ledgers.has(name)) throw new DuplicateIdError("ledger", name);
+    assertPrefixUnique(
+      name,
+      schema,
+      Array.from(this.ledgers.values(), (l) => ({ name: l.id, schema: l.schema })),
+    );
     const ledger = freshLedger(name, schema);
     this.ledgers.set(name, ledger);
     const result = materialiseFetchedLedger(ledger, this.getLedger(MILESTONES_LEDGER));
@@ -477,13 +483,15 @@ function freshLedger(name: string, schema: LedgerSchema): Ledger {
 }
 
 function cloneSchema(s: LedgerSchema): LedgerSchema {
-  return {
+  const out: LedgerSchema = {
     statusValues: [...s.statusValues],
     terminalStatuses: [...s.terminalStatuses],
     fields: Object.fromEntries(
       Object.entries(s.fields).map(([k, v]) => [k, { ...v }]),
     ),
   };
+  if (s.idPrefix !== undefined) out.idPrefix = s.idPrefix;
+  return out;
 }
 
 function cloneMilestone(m: Milestone): Milestone {

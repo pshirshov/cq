@@ -93,17 +93,19 @@ describe("D-LED-01 — id validation in core helpers", () => {
     ).rejects.toThrow();
   });
 
-  it("safe ids are accepted (positive control)", async () => {
+  it("safe, prefix-matching ids are accepted (positive control)", async () => {
     const store = new InMemoryLedgerStore({ seed: [{ name: "todos", schema }] });
     await store.init();
-    const m = await store.createMilestone({ id: "M-safe_1", title: "x" });
-    expect(m.id).toBe("M-safe_1");
-    const it = await store.createItem("todos", "M-safe_1", {
-      id: "T-ok",
+    // Caller-supplied ids must match the ledger's `^<prefix>\d+$` (§8a):
+    // milestones prefix M, the seeded `todos` ledger prefix T.
+    const m = await store.createMilestone({ id: "M7", title: "x" });
+    expect(m.id).toBe("M7");
+    const it = await store.createItem("todos", "M7", {
+      id: "T42",
       status: "open",
       fields: {},
     });
-    expect(it.id).toBe("T-ok");
+    expect(it.id).toBe("T42");
   });
 });
 

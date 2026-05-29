@@ -113,7 +113,7 @@ describe("cq-mcp stdio binary", () => {
       await client.callTool({
         name: "create_milestone",
         arguments: {
-          id: "M-CQMCP",
+          id: "M7",
           title: "Validate cq-mcp roundtrip",
         },
       });
@@ -121,8 +121,8 @@ describe("cq-mcp stdio binary", () => {
     // Re-read with a fresh store so in-memory state can't mask the write.
     const verify = new FsLedgerStore({ root: tmpRoot });
     await verify.init();
-    const view = verify.fetchMilestone("M-CQMCP");
-    expect(view.milestone.id).toBe("M-CQMCP");
+    const view = verify.fetchMilestone("M7");
+    expect(view.milestone.id).toBe("M7");
     expect(view.resolved.title).toBe("Validate cq-mcp roundtrip");
     await verify.dispose();
   });

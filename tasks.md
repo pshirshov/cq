@@ -4,6 +4,27 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: canon — Canonical ledger schemas
+
+Plan: [`docs/drafts/20260529-0000-canonical-ledgers-plan.md`](docs/drafts/20260529-0000-canonical-ledgers-plan.md).
+Authoritative design: [`docs/drafts/20260528-2129-canonical-ledger-schemas.md`](docs/drafts/20260528-2129-canonical-ledger-schemas.md).
+Baseline (verified 83d1dbf): `bun run check` 807 pass / 0 fail / 2778 expect across 93 files. e2e target 21/0/0.
+
+### Milestone M-CANON — PR breakdown
+
+- [x] **PR-01** — idPrefix schema field + global prefix uniqueness (§8a, Q-CANL-8). `LedgerSchema.idPrefix?`; `effectiveIdPrefix`/`assertPrefixUnique`/`assertItemIdMatchesPrefix` in core.ts; `DuplicatePrefixError`+`CrossPrefixIdError`; registry + MCP schema round-trip idPrefix; both adapters refuse prefix collision at createLedger (re-checked under registry lock on FS). New `idprefix.test.ts` (14 cases, dual-adapter). Updated path-traversal + cq-mcp fixtures to prefix-valid ids. tsc+eslint clean; ledger+cq-mcp 143/0.
+- [ ] **PR-02** — Bootstrap defects/tasks/hypothesis/questions/decisions/goals (§8, B)
+- [ ] **PR-03** — M-AMBIENT bootstrap milestone (§8b)
+- [ ] **PR-04** — Milestones §8c rename (blocked→blockedBy, depends→dependsOn) + §8d `## active` group
+- [ ] **PR-05** — Fixtures + dual-suite extension + repo docs regen + discharge
+
+### Cross-cutting decisions (canon, locked)
+- K-CANON-1: prefix uniqueness enforced at `createLedger` (DuplicatePrefixError); bootstrapped ledgers carry distinct canonical prefixes so they cannot collide.
+- K-CANON-2: `M-AMBIENT` is the single `^M\d+$` exception; named constant `MILESTONES_AMBIENT_ID`.
+- K-CANON-3: `## active` literal-header special-case keyed on `ledger.id === MILESTONES_LEDGER` only; `MILESTONES_ACTIVE_GROUP_ID` value changes "M0" → "active".
+
+---
+
 ## Milestones (high-level)
 
 - [x] **askcard-freeform** — Free-form "Other…" answer affordance on every AskUserQuestion card question (radio + checkbox). Reply protocol/brokers UNCHANGED. Plan: [`docs/drafts/20260529-askcard-freeform-plan.md`](docs/drafts/20260529-askcard-freeform-plan.md). DISCHARGED: check 807/0 (+8), e2e 20/0/0, nix exit 0. Closed ASKCARD-D01; D02/D03 nits resolved by-design. Brokers/protocol untouched. Log: [`docs/logs/20260529-askcard-freeform-log.md`](docs/logs/20260529-askcard-freeform-log.md).
