@@ -19,7 +19,7 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
 ### Milestone M-DARK — PR breakdown
 
 - [x] **dark-1** — global.css dark variable set (`[data-theme="dark"]` + new semantic vars, light :root unchanged) + `lib/theme.ts` controller (localStorage `cq.theme`, matchMedia resolve + live OS listener, sets `documentElement.dataset.theme`, `initTheme()` in main.tsx before first paint).
-- [ ] **dark-2** — Theme control (Light/Dark/Auto) in SettingsPopup, applied live via the controller (display-only; not in ChatStart/session state).
+- [x] **dark-2** — Theme control (Light/Dark/Auto) in SettingsPopup, applied live via the controller (display-only; not in ChatStart/session state).
 - [ ] **dark-3** — CSS sweep: ~28 modules' hardcoded theme-sensitive hex/rgb → theme vars (chips get light+dark pairs; light-neutral).
 - [ ] **dark-4** — tests (theme.ts, SettingsPopup theme, sweep assertion, light-unchanged) + e2e (`dark-theme.spec.ts`, main project) + discharge.
 
@@ -53,6 +53,25 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
   resolved value, not fallback); mql injectable so tests don't depend on
   happy-dom matchMedia.
   Metrics: review rounds 1; defects 0; verification complete; scope delta none.
+
+- **dark-2** (2026-05-30) — Theme control in the gear popup, applied live.
+  SettingsPopup gains a Theme `<select>` (Light / Dark / Auto-OS) at the top,
+  separated by a `.divider` from the per-session rows (so the "next new chat"
+  hint clearly governs only those). Threaded `themeMode` + `onThemeModeChange`
+  through Header → SettingsPopup. ChatTab owns `themeMode` (seeded from
+  `readThemeMode()`); `handleThemeModeChange` calls
+  `getThemeController().setMode(mode)` (live apply + persist to localStorage +
+  `<html data-theme>`) then mirrors into the controlled select. The theme value
+  is display-only — NEVER carried into ChatStart/session state (WEB-ONLY).
+  Updated existing `header.test.ts` + `settingsPopup.test.ts` defaultProps with
+  the two new props. SettingsPopup chrome stays a fixed dark popup (preserves
+  light-mode appearance) — flagged as a dark-3 exception. Verification:
+  typecheck 0; `bun test` 1059 pass / 0 fail (no regression).
+  Adversarial review: no code defects. Note for dark-4: the popup live-apply
+  test must drive a real controller (`getThemeController()` fail-fasts if
+  `initTheme()` was never called — intentional).
+  Metrics: review rounds 1; defects 0; verification complete; scope delta none
+  (touched Header/ChatTab as planned for prop-threading).
 
 ---
 

@@ -85,6 +85,8 @@ function defaultProps(overrides: Partial<HeaderProps> = {}): HeaderProps {
     onNewSession: () => undefined,
     hideSdkEvents: false,
     onHideSdkEventsChange: () => undefined,
+    themeMode: "auto",
+    onThemeModeChange: () => undefined,
     approvalPolicy: "on-request",
     onApprovalPolicyChange: () => undefined,
     ...overrides,

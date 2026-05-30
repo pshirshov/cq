@@ -24,6 +24,7 @@ import { useState, useEffect, useRef } from "react";
 import { NewSessionConfirm } from "./NewSessionConfirm";
 import { SettingsPopup } from "./SettingsPopup";
 import type { ApprovalPolicy, Effort } from "@cq/shared";
+import type { ThemeMode } from "../lib/theme";
 import styles from "../styles/Header.module.css";
 
 export type PermissionMode =
@@ -58,6 +59,9 @@ export interface HeaderProps {
   onNewSession: () => void;
   hideSdkEvents: boolean;
   onHideSdkEventsChange: (value: boolean) => void;
+  /** DARK-01: theme mode (display pref) — applied live via the theme controller. */
+  themeMode: ThemeMode;
+  onThemeModeChange: (mode: ThemeMode) => void;
   /** gcn1-3: Codex approvalPolicy — shown in the popup only when platform=codex. */
   approvalPolicy: ApprovalPolicy;
   onApprovalPolicyChange: (policy: ApprovalPolicy) => void;
@@ -94,6 +98,8 @@ export function Header({
   onNewSession,
   hideSdkEvents,
   onHideSdkEventsChange,
+  themeMode,
+  onThemeModeChange,
   approvalPolicy,
   onApprovalPolicyChange,
 }: HeaderProps): React.ReactElement {
@@ -181,6 +187,8 @@ export function Header({
               onEffortChange={onEffortChange}
               hideSdkEvents={hideSdkEvents}
               onHideSdkEventsChange={onHideSdkEventsChange}
+              themeMode={themeMode}
+              onThemeModeChange={onThemeModeChange}
               approvalPolicy={approvalPolicy}
               onApprovalPolicyChange={onApprovalPolicyChange}
               onClose={() => setSettingsOpen(false)}
