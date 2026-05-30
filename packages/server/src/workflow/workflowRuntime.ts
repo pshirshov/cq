@@ -19,16 +19,19 @@
  *     questions_ready, wait; on answer re-run the clarify gate then re-plan.
  *     not satisfied + no questions → re-dispatch the planner with the findings.
  *     A NO-PROGRESS liveness guard escalates (and STOPS) if a revise round
- *     produces a structurally identical plan AND no new questions twice — so a
- *     reviewer↔planner runaway cannot spin without human input.
+ *     produces NO LEDGER UPDATE — no net change to the goal's milestones/tasks
+ *     AND no new questions — so a reviewer↔planner runaway cannot spin without
+ *     human input. The trigger is derived from DURABLE ledger state (the goal's
+ *     plan structure before vs after the round's write), not an in-memory hash,
+ *     so it survives a server restart mid-loop.
  *
  * Durable state = the LEDGERS (closes WF-D02). The workflow's position is a
  * pure function of goal.status + whether the goal's questions are all answered;
  * `reconcile()` resumes the right phase on startup. The only in-memory state is
  * the global busy slot (pool=1 for the workflow lane), the per-goal in-flight
- * latch (prevents double-dispatch / double-auto-advance), the per-goal review
- * fingerprint (no-progress guard), and the per-goal platform (Claude-only this
- * cycle; defaults to claude on resume).
+ * latch (prevents double-dispatch / double-auto-advance), and the per-goal
+ * platform (Claude-only this cycle; defaults to claude on resume). The
+ * no-progress guard holds NO in-memory state — it compares ledger snapshots.
  *
  * The HARNESS owns all ledger writes; producer and phase subagents only return
  * validated structured data via their harness-owned submit tools.
@@ -127,13 +130,6 @@ export class WorkflowRuntime {
   private readonly inFlight = new Set<string>();
   /** Per-goal platform (Claude-only this cycle; defaults to claude on resume). */
   private readonly goalPlatform = new Map<string, "claude" | "codex">();
-  /**
-   * Per-goal no-progress fingerprint: the structural fingerprint of the LAST
-   * planner output written during a no-questions revise round. If the next
-   * such round produces an identical fingerprint, the loop has made no progress
-   * → escalate.
-   */
-  private readonly lastReviseFingerprint = new Map<string, string>();
   /**
    * In-flight subprocess-teardown awaitables. Each producer/phase dispatch
    * registers a promise that resolves when its underlying SDK `query()`
@@ -426,7 +422,8 @@ export class WorkflowRuntime {
   /**
    * Handle the user's reply to a `workflow.event{status:"escalated"}` raised by
    * the no-progress guard. The goal sits in `planning` with no open questions
-   * (the guard escalates only on an identical revise round). Choices:
+   * (the guard escalates only on a revise round that produced no ledger update).
+   * Choices:
    *
    *  - `proceed`  → accept the current plan as-is: goal status `planned` + a
    *    planned/done lifecycle pair (mirrors a satisfied reviewer).
@@ -453,7 +450,6 @@ export class WorkflowRuntime {
 
     if (choice === "abandon") {
       await this.store.updateItem(GOALS_LEDGER, goalId, { status: "abandoned" });
-      this.lastReviseFingerprint.delete(goalId);
       const workflowId = crypto.randomUUID();
       this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "done", detail: "goal abandoned" });
       this.logger.info("workflow.escalation_abandon", { goalId });
@@ -462,7 +458,6 @@ export class WorkflowRuntime {
 
     if (choice === "proceed") {
       await this.store.updateItem(GOALS_LEDGER, goalId, { status: "planned" });
-      this.lastReviseFingerprint.delete(goalId);
       const workflowId = crypto.randomUUID();
       this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "planned", detail: "plan accepted as-is" });
       this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "done", detail: "planning complete" });
@@ -477,8 +472,6 @@ export class WorkflowRuntime {
     if (text.length === 0) {
       throw new Error("guidance escalation reply requires non-empty guidance text");
     }
-    // Clear the fingerprint so the guided plan is not mistaken for no-progress.
-    this.lastReviseFingerprint.delete(goalId);
     void this.advanceGoalWithGuidance(goalId, text).catch((err: unknown) => {
       this.logger.warn("workflow.escalation_guidance_error", { goalId, err: String(err) });
     });
@@ -681,6 +674,25 @@ export class WorkflowRuntime {
       registerTeardown: this.trackTeardown,
     });
 
+    // No-progress guard (same trigger as the plan-review loop, generalized):
+    // a clarify-reviewer that reports NOT-CLEAR but writes NO new questions
+    // produces no ledger update — the goal would otherwise be stranded in
+    // `clarifying` with no open question to answer. Escalate rather than stall.
+    if (!out.clear && out.newQuestions.length === 0) {
+      this.emitAll({
+        type: "workflow.event",
+        workflowId,
+        goalId,
+        phase: "clarify",
+        status: "escalated",
+        detail:
+          "the clarify loop made no progress (not clear, but no new questions). " +
+          "Choose: proceed-as-is, give-guidance, or abandon.",
+      });
+      this.logger.warn("workflow.no_progress_escalated", { goalId, workflowId, phase: "clarify" });
+      return;
+    }
+
     if (!out.clear || out.newQuestions.length > 0) {
       const batchId = this.activeQuestionMilestoneId(goalId);
       for (const q of out.newQuestions) {
@@ -710,8 +722,6 @@ export class WorkflowRuntime {
 
     const plan = await this.dispatchPlanner(goalId, signal, this.guidanceAddendum(guidance));
     await this.persistPlan(goalId, plan);
-    // Reset the no-progress fingerprint for a fresh review loop.
-    this.lastReviseFingerprint.delete(goalId);
     // Proceed straight into the plan-review loop within this dispatch slot.
     await this.runPlanReview(goalId, workflowId, signal);
   }
@@ -769,7 +779,6 @@ export class WorkflowRuntime {
 
     if (review.satisfied) {
       await this.store.updateItem(GOALS_LEDGER, goalId, { status: "planned" });
-      this.lastReviseFingerprint.delete(goalId);
       this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "planned", detail: "plan ready" });
       this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "done", detail: "planning complete" });
       return;
@@ -784,7 +793,6 @@ export class WorkflowRuntime {
       // `clarifying` means the next answer batch is re-validated for clarity
       // before re-planning (K-WFL-4 — the clarity gate is never bypassed).
       await this.store.updateItem(GOALS_LEDGER, goalId, { status: "clarifying" });
-      this.lastReviseFingerprint.delete(goalId);
       this.emitAll({
         type: "workflow.event",
         workflowId,
@@ -797,14 +805,27 @@ export class WorkflowRuntime {
     }
 
     // not satisfied + no questions → re-plan with the findings. No-progress
-    // guard: if a revise round produces a structurally identical plan to the
-    // prior revise round, STOP and escalate (liveness backstop, not a cap).
+    // guard: if the revise round produces NO LEDGER UPDATE (the goal's plan
+    // structure is unchanged and no new question was written), STOP and
+    // escalate (liveness backstop, not a cap).
     await this.revisePlanWithGuard(goalId, workflowId, signal, review.findings);
   }
 
   /**
    * Re-dispatch the planner with the reviewer's findings, then either loop the
-   * review or escalate if the plan did not change since the last revise round.
+   * review or escalate if the round produced NO LEDGER UPDATE.
+   *
+   * No-progress is derived from DURABLE ledger state, not an in-memory hash: we
+   * snapshot the goal's plan structure (and its question count) BEFORE the
+   * revise write and again AFTER it, then compare. Because `persistPlan` uses
+   * replace-semantics, an identical re-plan is a content no-op — the post-write
+   * `planArtifacts` equal the pre-write ones (only milestone ids change, which
+   * `planArtifacts` does not surface) — so the round made no net change and we
+   * escalate. The reviewer already raised no new questions to reach this path,
+   * so the question-count delta is normally zero; it is captured anyway to keep
+   * the predicate exact (a real ledger update of either kind counts as
+   * progress). Anchoring to the post-write ledger means a mid-loop server
+   * restart cannot mask a stall (the fingerprint-loss edge is gone).
    */
   private async revisePlanWithGuard(
     goalId: string,
@@ -814,12 +835,20 @@ export class WorkflowRuntime {
   ): Promise<void> {
     this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "plan", status: "planning", detail: "revising the plan" });
 
-    const plan = await this.dispatchPlanner(goalId, signal, this.findingsAddendum(findings));
+    // Snapshot durable plan state BEFORE the revise write.
+    const planBefore = this.planArtifacts(goalId);
+    const questionsBefore = this.totalQuestionCount(goalId);
 
-    const fingerprint = this.fingerprintPlan(plan);
-    const prior = this.lastReviseFingerprint.get(goalId);
-    if (prior !== undefined && prior === fingerprint) {
-      // No delta + (the reviewer already raised no questions) → non-progress.
+    const plan = await this.dispatchPlanner(goalId, signal, this.findingsAddendum(findings));
+    await this.persistPlan(goalId, plan);
+
+    // Snapshot AFTER and compare. No net change to the plan structure AND no new
+    // question ⇒ no ledger update ⇒ non-progress.
+    const planAfter = this.planArtifacts(goalId);
+    const questionsAfter = this.totalQuestionCount(goalId);
+    const planChanged = !this.planArtifactsEqual(planBefore, planAfter);
+    const questionsGrew = questionsAfter > questionsBefore;
+    if (!planChanged && !questionsGrew) {
       this.emitAll({
         type: "workflow.event",
         workflowId,
@@ -833,9 +862,7 @@ export class WorkflowRuntime {
       this.logger.warn("workflow.no_progress_escalated", { goalId, workflowId });
       return;
     }
-    this.lastReviseFingerprint.set(goalId, fingerprint);
 
-    await this.persistPlan(goalId, plan);
     // Re-run the reviewer against the revised plan.
     await this.runPlanReview(goalId, workflowId, signal);
   }
@@ -1152,18 +1179,43 @@ export class WorkflowRuntime {
     return { milestones, tasks };
   }
 
+  /** Total number of question rows under a goal (any status). */
+  private totalQuestionCount(goalId: string): number {
+    return this.questionsFor(goalId).length;
+  }
+
   /**
-   * The no-progress fingerprint of a planner output: an order-sensitive
-   * serialization of milestone titles+descriptions and task headline/desc/
-   * acceptance/ref. Two planner outputs with the same fingerprint are
-   * structurally identical → no progress.
+   * Structural equality of two `planArtifacts` snapshots — the durable
+   * no-progress comparator. Order-sensitive over milestones and tasks; compares
+   * the plan-defining fields (milestone title/description, task
+   * milestone-grouping/headline/description/acceptance). Two snapshots equal
+   * under this predicate represent the same plan in the ledger, so a revise
+   * round that yields an equal snapshot wrote no net change.
    */
-  private fingerprintPlan(plan: PlanOutput): string {
-    const m = plan.milestones.map((x) => `${x.title} ${x.description}`).join("");
-    const t = plan.tasks
-      .map((x) => `${x.milestoneRef} ${x.headline} ${x.description} ${x.acceptance ?? ""}`)
-      .join("");
-    return `${m}${t}`;
+  private planArtifactsEqual(
+    a: ReturnType<WorkflowRuntime["planArtifacts"]>,
+    b: ReturnType<WorkflowRuntime["planArtifacts"]>,
+  ): boolean {
+    if (a.milestones.length !== b.milestones.length) return false;
+    if (a.tasks.length !== b.tasks.length) return false;
+    for (let i = 0; i < a.milestones.length; i++) {
+      const x = a.milestones[i]!;
+      const y = b.milestones[i]!;
+      if (x.title !== y.title || x.description !== y.description) return false;
+    }
+    for (let i = 0; i < a.tasks.length; i++) {
+      const x = a.tasks[i]!;
+      const y = b.tasks[i]!;
+      if (
+        x.milestone !== y.milestone ||
+        x.headline !== y.headline ||
+        x.description !== y.description ||
+        (x.acceptance ?? "") !== (y.acceptance ?? "")
+      ) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Resolve the goal that owns a question (the goal whose milestones include the question's group). */

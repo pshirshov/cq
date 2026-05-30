@@ -258,6 +258,141 @@ describe("no-progress liveness guard", () => {
 
     await store.dispose();
   });
+
+  it("does NOT escalate while the planner keeps writing a CHANGED plan (no-cap preserved)", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const phase = new FakePhaseSubagent();
+    // A never-satisfied reviewer (no questions) but a planner that returns a
+    // DIFFERENT plan every round for several rounds, then a satisfied verdict.
+    // Each revise round writes a real ledger change → never no-progress; the
+    // loop must run all the way to `planned` without escalating.
+    let round = 0;
+    phase
+      .enqueue(CLARIFY_REVIEW_SPEC, CLEAR)
+      .setSticky(PLAN_SPEC, () => {
+        round += 1;
+        return {
+          milestones: [{ title: `Core v${round}`, description: `iteration ${round}` }],
+          tasks: [{ milestoneRef: 0, headline: `Task ${round}`, description: `work ${round}` }],
+        };
+      })
+      // Unsatisfied for the first 4 reviews (drives 4 revise rounds with distinct
+      // plans), then satisfied → planned. Proves a churning planner never trips
+      // the guard (it only fires on NO ledger update).
+      .enqueue(PLAN_REVIEW_SPEC, { satisfied: false, findings: [{ severity: "minor", issue: "a", suggestion: "b" }], newQuestions: [] })
+      .enqueue(PLAN_REVIEW_SPEC, { satisfied: false, findings: [{ severity: "minor", issue: "a", suggestion: "b" }], newQuestions: [] })
+      .enqueue(PLAN_REVIEW_SPEC, { satisfied: false, findings: [{ severity: "minor", issue: "a", suggestion: "b" }], newQuestions: [] })
+      .enqueue(PLAN_REVIEW_SPEC, { satisfied: false, findings: [{ severity: "minor", issue: "a", suggestion: "b" }], newQuestions: [] })
+      .setSticky(PLAN_REVIEW_SPEC, SATISFIED);
+    const rt = makeRuntime(store, phase);
+    const { sink, events } = collector();
+    const { goalId, q0 } = await bootstrap(store, rt, sink);
+
+    await rt.submitAnswer(q0, "web");
+    await waitForBusyIdle(rt, 5000);
+
+    const statuses = events.map((e) => e.status);
+    expect(statuses).not.toContain("escalated");
+    expect(statuses).toContain("planned");
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("planned");
+    // initial plan + 4 revise rounds = 5 planner dispatches; all distinct plans.
+    expect(phase.calls.get(PLAN_SPEC.toolName)).toBe(5);
+
+    await store.dispose();
+  });
+
+  it("a no-progress round AFTER a runtime restart still escalates (durable trigger; fingerprint-loss edge gone)", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+
+    // Runtime A: drive phase 1 → answer → clarify clear → planner writes the
+    // initial PLAN (status planning), then the plan-reviewer THROWS on its first
+    // call, simulating a crash mid-review BEFORE any revise round runs. The OLD
+    // in-memory fingerprint was only ever seeded INSIDE a revise round, so it is
+    // unset here regardless — but the point is that runtime B starts with a cold
+    // map and must still detect no-progress purely from the ledger.
+    const phaseA = new FakePhaseSubagent();
+    phaseA
+      .enqueue(CLARIFY_REVIEW_SPEC, CLEAR)
+      .enqueue(PLAN_SPEC, PLAN)
+      .setSticky(PLAN_REVIEW_SPEC, () => {
+        throw new Error("simulated crash mid plan-review");
+      });
+    const rtA = makeRuntime(store, phaseA);
+    const { sink: sinkA, events: eventsA } = collector();
+    const { goalId, q0 } = await bootstrap(store, rtA, sinkA);
+    await rtA.submitAnswer(q0, "web");
+    await waitForBusyIdle(rtA, 5000);
+
+    // Runtime A crashed before any verdict; goal is still `planning`, the initial
+    // PLAN is on the ledger, no escalation yet.
+    expect(eventsA.map((e) => e.status)).not.toContain("escalated");
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("planning");
+
+    // Drop A; create B against the SAME store. B has NO in-memory fingerprint
+    // (none ever existed). reconcile() resumes review_ready → the reviewer is
+    // still unsatisfied + the planner still writes the identical plan → the very
+    // FIRST post-resume revise round produces no ledger update → escalate.
+    const phaseB = new FakePhaseSubagent();
+    phaseB
+      .setSticky(PLAN_SPEC, PLAN)
+      .setSticky(PLAN_REVIEW_SPEC, { satisfied: false, findings: [{ severity: "minor", issue: "m", suggestion: "i" }], newQuestions: [] });
+    const rtB = makeRuntime(store, phaseB);
+    const { sink: sinkB, events: eventsB } = collector();
+    rtB.subscribe(sinkB);
+    expect(rtB.derivePosition(goalId)).toEqual({ kind: "review_ready" });
+
+    await rtB.reconcile();
+    await waitForBusyIdle(rtB, 5000);
+
+    // The durable trigger fires on the FIRST no-update revise round after resume
+    // — the concrete win. The OLD in-memory fingerprint needed two identical
+    // revise rounds (one to seed, one to match); a cold-map resumed runtime
+    // would only seed on its first round and continue, masking the stall. The
+    // ledger-diff trigger needs no prior round, so exactly ONE planner dispatch
+    // on B suffices to detect and escalate.
+    expect(eventsB.map((e) => e.status)).toContain("escalated");
+    expect(eventsB.map((e) => e.status)).not.toContain("planned");
+    expect(rtB.isBusy()).toBe(false);
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("planning");
+    expect(phaseB.calls.get(PLAN_SPEC.toolName)).toBe(1); // one revise round → escalate
+    expect(phaseB.calls.get(PLAN_REVIEW_SPEC.toolName)).toBe(1);
+
+    await store.dispose();
+  });
+});
+
+describe("clarify no-progress guard (degenerate not-clear with no questions)", () => {
+  it("escalates when the clarify-reviewer is not-clear but writes no new questions", async () => {
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const phase = new FakePhaseSubagent();
+    // Degenerate clarify output: not clear, yet zero new questions. Without the
+    // guard the goal would sit in `clarifying` with no open question to answer
+    // (a silent stall). The guard escalates instead.
+    phase.enqueue(CLARIFY_REVIEW_SPEC, { clear: false, contradictions: [], newQuestions: [] });
+    const rt = makeRuntime(store, phase);
+    const { sink, events } = collector();
+    const { goalId, q0 } = await bootstrap(store, rt, sink);
+
+    await rt.submitAnswer(q0, "web");
+    await waitForBusyIdle(rt, 5000);
+
+    const statuses = events.map((e) => e.status);
+    expect(statuses).toContain("escalated");
+    expect(statuses).not.toContain("planning"); // the planner never ran
+    expect(rt.isBusy()).toBe(false);
+    // The goal is NOT stranded with a phantom open-question banner.
+    expect(store.fetchItem(GOALS_LEDGER, goalId).status).toBe("clarifying");
+    const specId = (store.fetchItem(GOALS_LEDGER, goalId).fields["milestones"] as string[])[0]!;
+    const open = (store.listMilestoneItems(specId)[QUESTIONS_LEDGER] ?? []).filter((q) => q.status === "open");
+    expect(open).toHaveLength(0);
+    // The planner was never dispatched (no false advance).
+    expect(phase.calls.get(PLAN_SPEC.toolName) ?? 0).toBe(0);
+
+    await store.dispose();
+  });
 });
 
 describe("auto-advance fires exactly once", () => {
