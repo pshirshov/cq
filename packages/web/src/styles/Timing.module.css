@@ -35,15 +35,15 @@
 .tooltip {
   position: fixed;
   padding: 5px 8px;
-  background: var(--surface-overlay, #111);
-  color: var(--text-on-dark, #fff);
+  background: var(--tooltip-bg, #111);
+  color: var(--tooltip-text, #fff);
   font-size: 11px;
   font-family: monospace;
   border-radius: 4px;
   pointer-events: none;
   white-space: nowrap;
   z-index: 9999;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px var(--shadow-strong, rgba(0, 0, 0, 0.25));
 }
 
 .noData {

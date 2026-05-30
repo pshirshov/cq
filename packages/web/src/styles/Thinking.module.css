@@ -6,28 +6,28 @@
  */
 
 .root {
-  border: 1px solid #a5b4fc;
+  border: 1px solid var(--thinking-border, #a5b4fc);
   border-radius: 6px;
   margin: 0.5em 0;
   font-size: 0.875rem;
-  background: #f5f3ff;
+  background: var(--violet-tint-1, #f5f3ff);
 }
 
 .summary {
   padding: 6px 12px;
   cursor: pointer;
   font-weight: 500;
-  color: #4338ca;
+  color: var(--thinking-text, #4338ca);
   user-select: none;
   list-style: disclosure-closed;
 }
 
 .root[open] > .summary {
   list-style: disclosure-open;
-  border-bottom: 1px solid #a5b4fc;
+  border-bottom: 1px solid var(--thinking-border, #a5b4fc);
 }
 
 .body {
   padding: 8px 12px;
-  background: #faf5ff;
+  background: var(--violet-tint-2, #faf5ff);
 }

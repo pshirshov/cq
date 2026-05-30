@@ -3,12 +3,12 @@
  */
 
 .root {
-  border: 1px solid #0550ae;
+  border: 1px solid var(--info-border, #0550ae);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.5em 0;
   font-size: 0.875rem;
-  background: #f0f6ff;
+  background: var(--info-bg, #f0f6ff);
 }
 
 .header {
@@ -16,11 +16,11 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #dbeafe;
-  border-bottom: 1px solid #0550ae;
+  background: var(--info-header-bg, #dbeafe);
+  border-bottom: 1px solid var(--info-border, #0550ae);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #0a3775;
+  color: var(--info-text, #0a3775);
 }
 
 .icon {
@@ -33,7 +33,7 @@
 
 .serverName {
   font-size: 0.75rem;
-  color: #0550ae;
+  color: var(--info-border, #0550ae);
   font-weight: 400;
 }
 
@@ -43,7 +43,7 @@
 
 .message {
   font-size: 0.8125rem;
-  color: #24292f;
+  color: var(--text-code, #24292f);
   line-height: 1.4;
   margin-bottom: 8px;
 }
@@ -63,49 +63,49 @@
 .label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .input {
   padding: 4px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 4px;
   font-size: 0.8125rem;
-  color: #24292f;
-  background: #ffffff;
+  color: var(--text-code, #24292f);
+  background: var(--input-bg, #ffffff);
   outline: none;
 }
 
 .input:focus {
-  border-color: #0550ae;
+  border-color: var(--info-border, #0550ae);
   box-shadow: 0 0 0 2px rgba(5, 80, 174, 0.15);
 }
 
 .select {
   padding: 4px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 4px;
   font-size: 0.8125rem;
-  color: #24292f;
-  background: #ffffff;
+  color: var(--text-code, #24292f);
+  background: var(--input-bg, #ffffff);
   outline: none;
   cursor: pointer;
 }
 
 .select:focus {
-  border-color: #0550ae;
+  border-color: var(--info-border, #0550ae);
   box-shadow: 0 0 0 2px rgba(5, 80, 174, 0.15);
 }
 
 .textarea {
   padding: 4px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 4px;
   font-size: 0.8125rem;
-  color: #24292f;
-  background: #ffffff;
+  color: var(--text-code, #24292f);
+  background: var(--input-bg, #ffffff);
   outline: none;
   resize: vertical;
   min-height: 60px;
@@ -113,7 +113,7 @@
 }
 
 .textarea:focus {
-  border-color: #0550ae;
+  border-color: var(--info-border, #0550ae);
   box-shadow: 0 0 0 2px rgba(5, 80, 174, 0.15);
 }
 
@@ -123,19 +123,19 @@
   gap: 6px;
   cursor: pointer;
   font-size: 0.8125rem;
-  color: #24292f;
+  color: var(--text-code, #24292f);
 }
 
 .schemaHint {
   font-size: 0.75rem;
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   font-style: italic;
   margin-top: 4px;
 }
 
 .waiting {
   font-size: 0.8125rem;
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   font-style: italic;
   padding: 4px 0;
 }
@@ -144,7 +144,7 @@
   display: flex;
   gap: 8px;
   padding: 8px 12px;
-  border-top: 1px solid #b6d4fe;
+  border-top: 1px solid var(--info-border-light, #b6d4fe);
 }
 
 .btn {
@@ -162,25 +162,25 @@
 }
 
 .btnAccept {
-  background: #1a7f37;
-  color: #ffffff;
-  border-color: #1a7f37;
+  background: var(--surface-success, #1a7f37);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--surface-success, #1a7f37);
 }
 
 .btnDecline {
-  background: #cf222e;
-  color: #ffffff;
-  border-color: #cf222e;
+  background: var(--surface-danger, #cf222e);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--surface-danger, #cf222e);
 }
 
 .btnCancel {
-  background: #6e7781;
-  color: #ffffff;
-  border-color: #6e7781;
+  background: var(--surface-neutral, #6e7781);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--surface-neutral, #6e7781);
 }
 
 .btnOpenTab {
-  background: #0550ae;
-  color: #ffffff;
-  border-color: #0550ae;
+  background: var(--info-border, #0550ae);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--info-border, #0550ae);
 }

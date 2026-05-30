@@ -48,6 +48,8 @@ import { computeTasks } from "./computeTasks";
 import { computeSubagentCount } from "./computeSubagentCount";
 import { TaskListSidebar } from "./TaskListSidebar";
 import { isMacPlatform } from "../lib/platform";
+import { getThemeController, readThemeMode } from "../lib/theme";
+import type { ThemeMode } from "../lib/theme";
 import { computeMatchIndices, computeRenderedMessages } from "./Stream";
 import tabStyles from "../styles/ChatTab.module.css";
 
@@ -183,6 +185,17 @@ export function ChatTab(): React.ReactElement {
   const [hideSdkEvents, setHideSdkEvents] = useState<boolean>(
     () => lsReadString("cq.hideSdkEvents", "0") === "1",
   );
+
+  // ---- DARK-01: theme mode (light|dark|auto), a display preference. ----
+  // Seeded from the persisted mode. Unlike the per-session settings above, the
+  // theme is applied LIVE via the theme controller (which persists to
+  // localStorage and sets <html data-theme>) and is NEVER carried into
+  // ChatStart — it is a pure client display pref (localStorage + DOM only).
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemeMode());
+  const handleThemeModeChange = useCallback((mode: ThemeMode): void => {
+    getThemeController().setMode(mode); // live apply + persist
+    setThemeMode(mode);                 // reflect in the controlled <select>
+  }, []);
 
   // ---- D41: UI settings persistence ----
   // settingsLoadedRef guards against echoing defaults back to the server on
@@ -831,6 +844,8 @@ export function ChatTab(): React.ReactElement {
         onNewSession={handleNewSession}
         hideSdkEvents={hideSdkEvents}
         onHideSdkEventsChange={setHideSdkEvents}
+        themeMode={themeMode}
+        onThemeModeChange={handleThemeModeChange}
         approvalPolicy={approvalPolicy}
         onApprovalPolicyChange={setApprovalPolicy}
       />

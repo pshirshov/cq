@@ -45,7 +45,7 @@
   padding: 0 6px;
   border-radius: 9px;
   background: var(--accent, #0070f3);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
@@ -118,12 +118,12 @@
   text-transform: capitalize;
 }
 
-.statusClarifying { background: #dbeafe; color: #1e40af; }
-.statusPlanning { background: #ede9fe; color: #5b21b6; }
-.statusPlanned { background: #dcfce7; color: #166534; }
-.statusBuilding { background: #fef3c7; color: #92400e; }
-.statusDone { background: #dcfce7; color: #166534; }
-.statusAbandoned { background: #475569; color: #fff; }
+.statusClarifying { background: var(--chip-info-bg, #dbeafe); color: var(--chip-info-text, #1e40af); }
+.statusPlanning { background: var(--chip-violet-bg, #ede9fe); color: var(--chip-violet-text, #5b21b6); }
+.statusPlanned { background: var(--chip-success-bg, #dcfce7); color: var(--chip-success-text, #166534); }
+.statusBuilding { background: var(--chip-warning-bg, #fef3c7); color: var(--chip-warning-text, #92400e); }
+.statusDone { background: var(--chip-success-bg, #dcfce7); color: var(--chip-success-text, #166534); }
+.statusAbandoned { background: var(--chip-neutral-bg, #475569); color: var(--chip-neutral-text, #fff); }
 
 /* ---- Expanded body --------------------------------------------------- */
 
@@ -264,7 +264,7 @@
 
 .answeredText {
   font-size: 0.875rem;
-  color: #166534;
+  color: var(--chip-success-text, #166534);
 }
 
 .actions {
@@ -287,7 +287,7 @@
 
 .btnSubmit {
   background: var(--accent, #0070f3);
-  color: #ffffff;
+  color: var(--on-accent, #ffffff);
   border-color: var(--accent, #0070f3);
 }
 
@@ -311,9 +311,9 @@
 /* ---- Escalation card ------------------------------------------------- */
 
 .escalation {
-  border: 1px solid rgba(220, 60, 60, 0.4);
+  border: 1px solid var(--escalation-border, rgba(220, 60, 60, 0.4));
   border-radius: 6px;
-  background: rgba(220, 60, 60, 0.08);
+  background: var(--escalation-bg, rgba(220, 60, 60, 0.08));
   padding: 8px 12px;
   display: flex;
   flex-direction: column;

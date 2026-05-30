@@ -36,7 +36,7 @@
   border-top: 1px solid var(--border, #e0e0e0);
   background: var(--surface, #fafafa);
   /* Subtle elevation to visually separate footer from scrollable stream */
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -2px 8px var(--footer-shadow, rgba(0, 0, 0, 0.06));
   padding: 4px 0;
   z-index: 10;
 }
@@ -51,16 +51,16 @@
   z-index: 20;
   padding: 5px 12px;
   background: var(--accent, #0070f3);
-  color: #fff;
+  color: var(--on-accent, #fff);
   border: none;
   border-radius: 20px;
   font-size: 13px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 112, 243, 0.35);
+  box-shadow: 0 2px 6px var(--accent-glow, rgba(0, 112, 243, 0.35));
   transition: opacity 0.2s;
   white-space: nowrap;
 }
 
 .jumpButton:hover {
-  background: #005dd1;
+  background: var(--jump-hover, #005dd1);
 }

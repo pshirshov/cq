@@ -28,8 +28,8 @@
  * --------------------------------------------------------------------------- */
 
 .card {
-  background: #ffffff;
-  border: 1px solid #d0d7de;
+  background: var(--bg, #ffffff);
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 6px;
   padding: 6px 10px;
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -49,7 +49,7 @@
  * --------------------------------------------------------------------------- */
 
 .content {
-  color: #24292f;
+  color: var(--text-code, #24292f);
   overflow-wrap: break-word;
 }
 
@@ -67,21 +67,21 @@
 }
 
 .badgePending {
-  background: #f6f8fa;
-  color: #57606a;
+  background: var(--badge-stopped-bg, #f6f8fa);
+  color: var(--badge-stopped-text, #57606a);
 }
 
 .badgeInProgress {
-  background: #fff8c5;
-  color: #9a6700;
+  background: var(--badge-running-bg, #fff8c5);
+  color: var(--badge-running-text, #9a6700);
 }
 
 .badgeCompleted {
-  background: #dcffe4;
-  color: #1a7f37;
+  background: var(--gh-success-bg, #dcffe4);
+  color: var(--gh-success-text, #1a7f37);
 }
 
 .badgeDeleted {
-  background: #f6f8fa;
-  color: #57606a;
+  background: var(--badge-stopped-bg, #f6f8fa);
+  color: var(--badge-stopped-text, #57606a);
 }

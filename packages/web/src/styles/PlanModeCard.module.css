@@ -6,12 +6,12 @@
  */
 
 .root {
-  border: 1px solid #b45309;
+  border: 1px solid var(--plan-card-border, #b45309);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.5em 0;
   font-size: 0.875rem;
-  background: #fffbeb;
+  background: var(--plan-card-bg, #fffbeb);
 }
 
 .header {
@@ -19,11 +19,11 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #fef3c7;
-  border-bottom: 1px solid #b45309;
+  background: var(--plan-card-header-bg, #fef3c7);
+  border-bottom: 1px solid var(--plan-card-border, #b45309);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #78350f;
+  color: var(--plan-card-title, #78350f);
 }
 
 .icon {
@@ -37,9 +37,9 @@
 .badge {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #92400e;
-  background: #fde68a;
-  border: 1px solid #d97706;
+  color: var(--plan-badge-text, #92400e);
+  background: var(--plan-badge-bg, #fde68a);
+  border: 1px solid var(--plan-badge-border, #d97706);
   border-radius: 10px;
   padding: 1px 8px;
 }
@@ -52,7 +52,7 @@
 .plan {
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #1c1b1f;
+  color: var(--plan-card-text, #1c1b1f);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -63,26 +63,26 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-top: 1px solid #fde68a;
+  border-top: 1px solid var(--plan-card-border-light, #fde68a);
   font-size: 0.8125rem;
 }
 
 .statusLabel {
   font-weight: 600;
-  color: #78350f;
+  color: var(--plan-card-title, #78350f);
 }
 
 .statusAllow {
-  color: #15803d;
+  color: var(--status-allow, #15803d);
   font-weight: 500;
 }
 
 .statusDeny {
-  color: #b91c1c;
+  color: var(--status-deny, #b91c1c);
   font-weight: 500;
 }
 
 .statusPending {
-  color: #92400e;
+  color: var(--plan-badge-text, #92400e);
   font-weight: 500;
 }

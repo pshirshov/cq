@@ -4,6 +4,143 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: dark — real, app-wide dark theme (light/dark/auto, gear toggle)
+
+Plan: [`docs/drafts/20260530-1442-dark-theme.md`](docs/drafts/20260530-1442-dark-theme.md).
+Baseline (verified eff0ca5): `bun run check` exit 0, 1059 pass / 0 fail; e2e 27/27.
+WEB-ONLY. Loop serialised (no subagent-dispatch in this harness); adversarial
+review run as an explicit per-milestone step.
+
+`[data-theme="dark"]` on `<html>` overrides CSS variables; `auto` resolved in
+JS via `matchMedia` + live OS listener; default auto. Toggle in the gear popup,
+applied live + persisted (`localStorage['cq.theme']`). Sweep of ~28 CSS modules
+onto the variables so dark applies app-wide; light resolved colors unchanged.
+
+### Milestone M-DARK — PR breakdown
+
+- [x] **dark-1** — global.css dark variable set (`[data-theme="dark"]` + new semantic vars, light :root unchanged) + `lib/theme.ts` controller (localStorage `cq.theme`, matchMedia resolve + live OS listener, sets `documentElement.dataset.theme`, `initTheme()` in main.tsx before first paint).
+- [x] **dark-2** — Theme control (Light/Dark/Auto) in SettingsPopup, applied live via the controller (display-only; not in ChatStart/session state).
+- [x] **dark-3** — CSS sweep: ~28 modules' hardcoded theme-sensitive hex/rgb → theme vars (chips get light+dark pairs; light-neutral).
+- [x] **dark-4** — tests (theme.ts, SettingsPopup theme, sweep assertion, light-unchanged) + e2e (`dark-theme.spec.ts`, main project) + discharge.
+
+**M-DARK CLOSED.** Discharge: `bun run check` exit 0 ×2 (1077/0 both; baseline 1059 + 18 new dark tests); `bun run e2e` 28/28 (baseline 27 + 1 new `dark-theme.spec.ts`); `nix build .#default` exit 0 (`result` → cq-0.0.1; local build, remote SSH builder unreachable). Defect `DARK-01` resolved (+ self-review `DARK-01-D01` resolved same cycle). Session log: `docs/logs/20260530-1442-log.md`.
+
+### Cross-cutting architectural notes (locked)
+
+- [x] Mechanism = `data-theme` on `<html>` + `[data-theme="dark"]` CSS overrides + JS auto-resolution with live OS listener (per brief DECISIONS).
+- [x] Theme is a display pref: localStorage + DOM only, NEVER ChatStart/session row (WEB-ONLY constraint).
+- [x] theme.ts is fully synchronous (DOM + localStorage are sync) — no sync/async unions.
+- [x] Light `:root` values stay byte-identical; sweep proven light-neutral by computed-value comparison, not source text.
+
+### Completed (M-DARK)
+
+- **dark-1** (2026-05-30) — Dark variable set + theme controller.
+  global.css: `:root` light values UNCHANGED; added ~30 new semantic vars
+  (base extras, accent variants, code chrome, solid button bgs, info-card,
+  6 chip bg/text pairs) with light values, plus a full `[data-theme="dark"]`
+  override block for every theme var, plus `color-scheme` hints. `lib/theme.ts`:
+  fully-synchronous controller — `ThemeMode = light|dark|auto` (default auto),
+  `readThemeMode`/`writeThemeMode` (localStorage `cq.theme`, validated,
+  try/catch), `resolveTheme(mode, prefersDark)`, `applyResolvedTheme` (sets
+  `documentElement.dataset.theme`), `createThemeController({mql})` (injectable
+  media-query-list for tests; attaches a live `change` listener that re-resolves
+  only while mode==='auto'), module-singleton `initTheme()`/`getThemeController()`
+  + `resetThemeControllerForTests()`. main.tsx calls `initTheme()` before
+  `createRoot().render` (before first paint). No sync/async union (all sync).
+  Verification: `bun run typecheck` exit 0; `bun run lint` 0 errors (24
+  pre-existing warnings); `bun test` 1059 pass / 0 fail (no regression).
+  Adversarial review: no defects — equal-specificity `:root` vs
+  `[data-theme="dark"]` resolves by source order (dark later → wins when attr
+  present); fallbacks inert once vars defined (light-unchanged proven by
+  resolved value, not fallback); mql injectable so tests don't depend on
+  happy-dom matchMedia.
+  Metrics: review rounds 1; defects 0; verification complete; scope delta none.
+
+- **dark-2** (2026-05-30) — Theme control in the gear popup, applied live.
+  SettingsPopup gains a Theme `<select>` (Light / Dark / Auto-OS) at the top,
+  separated by a `.divider` from the per-session rows (so the "next new chat"
+  hint clearly governs only those). Threaded `themeMode` + `onThemeModeChange`
+  through Header → SettingsPopup. ChatTab owns `themeMode` (seeded from
+  `readThemeMode()`); `handleThemeModeChange` calls
+  `getThemeController().setMode(mode)` (live apply + persist to localStorage +
+  `<html data-theme>`) then mirrors into the controlled select. The theme value
+  is display-only — NEVER carried into ChatStart/session state (WEB-ONLY).
+  Updated existing `header.test.ts` + `settingsPopup.test.ts` defaultProps with
+  the two new props. SettingsPopup chrome stays a fixed dark popup (preserves
+  light-mode appearance) — flagged as a dark-3 exception. Verification:
+  typecheck 0; `bun test` 1059 pass / 0 fail (no regression).
+  Adversarial review: no code defects. Note for dark-4: the popup live-apply
+  test must drive a real controller (`getThemeController()` fail-fasts if
+  `initTheme()` was never called — intentional).
+  Metrics: review rounds 1; defects 0; verification complete; scope delta none
+  (touched Header/ChatTab as planned for prop-threading).
+
+- **dark-3** (2026-05-30) — The CSS sweep. 23 CSS files changed (22 modules +
+  global.css). global.css grew to 118 theme variables, each with a `:root`
+  (light, unchanged) and `[data-theme="dark"]` value (verified full parity).
+  Swept every theme-sensitive hardcoded hex/rgb in the content-surface modules
+  onto variables via the `var(--name, #originalLiteral)` form (fallback = the
+  exact prior literal, kept inert). Status/severity chips got light+dark bg+text
+  pairs (`--chip-*`); GitHub code chrome → `--surface-code`/`--border-code`/
+  `--text-code`/`--text-code-muted`; colored cards → `--violet-card-*` /
+  `--info-*` / `--warn-card-*` / `--plan-card-*`; solid buttons →
+  `--surface-success`/`--surface-danger`/`--surface-neutral`/`--btn-*` +
+  `--on-accent`; bubbles → `--user-bubble-*`/`--tool-bubble-bg`.
+  UNTOUCHED (6): Header, Tooltip, Toast, SettingsPopup chrome, Indicator —
+  intentional always-dark chrome / semantic connection-state dot colors
+  (changing them would alter the light-mode appearance); SearchBar + Stream —
+  already fully variable-driven. Also kept literal as documented exceptions:
+  History `.resumeButton` (dark VS-Code button on a light table) and the
+  ElicitationCard `rgba(5,80,174,0.15)` focus glow (translucent, theme-neutral).
+  Shiki code bodies render `github-dark` always (pre-existing, in CodeBlock.tsx)
+  — dark in both themes by design; only the container chrome was swept.
+  LIGHT-UNCHANGED proven by a scripted audit: every `var(--X,#fb)` fallback
+  added by this branch has `#fb == :root[--X]` (0 mismatches), so resolved-light
+  == original literal everywhere. DARK-APPLIES proven by: 118 vars with full
+  light/dark parity + the bundled `main.css` (built via `buildWeb()`) containing
+  `[data-theme="dark"]`, `--surface-code`, `--chip-success-bg`, and dark
+  `--bg:#121212`.
+  Self-review opened + resolved DARK-01-D01 (8+ light-shift unifications →
+  exact-match vars). Verification: typecheck 0; lint 0 errors; `bun test`
+  1059 pass / 0 fail (one cross-file DOM-pollution flake in attachments Case 4
+  passed on re-run + in isolation — pre-existing nondeterministic test ordering,
+  see registerDom helper docs, not caused by this change); `buildWeb()` compiles
+  all CSS modules.
+  Metrics: review rounds 1 (self); defects 1 major (DARK-01-D01, resolved same
+  cycle); verification complete; scope delta: +~80 semantic vars beyond the
+  plan's initial list (expected — "add missing vars the modules need").
+
+- **dark-4** (2026-05-30) — Tests + e2e + discharge. New unit tests:
+  `theme.test.ts` (11 tests — persist/read `cq.theme`, auto resolves via an
+  INJECTED matchMedia mock both directions, sets `documentElement.dataset.theme`,
+  re-resolves live on an OS-change event while auto, explicit light/dark override
+  the OS + ignore OS events, setMode applies+persists, dispose detaches);
+  3 new SettingsPopup tests (Theme control renders Light/Dark/Auto, fires
+  onThemeModeChange, and — wired to a REAL controller — flips
+  `document.documentElement.dataset.theme` live); `darkSweep.test.ts` (4 tests:
+  `:root`+`[data-theme=dark]` parity for all 118 vars; LIGHT-UNCHANGED —
+  every module `var(--X,#fb)` fallback equals `:root[--X]`, modulo a 9-entry
+  allow-list of PRE-EXISTING inert baseline fallbacks; sweep completeness — no
+  content module hardcodes a known light surface hex, with the documented
+  exceptions). e2e `dark-theme.spec.ts` (main project): gear→Theme=Dark →
+  asserts `<html data-theme="dark">` AND `getComputedStyle(body).backgroundColor`
+  luminance < 80 (genuinely dark, not white) + localStorage persisted →
+  Theme=Light → luminance > 200 and > dark+100 + persisted. Auto/OS-dark is
+  unit-only (matchMedia mock) — noted in the spec + plan (Playwright can't drive
+  the live OS scheme through the same path).
+  Discharge: `bun run check` exit 0 ×2 (1077/0 both — deterministic); `bun run
+  e2e` 28/28; `nix build .#default` exit 0 (cq-0.0.1; local fallback). Manual
+  scenario (operationalized by the tests, not run by hand): OS-dark→auto-dark =
+  theme.test "auto resolves to dark when OS is dark"; gear Light/Dark live =
+  e2e + SettingsPopup wired test; reload-persists = e2e localStorage assertion +
+  controller reading `readThemeMode()` on init. Goals/History/Chat dark
+  correctness follows from the sweep (all their surfaces route through the swept
+  vars; the e2e samples the shared `--bg` surface).
+  Metrics: review rounds 1 (self); defects 0; verification complete; scope delta
+  none.
+
+---
+
 ## Cycle: workflow-history — `/plan` runs visible in the History tab
 
 Plan: [`docs/drafts/20260530-1358-workflow-history.md`](docs/drafts/20260530-1358-workflow-history.md).

@@ -23,7 +23,15 @@ import { useEffect, useRef } from "react";
 import type { ApprovalPolicy, Effort } from "@cq/shared";
 import { EFFORT_VALUES, MODELS, modelToPlatform } from "@cq/shared";
 import type { PermissionMode } from "./Header";
+import type { ThemeMode } from "../lib/theme";
 import styles from "../styles/SettingsPopup.module.css";
+
+/** Theme-mode options for the gear popup (display preference, applied live). */
+const THEME_OPTIONS: readonly { value: ThemeMode; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark",  label: "Dark" },
+  { value: "auto",  label: "Auto (OS)" },
+] as const;
 
 /**
  * Codex approvalPolicy options — mirrors @openai/codex-sdk@0.134.0's
@@ -67,6 +75,14 @@ export interface SettingsPopupProps {
   hideSdkEvents: boolean;
   onHideSdkEventsChange: (value: boolean) => void;
   /**
+   * DARK-01: theme mode (light|dark|auto). Unlike the per-session controls
+   * above, this is a display preference applied LIVE (the parent's handler
+   * calls the theme controller, which persists to localStorage and updates
+   * the document <html data-theme>) — it is NOT carried into ChatStart.
+   */
+  themeMode: ThemeMode;
+  onThemeModeChange: (mode: ThemeMode) => void;
+  /**
    * gcn1-3: Codex approvalPolicy (4-value union). Surfaced as a second
    * select row only when platform=codex. Default "on-request" matches
    * the codex-sdk default — null means "don't override" and is treated
@@ -93,6 +109,8 @@ export function SettingsPopup({
   onEffortChange,
   hideSdkEvents,
   onHideSdkEventsChange,
+  themeMode,
+  onThemeModeChange,
   approvalPolicy,
   onApprovalPolicyChange,
   onClose,
@@ -144,6 +162,24 @@ export function SettingsPopup({
       aria-label="Session settings"
       data-testid="settings-popup"
     >
+      {/* DARK-01: display preference — applied live (not "next new chat"). */}
+      <div className={styles.row}>
+        <label htmlFor="settings-theme">Theme</label>
+        <select
+          id="settings-theme"
+          className={styles.select}
+          value={themeMode}
+          onChange={(e) => onThemeModeChange(e.currentTarget.value as ThemeMode)}
+          data-testid="theme-select"
+        >
+          {THEME_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.divider} data-testid="settings-divider" />
+
       <div className={styles.row}>
         <label htmlFor="settings-model">Model</label>
         <select

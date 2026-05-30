@@ -31,6 +31,13 @@
   gap: 12px;
 }
 
+/* DARK-01: separates the live Theme control from the per-session rows below. */
+.divider {
+  height: 1px;
+  background: #555;
+  margin: 2px 0;
+}
+
 .rowCheckbox {
   display: flex;
   align-items: center;
