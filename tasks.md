@@ -27,7 +27,7 @@ distinct steps with explicit red-before-green repro discipline (project conventi
   is RETAINED. Proof: `bun run e2e` 4/4 full runs all 28/28 (header-badges +
   plan-workflow-history green every run); `bun run check` exit 0 ×2 (1158 pass / 0 fail);
   `nix build .#default` exit 0. See ACTIVITY-01-D03 in defects.md.
-- [~] (superseded by the BLOCKED line above) **hist-stable-1** — (a) bump the under-load-tight waits in `plan-workflow-history.spec.ts`
+- [x] (superseded by the RESOLVED line above; both (a) and (b) shipped + retained in 28bb49a/442b8e2) **hist-stable-1** — (a) bump the under-load-tight waits in `plan-workflow-history.spec.ts`
   (warm-up `waitForIdle`, textarea-enabled, History badge/title/producer-row visibility +
   Detail body/text waits) 10_000/15_000 → 45_000, matching the heavy workflow specs; banner
   stays 90_000; assertions UNCHANGED. (b) add the WFL-D02 drain teardown (POST
