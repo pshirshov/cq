@@ -22,7 +22,9 @@ Bridge / SessionRegistry, so pool=1 holds.
 - [x] **wfhist-3** (commit f42e8a7) — Wire `persistence`+`cwd` into `WorkflowRuntime` (server.ts); `WorkflowHistoryRecorder` (Persistent+Null); create workflow-kind session + root `main` invocation per run; goalId→session link; settle/close on planned/abandoned/errored.
 - [x] **wfhist-4** (commit f42e8a7) — One CHILD invocation per phase dispatch (producer, clarify-reviewer#N, planner#N, plan-reviewer#N, continuation): running→completed/failed, cost/tokens from `onUsage`, parent=root. Dual-adapter tests. 1055/0.
 - [x] **wfhist-5** (commit b51fafb) — Web: `List.tsx` "Plan" badge on workflow main rows; phase children render as `↪` subagent rows. Web test asserts badge present on workflow main, absent on chat main + children.
-- [ ] **wfhist-6** — Resume re-attach test (restart mid-workflow → same session, no orphan); pool=1 regression; E2E `/plan`→History; discharge.
+- [x] **wfhist-6** (commit 42809f6) — Resume re-attach test (restart mid-workflow → same session, no orphan); pool=1 regression (shared persistence); E2E `plan-workflow-history.spec.ts` (prelude project) `/plan`→History badge + nested producer; discharge.
+
+**M-WFHIST CLOSED.** Discharge: `bun run check` exit 0 ×2 (1059/0 both; baseline 1032/0 + 27 new); `bun run e2e` 27/27 (baseline 26 + 1 new); `nix build .#default` exit 0 (`result` → cq-0.0.1; local fallback, remote SSH builder unreachable). Defect `WF-HIST-01` resolved. Session log: `docs/logs/20260530-1358-log.md`.
 
 ---
 
