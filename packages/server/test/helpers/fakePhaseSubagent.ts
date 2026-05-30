@@ -9,6 +9,7 @@
 
 import type { PhaseSubagent, PhaseSpec, PhaseRequest } from "../../src/workflow/index";
 import type { PhaseUsage } from "../../src/workflow/producer";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 type Canned<O> = O | (() => O);
 
@@ -17,10 +18,22 @@ export class FakePhaseSubagent implements PhaseSubagent {
   private readonly queues = new Map<string, Array<Canned<unknown>>>();
   /** When set, every dispatch fires `req.onUsage` with this usage (wfhist-4). */
   private usage: PhaseUsage | undefined;
+  /** When set, every dispatch fires `req.onEvent` with these messages (pcontent-1). */
+  private events: SDKMessage[] | undefined;
 
   /** Make every dispatch fire `onUsage` with the given usage before resolving. */
   fireUsage(usage: PhaseUsage): this {
     this.usage = usage;
+    return this;
+  }
+
+  /**
+   * Make every dispatch forward these SDK messages through `req.onEvent` before
+   * resolving — models the real lane forwarding its drained message stream so the
+   * phase-event recording path (WF-HIST-02a) is exercised.
+   */
+  fireEvents(events: SDKMessage[]): this {
+    this.events = events;
     return this;
   }
 
@@ -59,6 +72,9 @@ export class FakePhaseSubagent implements PhaseSubagent {
       return Promise.reject(new Error(`FakePhaseSubagent: no canned output for ${spec.toolName}`));
     }
     const value = typeof entry === "function" ? (entry as () => unknown)() : entry;
+    if (this.events !== undefined && req.onEvent !== undefined) {
+      for (const msg of this.events) req.onEvent(msg);
+    }
     if (this.usage !== undefined && req.onUsage !== undefined) req.onUsage(this.usage);
     return Promise.resolve(value as O);
   }

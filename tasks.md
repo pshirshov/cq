@@ -4,6 +4,67 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: pcontent — `/plan` planning CONTENT visible + explore-once
+
+Plan: [`docs/drafts/20260530-1620-plan-content.md`](docs/drafts/20260530-1620-plan-content.md).
+Worktree `.claude/worktrees/planning-content`, branch `planning-content`, base `2bb2c4b`.
+Baseline (verified 2bb2c4b): `bun test` 1109 pass / 0 fail; e2e 28/28.
+VSM-loop driver; no Task tool in this harness → plan / adversarial-review / execute /
+review run inline as explicit distinct steps. WF-HIST-02 (empty Detail / Q&A
+transcript) + PLAN-EXPLORE-01 (explore-once) from live dogfood.
+
+Two defects + one optimization:
+1. WF-HIST-02a — opening a `/plan` run's History Detail shows EMPTY (the WF-HIST
+   cycle records session+invocations but writes NO event rows, so replay has
+   nothing). Fix: forward each phase subagent's SDK message stream (reasoning,
+   submit tool_use, result) as events under that phase's child invocation.
+2. WF-HIST-02b — answered questions are not in the planning transcript. Fix:
+   synthetic asked/answered events under the run root.
+3. PLAN-EXPLORE-01 — every phase re-explores the repo (cost+latency, the cause of
+   PHASE-TIMEOUT-01). Fix: producer explores ONCE + emits a `grounding` summary;
+   later phases receive it + a softened explore instruction.
+
+### Milestone M-PCONTENT — PR breakdown
+
+- [ ] **pcontent-1** — Recorder event sink: extend `WorkflowHistoryRecorder` with
+  `appendPhaseEvent`/`closePhaseEvents`/`appendRootEvent` (Persistent →
+  `persistence.events.append`/`close`; Null → no-op). Thread an `onEvent` sink
+  through `ProduceRequest`/`PhaseRequest`; both Claude lanes forward each drained
+  SDK message; `recordPhase` + the producer/continuation dispatch wire `onEvent`
+  → `appendPhaseEvent(phase, …)` and `closePhaseEvents` on settle. → verify:
+  recorder tests (dual adapter) assert events under the right invocation + closed.
+- [ ] **pcontent-2** — Q&A transcript: harness appends a synthetic assistant-style
+  "asked" event under the root on every question-batch write
+  (`writeArtifacts`/`writeIncrement`/clarify+review new questions) and a synthetic
+  user-style "answered Qid: …" event on each open→answered in `submitAnswer`.
+  → verify: events under root carry the asked/answered text; Detail replay includes them.
+- [ ] **pcontent-3** — Explore-once: add `grounding` to `ProducerOutputSchema` +
+  `submitPlanSchema` (lockstep — GOAL-TITLE-01) + `GOALS_SCHEMA`; producer prompt
+  asks for grounding; harness persists it on the goal; later-phase builders
+  (clarify/planner/plan-review/continuation-planner) PREPEND the grounding +
+  SOFTEN the explore instruction; producer keeps full explore-first. → verify:
+  prompt-text asserts; grounding survives restart; real-SDK MockAnthropic producer
+  with grounding does not time out (stripped-field guard).
+- [ ] **pcontent-4** — E2E (`/plan` mocked → open run in History → Detail
+  NON-empty + shows Q&A) in the correct Playwright project (WFL-D02 ordering) +
+  discharge (`bun run check` ×2, `bun run e2e`, `nix build .#default`, manual
+  scenario + session log + defects rows).
+
+### Cross-cutting architectural notes (locked) — M-PCONTENT
+
+- [ ] Events written DIRECTLY via Persistence inside the recorder — never via the
+  Bridge/SessionRegistry (pool=1 holds, same as WF-HIST).
+- [ ] `grounding` stored on the GOAL (GOALS_SCHEMA field) — natural durable home,
+  re-read by every phase via the existing goal fetch, survives restart for free.
+  Cost: divergence-guard schema change → existing dev `docs/goals.md` needs
+  `cq reset` (noted; gitignored/regenerable).
+- [ ] Any new structured field is in BOTH the advertised submit schema AND the
+  validated schema (GOAL-TITLE-01 — SDK strips to advertised shape).
+- [ ] Event sink is best-effort + never gates control flow; uniform-async, no
+  sync/async unions.
+
+---
+
 ## Cycle: reset — `cq reset` subcommand + humane bootstrap-divergence startup error
 
 Plan: [`docs/drafts/20260530-1545-cq-reset.md`](docs/drafts/20260530-1545-cq-reset.md).

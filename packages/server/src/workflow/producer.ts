@@ -18,6 +18,7 @@
  */
 
 import { z } from "zod";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 /** One clarifying question the producer proposes. Mirrors the questions ledger fields. */
 export const ProducerQuestionSchema = z.object({
@@ -35,6 +36,18 @@ export const ProducerOutputSchema = z.object({
     description: z.string().min(1),
   }),
   questions: z.array(ProducerQuestionSchema).min(1),
+  /**
+   * A concise "project grounding" summary the producer captures AFTER exploring
+   * the repo (PLAN-EXPLORE-01): what the project is, its ledgers, the relevant
+   * subsystems — a few hundred words. The harness persists it on the goal; later
+   * phases (clarify-reviewer, planner, plan-reviewer) receive it as context so
+   * they need NOT re-explore from scratch (explore-ONCE). OPTIONAL: a producer
+   * that omits it still validates; the harness then stores "" (later phases keep
+   * the full explore instruction). Optionality also makes the GOAL-TITLE-01
+   * input-strip hazard degrade gracefully — a stripped field becomes "", not a
+   * validation failure.
+   */
+  grounding: z.string().optional(),
 });
 export type ProducerOutput = z.infer<typeof ProducerOutputSchema>;
 
@@ -73,6 +86,17 @@ export interface PhaseUsage {
  */
 export type UsageSink = (usage: PhaseUsage) => void;
 
+/**
+ * A sink the dispatch calls for EVERY SDK message it drains from the headless
+ * `query()` (WF-HIST-02a): assistant reasoning/text, the `submit_*` tool_use,
+ * and the `result`. The harness forwards these to the recorder's
+ * `appendPhaseEvent` so the History Detail of the phase child REPLAYS the
+ * planning transcript. Best-effort: called synchronously inside the existing
+ * drain loop; it must not throw or block (the harness sink swallows errors).
+ * Optional so existing callers/tests need not supply it.
+ */
+export type EventSink = (msg: SDKMessage) => void;
+
 /** Inputs to a single producer dispatch. */
 export interface ProduceRequest {
   /** The refined user goal text (already stripped of the `/plan` token). */
@@ -85,6 +109,8 @@ export interface ProduceRequest {
   readonly registerTeardown?: TeardownSink;
   /** Optional sink for the dispatch's captured usage (see UsageSink). */
   readonly onUsage?: UsageSink;
+  /** Optional sink for the dispatch's drained SDK messages (see EventSink). */
+  readonly onEvent?: EventSink;
 }
 
 /**
@@ -119,6 +145,35 @@ export const EXPLORE_FIRST_INSTRUCTION: string = [
 ].join("\n");
 
 /**
+ * Render the SOFTENED explore instruction for a LATER phase (clarify-reviewer,
+ * planner, plan-reviewer, continuation-planner) given the project grounding the
+ * producer already captured (PLAN-EXPLORE-01 — explore ONCE). When grounding is
+ * present the phase is told it already has it and may do targeted reads only —
+ * it must NOT re-explore from scratch (this is what cuts the redundant per-phase
+ * latency + tokens that forced PHASE-TIMEOUT-01's bump). When grounding is empty
+ * (a producer that did not ground, or a legacy goal) the phase falls back to the
+ * full `EXPLORE_FIRST_INSTRUCTION` so it is never left blind.
+ */
+export function renderGroundingPreamble(grounding: string | undefined): string {
+  const g = (grounding ?? "").trim();
+  if (g.length === 0) return EXPLORE_FIRST_INSTRUCTION;
+  return [
+    "## Project grounding (already explored — do NOT re-explore from scratch)",
+    "",
+    "The producer already explored this repository and captured the grounding",
+    "below. You ALREADY have this context. Do targeted reads ONLY if a specific",
+    "detail is missing; do NOT re-survey CLAUDE.md / packages / ledgers from",
+    "scratch (that redundant exploration is what this preamble exists to avoid).",
+    "Do NOT ask clarifying questions whose answers are discoverable in the",
+    "codebase; ask ONLY about genuine product/scope decisions the user must make.",
+    "",
+    "Grounding:",
+    g,
+    "",
+  ].join("\n");
+}
+
+/**
  * The single instruction handed to the producer. Kept terse and explicit:
  * the producer must call `submit_plan` exactly once and must NOT attempt to
  * write any ledger.
@@ -131,6 +186,10 @@ export function buildProducerPrompt(text: string): string {
     "   would read as in a one-line list).",
     "2. A detailed multi-sentence goal `description` that refines the scope.",
     "3. A batch of clarifying questions that must be answered before the goal can be planned.",
+    "4. A concise `grounding` summary (a few hundred words) of what you learned",
+    "   exploring this repository — what the project is, its ledgers, and the",
+    "   subsystems relevant to this goal. LATER planning phases receive this so",
+    "   they need NOT re-explore the repo from scratch; make it self-contained.",
     "",
     "Each question must have: a `question` (required), optional `context`, optional",
     "`suggestions` (an array of candidate answers), and an optional `recommendation`.",

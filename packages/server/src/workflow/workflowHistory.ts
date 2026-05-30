@@ -15,6 +15,7 @@
  */
 
 import type { InvocationRow, SessionRow } from "@cq/shared";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Persistence } from "../persist/Persistence.js";
 import type { Logger } from "../log/logger.js";
 import type { PhaseUsage } from "./producer.js";
@@ -73,6 +74,28 @@ export interface WorkflowHistoryRecorder {
   /** Settle a phase child: completed or failed, with end time + duration. */
   settlePhase(phase: PhaseInvocationHandle, status: RunSettle): void;
 
+  /**
+   * Append one SDK message to a phase child's event log (WF-HIST-02a). The phase
+   * subagent forwards its drained SDK message stream — assistant reasoning/text,
+   * the `submit_*` tool_use, the `result` — so the History Detail of that child
+   * REPLAYS the planning transcript (the same `events.append` mechanism a chat
+   * session uses). Best-effort: never gates control flow; a late append after
+   * `closePhaseEvents` re-opens the log (SqliteEventLog reopens on append).
+   */
+  appendPhaseEvent(phase: PhaseInvocationHandle, msg: SDKMessage): void;
+
+  /** Close a phase child's event log (fsync + release the fd). Best-effort. */
+  closePhaseEvents(phase: PhaseInvocationHandle): void;
+
+  /**
+   * Append one synthetic SDK message to the RUN ROOT's event log (WF-HIST-02b).
+   * Used for the Q&A transcript: an assistant-style "asked …" message when a
+   * question batch is written, a user-style "answered …" message when an answer
+   * lands, so the root invocation's Detail interleaves asked→answered like a
+   * conversation. Best-effort.
+   */
+  appendRootEvent(handle: WorkflowRunHandle, msg: SDKMessage): void;
+
   /** Settle the run's root invocation + close the session. */
   settleRun(handle: WorkflowRunHandle, status: RunSettle, endedReason: string): void;
 }
@@ -93,6 +116,9 @@ export class NullWorkflowHistoryRecorder implements WorkflowHistoryRecorder {
   }
   recordPhaseUsage(): void {}
   settlePhase(): void {}
+  appendPhaseEvent(): void {}
+  closePhaseEvents(): void {}
+  appendRootEvent(): void {}
   settleRun(): void {}
 }
 
@@ -243,6 +269,42 @@ export class PersistentWorkflowHistoryRecorder implements WorkflowHistoryRecorde
     });
   }
 
+  appendPhaseEvent(phase: PhaseInvocationHandle, msg: SDKMessage): void {
+    // Best-effort: an event-log write must never break the phase. A late append
+    // after closePhaseEvents re-opens the JSONL file (SqliteEventLog.fdFor opens
+    // lazily on append) so a post-submit `result` still lands.
+    try {
+      this.persistence.events.append(phase.invocationId, msg);
+    } catch (err: unknown) {
+      this.logger.warn("workflow.history.phase_event_error", {
+        invocationId: phase.invocationId,
+        err: String(err),
+      });
+    }
+  }
+
+  closePhaseEvents(phase: PhaseInvocationHandle): void {
+    try {
+      this.persistence.events.close(phase.invocationId);
+    } catch (err: unknown) {
+      this.logger.warn("workflow.history.phase_close_error", {
+        invocationId: phase.invocationId,
+        err: String(err),
+      });
+    }
+  }
+
+  appendRootEvent(handle: WorkflowRunHandle, msg: SDKMessage): void {
+    try {
+      this.persistence.events.append(handle.rootInvocationId, msg);
+    } catch (err: unknown) {
+      this.logger.warn("workflow.history.root_event_error", {
+        invocationId: handle.rootInvocationId,
+        err: String(err),
+      });
+    }
+  }
+
   settleRun(handle: WorkflowRunHandle, status: RunSettle, endedReason: string): void {
     const existing = this.persistence.invocations.get(handle.rootInvocationId);
     const now = Date.now();
@@ -255,5 +317,14 @@ export class PersistentWorkflowHistoryRecorder implements WorkflowHistoryRecorde
       });
       this.persistence.sessions.update(handle.sessionId, { endedAt: now, endedReason });
     });
+    // Close the root event log (Q&A transcript) on terminal settle — best-effort.
+    try {
+      this.persistence.events.close(handle.rootInvocationId);
+    } catch (err: unknown) {
+      this.logger.warn("workflow.history.root_close_error", {
+        invocationId: handle.rootInvocationId,
+        err: String(err),
+      });
+    }
   }
 }

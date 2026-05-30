@@ -76,6 +76,10 @@ const submitPlanSchema = {
       recommendation: z.string().optional(),
     }),
   ),
+  // MUST mirror ProducerOutputSchema.grounding (GOAL-TITLE-01): the SDK strips the
+  // model's tool input to THIS advertised shape before the handler re-validates,
+  // so a field present only on the strict schema would be silently dropped.
+  grounding: z.string().optional(),
 } as const;
 
 export class ClaudeProducer implements WorkflowProducer {
@@ -187,7 +191,11 @@ export class ClaudeProducer implements WorkflowProducer {
     const drain = (async () => {
       try {
         for await (const msg of q) {
-          // Events are otherwise discarded — headless lane does not stream.
+          // Forward every drained SDK message (assistant reasoning, the submit
+          // tool_use, the result) to the harness so the producer's child
+          // invocation REPLAYS its transcript in History Detail (WF-HIST-02a).
+          // Best-effort — the sink swallows its own errors; never gates the drain.
+          if (req.onEvent !== undefined) req.onEvent(msg);
           const usage = extractUsageFromResult(msg, fallbackModel);
           if (usage !== undefined && !usageFired) {
             usageFired = true;

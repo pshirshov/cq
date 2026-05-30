@@ -21,9 +21,11 @@ import type { WorkflowSubmitPhase } from "@cq/shared";
 import {
   ProducerOutputSchema,
   EXPLORE_FIRST_INSTRUCTION,
+  renderGroundingPreamble,
   type ProducerOutput,
   type TeardownSink,
   type UsageSink,
+  type EventSink,
 } from "./producer.js";
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,8 @@ export interface PhaseRequest {
   readonly registerTeardown?: TeardownSink;
   /** Optional sink for the dispatch's captured usage (see UsageSink). */
   readonly onUsage?: UsageSink;
+  /** Optional sink for the dispatch's drained SDK messages (see EventSink). */
+  readonly onEvent?: EventSink;
 }
 
 /**
@@ -227,9 +231,13 @@ function renderQnA(qna: readonly QnA[]): string {
     .join("\n");
 }
 
-export function buildClarifyReviewPrompt(goalDescription: string, qna: readonly QnA[]): string {
+export function buildClarifyReviewPrompt(
+  goalDescription: string,
+  qna: readonly QnA[],
+  grounding?: string,
+): string {
   return [
-    EXPLORE_FIRST_INSTRUCTION,
+    renderGroundingPreamble(grounding),
     "You are a clarify-reviewer for a planning workflow. Decide whether the",
     "goal's scope is clear enough to plan, given the answered clarifying",
     "questions below.",
@@ -295,15 +303,22 @@ export function buildContinuationPrompt(
     "3. A batch of clarifying `questions` SCOPED ONLY to the new feature, each",
     "   with a `question` (required), optional `context`, optional `suggestions`,",
     "   and an optional `recommendation`.",
+    "4. A concise `grounding` summary (a few hundred words) of the repo + the",
+    "   increment's relevant subsystems, refreshing it for the new feature. Later",
+    "   planning phases receive this so they need NOT re-explore from scratch.",
     "",
     "You MUST call the `submit_continuation` tool exactly once. Do NOT write to",
     "any ledger or file. Do NOT ask the user anything directly.",
   ].join("\n");
 }
 
-export function buildPlannerPrompt(goalDescription: string, qna: readonly QnA[]): string {
+export function buildPlannerPrompt(
+  goalDescription: string,
+  qna: readonly QnA[],
+  grounding?: string,
+): string {
   return [
-    EXPLORE_FIRST_INSTRUCTION,
+    renderGroundingPreamble(grounding),
     "You are a planner for a planning workflow. Given the clarified goal and",
     "the answered clarifying questions, produce milestones and tasks.",
     "",
@@ -345,6 +360,7 @@ export function buildContinuationPlannerPrompt(
   goalDescription: string,
   existingPlan: PlanArtifacts,
   qna: readonly QnA[],
+  grounding?: string,
 ): string {
   const existingMilestones =
     existingPlan.milestones.length > 0
@@ -355,7 +371,7 @@ export function buildContinuationPlannerPrompt(
       ? existingPlan.tasks.map((t, i) => `${i + 1}. [${t.milestone}] ${t.headline} — ${t.description}`).join("\n")
       : "(none yet)";
   return [
-    EXPLORE_FIRST_INSTRUCTION,
+    renderGroundingPreamble(grounding),
     "You are a planner extending an EXISTING goal with a new increment. The goal",
     "already has milestones and tasks from prior planning. You must ADD ONLY the",
     "new milestones and tasks needed for the increment described by the answered",
@@ -389,6 +405,7 @@ export function buildPlanReviewPrompt(
   qna: readonly QnA[],
   plan: PlanArtifacts,
   priorFindings: readonly PlanFinding[],
+  grounding?: string,
 ): string {
   const milestoneLines = plan.milestones.map((m, i) => `${i + 1}. ${m.title} — ${m.description}`).join("\n");
   const taskLines = plan.tasks
@@ -407,7 +424,7 @@ export function buildPlanReviewPrompt(
         ].join("\n")
       : "";
   return [
-    EXPLORE_FIRST_INSTRUCTION,
+    renderGroundingPreamble(grounding),
     "You are an adversarial plan-reviewer for a planning workflow. Find what is",
     "wrong with this plan: missing milestones, weak acceptance criteria, hidden",
     "assumptions, mis-sequenced work, scope the answered questions do not cover.",
