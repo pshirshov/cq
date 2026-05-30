@@ -178,8 +178,13 @@ export async function dispatchCodexPhase<O>(
   const threadOptions: ThreadOptions = {
     workingDirectory: deps.cwd,
     skipGitRepoCheck: true,
-    // The phase subagent only reads context + calls the submit tool; deny disk
-    // writes so a misbehaving model cannot mutate the working tree.
+    // PLAN-D01: the Codex phase subagent's FILE-READ access (so it can ground
+    // its output in the repo + on-disk `docs/*.md` ledgers) is governed by the
+    // SANDBOX, not by a `canUseTool` allow-list — unlike the Claude lane. Codex
+    // already CAN read here (danger-full-access for the MCP relay), so the
+    // PLAN-D01 fix on this lane is purely the explore-first PROMPT addition,
+    // which arrives via the shared prompt-builders (producer.ts / phases.ts)
+    // baked into `input.prompt`. sandboxMode is intentionally UNCHANGED.
     sandboxMode: "danger-full-access",
     // The Codex CLI's default approval policy ("on-request") gates MCP tool
     // calls — with no interactive approver in the headless lane the CLI

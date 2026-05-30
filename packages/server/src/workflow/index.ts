@@ -26,7 +26,13 @@ export {
   ProducerOutputSchema,
   ProducerQuestionSchema,
   buildProducerPrompt,
+  EXPLORE_FIRST_INSTRUCTION,
 } from "./producer.js";
+export {
+  makePhaseCanUseTool,
+  PHASE_READONLY_TOOLS,
+} from "./headlessQuery.js";
+export type { CanUseTool } from "./headlessQuery.js";
 export type {
   WorkflowProducer,
   ProducerOutput,

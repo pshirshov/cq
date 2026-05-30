@@ -69,12 +69,35 @@ export interface WorkflowProducer {
 }
 
 /**
+ * Explore-first instruction prepended to EVERY phase prompt (producer, clarify-
+ * reviewer, planner, plan-reviewer, continuation) on BOTH backends (PLAN-D01).
+ *
+ * The phase subagent now has read-only tools (Claude: Read/Grep/Glob via
+ * `canUseTool`; Codex: file reads via its sandbox), so it must GROUND its work
+ * in the actual repository instead of asking questions whose answers are
+ * discoverable in the codebase. Kept backend-neutral: it names tools only
+ * generically so the Codex submit-instruction override (codexHeadless.ts) does
+ * not contradict it.
+ */
+export const EXPLORE_FIRST_INSTRUCTION: string = [
+  "Before producing your output, EXPLORE this repository to ground your work:",
+  "read `CLAUDE.md`, `README.md`, the key source under `packages/`, and the",
+  "existing on-disk ledgers in `docs/` (e.g. milestones.md, defects.md,",
+  "tasks.md). The working directory IS the project, so these are all readable.",
+  "Do NOT ask clarifying questions whose answers are discoverable in the",
+  "codebase (e.g. what the project is, what existing terms refer to); ask ONLY",
+  "about genuine product/scope decisions the user must make.",
+  "",
+].join("\n");
+
+/**
  * The single instruction handed to the producer. Kept terse and explicit:
  * the producer must call `submit_plan` exactly once and must NOT attempt to
  * write any ledger.
  */
 export function buildProducerPrompt(text: string): string {
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are a planning producer. Given a user's goal, produce:",
     "1. A refined one-paragraph goal description.",
     "2. A batch of clarifying questions that must be answered before the goal can be planned.",

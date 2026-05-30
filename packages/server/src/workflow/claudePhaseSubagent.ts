@@ -17,7 +17,11 @@ import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { Query, Options as SDKOptions, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import type { Logger } from "../log/logger";
-import { SingleMessageQueue, resolveNativeBinaryPath } from "./headlessQuery.js";
+import {
+  SingleMessageQueue,
+  resolveNativeBinaryPath,
+  makePhaseCanUseTool,
+} from "./headlessQuery.js";
 import type { PhaseSpec, PhaseRequest, PhaseSubagent } from "./phases.js";
 
 /** Same shape as ClaudeProducer.QueryFactory — injectable for tests. */
@@ -100,12 +104,12 @@ export class ClaudePhaseSubagent implements PhaseSubagent {
       cwd: this.cwd,
       mcpServers: { wf: mcpServer },
       ...(nativeBinPath !== undefined ? { pathToClaudeCodeExecutable: nativeBinPath } : {}),
-      canUseTool: async (toolName: string) => {
-        if (toolName === fqToolName) {
-          return { behavior: "allow" as const, updatedInput: {} };
-        }
-        return { behavior: "deny" as const, message: `subagent may only call ${spec.toolName}` };
-      },
+      // Allow read-only exploration (Read/Grep/Glob) so the phase subagent can
+      // GROUND its output in the repo (codebase + on-disk `docs/*.md` ledgers)
+      // instead of reasoning blind, PLUS this phase's harness submit tool.
+      // Everything else — including every write/exec tool — is denied: the
+      // subagent must NOT write files or ledgers (PLAN-D01).
+      canUseTool: makePhaseCanUseTool(fqToolName),
     };
     if (req.model !== undefined) options.model = req.model;
 

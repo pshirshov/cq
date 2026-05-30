@@ -32,7 +32,11 @@ import {
   type ProducerOutput,
   type WorkflowProducer,
 } from "./producer.js";
-import { SingleMessageQueue, resolveNativeBinaryPath } from "./headlessQuery.js";
+import {
+  SingleMessageQueue,
+  resolveNativeBinaryPath,
+  makePhaseCanUseTool,
+} from "./headlessQuery.js";
 
 /** Same shape as ClaudeBridge.QueryFactory — injectable for tests. */
 export type QueryFactory = (opts: {
@@ -141,14 +145,12 @@ export class ClaudeProducer implements WorkflowProducer {
       // Headless: no partial messages, no subagent forwarding, no external MCP.
       mcpServers: { wf: mcpServer },
       ...(nativeBinPath !== undefined ? { pathToClaudeCodeExecutable: nativeBinPath } : {}),
-      // Allow the producer to call only the harness tool. Everything else is
-      // denied — the producer must not read/write files or ledgers.
-      canUseTool: async (toolName: string) => {
-        if (toolName === "mcp__wf__submit_plan") {
-          return { behavior: "allow" as const, updatedInput: {} };
-        }
-        return { behavior: "deny" as const, message: "producer may only call submit_plan" };
-      },
+      // Allow read-only exploration (Read/Grep/Glob) so the producer can GROUND
+      // its goal + questions in the repo (codebase + on-disk `docs/*.md`
+      // ledgers) instead of reasoning blind, PLUS the harness submit tool.
+      // Everything else — including every write/exec tool — is denied: the
+      // producer must NOT write files or ledgers (PLAN-D01).
+      canUseTool: makePhaseCanUseTool("mcp__wf__submit_plan"),
     };
     if (req.model !== undefined) options.model = req.model;
 

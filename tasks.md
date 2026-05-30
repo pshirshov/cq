@@ -4,6 +4,20 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: plan-usability — four /plan dogfood usability defects (PLAN-D01..D04)
+
+Plan: [`docs/drafts/20260530-1245-plan-usability.md`](docs/drafts/20260530-1245-plan-usability.md).
+Baseline (verified 274ec43): `bun run check` 1012 pass / 0 fail. e2e target 25/25.
+
+### Milestone M-PLAN-UX — PR breakdown
+
+- [~] **PLAN-D01** — phase subagents read-blind: `canUseTool` allow Read/Grep/Glob + submit, deny writes; explore-first prompt on every phase builder (incl. Codex via shared builders). cwd already = project ⇒ reaches codebase + on-disk ledgers. Harness still owns all writes.
+- [~] **PLAN-D02** — Goals tab not scrollable: bounded-flex-child fix (`.wrapper` `flex:1; min-height:0`) so `overflow:auto` engages. e2e asserts `scrollHeight > clientHeight` + scrollable.
+- [~] **PLAN-D03** — Goals theming + size: replace hardcoded light hexes with `global.css` `--*` vars; bump question/option text to readable size. (No dark selector exists in app — theme-ready, not dark-verified.)
+- [~] **PLAN-D04** — `/plan` line not in chat: inject synthetic user `chat.event` bubble in `handleSubmit` before `workflow.start`; still emits `workflow.start`.
+
+---
+
 ## Cycle: ledger-fts — in-memory FTS over ledgers, exposed as `fts_search` MCP tool
 
 Plan: [`docs/drafts/20260530-1020-ledger-fts.md`](docs/drafts/20260530-1020-ledger-fts.md).
