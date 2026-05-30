@@ -38,6 +38,7 @@
  */
 
 import type { Logger } from "../log/logger";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Item, LedgerStore } from "@cq/ledger";
 import { GOALS_LEDGER, QUESTIONS_LEDGER, TASKS_LEDGER } from "@cq/ledger";
 import type { WorkflowEvent, GoalSnapshot, GoalMilestone, GoalQuestion, GoalTask } from "@cq/shared";
@@ -356,16 +357,19 @@ export class WorkflowRuntime {
       this.emitAll({ type: "workflow.event", workflowId, goalId: goalRef, phase: "produce", status: "producing", detail: "scoping the increment" });
       const desc = String(goal.fields["description"] ?? "");
       const subagent = this.selectPhaseSubagent(platform);
-      const output: ProducerOutput = await this.recordPhase(goalRef, this.nextPhaseName(goalRef, "continuation"), (onUsage) =>
+      const output: ProducerOutput = await this.recordPhase(goalRef, this.nextPhaseName(goalRef, "continuation"), (onUsage, onEvent) =>
         subagent.dispatch(CONTINUE_SPEC, {
           prompt: buildContinuationPrompt(desc, this.milestoneTitles(goalRef), this.qnaFor(goalRef), text),
           signal: abort.signal,
           registerTeardown: this.trackTeardown,
           onUsage,
+          onEvent,
         }),
       );
 
       await this.writeIncrement(goalRef, text, output);
+      // Record the increment's asked batch in the run transcript (WF-HIST-02b).
+      this.recordQuestionsAsked(goalRef, output.questions);
 
       this.emitAll({
         type: "workflow.event",
@@ -432,8 +436,10 @@ export class WorkflowRuntime {
         signal: abort.signal,
         registerTeardown: this.trackTeardown,
         onUsage: (u) => this.history.recordPhaseUsage(producerPhase, u),
+        onEvent: (m) => this.history.appendPhaseEvent(producerPhase, m),
       });
       this.history.settlePhase(producerPhase, "completed");
+      this.history.closePhaseEvents(producerPhase);
 
       const goalId = await this.writeArtifacts(output);
       this.goalPlatform.set(goalId, input.platform);
@@ -441,6 +447,9 @@ export class WorkflowRuntime {
       // handle so subsequent phases (clarify/plan/review) attach under it.
       this.history.linkGoal(runHandle, goalId, output.goal.title);
       this.runHandles.set(goalId, runHandle);
+      // Record the producer's output + the asked batch in the run transcript
+      // (WF-HIST-02b) now that the run handle is cached so the root resolves.
+      this.recordQuestionsAsked(goalId, output.questions);
 
       this.emitAll({
         type: "workflow.event",
@@ -458,6 +467,7 @@ export class WorkflowRuntime {
       // dangling-running. The goal id is unknown on this path, so settle via the
       // handle directly.
       this.history.settlePhase(producerPhase, "failed");
+      this.history.closePhaseEvents(producerPhase);
       this.history.settleRun(runHandle, "failed", reason);
       this.emitAll({ type: "workflow.event", workflowId, phase: "produce", status: "errored", detail: reason });
       this.logger.warn("workflow.errored", { workflowId, reason });
@@ -491,6 +501,10 @@ export class WorkflowRuntime {
       });
     }
     if (goalId === null) return null;
+
+    // Record the answer in the run transcript (WF-HIST-02b) — only on the
+    // open→answered transition, so a re-answer does not duplicate the event.
+    if (wasOpen) this.recordAnswer(goalId, questionId, answer);
 
     // Auto-advance only when THIS answer took the goal's open-question count to
     // zero and a phase is not already in flight for it.
@@ -764,12 +778,13 @@ export class WorkflowRuntime {
     this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "clarify", status: "clarifying", detail: "reviewing answers" });
 
     const subagent = this.selectPhaseSubagent(this.platformFor(goalId));
-    const out = await this.recordPhase(goalId, this.nextPhaseName(goalId, "clarify-reviewer"), (onUsage) =>
+    const out = await this.recordPhase(goalId, this.nextPhaseName(goalId, "clarify-reviewer"), (onUsage, onEvent) =>
       subagent.dispatch(CLARIFY_REVIEW_SPEC, {
-        prompt: buildClarifyReviewPrompt(desc, this.qnaFor(goalId)),
+        prompt: buildClarifyReviewPrompt(desc, this.qnaFor(goalId), this.groundingFor(goalId)),
         signal,
         registerTeardown: this.trackTeardown,
         onUsage,
+        onEvent,
       }),
     );
 
@@ -797,6 +812,7 @@ export class WorkflowRuntime {
       for (const q of out.newQuestions) {
         await this.writeQuestion(batchId, q);
       }
+      this.recordQuestionsAsked(goalId, out.newQuestions);
       this.emitAll({
         type: "workflow.event",
         workflowId,
@@ -837,11 +853,12 @@ export class WorkflowRuntime {
     const goal = this.store.fetchItem(GOALS_LEDGER, goalId);
     const desc = String(goal.fields["description"] ?? "");
     const subagent = this.selectPhaseSubagent(this.platformFor(goalId));
+    const grounding = this.groundingFor(goalId);
     const prompt = this.isContinuation(goalId)
-      ? buildContinuationPlannerPrompt(desc, this.preservedPlanArtifacts(goalId), this.qnaFor(goalId)) + addendum
-      : buildPlannerPrompt(desc, this.qnaFor(goalId)) + addendum;
-    return this.recordPhase(goalId, this.nextPhaseName(goalId, "planner"), (onUsage) =>
-      subagent.dispatch(PLAN_SPEC, { prompt, signal, registerTeardown: this.trackTeardown, onUsage }),
+      ? buildContinuationPlannerPrompt(desc, this.preservedPlanArtifacts(goalId), this.qnaFor(goalId), grounding) + addendum
+      : buildPlannerPrompt(desc, this.qnaFor(goalId), grounding) + addendum;
+    return this.recordPhase(goalId, this.nextPhaseName(goalId, "planner"), (onUsage, onEvent) =>
+      subagent.dispatch(PLAN_SPEC, { prompt, signal, registerTeardown: this.trackTeardown, onUsage, onEvent }),
     );
   }
 
@@ -870,14 +887,15 @@ export class WorkflowRuntime {
     this.emitAll({ type: "workflow.event", workflowId, goalId, phase: "review", status: "reviewing", detail: "reviewing the plan" });
 
     const subagent = this.selectPhaseSubagent(this.platformFor(goalId));
-    const review = await this.recordPhase(goalId, this.nextPhaseName(goalId, "plan-reviewer"), (onUsage) =>
+    const review = await this.recordPhase(goalId, this.nextPhaseName(goalId, "plan-reviewer"), (onUsage, onEvent) =>
       subagent.dispatch(PLAN_REVIEW_SPEC, {
         // The reviewer sees the current plan; prior findings (if any) were already
         // folded into the planner prompt on the preceding revise round.
-        prompt: buildPlanReviewPrompt(desc, this.qnaFor(goalId), this.planArtifacts(goalId), []),
+        prompt: buildPlanReviewPrompt(desc, this.qnaFor(goalId), this.planArtifacts(goalId), [], this.groundingFor(goalId)),
         signal,
         registerTeardown: this.trackTeardown,
         onUsage,
+        onEvent,
       }),
     );
 
@@ -895,6 +913,7 @@ export class WorkflowRuntime {
       for (const q of review.newQuestions) {
         await this.writeQuestion(batchId, q);
       }
+      this.recordQuestionsAsked(goalId, review.newQuestions);
       // Reopening scope re-enters the CLARIFY gate: moving the goal back to
       // `clarifying` means the next answer batch is re-validated for clarity
       // before re-planning (K-WFL-4 — the clarity gate is never bypassed).
@@ -992,7 +1011,14 @@ export class WorkflowRuntime {
 
     const goalItem = await this.store.createItem(GOALS_LEDGER, specId, {
       status: "clarifying",
-      fields: { title: output.goal.title, description: output.goal.description },
+      fields: {
+        title: output.goal.title,
+        description: output.goal.description,
+        // Persist the producer's project grounding so later phases re-read it
+        // instead of re-exploring (PLAN-EXPLORE-01). "" when the producer omitted
+        // it — later phases then keep the full explore instruction.
+        grounding: output.grounding ?? "",
+      },
     });
     const goalId = goalItem.id;
 
@@ -1078,11 +1104,18 @@ export class WorkflowRuntime {
       await this.writeQuestion(incId, q);
     }
     const existing = this.milestoneIdsFor(goalId);
+    // Refresh grounding when the continuation producer returned a non-empty one;
+    // otherwise preserve the goal's existing grounding (never blank it).
+    const refreshedGrounding =
+      output.grounding !== undefined && output.grounding.trim().length > 0
+        ? output.grounding
+        : this.groundingFor(goalId);
     await this.store.updateItem(GOALS_LEDGER, goalId, {
       status: "clarifying",
       fields: {
         title: output.goal.title,
         description: output.goal.description,
+        grounding: refreshedGrounding,
         milestones: [...existing, incId],
       },
     });
@@ -1344,6 +1377,18 @@ export class WorkflowRuntime {
     return this.goalPlatform.get(goalId) ?? "claude";
   }
 
+  /**
+   * The project-grounding summary persisted on a goal (PLAN-EXPLORE-01). Read
+   * from the durable goal so it survives a restart; empty for a legacy goal or a
+   * producer that did not ground (later phases then keep the full explore
+   * instruction via `renderGroundingPreamble`).
+   */
+  private groundingFor(goalId: string): string {
+    const goal = this.store.fetchItem(GOALS_LEDGER, goalId);
+    const g = goal.fields["grounding"];
+    return typeof g === "string" ? g : "";
+  }
+
   // ─────────────────────────────────────────────────────────────────────── //
   // History recording (wfhist-3 / wfhist-4). All rows are written DIRECTLY via
   // the Persistence adapter inside the recorder — never via the Bridge — so the
@@ -1389,21 +1434,30 @@ export class WorkflowRuntime {
   private async recordPhase<O>(
     goalId: string,
     agentName: string,
-    run: (onUsage: (u: PhaseUsage) => void) => Promise<O>,
+    run: (onUsage: (u: PhaseUsage) => void, onEvent: (m: SDKMessage) => void) => Promise<O>,
   ): Promise<O> {
     const handle = this.runHandleFor(goalId);
     if (handle === undefined) {
       // No recorded run (e.g. legacy goal) — run without a child row.
-      return run(() => {});
+      return run(
+        () => {},
+        () => {},
+      );
     }
     const phase: PhaseInvocationHandle = this.history.startPhase(handle, agentName, this.modelFor(goalId));
     const onUsage = (u: PhaseUsage): void => this.history.recordPhaseUsage(phase, u);
+    // Forward the phase subagent's drained SDK messages under this child
+    // invocation so its History Detail REPLAYS the planning transcript
+    // (WF-HIST-02a). Best-effort — the recorder swallows its own errors.
+    const onEvent = (m: SDKMessage): void => this.history.appendPhaseEvent(phase, m);
     try {
-      const out = await run(onUsage);
+      const out = await run(onUsage, onEvent);
       this.history.settlePhase(phase, "completed");
+      this.history.closePhaseEvents(phase);
       return out;
     } catch (err: unknown) {
       this.history.settlePhase(phase, "failed");
+      this.history.closePhaseEvents(phase);
       throw err;
     }
   }
@@ -1413,6 +1467,57 @@ export class WorkflowRuntime {
     const handle = this.runHandleFor(goalId);
     if (handle === undefined) return;
     this.history.settleRun(handle, status, endedReason);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────── //
+  // Q&A transcript (WF-HIST-02b). Synthetic SDK messages under the run root so
+  // the planning run's Detail interleaves asked → answered like a conversation.
+  // ─────────────────────────────────────────────────────────────────────── //
+
+  /** Append a synthetic SDK message under a goal's run-root event log (best-effort). */
+  private appendRootEventFor(goalId: string, msg: SDKMessage): void {
+    const handle = this.runHandleFor(goalId);
+    if (handle === undefined) return;
+    this.history.appendRootEvent(handle, msg);
+  }
+
+  /**
+   * Record an "asked" event under the run root: an assistant-style SDK message
+   * listing the questions just written (WF-HIST-02b). Reuses the same SDK-message
+   * event shape a chat session persists, so `<Stream mode="replay">` renders it
+   * as an assistant bubble.
+   */
+  private recordQuestionsAsked(
+    goalId: string,
+    questions: ReadonlyArray<{ question: string }>,
+  ): void {
+    if (questions.length === 0) return;
+    const lines = questions.map((q) => `- ${q.question}`).join("\n");
+    const text = `Asked ${questions.length} clarifying question${questions.length === 1 ? "" : "s"}:\n${lines}`;
+    this.appendRootEventFor(goalId, this.syntheticMessage("assistant", text));
+  }
+
+  /** Record an "answered" event under the run root: a user-style SDK message. */
+  private recordAnswer(goalId: string, questionId: string, answer: string): void {
+    this.appendRootEventFor(goalId, this.syntheticMessage("user", `Answered ${questionId}: ${answer}`));
+  }
+
+  /**
+   * Build a synthetic `assistant`/`user` SDK message carrying a single text
+   * block — the same shape `claudeBridge` uses to echo a user line, so the
+   * History Detail renderer shows it as a bubble. Cast through `unknown` because
+   * we only populate the fields the renderer reads.
+   */
+  private syntheticMessage(role: "assistant" | "user", text: string): SDKMessage {
+    return {
+      type: role,
+      message: {
+        role,
+        content: [{ type: "text", text }],
+        id: `wf-${role}-${crypto.randomUUID()}`,
+      },
+      parent_tool_use_id: null,
+    } as unknown as SDKMessage;
   }
 
   private guidanceAddendum(guidance?: string): string {

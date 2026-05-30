@@ -27,6 +27,7 @@ export {
   ProducerQuestionSchema,
   buildProducerPrompt,
   EXPLORE_FIRST_INSTRUCTION,
+  renderGroundingPreamble,
 } from "./producer.js";
 export {
   makePhaseCanUseTool,

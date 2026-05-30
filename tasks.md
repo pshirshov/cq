@@ -4,6 +4,84 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: pcontent — `/plan` planning CONTENT visible + explore-once
+
+Plan: [`docs/drafts/20260530-1620-plan-content.md`](docs/drafts/20260530-1620-plan-content.md).
+Worktree `.claude/worktrees/planning-content`, branch `planning-content`, base `2bb2c4b`.
+Baseline (verified 2bb2c4b): `bun test` 1109 pass / 0 fail; e2e 28/28.
+VSM-loop driver; no Task tool in this harness → plan / adversarial-review / execute /
+review run inline as explicit distinct steps. WF-HIST-02 (empty Detail / Q&A
+transcript) + PLAN-EXPLORE-01 (explore-once) from live dogfood.
+
+Two defects + one optimization:
+1. WF-HIST-02a — opening a `/plan` run's History Detail shows EMPTY (the WF-HIST
+   cycle records session+invocations but writes NO event rows, so replay has
+   nothing). Fix: forward each phase subagent's SDK message stream (reasoning,
+   submit tool_use, result) as events under that phase's child invocation.
+2. WF-HIST-02b — answered questions are not in the planning transcript. Fix:
+   synthetic asked/answered events under the run root.
+3. PLAN-EXPLORE-01 — every phase re-explores the repo (cost+latency, the cause of
+   PHASE-TIMEOUT-01). Fix: producer explores ONCE + emits a `grounding` summary;
+   later phases receive it + a softened explore instruction.
+
+### Milestone M-PCONTENT — PR breakdown
+
+- [x] **pcontent-1+2+3** (commit 622d5f2) — Recorder event sink + Q&A transcript +
+  explore-once grounding (delivered as ONE buildable commit — the three concerns
+  are interwoven across `workflowRuntime.ts`/`producer.ts`/`phases.ts`, so
+  splitting by file would produce non-compiling intermediate commits).
+- [x] **pcontent-4** (commit <this>) — E2E (`/plan` mocked → open run in History →
+  producer Detail NON-empty + root Detail shows Q&A; prelude project per WFL-D02)
+  + discharge.
+
+**M-PCONTENT CLOSED.** Discharge: `bun run check` exit 0 ×2 (1120/0 both;
+baseline 1109 + 11 new tests; one pre-existing heartbeat timing flake observed
+once under full-suite load on run 1, isolated 3/3 green, did not recur on run 2 —
+not in this cycle's scope); `bun run e2e` 28/28 (extended `plan-workflow-history.spec.ts`
+in-place — no count delta); `nix build .#default` exit 0 (`result` → cq-0.0.1;
+local build, remote SSH builder unreachable). Defects `WF-HIST-02` (empty Detail /
+Q&A transcript) + `PLAN-EXPLORE-01` (explore-once) resolved. Session log:
+`docs/logs/20260530-1620-log.md`. GOALS_SCHEMA gained `grounding` → existing dev
+`docs/goals.md` needs `cq reset` once (gitignored, regenerable).
+
+### Cross-cutting architectural notes (locked) — M-PCONTENT
+
+- [x] Events written DIRECTLY via Persistence inside the recorder — never via the
+  Bridge/SessionRegistry (pool=1 holds, same as WF-HIST). Proven by the dual-adapter
+  content test reading events via `persistence.events.readAll` + the existing
+  pool=1 regression tests staying green.
+- [x] `grounding` stored on the GOAL (GOALS_SCHEMA field) — natural durable home,
+  re-read by every phase via the existing goal fetch, survives restart for free.
+  Cost: divergence-guard schema change → existing dev `docs/goals.md` needs
+  `cq reset` (noted; gitignored/regenerable).
+- [x] Any new structured field is in BOTH the advertised submit schema AND the
+  validated schema (GOAL-TITLE-01 — SDK strips to advertised shape). Guarded by the
+  real-SDK MockAnthropic integration test (grounding round-trips onto the goal).
+- [x] Event sink + recorder appends are best-effort (swallow+warn) + never gate
+  control flow; `grounding` is OPTIONAL so a stripped field degrades to "", not a
+  validation failure; uniform-async throughout, no sync/async unions.
+
+### Completed (M-PCONTENT)
+
+- **pcontent-1+2+3** (2026-05-30, commit 622d5f2) — see defects `WF-HIST-02` +
+  `PLAN-EXPLORE-01` for the full shipped description. Surprise: the phase-1 "asked"
+  event had to be recorded from `startPlan` (after `linkGoal`/`runHandles.set`
+  cache the handle), NOT inside `writeArtifacts` — at `writeArtifacts` time the
+  goalId→run link is not yet persisted, so `runHandleFor` would resolve undefined
+  and the asked event would be silently dropped. Continuation/clarify/review write
+  sites are safe (handle already cached). R3 (close-before-`result` race) resolved
+  by the reopen-on-append property of `SqliteEventLog.fdFor` — proven in the e2e
+  (the producer Detail shows the post-submit "submitted" text, appended AFTER
+  `closePhaseEvents`).
+- **pcontent-4** (2026-05-30) — extended `plan-workflow-history.spec.ts` in-place
+  (kept it in the prelude project — its `testMatch` already includes `-history`):
+  added `grounding` to the producer submit payload, then clicks the producer child
+  row → asserts `detail-body` contains "submitted" (NON-empty replay; before this
+  cycle the Detail was empty), and clicks the root row → asserts the Detail shows
+  "Asked 1 clarifying question" + the question text (Q&A visible). Discharge above.
+
+---
+
 ## Cycle: reset — `cq reset` subcommand + humane bootstrap-divergence startup error
 
 Plan: [`docs/drafts/20260530-1545-cq-reset.md`](docs/drafts/20260530-1545-cq-reset.md).

@@ -20,11 +20,16 @@ import {
   buildContinuationPlannerPrompt,
   buildPlannerPrompt,
   buildPlanReviewPrompt,
+  buildProducerPrompt,
+  renderGroundingPreamble,
+  EXPLORE_FIRST_INSTRUCTION,
   type PhaseSubagent,
   type PhaseSpec,
   type PhaseRequest,
 } from "../src/workflow/index";
 import { ClientFrame, ServerFrame } from "@cq/shared";
+
+const GROUNDING = "cq is a local-first ledger app; ledgers live under docs/; the workflow runtime drives /plan.";
 
 describe("phase output schemas", () => {
   it("ClarifyReviewOutputSchema accepts a clear verdict and a not-clear-with-questions verdict", () => {
@@ -136,6 +141,66 @@ describe("phase prompt builders", () => {
     expect(p).toContain("submit_plan_review");
     expect(p).toContain("Prior round findings");
     expect(p).toContain("[major] x → y");
+  });
+});
+
+describe("explore-once grounding (PLAN-EXPLORE-01)", () => {
+  it("ProducerOutputSchema carries an optional grounding field", () => {
+    // Present grounding validates.
+    expect(
+      ProducerOutputSchema.safeParse({
+        goal: { title: "X", description: "x" },
+        questions: [{ question: "q?" }],
+        grounding: GROUNDING,
+      }).success,
+    ).toBe(true);
+    // Absent grounding still validates (optional → degrades to "", never a
+    // validation failure — the GOAL-TITLE-01 strip hazard guard).
+    expect(
+      ProducerOutputSchema.safeParse({
+        goal: { title: "X", description: "x" },
+        questions: [{ question: "q?" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("the producer prompt asks for a grounding summary", () => {
+    const p = buildProducerPrompt("a notes app");
+    expect(p).toContain("grounding");
+    expect(p).toContain("EXPLORE this repository"); // producer keeps the full explore
+  });
+
+  it("renderGroundingPreamble softens to targeted-reads when grounding is present", () => {
+    const withG = renderGroundingPreamble(GROUNDING);
+    expect(withG).toContain("already explored");
+    expect(withG).toContain("do NOT re-explore");
+    expect(withG).toContain(GROUNDING);
+    // Empty / undefined grounding falls back to the full explore instruction so a
+    // phase is never left blind.
+    expect(renderGroundingPreamble("")).toBe(EXPLORE_FIRST_INSTRUCTION);
+    expect(renderGroundingPreamble(undefined)).toBe(EXPLORE_FIRST_INSTRUCTION);
+  });
+
+  it("later-phase builders prepend the grounding + softened instruction when given grounding", () => {
+    const qna = [{ question: "Platforms?", answer: "web" }];
+    for (const p of [
+      buildClarifyReviewPrompt("a notes app", qna, GROUNDING),
+      buildPlannerPrompt("a notes app", qna, GROUNDING),
+      buildPlanReviewPrompt("a notes app", qna, { milestones: [], tasks: [] }, [], GROUNDING),
+      buildContinuationPlannerPrompt("a notes app", { milestones: [], tasks: [] }, qna, GROUNDING),
+    ]) {
+      expect(p).toContain("already explored");
+      expect(p).toContain("do NOT re-explore");
+      expect(p).toContain(GROUNDING);
+      // The full explore preamble's lead line is NOT present when grounding is given.
+      expect(p).not.toContain("Before producing your output, EXPLORE");
+    }
+  });
+
+  it("later-phase builders keep the full explore instruction without grounding", () => {
+    const qna = [{ question: "Platforms?", answer: "web" }];
+    const p = buildPlannerPrompt("a notes app", qna);
+    expect(p).toContain("Before producing your output, EXPLORE");
   });
 });
 

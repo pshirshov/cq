@@ -176,6 +176,10 @@ export const GOALS_SCHEMA: LedgerSchema = {
     title: { type: "string", required: true },
     description: { type: "string", required: true },
     milestones: { type: "id[]", required: false },
+    // Project-grounding summary the producer captures after exploring the repo
+    // ONCE (PLAN-EXPLORE-01). Persisted here so it survives a restart and every
+    // later phase re-reads it from the durable goal instead of re-exploring.
+    grounding: { type: "string", required: false },
     tags: { type: "string[]", required: false },
     sourceRefs: { type: "string[]", required: false },
   },

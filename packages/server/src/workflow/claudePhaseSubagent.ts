@@ -144,6 +144,11 @@ export class ClaudePhaseSubagent implements PhaseSubagent {
     const drain = (async () => {
       try {
         for await (const msg of q) {
+          // Forward every drained SDK message (assistant reasoning, the submit
+          // tool_use, the result) so the harness can record it under this phase's
+          // child invocation for History-Detail replay (WF-HIST-02a). Best-effort
+          // — the sink swallows its own errors; never gates the drain.
+          if (req.onEvent !== undefined) req.onEvent(msg);
           const usage = extractUsageFromResult(msg, fallbackModel);
           if (usage !== undefined && !usageFired) {
             usageFired = true;

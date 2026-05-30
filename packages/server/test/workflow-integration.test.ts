@@ -33,6 +33,12 @@ const SUBMIT_INPUT = {
     { question: "Which platforms?", context: "scope", suggestions: ["web", "desktop"], recommendation: "web" },
     { question: "What encryption scheme?", recommendation: "age" },
   ],
+  // PLAN-EXPLORE-01: the producer returns a grounding summary. GOAL-TITLE-01
+  // regression guard: the real SDK subprocess STRIPS the tool input to the
+  // advertised `submitPlanSchema` before the handler runs, so `grounding` MUST be
+  // on that schema too or it would be silently dropped. The assertion below
+  // proves it round-trips onto the goal (a stripped field would persist as "").
+  grounding: "cq is a local-first ledger app; ledgers under docs/; the workflow runtime drives /plan.",
 };
 
 // SSE that drives the model to call mcp__wf__submit_plan with SUBMIT_INPUT.
@@ -173,6 +179,9 @@ describe("workflow phase 1 — REAL SDK subprocess via MockAnthropicHTTP", () =>
         expect(goal.status).toBe("clarifying");
         expect(goal.fields["description"]).toBe(SUBMIT_INPUT.goal.description);
         expect(goal.fields["milestones"]).toEqual([specId]);
+        // GOAL-TITLE-01 guard: grounding survived the SDK input-strip (it is on
+        // `submitPlanSchema` too) → persisted on the goal, not dropped to "".
+        expect(goal.fields["grounding"]).toBe(SUBMIT_INPUT.grounding);
 
         // Two questions under the spec milestone.
         const qs = store.listMilestoneItems(specId)[QUESTIONS_LEDGER] ?? [];
