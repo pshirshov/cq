@@ -13,6 +13,51 @@ import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { createRequire } from "node:module";
 
 /**
+ * Read-only exploration tools every HEADLESS phase subagent is allowed to call
+ * so it can GROUND its output in the repository (codebase + on-disk `docs/*.md`
+ * ledgers) instead of reasoning blind from the prompt alone (PLAN-D01).
+ *
+ * These are READ-ONLY SDK built-ins: they cannot mutate the working tree or the
+ * ledgers. The harness-owns-writes guarantee is preserved by construction — the
+ * subagent is given NO write tool (`Edit`/`Write`/`NotebookEdit`), NO exec tool
+ * (`Bash` is a write/exec vector and is denied), and NO ledger-mutation MCP
+ * tool; its only output channel remains the phase's `submit_*` tool.
+ */
+export const PHASE_READONLY_TOOLS: readonly string[] = ["Read", "Grep", "Glob"];
+
+/** SDK `canUseTool` callback signature (narrowed to what the headless lane uses). */
+export type CanUseTool = (
+  toolName: string,
+) => Promise<
+  | { behavior: "allow"; updatedInput: Record<string, never> }
+  | { behavior: "deny"; message: string }
+>;
+
+/**
+ * Build the `canUseTool` gate shared by every Claude headless phase subagent
+ * (producer + clarify-reviewer + planner + plan-reviewer + continuation).
+ *
+ * ALLOW: the phase's fully-qualified submit tool (`fqSubmitToolName`, e.g.
+ * `mcp__wf__submit_plan`) PLUS the read-only exploration built-ins in
+ * `PHASE_READONLY_TOOLS`. DENY everything else — including every write/exec tool
+ * (`Edit`, `Write`, `NotebookEdit`, `Bash`) and any unknown tool — so the
+ * subagent can READ the project to ground its work but can NEVER write (the
+ * harness owns all ledger writes).
+ */
+export function makePhaseCanUseTool(fqSubmitToolName: string): CanUseTool {
+  const readOnly = new Set(PHASE_READONLY_TOOLS);
+  return async (toolName: string) => {
+    if (toolName === fqSubmitToolName || readOnly.has(toolName)) {
+      return { behavior: "allow" as const, updatedInput: {} };
+    }
+    return {
+      behavior: "deny" as const,
+      message: `denied: subagent may only read (${PHASE_READONLY_TOOLS.join("/")}) or call ${fqSubmitToolName}`,
+    };
+  };
+}
+
+/**
  * A one-shot streaming-input queue: yields a single prompt, then blocks until
  * `end()` is called. The SDK requires an `AsyncIterable<SDKUserMessage>`.
  */

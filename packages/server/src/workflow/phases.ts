@@ -18,7 +18,12 @@
 
 import { z } from "zod";
 import type { WorkflowSubmitPhase } from "@cq/shared";
-import { ProducerOutputSchema, type ProducerOutput, type TeardownSink } from "./producer.js";
+import {
+  ProducerOutputSchema,
+  EXPLORE_FIRST_INSTRUCTION,
+  type ProducerOutput,
+  type TeardownSink,
+} from "./producer.js";
 
 // ---------------------------------------------------------------------------
 // Clarify-reviewer phase (Q5 auto-advance loop).
@@ -221,6 +226,7 @@ function renderQnA(qna: readonly QnA[]): string {
 
 export function buildClarifyReviewPrompt(goalDescription: string, qna: readonly QnA[]): string {
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are a clarify-reviewer for a planning workflow. Decide whether the",
     "goal's scope is clear enough to plan, given the answered clarifying",
     "questions below.",
@@ -262,6 +268,7 @@ export function buildContinuationPrompt(
       ? existingMilestoneTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")
       : "(none)";
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are a continuation producer for an EXISTING planning goal. The user",
     "wants to ADD a new feature to a goal that has already been (partly) planned.",
     "Produce an INCREMENT: do NOT restate or rework the existing scope.",
@@ -290,6 +297,7 @@ export function buildContinuationPrompt(
 
 export function buildPlannerPrompt(goalDescription: string, qna: readonly QnA[]): string {
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are a planner for a planning workflow. Given the clarified goal and",
     "the answered clarifying questions, produce milestones and tasks.",
     "",
@@ -341,6 +349,7 @@ export function buildContinuationPlannerPrompt(
       ? existingPlan.tasks.map((t, i) => `${i + 1}. [${t.milestone}] ${t.headline} — ${t.description}`).join("\n")
       : "(none yet)";
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are a planner extending an EXISTING goal with a new increment. The goal",
     "already has milestones and tasks from prior planning. You must ADD ONLY the",
     "new milestones and tasks needed for the increment described by the answered",
@@ -392,6 +401,7 @@ export function buildPlanReviewPrompt(
         ].join("\n")
       : "";
   return [
+    EXPLORE_FIRST_INSTRUCTION,
     "You are an adversarial plan-reviewer for a planning workflow. Find what is",
     "wrong with this plan: missing milestones, weak acceptance criteria, hidden",
     "assumptions, mis-sequenced work, scope the answered questions do not cover.",
