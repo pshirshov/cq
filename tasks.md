@@ -21,7 +21,9 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
 - [x] **dark-1** — global.css dark variable set (`[data-theme="dark"]` + new semantic vars, light :root unchanged) + `lib/theme.ts` controller (localStorage `cq.theme`, matchMedia resolve + live OS listener, sets `documentElement.dataset.theme`, `initTheme()` in main.tsx before first paint).
 - [x] **dark-2** — Theme control (Light/Dark/Auto) in SettingsPopup, applied live via the controller (display-only; not in ChatStart/session state).
 - [x] **dark-3** — CSS sweep: ~28 modules' hardcoded theme-sensitive hex/rgb → theme vars (chips get light+dark pairs; light-neutral).
-- [ ] **dark-4** — tests (theme.ts, SettingsPopup theme, sweep assertion, light-unchanged) + e2e (`dark-theme.spec.ts`, main project) + discharge.
+- [x] **dark-4** — tests (theme.ts, SettingsPopup theme, sweep assertion, light-unchanged) + e2e (`dark-theme.spec.ts`, main project) + discharge.
+
+**M-DARK CLOSED.** Discharge: `bun run check` exit 0 ×2 (1077/0 both; baseline 1059 + 18 new dark tests); `bun run e2e` 28/28 (baseline 27 + 1 new `dark-theme.spec.ts`); `nix build .#default` exit 0 (`result` → cq-0.0.1; local build, remote SSH builder unreachable). Defect `DARK-01` resolved (+ self-review `DARK-01-D01` resolved same cycle). Session log: `docs/logs/20260530-1442-log.md`.
 
 ### Cross-cutting architectural notes (locked)
 
@@ -107,6 +109,35 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
   Metrics: review rounds 1 (self); defects 1 major (DARK-01-D01, resolved same
   cycle); verification complete; scope delta: +~80 semantic vars beyond the
   plan's initial list (expected — "add missing vars the modules need").
+
+- **dark-4** (2026-05-30) — Tests + e2e + discharge. New unit tests:
+  `theme.test.ts` (11 tests — persist/read `cq.theme`, auto resolves via an
+  INJECTED matchMedia mock both directions, sets `documentElement.dataset.theme`,
+  re-resolves live on an OS-change event while auto, explicit light/dark override
+  the OS + ignore OS events, setMode applies+persists, dispose detaches);
+  3 new SettingsPopup tests (Theme control renders Light/Dark/Auto, fires
+  onThemeModeChange, and — wired to a REAL controller — flips
+  `document.documentElement.dataset.theme` live); `darkSweep.test.ts` (4 tests:
+  `:root`+`[data-theme=dark]` parity for all 118 vars; LIGHT-UNCHANGED —
+  every module `var(--X,#fb)` fallback equals `:root[--X]`, modulo a 9-entry
+  allow-list of PRE-EXISTING inert baseline fallbacks; sweep completeness — no
+  content module hardcodes a known light surface hex, with the documented
+  exceptions). e2e `dark-theme.spec.ts` (main project): gear→Theme=Dark →
+  asserts `<html data-theme="dark">` AND `getComputedStyle(body).backgroundColor`
+  luminance < 80 (genuinely dark, not white) + localStorage persisted →
+  Theme=Light → luminance > 200 and > dark+100 + persisted. Auto/OS-dark is
+  unit-only (matchMedia mock) — noted in the spec + plan (Playwright can't drive
+  the live OS scheme through the same path).
+  Discharge: `bun run check` exit 0 ×2 (1077/0 both — deterministic); `bun run
+  e2e` 28/28; `nix build .#default` exit 0 (cq-0.0.1; local fallback). Manual
+  scenario (operationalized by the tests, not run by hand): OS-dark→auto-dark =
+  theme.test "auto resolves to dark when OS is dark"; gear Light/Dark live =
+  e2e + SettingsPopup wired test; reload-persists = e2e localStorage assertion +
+  controller reading `readThemeMode()` on init. Goals/History/Chat dark
+  correctness follows from the sweep (all their surfaces route through the swept
+  vars; the e2e samples the shared `--bg` surface).
+  Metrics: review rounds 1 (self); defects 0; verification complete; scope delta
+  none.
 
 ---
 

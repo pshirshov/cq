@@ -20,6 +20,7 @@ import { act } from "react";
 
 import { Header } from "../src/chat/Header";
 import type { HeaderProps, PermissionMode } from "../src/chat/Header";
+import { createThemeController } from "../src/lib/theme";
 
 let container: HTMLDivElement | null = null;
 let reactRoot: ReturnType<typeof createRoot> | null = null;
@@ -223,5 +224,61 @@ describe("SettingsPopup", () => {
       sel.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(chosen).toBe("untrusted");
+  });
+
+  // -------------------------------------------------------------------------
+  // DARK-01: Theme control (Light / Dark / Auto), applied live
+  // -------------------------------------------------------------------------
+  test("DARK-01: the Theme control renders the three modes", () => {
+    const c = renderHeader(defaultProps({ themeMode: "auto" }));
+    openPopup(c);
+    const sel = c.querySelector("[data-testid='theme-select']") as HTMLSelectElement;
+    expect(sel).not.toBeNull();
+    const optionValues = Array.from(sel.options).map((o) => o.value);
+    expect(optionValues).toEqual(["light", "dark", "auto"]);
+    // The current mode is reflected as the selected value.
+    expect(sel.value).toBe("auto");
+  });
+
+  test("DARK-01: changing the Theme control fires onThemeModeChange with the chosen mode", () => {
+    let chosen: string | null = null;
+    const c = renderHeader(
+      defaultProps({ themeMode: "auto", onThemeModeChange: (m) => { chosen = m; } }),
+    );
+    openPopup(c);
+    const sel = c.querySelector("[data-testid='theme-select']") as HTMLSelectElement;
+    expect(sel).not.toBeNull();
+    act(() => {
+      sel.value = "dark";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(chosen).toBe("dark");
+  });
+
+  test("DARK-01: wiring the Theme control to the controller applies the mode live (dataset.theme)", () => {
+    // Drive a real controller through the popup handler and assert the DOM
+    // attribute flips — proving the gear popup applies the theme immediately.
+    const mql = {
+      matches: false, // OS light
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    };
+    const controller = createThemeController({ mql });
+    expect(document.documentElement.dataset.theme).toBe("light");
+
+    const c = renderHeader(
+      defaultProps({
+        themeMode: controller.getMode(),
+        onThemeModeChange: (m) => controller.setMode(m),
+      }),
+    );
+    openPopup(c);
+    const sel = c.querySelector("[data-testid='theme-select']") as HTMLSelectElement;
+    act(() => {
+      sel.value = "dark";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    controller.dispose();
   });
 });
