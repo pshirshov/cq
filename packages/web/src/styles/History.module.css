@@ -157,6 +157,20 @@
   cursor: default;
 }
 
+/* wfhist-5: marks a top-level row as a /plan planning workflow run. */
+.workflowBadge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--accent, #7c3aed);
+  color: #fff;
+  vertical-align: middle;
+}
+
 /* PR-03: small Resume button in the rightmost column of finished main rows. */
 .resumeButton {
   padding: 3px 10px;
