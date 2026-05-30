@@ -1,8 +1,27 @@
-/* Goals.module.css — Goals tab (cycle 4). Reuses the AskCard purple card
- * vocabulary and the History tab chrome (status chips, empty/loading states). */
+/* Goals.module.css — Goals tab (cycle 4). Reuses the AskCard card vocabulary
+ * and the History tab chrome (status chips, empty/loading states).
+ *
+ * PLAN-D03: theme-sensitive surfaces, borders, text, and accents are sourced
+ * from the app's global.css `:root` variables (--bg/--surface/--border/
+ * --text-primary/--text-secondary/--accent/--hover/--input-bg/--status-error),
+ * with literal fallbacks, so the tab tracks the active theme instead of
+ * hardcoding the light palette. Question/option text is bumped to a legible
+ * size. (NB: the web package currently ships only a light :root palette — no
+ * dark-theme selector exists — so this makes Goals theme-ready/consistent;
+ * dark rendering is not yet exercisable.) Status-chip colours stay semantic
+ * literals (blue=clarifying, green=done, amber=building, …) — they encode
+ * meaning, not theme surface. */
 
 .wrapper {
-  height: 100%;
+  /* PLAN-D02: the Goals tab panel in App.tsx is `flex:1; overflow:hidden;
+   * display:flex; flex-direction:column`. As its flex child, `.wrapper` must
+   * be a bounded-height flex item for `overflow:auto` to engage — `height:100%`
+   * alone resolved against a flex-column parent (default min-height:auto) let
+   * the wrapper grow to its content height, so it never scrolled. `flex:1` +
+   * `min-height:0` caps it to the viewport and the overflow scrolls (same
+   * pattern as ChatTab's .streamWrap). */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 12px;
   display: flex;
@@ -25,7 +44,7 @@
   margin-left: 6px;
   padding: 0 6px;
   border-radius: 9px;
-  background: #7c3aed;
+  background: var(--accent, #0070f3);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -36,9 +55,15 @@
 /* ---- Goal row -------------------------------------------------------- */
 
 .goal {
-  border: 1px solid #ddd6fe;
+  /* PLAN-D02: `.wrapper` is a flex column with `overflow:auto`. Flex items
+   * shrink to fit by default, which would squash the goal rows into the
+   * bounded wrapper instead of overflowing it — so the wrapper's scrollHeight
+   * would never exceed its clientHeight and it would not scroll. `flex-shrink:0`
+   * keeps each row at its natural height so the column overflows and scrolls. */
+  flex-shrink: 0;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--bg, #ffffff);
   overflow: hidden;
 }
 
@@ -49,20 +74,21 @@
   width: 100%;
   padding: 8px 12px;
   border: none;
-  background: #faf5ff;
+  background: var(--surface, #fafafa);
+  color: var(--text-primary, #111111);
   cursor: pointer;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .goalHeader:hover {
-  background: #f5f3ff;
+  background: var(--hover, #f0f0f0);
 }
 
 .goalId {
   font-family: monospace;
   font-weight: 600;
-  color: #4c1d95;
+  color: var(--accent, #0070f3);
   flex-shrink: 0;
 }
 
@@ -72,13 +98,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #1c1b1f;
+  color: var(--text-primary, #111111);
 }
 
 .caret {
   flex-shrink: 0;
-  color: #7c3aed;
-  font-size: 0.75rem;
+  color: var(--text-secondary, #666666);
+  font-size: 0.8125rem;
 }
 
 /* Status chip — neutral base, colour by goal status. */
@@ -115,9 +141,9 @@
 }
 
 .milestoneTitle {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #7c3aed;
+  color: var(--text-secondary, #666666);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -130,11 +156,11 @@
 
 .taskChip {
   padding: 2px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 4px;
-  background: #f6f8fa;
-  font-size: 0.75rem;
-  color: #24292f;
+  background: var(--surface, #fafafa);
+  font-size: 0.8125rem;
+  color: var(--text-primary, #111111);
 }
 
 .answeredToggle {
@@ -142,8 +168,8 @@
   padding: 2px 6px;
   border: none;
   background: none;
-  color: #7c3aed;
-  font-size: 0.75rem;
+  color: var(--accent, #0070f3);
+  font-size: 0.8125rem;
   cursor: pointer;
   text-decoration: underline;
 }
@@ -151,9 +177,9 @@
 /* ---- Question card (async cousin of AskCard) ------------------------- */
 
 .question {
-  border: 1px solid #ddd6fe;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--bg, #ffffff);
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
@@ -162,18 +188,18 @@
 
 .questionAnswered {
   opacity: 0.75;
-  background: #f6f8fa;
+  background: var(--surface, #fafafa);
 }
 
 .questionText {
-  font-size: 0.875rem;
-  color: #1c1b1f;
+  font-size: 0.95rem;
+  color: var(--text-primary, #111111);
   line-height: 1.4;
 }
 
 .questionContext {
-  font-size: 0.75rem;
-  color: #57606a;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666666);
   line-height: 1.3;
 }
 
@@ -185,51 +211,51 @@
 
 .chip {
   padding: 3px 10px;
-  border: 1px solid #ddd6fe;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 12px;
-  background: #faf5ff;
-  font-size: 0.75rem;
-  color: #4c1d95;
+  background: var(--surface, #fafafa);
+  font-size: 0.875rem;
+  color: var(--text-primary, #111111);
   cursor: pointer;
 }
 
 .chip:hover {
-  background: #ede9fe;
-  border-color: #7c3aed;
+  background: var(--hover, #f0f0f0);
+  border-color: var(--accent, #0070f3);
 }
 
 .chipRecommended {
-  border-color: #7c3aed;
+  border-color: var(--accent, #0070f3);
   font-weight: 600;
 }
 
 .recommendedTag {
   margin-left: 4px;
-  font-size: 0.625rem;
-  color: #7c3aed;
+  font-size: 0.7rem;
+  color: var(--accent, #0070f3);
 }
 
 .answerField {
   width: 100%;
   min-height: 48px;
   padding: 6px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.8125rem;
-  color: #1c1b1f;
-  background: #ffffff;
+  font-size: 0.9rem;
+  color: var(--text-primary, #111111);
+  background: var(--input-bg, #ffffff);
   resize: vertical;
   box-sizing: border-box;
 }
 
 .answerField:focus {
   outline: none;
-  border-color: #7c3aed;
+  border-color: var(--accent, #0070f3);
 }
 
 .answeredText {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: #166534;
 }
 
@@ -242,7 +268,7 @@
   padding: 4px 14px;
   border-radius: 4px;
   border: 1px solid transparent;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
 }
@@ -252,9 +278,9 @@
 }
 
 .btnSubmit {
-  background: #7c3aed;
+  background: var(--accent, #0070f3);
   color: #ffffff;
-  border-color: #7c3aed;
+  border-color: var(--accent, #0070f3);
 }
 
 .btnSubmit:disabled {
@@ -263,15 +289,15 @@
 }
 
 .btnGhost {
-  background: #ffffff;
-  color: #4c1d95;
-  border-color: #ddd6fe;
+  background: var(--bg, #ffffff);
+  color: var(--text-primary, #111111);
+  border-color: var(--border, #e0e0e0);
 }
 
 .btnDanger {
-  background: #ffffff;
-  color: #991b1b;
-  border-color: #991b1b;
+  background: var(--bg, #ffffff);
+  color: var(--status-error, #991b1b);
+  border-color: var(--status-error, #991b1b);
 }
 
 /* ---- Escalation card ------------------------------------------------- */
@@ -287,12 +313,12 @@
 }
 
 .escalationTitle {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #991b1b;
+  color: var(--status-error, #991b1b);
 }
 
 .escalationDetail {
-  font-size: 0.8125rem;
-  color: #1c1b1f;
+  font-size: 0.875rem;
+  color: var(--text-primary, #111111);
 }
