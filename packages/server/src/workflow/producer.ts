@@ -48,6 +48,31 @@ export type ProducerOutput = z.infer<typeof ProducerOutputSchema>;
  */
 export type TeardownSink = (settled: Promise<void>) => void;
 
+/**
+ * Usage captured from a phase subagent's SDK `result` message: the model it ran
+ * on plus the cost and token counts for the dispatch. The harness
+ * (WorkflowRuntime) records these onto the dispatch's invocation row.
+ *
+ * Emitted on a best-effort basis: the Claude lane fires it if a `result` message
+ * is observed before the subprocess is reaped; the Codex lane never fires it
+ * (its event stream does not expose per-thread usage) so those rows carry 0
+ * cost — acceptable and documented (mirrors existing Codex subagent rows).
+ */
+export interface PhaseUsage {
+  readonly model: string;
+  readonly costUsd: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+}
+
+/**
+ * A sink the dispatch calls AT MOST ONCE with the usage parsed from the SDK
+ * `result` message. Fired AFTER the dispatch has already resolved (the
+ * structured output resolves at submit-time; `result` arrives later), so it must
+ * not be relied on for control flow — only for recording usage onto the row.
+ */
+export type UsageSink = (usage: PhaseUsage) => void;
+
 /** Inputs to a single producer dispatch. */
 export interface ProduceRequest {
   /** The refined user goal text (already stripped of the `/plan` token). */
@@ -58,6 +83,8 @@ export interface ProduceRequest {
   readonly signal?: AbortSignal;
   /** Optional sink for the subprocess-teardown awaitable (see TeardownSink). */
   readonly registerTeardown?: TeardownSink;
+  /** Optional sink for the dispatch's captured usage (see UsageSink). */
+  readonly onUsage?: UsageSink;
 }
 
 /**

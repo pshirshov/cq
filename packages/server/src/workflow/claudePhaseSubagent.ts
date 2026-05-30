@@ -21,6 +21,7 @@ import {
   SingleMessageQueue,
   resolveNativeBinaryPath,
   makePhaseCanUseTool,
+  extractUsageFromResult,
 } from "./headlessQuery.js";
 import type { PhaseSpec, PhaseRequest, PhaseSubagent } from "./phases.js";
 
@@ -128,10 +129,27 @@ export class ClaudePhaseSubagent implements PhaseSubagent {
       else req.signal.addEventListener("abort", onAbort, { once: true });
     }
 
+    // Capture usage from the SDK `result` message. The dispatch resolves at
+    // submit-time (outputPromise, above); we keep draining past the submit so
+    // the `result` message — which the SDK emits AFTER the tool call completes
+    // (a second round-trip: the tool_result re-enters, the model replies,
+    // end_turn → result) — can be observed and fired through `onUsage` exactly
+    // once. The drain breaks on the first `result`, then closes the query. A
+    // grace timer (see finally) force-closes if no `result` arrives, so the
+    // subprocess is always reaped.
+    const fallbackModel = req.model ?? "";
+    let usageFired = false;
     const drain = (async () => {
       try {
-        for await (const _msg of q) {
-          if (submitted) break;
+        for await (const msg of q) {
+          const usage = extractUsageFromResult(msg, fallbackModel);
+          if (usage !== undefined && !usageFired) {
+            usageFired = true;
+            if (req.onUsage !== undefined) req.onUsage(usage);
+            // A `result` message marks the end of the turn; once we have usage
+            // there is nothing further to observe — stop draining and close.
+            break;
+          }
         }
         if (!submitted) {
           rejectOutput(new Error(`${spec.label} finished without calling ${spec.toolName}`));
@@ -146,22 +164,54 @@ export class ClaudePhaseSubagent implements PhaseSubagent {
     } finally {
       clearTimeout(timer);
       if (req.signal !== undefined) req.signal.removeEventListener("abort", onAbort);
+      // End the input queue immediately (no further turns) but DEFER `q.close()`
+      // until the drain has observed the `result` message — otherwise an eager
+      // close cuts off the post-submit round-trip and usage is never captured.
+      // The drain self-terminates on the first `result`; a grace timer bounds
+      // the wait so a turn that never produces a `result` still reaps the child.
+      // This does NOT delay the caller (the dispatch already returned above) nor
+      // touch the interactive Bridge — pool=1 holds.
       try {
         queue.end();
-        q.close();
       } catch (err: unknown) {
         this.logger.warn("phase.close_error", { phase: spec.label, err: String(err) });
       }
-      // `drain` resolves when the async generator returns — which, after
-      // `q.close()`, happens once the SDK subprocess is fully reaped. Surface it
-      // as the teardown awaitable so the runtime can await real subprocess exit
-      // (the dispatch still resolves at submit-time above — timing unchanged).
-      const teardown = drain.then(
-        () => undefined,
-        () => undefined,
-      );
+      // Only wait for a post-submit `result` when the model actually submitted;
+      // on the reject paths (timeout/abort/no-submit) there is no usage to await,
+      // so close immediately.
+      const teardown = closeAfterDrain(q, drain, this.logger, spec.label, submitted);
       if (req.registerTeardown !== undefined) req.registerTeardown(teardown);
       else void teardown;
     }
   }
+}
+
+/** Grace window (ms) to observe the post-submit `result` before force-closing. */
+const RESULT_GRACE_MS = 5_000;
+
+/**
+ * Wait for the drain to settle (it breaks on the first `result`) OR a grace
+ * timeout, then close the query so the SDK subprocess is reaped. Returns a
+ * teardown awaitable that resolves once the generator has fully returned after
+ * close. Shared by both Claude headless lanes.
+ */
+export async function closeAfterDrain(
+  q: { close: () => void },
+  drain: Promise<void>,
+  logger: Logger,
+  label: string,
+  waitForResult: boolean,
+): Promise<void> {
+  if (waitForResult) {
+    const grace = new Promise<void>((res) => setTimeout(res, RESULT_GRACE_MS));
+    await Promise.race([drain, grace]);
+  }
+  try {
+    q.close();
+  } catch (err: unknown) {
+    logger.warn("phase.close_error", { phase: label, err: String(err) });
+  }
+  // After close the generator returns; await the drain so the awaitable reflects
+  // real subprocess exit.
+  await drain.catch(() => undefined);
 }
