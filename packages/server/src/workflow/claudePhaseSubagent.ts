@@ -15,7 +15,6 @@
 import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { Query, Options as SDKOptions, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
-import { z } from "zod";
 import type { Logger } from "../log/logger";
 import {
   SingleMessageQueue,
@@ -44,6 +43,40 @@ export interface ClaudePhaseSubagentOpts {
   timeoutMs?: number;
 }
 
+/** Result of normalizing + validating a model-submitted phase payload. */
+export type PhaseSubmissionResult<O> =
+  | { readonly ok: true; readonly value: O }
+  | { readonly ok: false; readonly error: string };
+
+/**
+ * Normalize and validate a phase payload at the model→harness boundary.
+ *
+ * The model's tool input is an external boundary: the SDK CLI bridge may
+ * deliver `payload` either as a real object (the typed-schema happy path) or,
+ * historically, as a JSON STRING when the advertised schema was loose
+ * (CLARIFY-SUBMIT-01). This normalizes a string payload via `JSON.parse` before
+ * validating against the phase's Zod schema, so neither delivery shape can wedge
+ * the submit loop. A value that is neither a valid object nor parseable JSON is
+ * reported as a validation error (the model is asked to resubmit) — it is NOT
+ * silently accepted.
+ */
+export function parsePhaseSubmission<O>(
+  spec: PhaseSpec<O>,
+  raw: unknown,
+): PhaseSubmissionResult<O> {
+  let candidate = raw;
+  if (typeof candidate === "string") {
+    try {
+      candidate = JSON.parse(candidate);
+    } catch {
+      // Leave as the original string; safeParse reports the precise type error.
+    }
+  }
+  const parsed = spec.schema.safeParse(candidate);
+  if (!parsed.success) return { ok: false, error: parsed.error.message };
+  return { ok: true, value: parsed.data };
+}
+
 export class ClaudePhaseSubagent implements PhaseSubagent {
   private readonly logger: Logger;
   private readonly cwd: string;
@@ -69,28 +102,36 @@ export class ClaudePhaseSubagent implements PhaseSubagent {
     });
     let submitted = false;
 
-    // The submit tool advertises a permissive object shape; the handler
-    // re-validates against the strict phase schema so a malformed submit is
-    // rejected at the harness boundary and the model is asked to resubmit.
+    // The submit tool advertises `payload` TYPED as the phase's own object
+    // schema — NOT `z.unknown()`. A `z.unknown()` field serializes to an empty
+    // JSON Schema (`{}`, no `type`), and the SDK's CLI tool bridge then coerces
+    // the model's object to a STRING in transit, so the handler's `safeParse`
+    // saw "expected object, received string" on every submit (CLARIFY-SUBMIT-01,
+    // reproduced 7× live). Advertising the real object shape (as the phase-1
+    // producer already does for its typed `goal`/`questions` fields) lets the
+    // bridge marshal an object. `parsePhaseSubmission` re-validates at the
+    // harness boundary and additionally tolerates a JSON-string payload, so a
+    // malformed submit is rejected (model asked to resubmit) but a transport
+    // re-stringification can never wedge the loop again.
     const submitTool = tool(
       spec.toolName,
       `Submit the structured ${spec.label} result. Call exactly once.`,
-      { payload: z.unknown() } as const,
+      { payload: spec.schema },
       async (args: { payload: unknown }) => {
-        const parsed = spec.schema.safeParse(args.payload);
-        if (!parsed.success) {
+        const res = parsePhaseSubmission(spec, args.payload);
+        if (!res.ok) {
           return {
             content: [
               {
                 type: "text" as const,
-                text: `${spec.toolName} rejected: ${parsed.error.message}. Fix and resubmit.`,
+                text: `${spec.toolName} rejected: ${res.error}. Fix and resubmit.`,
               },
             ],
             isError: true,
           };
         }
         submitted = true;
-        resolveOutput(parsed.data);
+        resolveOutput(res.value);
         return { content: [{ type: "text" as const, text: `${spec.toolName} accepted.` }] };
       },
     );
