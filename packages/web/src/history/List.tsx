@@ -285,6 +285,16 @@ export function List({
                     {row.agentName !== "main" && (
                       <span title="Subagent invocation" style={{ marginRight: 4 }}>↪</span>
                     )}
+                    {row.agentName === "main" && row.kind === "workflow" && (
+                      <span
+                        className={styles.workflowBadge}
+                        title="A /plan planning workflow run"
+                        data-testid={`workflow-badge-${row.invocationId}`}
+                        style={{ marginRight: 4 }}
+                      >
+                        Plan
+                      </span>
+                    )}
                     {row.agentName}
                     {row.resumedFromInvocationId != null && (
                       <span

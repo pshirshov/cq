@@ -674,4 +674,58 @@ describe("HistoryTab list view", () => {
       `[data-testid='resume-row-${codexRow.invocationId}']`,
     )).not.toBeNull();
   });
+
+  test("(wfhist-5) workflow main row shows the Plan badge; phase children render as subagent rows", () => {
+    setup();
+    const manager = new FakeManager(makeStats());
+    renderTab(manager);
+
+    const sessionId = crypto.randomUUID();
+    // The workflow run's root main row (kind = workflow).
+    const workflowMain = makeHistoryRow({
+      sessionId,
+      agentName: "main",
+      kind: "workflow",
+      title: "Notes app",
+    });
+    // A chat session for contrast (no badge).
+    const chatMain = makeHistoryRow({ agentName: "main", kind: "chat", title: "A chat" });
+    // A phase child invocation under the workflow root (renders as a subagent row).
+    const producerChild = makeHistoryRow({
+      sessionId,
+      agentName: "producer",
+      kind: "workflow",
+    });
+
+    act(() => {
+      manager.injectMessage({
+        type: "history.list_result",
+        seq: 1,
+        ts: Date.now(),
+        requestSeq: manager.sent[0]!.seq,
+        total: 3,
+        rows: [workflowMain, chatMain, producerChild],
+      });
+    });
+
+    // The workflow main row carries the Plan badge; the chat main row does not.
+    expect(
+      container!.querySelector(`[data-testid='workflow-badge-${workflowMain.invocationId}']`),
+    ).not.toBeNull();
+    expect(
+      container!.querySelector(`[data-testid='workflow-badge-${chatMain.invocationId}']`),
+    ).toBeNull();
+
+    // The phase child renders as its own (subagent) row with its agent name.
+    const childRow = container!.querySelector(
+      `[data-testid='history-row-${producerChild.invocationId}']`,
+    );
+    expect(childRow).not.toBeNull();
+    expect(childRow!.textContent).toContain("producer");
+    // Subagent rows are marked with the ↪ glyph; children never carry the badge.
+    expect(childRow!.textContent).toContain("↪");
+    expect(
+      container!.querySelector(`[data-testid='workflow-badge-${producerChild.invocationId}']`),
+    ).toBeNull();
+  });
 });

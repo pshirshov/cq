@@ -4,6 +4,30 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: workflow-history — `/plan` runs visible in the History tab
+
+Plan: [`docs/drafts/20260530-1358-workflow-history.md`](docs/drafts/20260530-1358-workflow-history.md).
+Baseline (verified 1f32906): `bun test` 1032 pass / 0 fail; e2e 26/26.
+
+Each `/plan` run = its own History entry (a workflow-`kind` session + a root
+`main` invocation) with each phase subagent (producer / clarify-reviewer /
+planner / plan-reviewer / continuation) nested under it as a child invocation.
+Persisted DIRECTLY via the Persistence adapter — never through the interactive
+Bridge / SessionRegistry, so pool=1 holds.
+
+### Milestone M-WFHIST — PR breakdown
+
+- [x] **wfhist-1** (commit 4fab2f5) — Persistence: `session.kind` column (migration #8) + `workflow_session` link store (goalId→sessionId+rootInvocationId); both adapters; HistoryRow/Full Zod carry `kind`; history join selects it. Dual-adapter round-trip + migration-on-pre-#8-DB tests. 1044/0.
+- [x] **wfhist-2** (commit 3377826) — Capture phase-subagent usage (model/cost/tokens) from the SDK `result` via an `onUsage` sink on the dispatch/produce request (no sync/async union; Codex=0). Drain defers `q.close()` past submit (5s grace) to observe `result`; resolves at submit-time (pool=1 timing unchanged). Real-SDK onUsage test. 1049/0.
+- [x] **wfhist-3** (commit f42e8a7) — Wire `persistence`+`cwd` into `WorkflowRuntime` (server.ts); `WorkflowHistoryRecorder` (Persistent+Null); create workflow-kind session + root `main` invocation per run; goalId→session link; settle/close on planned/abandoned/errored.
+- [x] **wfhist-4** (commit f42e8a7) — One CHILD invocation per phase dispatch (producer, clarify-reviewer#N, planner#N, plan-reviewer#N, continuation): running→completed/failed, cost/tokens from `onUsage`, parent=root. Dual-adapter tests. 1055/0.
+- [x] **wfhist-5** (commit b51fafb) — Web: `List.tsx` "Plan" badge on workflow main rows; phase children render as `↪` subagent rows. Web test asserts badge present on workflow main, absent on chat main + children.
+- [x] **wfhist-6** (commit 42809f6) — Resume re-attach test (restart mid-workflow → same session, no orphan); pool=1 regression (shared persistence); E2E `plan-workflow-history.spec.ts` (prelude project) `/plan`→History badge + nested producer; discharge.
+
+**M-WFHIST CLOSED.** Discharge: `bun run check` exit 0 ×2 (1059/0 both; baseline 1032/0 + 27 new); `bun run e2e` 27/27 (baseline 26 + 1 new); `nix build .#default` exit 0 (`result` → cq-0.0.1; local fallback, remote SSH builder unreachable). Defect `WF-HIST-01` resolved. Session log: `docs/logs/20260530-1358-log.md`.
+
+---
+
 ## Cycle: gtitle — add short `title` to goals alongside `description`
 
 Plan: [`docs/drafts/20260530-1310-goal-title.md`](docs/drafts/20260530-1310-goal-title.md).

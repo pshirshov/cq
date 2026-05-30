@@ -9,8 +9,38 @@
  * binary-path workaround.
  */
 
-import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { createRequire } from "node:module";
+import type { PhaseUsage } from "./producer.js";
+
+/**
+ * Extract `PhaseUsage` from an SDK `result` message, or `undefined` for any
+ * other message. The SDK emits exactly one `result` per turn carrying
+ * `total_cost_usd` + `usage.{input_tokens,output_tokens}` (mirror of the fields
+ * ClaudeBridge accumulates onto the interactive invocation row). The model is
+ * taken from `result.modelUsage`'s first key if present, else the supplied
+ * `fallbackModel` (the dispatch's request model) — the `result` message itself
+ * does not reliably carry a top-level `model` field.
+ */
+export function extractUsageFromResult(
+  msg: SDKMessage,
+  fallbackModel: string,
+): PhaseUsage | undefined {
+  if ((msg as { type?: string }).type !== "result") return undefined;
+  const r = msg as {
+    total_cost_usd?: number;
+    usage?: { input_tokens?: number; output_tokens?: number };
+    modelUsage?: Record<string, unknown>;
+  };
+  const modelKeys = r.modelUsage !== undefined ? Object.keys(r.modelUsage) : [];
+  const model = modelKeys.length > 0 ? modelKeys[0]! : fallbackModel;
+  return {
+    model,
+    costUsd: typeof r.total_cost_usd === "number" ? r.total_cost_usd : 0,
+    inputTokens: typeof r.usage?.input_tokens === "number" ? r.usage.input_tokens : 0,
+    outputTokens: typeof r.usage?.output_tokens === "number" ? r.usage.output_tokens : 0,
+  };
+}
 
 /**
  * Read-only exploration tools every HEADLESS phase subagent is allowed to call

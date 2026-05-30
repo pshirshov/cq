@@ -228,6 +228,31 @@ export function makeAssistantMessage(textOrIndex: string | number): SDKMessage {
   } as unknown as SDKMessage;
 }
 
+/**
+ * An end-of-turn `result` SDK message carrying cost + token usage, the shape the
+ * SDK emits once per turn (mirrors the fields ClaudeBridge accumulates).
+ */
+export function makeResultMessage(
+  opts: { costUsd?: number; inputTokens?: number; outputTokens?: number } = {},
+): SDKMessage {
+  return {
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    duration_ms: 10,
+    duration_api_ms: 8,
+    num_turns: 1,
+    result: "done",
+    session_id: "00000000-0000-4000-a000-000000000002",
+    total_cost_usd: opts.costUsd ?? 0,
+    usage: {
+      input_tokens: opts.inputTokens ?? 0,
+      output_tokens: opts.outputTokens ?? 0,
+    },
+    uuid: "00000000-0000-4000-a000-0000000000ff",
+  } as unknown as SDKMessage;
+}
+
 // ---------------------------------------------------------------------------
 // Frame factories (ChatStart / ChatInput / ChatInterrupt)
 // ---------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import {
   EXPLORE_FIRST_INSTRUCTION,
   type ProducerOutput,
   type TeardownSink,
+  type UsageSink,
 } from "./producer.js";
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,8 @@ export interface PhaseRequest {
   readonly signal?: AbortSignal;
   /** Optional sink for the subprocess-teardown awaitable (see TeardownSink). */
   readonly registerTeardown?: TeardownSink;
+  /** Optional sink for the dispatch's captured usage (see UsageSink). */
+  readonly onUsage?: UsageSink;
 }
 
 /**

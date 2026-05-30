@@ -36,7 +36,9 @@ import {
   SingleMessageQueue,
   resolveNativeBinaryPath,
   makePhaseCanUseTool,
+  extractUsageFromResult,
 } from "./headlessQuery.js";
+import { closeAfterDrain } from "./claudePhaseSubagent.js";
 
 /** Same shape as ClaudeBridge.QueryFactory — injectable for tests. */
 export type QueryFactory = (opts: {
@@ -172,11 +174,23 @@ export class ClaudeProducer implements WorkflowProducer {
 
     // Drive the SDK iteration in the background. If the stream ends before a
     // submit, reject (a producer that never submitted is a failure).
+    // Capture usage from the SDK `result` message (see claudePhaseSubagent for
+    // the rationale): the produce call resolves at submit-time, but we keep
+    // draining so the `result` message — emitted after the tool call — can fire
+    // `onUsage` once. Bounded by the `finally`'s `q.close()`; if close cuts off
+    // `result`, usage is simply not recorded (0-cost row, documented).
+    const fallbackModel = req.model ?? "";
+    let usageFired = false;
     const drain = (async () => {
       try {
-        for await (const _msg of q) {
-          // Events are intentionally discarded — headless lane does not stream.
-          if (submitted) break;
+        for await (const msg of q) {
+          // Events are otherwise discarded — headless lane does not stream.
+          const usage = extractUsageFromResult(msg, fallbackModel);
+          if (usage !== undefined && !usageFired) {
+            usageFired = true;
+            if (req.onUsage !== undefined) req.onUsage(usage);
+            break;
+          }
         }
         if (!submitted) {
           rejectOutput(new Error("producer finished without calling submit_plan"));
@@ -191,22 +205,17 @@ export class ClaudeProducer implements WorkflowProducer {
     } finally {
       clearTimeout(timer);
       if (req.signal !== undefined) req.signal.removeEventListener("abort", onAbort);
-      // Close the query so the subprocess is reaped; ignore drain errors (the
-      // outcome — resolve or reject — is already decided).
+      // End the input queue immediately, but DEFER `q.close()` until the drain
+      // observes the post-submit `result` message (see claudePhaseSubagent for
+      // the rationale + grace bound). On the reject paths (no submit) close
+      // immediately — there is no usage to await. Timing for the caller is
+      // unchanged; the interactive Bridge is untouched (pool=1 holds).
       try {
         queue.end();
-        q.close();
       } catch (err: unknown) {
         this.logger.warn("producer.close_error", { err: String(err) });
       }
-      // `drain` resolves when the async generator returns — which, after
-      // `q.close()`, happens once the SDK subprocess is fully reaped. Surface it
-      // as the teardown awaitable so the runtime can await real subprocess exit
-      // (the produce call still resolves at submit-time above — timing unchanged).
-      const teardown = drain.then(
-        () => undefined,
-        () => undefined,
-      );
+      const teardown = closeAfterDrain(q, drain, this.logger, "producer", submitted);
       if (req.registerTeardown !== undefined) req.registerTeardown(teardown);
       else void teardown;
     }
