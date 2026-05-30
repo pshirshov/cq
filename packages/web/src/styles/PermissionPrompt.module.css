@@ -3,12 +3,12 @@
  */
 
 .root {
-  border: 1px solid #d0a000;
+  border: 1px solid var(--warn-card-border, #d0a000);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.5em 0;
   font-size: 0.875rem;
-  background: #fffbea;
+  background: var(--warn-card-bg, #fffbea);
 }
 
 .header {
@@ -16,11 +16,11 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #fff3cc;
-  border-bottom: 1px solid #d0a000;
+  background: var(--warn-card-header-bg, #fff3cc);
+  border-bottom: 1px solid var(--warn-card-border, #d0a000);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #7a5800;
+  color: var(--warn-card-title, #7a5800);
 }
 
 .icon {
@@ -39,13 +39,13 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #24292f;
+  color: var(--text-code, #24292f);
   margin-bottom: 4px;
 }
 
 .description {
   font-size: 0.8125rem;
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   line-height: 1.4;
 }
 
@@ -53,7 +53,7 @@
   display: flex;
   gap: 8px;
   padding: 8px 12px;
-  border-top: 1px solid #e6d487;
+  border-top: 1px solid var(--warn-card-border-light, #e6d487);
 }
 
 .btn {
@@ -71,19 +71,19 @@
 }
 
 .btnAllow {
-  background: #1a7f37;
-  color: #ffffff;
-  border-color: #1a7f37;
+  background: var(--surface-success, #1a7f37);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--surface-success, #1a7f37);
 }
 
 .btnAllowOnce {
-  background: #0550ae;
-  color: #ffffff;
-  border-color: #0550ae;
+  background: var(--info-border, #0550ae);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--info-border, #0550ae);
 }
 
 .btnDeny {
-  background: #cf222e;
-  color: #ffffff;
-  border-color: #cf222e;
+  background: var(--surface-danger, #cf222e);
+  color: var(--on-accent, #ffffff);
+  border-color: var(--surface-danger, #cf222e);
 }

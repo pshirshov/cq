@@ -28,17 +28,19 @@
   line-height: 1.5;
   padding: 8px;
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border, #ccc);
   border-radius: 4px;
   outline: none;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #111);
 }
 
 .textarea:focus {
-  border-color: #007bff;
+  border-color: var(--btn-send-bg, #007bff);
 }
 
 .textarea:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--input-disabled-bg, #f5f5f5);
   cursor: not-allowed;
 }
 
@@ -64,17 +66,17 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
-.stopButton { background-color: #dc3545; }
-.stopButton:hover:not(:disabled) { background-color: #b02a37; }
+.stopButton { background-color: var(--btn-stop-bg, #dc3545); }
+.stopButton:hover:not(:disabled) { background-color: var(--btn-stop-bg-hover, #b02a37); }
 
-.sendButton { background-color: #007bff; }
-.sendButton:hover:not(:disabled) { background-color: #0056b3; }
+.sendButton { background-color: var(--btn-send-bg, #007bff); }
+.sendButton:hover:not(:disabled) { background-color: var(--btn-send-bg-hover, #0056b3); }
 
 .stopButton:disabled, .sendButton:disabled {
-  background-color: #6c757d;
+  background-color: var(--btn-disabled-bg, #6c757d);
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -91,8 +93,8 @@
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background-color: #0056b3;
-  color: #fff;
+  background-color: var(--btn-send-bg-hover, #0056b3);
+  color: var(--on-accent, #fff);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 6px;

@@ -43,16 +43,16 @@
 
 .user {
   align-self: flex-end;
-  background: #e8f0fe;
+  background: var(--user-bubble-bg, #e8f0fe);
   color: var(--text-primary, #111);
-  border: 1px solid #c5d8fd;
+  border: 1px solid var(--user-bubble-border, #c5d8fd);
   margin-left: auto;
   text-align: left; /* content inside is still LTR */
 }
 
 .tool {
   align-self: flex-start;
-  background: #f3f4f6;
+  background: var(--tool-bubble-bg, #f3f4f6);
   color: var(--text-primary, #111);
   border: 1px solid var(--border-light, #f0f0f0);
   margin-right: auto;
@@ -128,8 +128,8 @@
 
 .copyBtnDone {
   opacity: 1;
-  color: #0a7c0a;
-  border-color: #0a7c0a;
+  color: var(--text-success-gh, #0a7c0a);
+  border-color: var(--text-success-gh, #0a7c0a);
 }
 
 /* ---- Body ---- */

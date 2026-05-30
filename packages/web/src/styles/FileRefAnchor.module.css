@@ -1,5 +1,5 @@
 .anchor {
-  color: var(--color-accent, #6366f1);
+  color: var(--fileref-accent, #6366f1);
   text-decoration: underline dotted;
   cursor: pointer;
   font-family: var(--font-mono, monospace);
@@ -12,9 +12,9 @@
 
 .snippet {
   margin-top: 0.25rem;
-  border-left: 2px solid var(--color-accent, #6366f1);
+  border-left: 2px solid var(--fileref-accent, #6366f1);
   padding: 0.25rem 0.5rem;
-  background: var(--color-surface-alt, #f3f4f6);
+  background: var(--tool-bubble-bg, #f3f4f6);
   font-family: var(--font-mono, monospace);
   font-size: 0.8em;
   white-space: pre;
@@ -24,6 +24,6 @@
 
 .error {
   margin-top: 0.25rem;
-  color: var(--color-error, #dc2626);
+  color: var(--danger-bright, #dc2626);
   font-size: 0.8em;
 }

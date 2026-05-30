@@ -10,8 +10,8 @@
  * --------------------------------------------------------------------------- */
 
 .card {
-  border: 1px solid #d0d7de;
-  border-left: 3px solid #0550ae;
+  border: 1px solid var(--border-code, #d0d7de);
+  border-left: 3px solid var(--info-border, #0550ae);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.5em 0;
@@ -27,22 +27,22 @@
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  background: #ddf4ff;
-  border-bottom: 1px solid #d0d7de;
+  background: var(--info-pill-bg, #ddf4ff);
+  border-bottom: 1px solid var(--border-code, #d0d7de);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.75rem;
-  color: #0550ae;
+  color: var(--info-pill-text, #0550ae);
   user-select: none;
   flex-wrap: wrap;
 }
 
 .agentLabel {
   font-weight: 600;
-  color: #0550ae;
+  color: var(--info-pill-text, #0550ae);
 }
 
 .description {
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -50,7 +50,7 @@
 }
 
 .summary {
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   font-style: italic;
   font-size: 0.7rem;
   flex-basis: 100%;
@@ -71,23 +71,23 @@
 }
 
 .badgeRunning {
-  background: #fff8c5;
-  color: #9a6700;
+  background: var(--badge-running-bg, #fff8c5);
+  color: var(--badge-running-text, #9a6700);
 }
 
 .badgeCompleted {
-  background: #dcffe4;
-  color: #1a7f37;
+  background: var(--gh-success-bg, #dcffe4);
+  color: var(--gh-success-text, #1a7f37);
 }
 
 .badgeFailed {
-  background: #ffebe9;
-  color: #cf222e;
+  background: var(--gh-error-bg, #ffebe9);
+  color: var(--gh-error-text, #cf222e);
 }
 
 .badgeStopped {
-  background: #f6f8fa;
-  color: #57606a;
+  background: var(--badge-stopped-bg, #f6f8fa);
+  color: var(--badge-stopped-text, #57606a);
 }
 
 /* ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: #0550ae;
+  color: var(--info-pill-text, #0550ae);
   font-size: 0.75rem;
   font-family: inherit;
   text-decoration: underline;
@@ -108,7 +108,7 @@
 }
 
 .transcriptLink:hover {
-  color: #033d8b;
+  color: var(--link-hover, #033d8b);
 }
 
 /* ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@
 
 .children {
   padding: 8px 12px 8px 16px;
-  background: #f6f8fa;
-  border-left: 2px solid #d0d7de;
+  background: var(--surface-code, #f6f8fa);
+  border-left: 2px solid var(--border-code, #d0d7de);
   margin-left: 4px;
 }

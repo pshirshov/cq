@@ -1,7 +1,7 @@
 /* CodeBlock.module.css — code block container, header, and copy button */
 
 .container {
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.75em 0;
@@ -13,15 +13,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 12px;
-  background: #f6f8fa;
-  border-bottom: 1px solid #d0d7de;
+  background: var(--surface-code, #f6f8fa);
+  border-bottom: 1px solid var(--border-code, #d0d7de);
   user-select: none;
 }
 
 .lang {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.75rem;
-  color: #57606a;
+  color: var(--text-code-muted, #57606a);
   text-transform: lowercase;
 }
 
@@ -30,10 +30,10 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--border-code, #d0d7de);
   border-radius: 4px;
-  background: #ffffff;
-  color: #24292f;
+  background: var(--bg, #ffffff);
+  color: var(--text-code, #24292f);
   font-size: 0.75rem;
   cursor: pointer;
   line-height: 1.5;
@@ -41,12 +41,12 @@
 }
 
 .copyBtn:hover {
-  background: #f3f4f6;
+  background: var(--code-copy-hover, #f3f4f6);
 }
 
 .copyBtn.copied {
-  color: #1a7f37;
-  border-color: #1a7f37;
+  color: var(--text-success, #1a7f37);
+  border-color: var(--text-success, #1a7f37);
 }
 
 .pre {

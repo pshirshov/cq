@@ -145,11 +145,11 @@
   text-transform: capitalize;
 }
 
-.statusRunning { background: #dbeafe; color: #1e40af; }
-.statusCompleted { background: #dcfce7; color: #166534; }
-.statusFailed { background: #fee2e2; color: #991b1b; }
-.statusStopped { background: #fef3c7; color: #92400e; }
-.statusWiped { background: #475569; color: #fff; }
+.statusRunning { background: var(--chip-info-bg, #dbeafe); color: var(--chip-info-text, #1e40af); }
+.statusCompleted { background: var(--chip-success-bg, #dcfce7); color: var(--chip-success-text, #166534); }
+.statusFailed { background: var(--chip-error-bg, #fee2e2); color: var(--chip-error-text, #991b1b); }
+.statusStopped { background: var(--chip-warning-bg, #fef3c7); color: var(--chip-warning-text, #92400e); }
+.statusWiped { background: var(--chip-neutral-bg, #475569); color: var(--chip-neutral-text, #fff); }
 
 .resumedBadge {
   font-size: 11px;
@@ -167,7 +167,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   background: var(--accent, #7c3aed);
-  color: #fff;
+  color: var(--on-accent, #fff);
   vertical-align: middle;
 }
 
@@ -346,10 +346,10 @@
 
 .deleteConfirmBtn {
   padding: 4px 10px;
-  border: 1px solid var(--status-error, #991b1b);
+  border: 1px solid var(--danger-solid-border, #991b1b);
   border-radius: 4px;
-  background: var(--status-error, #991b1b);
-  color: #fff;
+  background: var(--danger-solid-bg, #991b1b);
+  color: var(--on-accent, #fff);
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;

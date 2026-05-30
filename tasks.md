@@ -20,7 +20,7 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
 
 - [x] **dark-1** — global.css dark variable set (`[data-theme="dark"]` + new semantic vars, light :root unchanged) + `lib/theme.ts` controller (localStorage `cq.theme`, matchMedia resolve + live OS listener, sets `documentElement.dataset.theme`, `initTheme()` in main.tsx before first paint).
 - [x] **dark-2** — Theme control (Light/Dark/Auto) in SettingsPopup, applied live via the controller (display-only; not in ChatStart/session state).
-- [ ] **dark-3** — CSS sweep: ~28 modules' hardcoded theme-sensitive hex/rgb → theme vars (chips get light+dark pairs; light-neutral).
+- [x] **dark-3** — CSS sweep: ~28 modules' hardcoded theme-sensitive hex/rgb → theme vars (chips get light+dark pairs; light-neutral).
 - [ ] **dark-4** — tests (theme.ts, SettingsPopup theme, sweep assertion, light-unchanged) + e2e (`dark-theme.spec.ts`, main project) + discharge.
 
 ### Cross-cutting architectural notes (locked)
@@ -72,6 +72,41 @@ onto the variables so dark applies app-wide; light resolved colors unchanged.
   `initTheme()` was never called — intentional).
   Metrics: review rounds 1; defects 0; verification complete; scope delta none
   (touched Header/ChatTab as planned for prop-threading).
+
+- **dark-3** (2026-05-30) — The CSS sweep. 23 CSS files changed (22 modules +
+  global.css). global.css grew to 118 theme variables, each with a `:root`
+  (light, unchanged) and `[data-theme="dark"]` value (verified full parity).
+  Swept every theme-sensitive hardcoded hex/rgb in the content-surface modules
+  onto variables via the `var(--name, #originalLiteral)` form (fallback = the
+  exact prior literal, kept inert). Status/severity chips got light+dark bg+text
+  pairs (`--chip-*`); GitHub code chrome → `--surface-code`/`--border-code`/
+  `--text-code`/`--text-code-muted`; colored cards → `--violet-card-*` /
+  `--info-*` / `--warn-card-*` / `--plan-card-*`; solid buttons →
+  `--surface-success`/`--surface-danger`/`--surface-neutral`/`--btn-*` +
+  `--on-accent`; bubbles → `--user-bubble-*`/`--tool-bubble-bg`.
+  UNTOUCHED (6): Header, Tooltip, Toast, SettingsPopup chrome, Indicator —
+  intentional always-dark chrome / semantic connection-state dot colors
+  (changing them would alter the light-mode appearance); SearchBar + Stream —
+  already fully variable-driven. Also kept literal as documented exceptions:
+  History `.resumeButton` (dark VS-Code button on a light table) and the
+  ElicitationCard `rgba(5,80,174,0.15)` focus glow (translucent, theme-neutral).
+  Shiki code bodies render `github-dark` always (pre-existing, in CodeBlock.tsx)
+  — dark in both themes by design; only the container chrome was swept.
+  LIGHT-UNCHANGED proven by a scripted audit: every `var(--X,#fb)` fallback
+  added by this branch has `#fb == :root[--X]` (0 mismatches), so resolved-light
+  == original literal everywhere. DARK-APPLIES proven by: 118 vars with full
+  light/dark parity + the bundled `main.css` (built via `buildWeb()`) containing
+  `[data-theme="dark"]`, `--surface-code`, `--chip-success-bg`, and dark
+  `--bg:#121212`.
+  Self-review opened + resolved DARK-01-D01 (8+ light-shift unifications →
+  exact-match vars). Verification: typecheck 0; lint 0 errors; `bun test`
+  1059 pass / 0 fail (one cross-file DOM-pollution flake in attachments Case 4
+  passed on re-run + in isolation — pre-existing nondeterministic test ordering,
+  see registerDom helper docs, not caused by this change); `buildWeb()` compiles
+  all CSS modules.
+  Metrics: review rounds 1 (self); defects 1 major (DARK-01-D01, resolved same
+  cycle); verification complete; scope delta: +~80 semantic vars beyond the
+  plan's initial list (expected — "add missing vars the modules need").
 
 ---
 
