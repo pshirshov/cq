@@ -8,9 +8,11 @@
  * tool → workflow.submit over the internal WS → WorkflowSubmitProxy validates
  * → the HARNESS writes the goals + spec milestone + questions to disk.
  *
- * Auth gate: skips cleanly when no codex login state (~/.codex/auth.json) and
- * no OPENAI_API_KEY are available. Asserts the on-disk effect (the strongest
- * signal that cq-mcp was genuinely spawned and the relay genuinely ran):
+ * Opt-in gate (CQ_RUN_CODEX_REAL=1 or CODEX_HOME pointing at a real auth home):
+ * auto-skips in the default `bun run check` because the spawned codex would
+ * inherit a per-test temp CODEX_HOME with no auth (401). Asserts the on-disk
+ * effect (the strongest signal that cq-mcp was genuinely spawned and the relay
+ * genuinely ran):
  *   - a goal row in docs/goals.md with status=clarifying,
  *   - a spec milestone linked,
  *   - at least one question under it.
@@ -32,20 +34,30 @@ import { FsLedgerStore, GOALS_LEDGER, QUESTIONS_LEDGER } from "@cq/ledger";
 import type { Logger } from "../src/log/logger";
 
 /**
- * Mirror of e2e/fixtures/codexAuth.hasCodexAuth (kept local so the server
- * package's tsconfig need not reference the e2e package).
+ * Whether to run the REAL-Codex tests. These spawn the codex CLI, which
+ * authenticates against `CODEX_HOME` (default `~/.codex`). Under `bun run
+ * check` the spawned codex inherits a per-test temp cwd whose `.codex` home has
+ * NO auth (401), so these tests MUST be opt-in and auto-skip in the default
+ * suite. Run them deliberately with:
+ *   CQ_RUN_CODEX_REAL=1 CODEX_HOME="$HOME/.codex" bun test workflow-codex-real
+ * The opt-in flag (not mere auth-file presence) is the gate, mirroring the
+ * codex e2e specs' `CQ_E2E_RUN_CODEX` discipline — auth.json existing on the
+ * developer's home does NOT mean the spawned codex (temp CODEX_HOME) can auth.
  */
-function hasCodexAuth(): boolean {
-  const key = process.env["OPENAI_API_KEY"];
-  if (key !== undefined && key !== "") return true;
-  if (process.env["CQ_E2E_RUN_CODEX"] === "1") return true;
-  const homeDir = os.homedir();
-  if (homeDir === "" || homeDir === undefined) return false;
-  try {
-    return fsSync.statSync(path.join(homeDir, ".codex", "auth.json")).isFile();
-  } catch {
-    return false;
+function shouldRunRealCodex(): boolean {
+  if (process.env["CQ_RUN_CODEX_REAL"] === "1") return true;
+  // Allow an explicit CODEX_HOME with auth.json to opt in (the manual-scenario
+  // and e2e-globalSetup convention points CODEX_HOME at a real auth home).
+  const codexHome = process.env["CODEX_HOME"];
+  if (codexHome !== undefined && codexHome !== "") {
+    try {
+      return fsSync.statSync(path.join(codexHome, "auth.json")).isFile();
+    } catch {
+      return false;
+    }
   }
+  void os;
+  return false;
 }
 
 /** A stderr logger so cq-mcp connect + relay diagnostics are visible. */
@@ -60,7 +72,7 @@ describe("workflow Codex relay — REAL Codex producer lands the goal on disk", 
   it(
     "drives a real /plan producer on platform=codex and writes goal+spec+questions",
     async () => {
-      if (!hasCodexAuth()) {
+      if (!shouldRunRealCodex()) {
         // No codex auth in this environment — skip (documented in the brief).
         // bun:test has no runtime skip; assert-true keeps the suite green.
         expect(true).toBe(true);
@@ -130,7 +142,7 @@ describe("workflow Codex relay — REAL Codex producer lands the goal on disk", 
   it(
     "drives one real clarify-reviewer phase via the relay (phase-subagent path)",
     async () => {
-      if (!hasCodexAuth()) {
+      if (!shouldRunRealCodex()) {
         expect(true).toBe(true);
         return;
       }
