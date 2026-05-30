@@ -21,7 +21,7 @@ Bridge / SessionRegistry, so pool=1 holds.
 - [x] **wfhist-2** (commit 3377826) — Capture phase-subagent usage (model/cost/tokens) from the SDK `result` via an `onUsage` sink on the dispatch/produce request (no sync/async union; Codex=0). Drain defers `q.close()` past submit (5s grace) to observe `result`; resolves at submit-time (pool=1 timing unchanged). Real-SDK onUsage test. 1049/0.
 - [x] **wfhist-3** (commit f42e8a7) — Wire `persistence`+`cwd` into `WorkflowRuntime` (server.ts); `WorkflowHistoryRecorder` (Persistent+Null); create workflow-kind session + root `main` invocation per run; goalId→session link; settle/close on planned/abandoned/errored.
 - [x] **wfhist-4** (commit f42e8a7) — One CHILD invocation per phase dispatch (producer, clarify-reviewer#N, planner#N, plan-reviewer#N, continuation): running→completed/failed, cost/tokens from `onUsage`, parent=root. Dual-adapter tests. 1055/0.
-- [ ] **wfhist-5** — Web: `List.tsx` "Plan" badge on workflow main rows; phase children render as `↪` subagent rows.
+- [x] **wfhist-5** (commit b51fafb) — Web: `List.tsx` "Plan" badge on workflow main rows; phase children render as `↪` subagent rows. Web test asserts badge present on workflow main, absent on chat main + children.
 - [ ] **wfhist-6** — Resume re-attach test (restart mid-workflow → same session, no orphan); pool=1 regression; E2E `/plan`→History; discharge.
 
 ---

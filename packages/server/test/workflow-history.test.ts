@@ -23,7 +23,6 @@ import {
   CLARIFY_REVIEW_SPEC,
   PLAN_SPEC,
   PLAN_REVIEW_SPEC,
-  CONTINUE_SPEC,
   type WorkflowProducer,
   type ProducerOutput,
   type ProduceRequest,
@@ -247,7 +246,77 @@ function runSuite(label: string, factory: () => Persistence): void {
         p.close();
       }
     });
+
+    it("resume after a restart re-attaches phases to the SAME session (no orphan)", async () => {
+      const p = factory();
+      try {
+        // The ledger store + persistence are DURABLE and survive a restart; a
+        // restart is modelled by a fresh WorkflowRuntime over the same store + p
+        // (its in-memory runHandles map starts empty → rebuilt from the link).
+        const store = new InMemoryLedgerStore();
+        await store.init();
+
+        // Run 1: phase 1 only (producer), then "crash" before answering.
+        const phase1 = new FakePhaseSubagent().fireUsage(PHASE_USAGE);
+        const rt1 = makeRuntime(store, phase1, p);
+        const c1 = collector();
+        const res = await rt1.startPlan({ text: "build it", platform: "claude" }, c1.sink);
+        if (res.outcome !== "questions_ready") throw new Error("unreachable");
+        const goalId = res.goalId;
+        const link = p.workflowSessions.getByGoal(goalId)!;
+        const sessionId = link.sessionId;
+        const sessionCountBefore = countWorkflowSessions(p);
+        expect(sessionCountBefore).toBe(1);
+
+        // Run 2 (the "restarted" process): a fresh runtime, same store + p.
+        const phase2 = new FakePhaseSubagent().fireUsage(PHASE_USAGE);
+        phase2.enqueue(CLARIFY_REVIEW_SPEC, CLEAR).enqueue(PLAN_SPEC, PLAN).enqueue(PLAN_REVIEW_SPEC, SATISFIED);
+        const rt2 = makeRuntime(store, phase2, p);
+        const c2 = collector();
+        rt2.subscribe(c2.sink);
+        await rt2.reconcile(); // resumes goals needing dispatch (none yet — awaiting answers)
+
+        // Answer the open question → rt2 drives clarify → plan → review.
+        const goal = store.fetchItem(GOALS_LEDGER, goalId);
+        const specId = (goal.fields["milestones"] as string[])[0]!;
+        const q0 = (store.listMilestoneItems(specId)[QUESTIONS_LEDGER] ?? [])[0]!.id;
+        await rt2.submitAnswer(q0, "web");
+        await rt2.whenDrained();
+
+        // No duplicate / orphan session was created — still exactly ONE.
+        expect(countWorkflowSessions(p)).toBe(1);
+        // The resumed phases attached under the SAME session + root.
+        const rows = rowsForSession(p, sessionId);
+        const children = rows.filter((r) => r.agentName !== "main");
+        expect(children.length).toBeGreaterThanOrEqual(4); // producer + clarify + planner + review
+        for (const child of children) {
+          expect(child.sessionId).toBe(sessionId);
+          expect(child.parentInvocationId).toBe(link.rootInvocationId);
+        }
+        // The single workflow session is the one we started.
+        const top = p.invocations.list(
+          { agentName: "main" },
+          { field: "startedAt", dir: "desc" },
+          { offset: 0, limit: 50 },
+        );
+        const wfMains = top.rows.filter((r) => r.kind === "workflow");
+        expect(wfMains).toHaveLength(1);
+        expect(wfMains[0]!.sessionId).toBe(sessionId);
+      } finally {
+        p.close();
+      }
+    });
   });
+}
+
+/** Count distinct workflow-kind sessions present in persistence. */
+function countWorkflowSessions(p: Persistence): number {
+  const top = p.invocations.list(
+    { agentName: "main" },
+    { field: "startedAt", dir: "desc" },
+    { offset: 0, limit: 100 },
+  );
+  return new Set(top.rows.filter((r) => r.kind === "workflow").map((r) => r.sessionId)).size;
 }
 
 describe("workflow-history dual-adapter", () => {

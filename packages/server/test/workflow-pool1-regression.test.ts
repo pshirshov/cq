@@ -26,15 +26,18 @@ import {
   MockWsSocket,
 } from "./helpers/mockBridge";
 import { FakePhaseSubagent } from "./helpers/fakePhaseSubagent";
+import { InMemoryPersistence } from "../src/persist/InMemoryPersistence";
+import type { Persistence } from "../src/persist/Persistence";
 
 const CANNED: ProducerOutput = { goal: { title: "D goal", description: "d" }, questions: [{ question: "q?" }] };
 
-function makeRuntime(store: LedgerStore, producer: WorkflowProducer): WorkflowRuntime {
+function makeRuntime(store: LedgerStore, producer: WorkflowProducer, persistence?: Persistence): WorkflowRuntime {
   return new WorkflowRuntime({
     logger: noopLogger,
     store,
     selectProducer: () => producer,
     selectPhaseSubagent: () => new FakePhaseSubagent(),
+    ...(persistence !== undefined ? { persistence, cwd: "/tmp" } : {}),
   });
 }
 
@@ -116,6 +119,70 @@ describe("pool=1 invariant — workflow lane does not disturb interactive chat",
     await bridge.handleChatInput(ws, { type: "chat.input", seq: 1, ts: Date.now(), sessionId, text: "hi" });
     await ws.waitForFrames("chat.done", 1, 3000);
     expect(ws.framesOfType("chat.done").length).toBeGreaterThanOrEqual(1);
+
+    await bridge.shutdown();
+    await store.dispose();
+  });
+
+  it("with SHARED persistence: a workflow run writes its OWN rows while the chat session is untouched", async () => {
+    // Adversarial focus #1: the workflow writes History rows DIRECTLY via the
+    // Persistence adapter; it must never touch Bridge.active / SessionRegistry.
+    // Both the Bridge and the WorkflowRuntime share ONE persistence so we can
+    // observe their rows side by side and confirm no collision.
+    const persistence = new InMemoryPersistence();
+    const store = new InMemoryLedgerStore();
+    await store.init();
+    const registry = new SessionRegistry();
+    const bridge = new Bridge({
+      logger: noopLogger,
+      registry,
+      cwd: "/tmp",
+      queryFactory: () => chatScript(),
+      persistence,
+    });
+
+    // Hold the producer open so the workflow stays mid-flight.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const slow: WorkflowProducer = { produce: async () => { await gate; return CANNED; } };
+    const rt = makeRuntime(store, slow, persistence);
+
+    // Start the workflow; it parks in produce() — but startRun has ALREADY
+    // written the workflow session + root by now.
+    const wfPromise = rt.startPlan({ text: "build it", platform: "claude" }, () => {});
+    await Bun.sleep(10);
+    expect(rt.isBusy()).toBe(true);
+    // The interactive Bridge is NOT busy because of the workflow.
+    expect(bridge.isBusy()).toBe(false);
+
+    // Drive an interactive chat to completion CONCURRENTLY with the parked workflow.
+    const ws = new MockWsSocket();
+    await bridge.handleChatStart(ws, { type: "chat.start", seq: 0, ts: Date.now() });
+    const chatSessionId = bridge.activeSessionId()!;
+    expect(chatSessionId).not.toBeNull();
+    // While the chat session is active AND the workflow is parked mid-flight,
+    // Bridge.active is the CHAT session — the workflow never set it.
+    expect(bridge.activeSessionId()).toBe(chatSessionId);
+    await bridge.handleChatInput(ws, { type: "chat.input", seq: 1, ts: Date.now(), sessionId: chatSessionId, text: "hi" });
+    await ws.waitForFrames("chat.done", 1, 3000);
+    expect(ws.framesOfType("chat.done")[0]!["reason"]).toBe("completed");
+
+    // The chat session row is kind 'chat'; the workflow run row is kind 'workflow'.
+    const top = persistence.invocations.list(
+      { agentName: "main" },
+      { field: "startedAt", dir: "desc" },
+      { offset: 0, limit: 50 },
+    );
+    const chatMain = top.rows.find((r) => r.sessionId === chatSessionId);
+    expect(chatMain?.kind).toBe("chat");
+    const wfMains = top.rows.filter((r) => r.kind === "workflow");
+    expect(wfMains).toHaveLength(1);
+    // The two sessions are DISTINCT (the workflow did not hijack the chat session).
+    expect(wfMains[0]!.sessionId).not.toBe(chatSessionId);
+
+    release();
+    const wfResult = await wfPromise;
+    expect(wfResult.outcome).toBe("questions_ready");
 
     await bridge.shutdown();
     await store.dispose();
