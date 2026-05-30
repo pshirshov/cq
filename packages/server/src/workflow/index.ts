@@ -70,3 +70,19 @@ export type {
 } from "./claudePhaseSubagent.js";
 export { CodexPhaseSubagent } from "./codexPhaseSubagent.js";
 export type { CodexPhaseSubagentOpts } from "./codexPhaseSubagent.js";
+export { WorkflowSubmitProxy } from "./workflowSubmitProxy.js";
+export type {
+  WorkflowSubmitProxyOpts,
+  SendSubmitAck,
+} from "./workflowSubmitProxy.js";
+export {
+  dispatchCodexPhase,
+  makeSubmitIdGenerator,
+  CODEX_SUBMIT_INSTRUCTION,
+  DEFAULT_CODEX_TIMEOUT_MS,
+} from "./codexHeadless.js";
+export type {
+  CodexFactory,
+  CodexHeadlessDeps,
+  CodexDispatchInput,
+} from "./codexHeadless.js";

@@ -11,10 +11,12 @@ import { FsLedgerStore } from "@cq/ledger";
 import { INTERNAL_WS_PATH, InternalWsService, type InternalWsConnData } from "./agent/internalWs";
 import {
   WorkflowRuntime,
+  WorkflowSubmitProxy,
   ClaudeProducer,
   CodexProducer,
   ClaudePhaseSubagent,
   CodexPhaseSubagent,
+  makeSubmitIdGenerator,
 } from "./workflow/index";
 
 export type ServerConfig = Readonly<{
@@ -111,21 +113,64 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     // discriminates across connected cq-mcp children).
     sendAskReply: (msg) => internalWs.broadcast(msg),
   });
+  // WorkflowSubmitProxy (codexwf) — server side of the Codex /plan structured-
+  // output relay. A headless-Codex phase dispatch registers a submitId here;
+  // the cq-mcp child relays the model's payload as `workflow.submit`; this
+  // proxy validates it against the phase schema and resolves the dispatch. The
+  // HARNESS (WorkflowRuntime) then writes the ledgers — cq-mcp relays only.
+  const submitProxy = new WorkflowSubmitProxy({
+    logger,
+    sendAck: (submitId, ok, error) =>
+      internalWs.broadcast({
+        type: "workflow.submit_ack",
+        submitId,
+        ok,
+        ...(error !== undefined ? { error } : {}),
+        sourcePid: internalWs.selfPid(),
+      }),
+  });
+  // The internal-WS URL is known only after Bun.serve binds (port: 0 ⇒
+  // ephemeral). The Codex headless lane reads it lazily per dispatch, so a
+  // mutable holder set after bind suffices (mirrors bridge.setInternalWsUrl).
+  let internalWsUrlHolder = "";
+  const internalWsToken = internalWs.tokenForChild();
+  const nextSubmitId = makeSubmitIdGenerator(internalWs.selfPid());
+
   // WorkflowRuntime (`/plan`) — own dispatch lane, separate from the pool=1
   // interactive Bridge. The headless producer constructs its own SDK query
-  // (Claude path) or rejects with a documented gap (Codex, WF-D01); it never
-  // touches Bridge.active. The runtime is the HARNESS that writes the ledgers.
+  // (Claude path) or spawns a headless Codex thread + cq-mcp relay (Codex
+  // path, codexwf); it never touches Bridge.active. The runtime is the HARNESS
+  // that writes the ledgers.
   const workflow = new WorkflowRuntime({
     logger,
     store: ledgerStore,
     selectProducer: (platform) =>
       platform === "codex"
-        ? new CodexProducer({ logger })
+        ? new CodexProducer({
+            logger,
+            cwd,
+            submitProxy,
+            internalWsUrl: internalWsUrlHolder,
+            internalWsToken,
+            nextSubmitId,
+          })
         : new ClaudeProducer({ logger, cwd }),
     selectPhaseSubagent: (platform) =>
       platform === "codex"
-        ? new CodexPhaseSubagent({ logger })
+        ? new CodexPhaseSubagent({
+            logger,
+            cwd,
+            submitProxy,
+            internalWsUrl: internalWsUrlHolder,
+            internalWsToken,
+            nextSubmitId,
+          })
         : new ClaudePhaseSubagent({ logger, cwd }),
+  });
+  // Inbound `workflow.submit` from a Codex workflow's cq-mcp child → validate +
+  // resolve the waiting dispatch (codexwf). The proxy acks the child either way.
+  internalWs.registerHandler("workflow.submit", async (msg) => {
+    submitProxy.onSubmit({ submitId: msg.submitId, phase: msg.phase, payload: msg.payload });
   });
   // Resume any goal mid-loop from ledger state (closes WF-D02). Goals waiting on
   // open questions sit idle until a `question.answer` arrives.
@@ -388,6 +433,8 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   const boundPort = server.port;
   const internalWsUrl = `ws://127.0.0.1:${boundPort}${INTERNAL_WS_PATH}`;
   bridge.setInternalWsUrl(internalWsUrl);
+  // The Codex workflow lane reads this lazily per dispatch (see selectors).
+  internalWsUrlHolder = internalWsUrl;
   logger.info("cq listening", { host, port: boundPort, cwd, dbPath, internalWsUrl });
 
   return {
