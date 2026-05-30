@@ -4,6 +4,47 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: history-e2e-stable — load-tolerant + drained plan-workflow-history (ACTIVITY-01-D03)
+
+Worktree `.claude/worktrees/history-e2e-stable`, branch `history-e2e-stable`, base `a7501ab`.
+TEST-ONLY. `packages/e2e/tests/plan-workflow-history.spec.ts` passes in isolation
+(~16s) but the FULL `bun run e2e` flakes under cumulative prelude-project CPU
+contention (workers=1, serial). No Task tool → executor/reviewer run inline as
+distinct steps with explicit red-before-green repro discipline (project convention).
+
+### Milestone M-HIST-STABLE — single buildable commit
+
+- [!] **hist-stable-1** — BLOCKED (ACTIVITY-01-D03). The TEST-ONLY work (bump +
+  drain) is applied and the history spec passes 6/6, but the full suite is NOT
+  green: a DIFFERENT, deterministic, production-rooted failure (`header-badges.spec.ts:29`,
+  warm-up turn latched at `BUSY (1)`) blocks 28/28. It pre-exists on clean `a7501ab`,
+  is independent of the history spec, and the drain does not fix it. Per the brief's
+  hard STOP constraint (a production change ⇒ real regression, not a flake) the loop
+  halts here for user authorization. See ACTIVITY-01-D03 in defects.md.
+- [~] (superseded by the BLOCKED line above) **hist-stable-1** — (a) bump the under-load-tight waits in `plan-workflow-history.spec.ts`
+  (warm-up `waitForIdle`, textarea-enabled, History badge/title/producer-row visibility +
+  Detail body/text waits) 10_000/15_000 → 45_000, matching the heavy workflow specs; banner
+  stays 90_000; assertions UNCHANGED. (b) add the WFL-D02 drain teardown (POST
+  `/__e2e/workflow-drain` + `waitForIdle().catch`) at the end of the test body, mirroring
+  `plan-workflow-loop`/`-goals`/`-continuation` — this is the only producer-spawning prelude
+  spec lacking a drain, so its subprocess lingers into the `main` project and starves early
+  main specs. Verify: ≥4 consecutive full `bun run e2e` all 28/28; `bun run check` exit 0.
+
+### Cross-cutting note (locked)
+
+- [x] CORRECTED FINDING (supersedes the initial hypothesis). The full-suite failure is
+  `header-badges.spec.ts:29` (`session-status` latched at `BUSY (1)`, not settling to NEW/IDLE
+  within 15s), NOT `plan-workflow-history.spec.ts`. The history spec passes 6/6 (15.8–15.9s)
+  in isolation and in EVERY full run, incl. with the new drain. header-badges fails
+  DETERMINISTICALLY: 1/1 clean baseline `a7501ab` (my change stashed), 4/4 after my change,
+  and 1/1 in a reduced 8-spec run (`playwright test header-badges --project=main` → 7 prelude
+  deps + header-badges, NOT the full 28) on an UNLOADED machine. So it is NOT cumulative CPU
+  starvation, and the drain does NOT fix it. cq-server log: the auto-started warm-up turn logs
+  `chat_started_early` but never `chat_input`/`chat_started`/`chat_done` (~15s gap) → the
+  ACTIVITY-01 aggregate latches `BUSY (1)` on a turn that never produces a frame. This is a
+  PRODUCTION defect in the freshly-merged ACTIVITY-01 work (base `a7501ab`), out of scope for
+  this TEST-ONLY brief. Filed as ACTIVITY-01-D03; loop BLOCKED for user authorization.
+
 ## Cycle: activity-indicator — aggregate top-bar BUSY (N) badge
 
 Plan: [`docs/drafts/20260530-1700-activity-indicator-plan.md`](docs/drafts/20260530-1700-activity-indicator-plan.md).
