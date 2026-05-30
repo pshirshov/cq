@@ -174,6 +174,7 @@
 
             # server
             mkdir -p "$WORKSPACE/packages/server/node_modules/@anthropic-ai" \
+                     "$WORKSPACE/packages/server/node_modules/@openai" \
                      "$WORKSPACE/packages/server/node_modules/@cq"
             # npm deps — preserved as symlinks relative to their original depth
             ln -s ${bunNodeModules}/packages/server/node_modules/@anthropic-ai/claude-agent-sdk \
@@ -186,6 +187,15 @@
             # spec wasn't updated, breaking `nix run` at runtime.
             ln -s ${bunNodeModules}/packages/server/node_modules/@anthropic-ai/sdk \
               "$WORKSPACE/packages/server/node_modules/@anthropic-ai/sdk"
+            # @openai/codex-sdk — drives the Codex backend (codexBridge.ts) and
+            # the workflow Codex producer (codexHeadless.ts), both via a lazy
+            # `await import("@openai/codex-sdk")`. Added in the codex cycle but
+            # the closure spec wasn't updated, breaking `nix run` at runtime when
+            # a Codex code path loads. Its @openai/codex dependency resolves via
+            # the .bun store the symlink points into; cq itself drives the SYSTEM
+            # codex CLI (auth + binary), so the npm codex binary is not invoked.
+            ln -s ${bunNodeModules}/packages/server/node_modules/@openai/codex-sdk \
+              "$WORKSPACE/packages/server/node_modules/@openai/codex-sdk"
             ln -s ${bunNodeModules}/packages/server/node_modules/zod \
               "$WORKSPACE/packages/server/node_modules/zod"
             ln -s ${bunNodeModules}/packages/server/node_modules/bun-types \
