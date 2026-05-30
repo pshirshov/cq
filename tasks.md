@@ -4,6 +4,26 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
+## Cycle: ledger-fts — in-memory FTS over ledgers, exposed as `fts_search` MCP tool
+
+Plan: [`docs/drafts/20260530-1020-ledger-fts.md`](docs/drafts/20260530-1020-ledger-fts.md).
+Baseline (verified cce4a6f): `bun test` 989 pass / 0 fail. e2e target 25/25.
+Approach: MiniSearch v7.2.0 in-memory index as a derived projection of the
+store's in-memory ledgers, coherent via the existing onMutation (local) +
+invalidate (remote) hooks. `includeArchived` IN v1. NOT SQLite.
+
+### Milestone M-FTS — PR breakdown
+
+- [ ] **fts-1** — Add `minisearch@7.2.0` dep + `LedgerSearchIndex` (search/LedgerSearchIndex.ts): MiniSearch wrapper, canonical headline/body/status field bucketing, per-ledger active/archived doc buckets with id-tracked replacement, `search()` with ledger/limit/fuzzy/prefix/status/includeArchived. Unit test (no store) asserts headline>body ranking, fuzzy, prefix, status, includeArchived partition.
+- [ ] **fts-2** — Add `ftsSearch` to `LedgerStore`; wire `LedgerSearchIndex` into both adapters (init builds active+archived; onMutation rebuilds active [+archived on archive op]; invalidate rebuilds active+archived for BOTH known-ledger and registry-reload branches; createLedger indexes empty). Active rebuild guarded so it never unwinds the write. Dual-tests: ranked cross-ledger, single-ledger filter, boosts, fuzzy/prefix, status, includeArchived (archive→found only when true), local coherence.
+- [ ] **fts-3** — Cross-process coherence test: two FsLedgerStore on one cwd, onMutation→peer.invalidate relay; B.ftsSearch finds A's item only after invalidate (proves index rebuilds on remote path).
+- [ ] **fts-4** — MCP `fts_search` on BOTH surfaces: `createLedgerMcpTools` + `LEDGER_TOOL_NAMES` (ledger pkg) AND `cq-mcp/src/main.ts::registerLedgerTools` (stdio binary hand-redefines tools). Bump tool-count assertions (ledger mcp-tools 13→14; cq-mcp main 13→14; cq-mcp submitRelay 14→15). Wire-shape test. `search_items` unchanged.
+- [ ] **fts-5** — flake.nix: add `minisearch` to ledger dep symlink loop (covers both @cq/ledger consumers via the shared workspace symlink); refresh FOD outputHash. `nix build .#default`; built cq-mcp `tools/list` +1 + launches. `bun run check` ×2; `bun run e2e` ×1. defects.md + session log + manual scenario.
+
+Adversarial-review folded in: (F1) invalidate must index the registry-reload branch's new ledger too; (F2) wrap the whole onMutation-driven rebuild in a non-throwing guard — do not assume purity.
+
+---
+
 ## Cycle: noprogress-trigger (WFL-D01) — derive no-progress from the ledger, not an in-memory fingerprint
 
 Plan: [`docs/drafts/20260530-0900-noprogress-trigger-plan.md`](docs/drafts/20260530-0900-noprogress-trigger-plan.md).
