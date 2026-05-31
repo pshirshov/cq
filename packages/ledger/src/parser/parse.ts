@@ -37,7 +37,6 @@ import type {
   Paragraph,
   Yaml,
   List,
-  ListItem,
   RootContent,
   PhrasingContent,
   Text,
@@ -90,7 +89,7 @@ export function parseLedger(source: string, opts: ParseOpts): Ledger {
     throw new SchemaValidationError("ledger file is missing YAML frontmatter");
   }
   const isMilestonesLedger = opts.isMilestonesLedger === true;
-  const milestones = extractMilestones(root, { isMilestonesLedger });
+  const milestones = extractMilestones(root, { isMilestonesLedger }, source);
   if (isMilestonesLedger) {
     // §8d shape assertion: exactly one depth-2 group, header `## active`.
     if (milestones.length !== 1) {
@@ -122,7 +121,7 @@ export function parseLedger(source: string, opts: ParseOpts): Ledger {
 export function parseArchive(source: string): Milestone {
   const root = parseMarkdown(source);
   // Archive files for non-milestones ledgers use the bare-id depth-2 shape.
-  const milestones = extractMilestones(root, { isMilestonesLedger: false });
+  const milestones = extractMilestones(root, { isMilestonesLedger: false }, source);
   if (milestones.length === 0) {
     throw new SchemaValidationError("archive file contains no milestone");
   }
@@ -156,7 +155,7 @@ export function parseMilestoneItemArchive(source: string): Item {
   // disk; archive files contain only the depth-3 item.
   const wrapped = `## ${MILESTONES_ACTIVE_GROUP_TITLE}\n\n${source}`;
   const root = parseMarkdown(wrapped);
-  const milestones = extractMilestones(root, { isMilestonesLedger: true });
+  const milestones = extractMilestones(root, { isMilestonesLedger: true }, wrapped);
   const group = milestones[0];
   if (group === undefined) {
     throw new SchemaValidationError("milestone-item archive file is empty");
@@ -193,6 +192,7 @@ function extractFrontmatter(root: Root): ParsedFrontmatter | null {
 function extractMilestones(
   root: Root,
   opts: { isMilestonesLedger: boolean },
+  source: string,
 ): Milestone[] {
   const milestones: Milestone[] = [];
   let current: Milestone | null = null;
@@ -296,7 +296,7 @@ function extractMilestones(
     }
     if (node.type === "list" && currentItem !== null) {
       descriptionLocked = true;
-      applyItemFields(currentItem, node as List);
+      applyItemFields(currentItem, node as List, source);
       continue;
     }
     // Other node types are ignored.
@@ -306,134 +306,111 @@ function extractMilestones(
   return milestones;
 }
 
-function applyItemFields(item: Item, list: List): void {
-  for (const li of list.children) {
-    if (li.type !== "listItem") continue;
-    const { key, value } = parseFieldListItem(li as ListItem);
-    if (key === "createdAt") {
+/**
+ * Decode an item's fields from the RAW source span of its field list.
+ *
+ * We deliberately do NOT reconstruct values from the mdast tree: remark
+ * flattens inline markdown (`*em*`, `` `code` ``, `[links](url)`) to plain
+ * text and turns multi-line block-scalar bodies into headings/lists/code
+ * nodes, which loses markup, structure, and blank lines. Instead we slice the
+ * original source for the list (via its node position) and hand-parse the
+ * serializer's strictly line-based format — making field values lossless,
+ * including arbitrary markdown.
+ */
+function applyItemFields(item: Item, list: List, source: string): void {
+  const pos = list.position;
+  if (pos === undefined) {
+    // Positions are always present with remark-parse; defensive guard only.
+    throw new SchemaValidationError("internal: list node is missing source position");
+  }
+  const raw = source.slice(pos.start.offset, pos.end.offset);
+  for (const { key, value } of parseFieldsFromRaw(raw)) {
+    if (key === "createdAt" || key === "updatedAt") {
       if (typeof value !== "string" || !isIsoTimestamp(value)) {
         throw new SchemaValidationError(
-          `field "createdAt" must be an ISO 8601 UTC timestamp (YYYY-MM-DDTHH:mm:ss.sssZ); got ${JSON.stringify(value)}`,
+          `field "${key}" must be an ISO 8601 UTC timestamp (YYYY-MM-DDTHH:mm:ss.sssZ); got ${JSON.stringify(value)}`,
         );
       }
-      item.createdAt = value;
-      continue;
-    }
-    if (key === "updatedAt") {
-      if (typeof value !== "string" || !isIsoTimestamp(value)) {
-        throw new SchemaValidationError(
-          `field "updatedAt" must be an ISO 8601 UTC timestamp (YYYY-MM-DDTHH:mm:ss.sssZ); got ${JSON.stringify(value)}`,
-        );
-      }
-      item.updatedAt = value;
+      if (key === "createdAt") item.createdAt = value;
+      else item.updatedAt = value;
       continue;
     }
     item.fields[key] = value;
   }
 }
 
+// A field line: `- key: <rest>` with the marker at column 0. Block-scalar
+// continuation lines are indented (≥1 space) and therefore never match.
+const FIELD_LINE_RE = /^- ([A-Za-z_][A-Za-z0-9_]*):[ \t]?(.*)$/;
+const BLOCK_SCALAR_INDENT = "    "; // serializer indents block-scalar bodies 4 spaces
+
 /**
- * A list item of the form:
- *   - key: inline value
- *   - key: |
- *     multi-line
- *   - key: ["a","b"]
- *   - key: 2026-05-28T20:30:00.000Z       (bare ISO; timestamps)
- *   - key: "2026-05-28T20:30:00.000Z"     (JSON-quoted; accepted too)
- *
- * remark-parse parses the inline form as a paragraph child with text
- * "key: value". The block-scalar form is parsed as paragraph + code-or-text.
- * We extract the raw textual content of the list item, then split on the
- * first ":" and decode by leading char.
- *
- * Note: after the msunify cycle this returns `string | string[]` only.
- * Numeric-bare timestamps from the old shape are no longer accepted
- * (timestamps are ISO strings; epoch-ms numbers parse as strings here
- * and fail downstream validation when the schema declares a `timestamp`
- * field, surfacing the migration mismatch instead of silently coercing).
+ * Parse the serializer's line-based field list from raw source. Mirrors
+ * `serializeFieldLine`:
+ *   - `- key: value`            → bare inline string
+ *   - `- key: "json string"`    → JSON-decoded string (quoting was applied)
+ *   - `- key: ["a","b"]`        → JSON flow array (string[])
+ *   - `- key: |` + indented     → multi-line string (4-space indent stripped)
  */
-function parseFieldListItem(li: ListItem): { key: string; value: FieldValue } {
-  // The list item's text — collapse all phrasing content from each child node.
-  const raw = collectListItemText(li);
-  const idx = raw.indexOf(":");
-  if (idx < 0) {
-    throw new SchemaValidationError(`field list item has no ":" separator: ${raw}`);
-  }
-  const key = raw.slice(0, idx).trim();
-  const valueText = raw.slice(idx + 1).trim();
-  if (valueText.startsWith("[")) {
-    // JSON array
-    try {
-      const arr: unknown = JSON.parse(valueText);
-      if (!Array.isArray(arr) || arr.some((x) => typeof x !== "string")) {
-        throw new Error("not a string[]");
+function parseFieldsFromRaw(raw: string): Array<{ key: string; value: FieldValue }> {
+  const lines = raw.split("\n");
+  const out: Array<{ key: string; value: FieldValue }> = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    const m = FIELD_LINE_RE.exec(line);
+    if (m === null) {
+      i += 1;
+      continue;
+    }
+    const key = m[1] as string;
+    const rest = (m[2] ?? "").trim();
+
+    if (rest === "|") {
+      // Block scalar: take following lines (de-indented) until the next field
+      // marker or end. Blank lines (emitted as the bare indent) are preserved.
+      const body: string[] = [];
+      i += 1;
+      while (i < lines.length && FIELD_LINE_RE.exec(lines[i] ?? "") === null) {
+        const bl = lines[i] ?? "";
+        body.push(bl.startsWith(BLOCK_SCALAR_INDENT) ? bl.slice(BLOCK_SCALAR_INDENT.length) : bl);
+        i += 1;
       }
-      return { key, value: arr as string[] };
-    } catch (e) {
-      throw new SchemaValidationError(
-        `field "${key}" has invalid array value: ${valueText} (${(e as Error).message})`,
-      );
+      // Drop the single trailing newline the block-scalar form adds.
+      while (body.length > 0 && body[body.length - 1] === "") body.pop();
+      out.push({ key, value: body.join("\n") });
+      continue;
     }
-  }
-  if (valueText.startsWith("|")) {
-    // Block scalar — the actual text lives in subsequent paragraphs of the list item.
-    return { key, value: decodeBlockScalar(li) };
-  }
-  if (valueText.startsWith('"') && valueText.endsWith('"')) {
-    try {
-      const decoded = JSON.parse(valueText) as unknown;
-      if (typeof decoded === "string") return { key, value: decoded };
-    } catch {
-      // fall through
-    }
-  }
-  // Bare inline string (covers ISO timestamps, plain strings, ids, …).
-  return { key, value: valueText };
-}
 
-/**
- * Collect text content from a list item's first paragraph (the "key: value"
- * line). Block-scalar values are handled separately.
- */
-function collectListItemText(li: ListItem): string {
-  for (const child of li.children) {
-    if (child.type === "paragraph") {
-      return paragraphText(child as Paragraph);
-    }
-  }
-  return "";
-}
-
-/**
- * Decode a YAML block scalar from the list item's children. The first
- * paragraph contains "key: |"; subsequent text content is the value.
- *
- * remark-parse renders the indented continuation lines as additional
- * paragraphs or text nodes. We strategy: concatenate all text children of
- * the list item after the first paragraph, separated by newlines, then strip
- * the "key: |" prefix from the first line.
- */
-function decodeBlockScalar(li: ListItem): string {
-  const lines: string[] = [];
-  let firstParaSeen = false;
-  for (const child of li.children) {
-    if (child.type === "paragraph") {
-      const text = paragraphText(child as Paragraph);
-      if (!firstParaSeen) {
-        firstParaSeen = true;
-        // Drop the "key: |" header line — anything after the first newline
-        // in this paragraph is real content.
-        const nl = text.indexOf("\n");
-        if (nl >= 0) {
-          lines.push(text.slice(nl + 1));
+    i += 1;
+    if (rest.startsWith("[")) {
+      try {
+        const arr: unknown = JSON.parse(rest);
+        if (!Array.isArray(arr) || arr.some((x) => typeof x !== "string")) {
+          throw new Error("not a string[]");
         }
-        continue;
+        out.push({ key, value: arr as string[] });
+      } catch (e) {
+        throw new SchemaValidationError(
+          `field "${key}" has invalid array value: ${rest} (${(e as Error).message})`,
+        );
       }
-      lines.push(text);
+      continue;
     }
-    // Other node types are ignored.
+    if (rest.startsWith('"') && rest.endsWith('"') && rest.length >= 2) {
+      try {
+        const decoded = JSON.parse(rest) as unknown;
+        if (typeof decoded === "string") {
+          out.push({ key, value: decoded });
+          continue;
+        }
+      } catch {
+        // fall through to bare string
+      }
+    }
+    out.push({ key, value: rest });
   }
-  return lines.join("\n").trim();
+  return out;
 }
 
 // ---------------------------------------------------------------------------
