@@ -40,6 +40,27 @@ const DEFAULT_HTTP_HOST = "127.0.0.1";
 /** Path the Streamable HTTP transport is served on. */
 export const MCP_HTTP_PATH = "/mcp";
 
+/**
+ * Permissive CORS for the HTTP transport so a browser MCP client (ledger-web)
+ * can reach it cross-origin. The transport carries no cookies/credentials, so
+ * `*` is safe; `mcp-session-id` MUST be exposed or the browser hides it from
+ * JS and the client can never capture its session. The request-header allow
+ * list covers everything the Streamable HTTP client sends.
+ */
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "content-type, mcp-session-id, mcp-protocol-version, accept, last-event-id, authorization",
+  "Access-Control-Expose-Headers": "mcp-session-id",
+  "Access-Control-Max-Age": "86400",
+};
+
+function applyCors(res: Response): Response {
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  return res;
+}
+
 export interface HttpOpts {
   host: string;
   port: number;
@@ -130,16 +151,9 @@ export function serveHttp(
 ): ReturnType<typeof Bun.serve> {
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
 
-  return Bun.serve({
-    hostname: opts.host,
-    port: opts.port,
-    idleTimeout: 0,
-    async fetch(req): Promise<Response> {
-      const url = new URL(req.url);
-      if (url.pathname !== MCP_HTTP_PATH) {
-        return new Response("not found", { status: 404 });
-      }
-
+  // Inner handler returns the protocol Response; the outer fetch applies CORS
+  // uniformly and answers preflight so every code path stays consistent.
+  async function handle(req: Request): Promise<Response> {
       const sessionId = req.headers.get("mcp-session-id") ?? undefined;
       const existing = sessionId !== undefined ? transports.get(sessionId) : undefined;
       if (existing !== undefined) {
@@ -177,6 +191,22 @@ export function serveHttp(
       // Body already consumed above; hand it back so the transport doesn't
       // re-read the (now-empty) request stream.
       return transport.handleRequest(req, { parsedBody: body });
+  }
+
+  return Bun.serve({
+    hostname: opts.host,
+    port: opts.port,
+    idleTimeout: 0,
+    async fetch(req): Promise<Response> {
+      const url = new URL(req.url);
+      // CORS preflight — answer before any session/path logic.
+      if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: CORS_HEADERS });
+      }
+      if (url.pathname !== MCP_HTTP_PATH) {
+        return applyCors(new Response("not found", { status: 404 }));
+      }
+      return applyCors(await handle(req));
     },
   });
 }

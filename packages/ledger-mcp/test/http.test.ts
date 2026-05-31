@@ -77,6 +77,26 @@ describe("ledger-mcp Streamable HTTP", () => {
     await res.text();
   });
 
+  it("answers a CORS preflight and exposes mcp-session-id", async () => {
+    const res = await fetch(new URL(`http://127.0.0.1:${server.port}${MCP_HTTP_PATH}`), {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://localhost:5174",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type, mcp-session-id",
+      },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(res.headers.get("access-control-allow-headers")?.toLowerCase()).toContain(
+      "mcp-session-id",
+    );
+    expect(res.headers.get("access-control-expose-headers")?.toLowerCase()).toContain(
+      "mcp-session-id",
+    );
+    await res.text();
+  });
+
   it("supports a full create → update → fetch → search round-trip over HTTP", async () => {
     let itemId = "";
     await withClient(async (client) => {

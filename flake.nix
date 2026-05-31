@@ -46,6 +46,7 @@
               ./packages/cq-mcp/package.json
               ./packages/ledger-mcp/package.json
               ./packages/ledger-tui/package.json
+              ./packages/ledger-web/package.json
               ./packages/e2e/package.json
             ];
           };
@@ -95,7 +96,7 @@
             # survive being placed in a different part of the store tree.
             mkdir -p $out/packages/server $out/packages/web $out/packages/shared \
                      $out/packages/ledger $out/packages/cq-mcp $out/packages/ledger-mcp \
-                     $out/packages/ledger-tui
+                     $out/packages/ledger-tui $out/packages/ledger-web
             cp -r packages/server/node_modules $out/packages/server/node_modules
             cp -r packages/web/node_modules    $out/packages/web/node_modules
             cp -r packages/shared/node_modules $out/packages/shared/node_modules
@@ -103,6 +104,7 @@
             cp -r packages/cq-mcp/node_modules $out/packages/cq-mcp/node_modules
             cp -r packages/ledger-mcp/node_modules $out/packages/ledger-mcp/node_modules
             cp -r packages/ledger-tui/node_modules $out/packages/ledger-tui/node_modules
+            cp -r packages/ledger-web/node_modules $out/packages/ledger-web/node_modules
 
             runHook postInstall
           '';
@@ -111,7 +113,7 @@
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
           # Updated after the first build (see README § Nix for workflow).
-          outputHash = "sha256-cS7mZwPedyxkmb3kuhaASDNKG91MS8Ym6NC6xg72yC0=";
+          outputHash = "sha256-MxmVZtke/BC/NIcriFlQD4VKNQ5uyJ0HH/6fy/o2KII=";
         };
 
         # ------------------------------------------------------------------ #
@@ -147,7 +149,8 @@
               "$WORKSPACE/packages/ledger/node_modules" \
               "$WORKSPACE/packages/cq-mcp/node_modules" \
               "$WORKSPACE/packages/ledger-mcp/node_modules" \
-              "$WORKSPACE/packages/ledger-tui/node_modules"
+              "$WORKSPACE/packages/ledger-tui/node_modules" \
+              "$WORKSPACE/packages/ledger-web/node_modules"
 
             # ── 2. Root node_modules ────────────────────────────────────── #
             # Create a real directory that mirrors the FOD's root node_modules
@@ -456,12 +459,74 @@
           dontStrip = true;
           dontFixup = true;
         };
+
+        # ------------------------------------------------------------------ #
+        # ledger-web — static server for the browser ledger explorer/editor.   #
+        #                                                                      #
+        # Serves the React bundle (Bun.build at startup) and injects a default  #
+        # MCP URL; the browser is a pure MCP client to a separately-running     #
+        # `ledger-mcp --http <port> --` (CORS-enabled). The server itself       #
+        # imports no npm packages, but Bun.build resolves the BROWSER bundle's  #
+        # react / react-dom / @modelcontextprotocol/sdk from node_modules at    #
+        # build time, so those (+ transitive deps via the FOD .bun store) are   #
+        # the closure. @cq/ledger is type-only and absent at runtime.           #
+        # LEDGER_WEB_OUTDIR redirects the bundler output to a writable path.    #
+        # ------------------------------------------------------------------ #
+        ledgerWeb = pkgs.stdenv.mkDerivation {
+          pname = "ledger-web";
+          version = "0.0.1";
+
+          src = ./.;
+
+          nativeBuildInputs = [ pkgs.bun pkgs.makeWrapper ];
+
+          dontConfigure = true;
+          buildPhase = "true";
+
+          installPhase = ''
+            runHook preInstall
+
+            WORKSPACE=$out/share/ledger-web
+            mkdir -p "$WORKSPACE/packages/ledger-web" $out/bin
+
+            # ── 1. Source (this package only) ───────────────────────────── #
+            cp -r packages/ledger-web/src "$WORKSPACE/packages/ledger-web/src"
+            cp packages/ledger-web/index.html "$WORKSPACE/packages/ledger-web/"
+            cp packages/ledger-web/package.json "$WORKSPACE/packages/ledger-web/"
+            cp package.json bun.lock bunfig.toml tsconfig.base.json "$WORKSPACE/"
+
+            # ── 2. node_modules for the browser bundle build ────────────── #
+            mkdir -p "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol"
+            for dep in react react-dom bun-types; do
+              if [ -e "${bunNodeModules}/packages/ledger-web/node_modules/$dep" ]; then
+                ln -s "${bunNodeModules}/packages/ledger-web/node_modules/$dep" \
+                  "$WORKSPACE/packages/ledger-web/node_modules/$dep"
+              fi
+            done
+            ln -s ${bunNodeModules}/packages/ledger-web/node_modules/@modelcontextprotocol/sdk \
+              "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol/sdk"
+
+            # ── 3. Wrapper ──────────────────────────────────────────────── #
+            # LEDGER_WEB_OUTDIR points the Bun.build output at a writable cache
+            # (the store source tree is read-only).
+            makeWrapper ${pkgs.bun}/bin/bun $out/bin/ledger-web \
+              --add-flags "run $WORKSPACE/packages/ledger-web/src/serve.ts --" \
+              --run 'export LEDGER_WEB_OUTDIR="''${LEDGER_WEB_OUTDIR:-''${XDG_CACHE_HOME:-$HOME/.cache}/ledger-web/dist}"' \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.bun pkgs.nodejs_22 ]}
+
+            runHook postInstall
+          '';
+
+          dontStrip = true;
+          dontFixup = true;
+        };
       in {
         packages = {
           default = cq;
           cq = cq;
           ledger-mcp = ledgerMcp;
           ledger-tui = ledgerTui;
+          ledger-web = ledgerWeb;
           # Expose for debugging / hash refresh.
           cq-node-modules = bunNodeModules;
         };
@@ -479,6 +544,11 @@
         apps.ledger-tui = {
           type = "app";
           program = "${ledgerTui}/bin/ledger-tui";
+        };
+
+        apps.ledger-web = {
+          type = "app";
+          program = "${ledgerWeb}/bin/ledger-web";
         };
 
         devShells.default = pkgs.mkShell {

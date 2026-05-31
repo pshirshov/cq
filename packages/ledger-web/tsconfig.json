@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "outDir": "./dist",
+    "types": ["bun-types", "react", "react-dom"],
+    "paths": {
+      "@cq/ledger": ["../ledger/src/index.ts"]
+    }
+  },
+  "references": [{ "path": "../ledger" }],
+  "include": ["src", "test"]
+}

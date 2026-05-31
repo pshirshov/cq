@@ -1,0 +1,21 @@
+{
+  "name": "@cq/ledger-web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ledger-web": "./src/serve.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@cq/ledger": "workspace:*",
+    "@happy-dom/global-registrator": "^15.0.0",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "bun-types": "^1.1.0"
+  }
+}
