@@ -1,9 +1,10 @@
 /**
  * Browser entry point for ledger-web.
  *
- * Reads the default MCP server URL from `window.__LEDGER_MCP_URL__` (injected
- * by the static server) — overridable via a `?url=` query param or the in-UI
- * connection field — and renders <App> wired to the real HTTP MCP client.
+ * By default the app talks to the SAME-ORIGIN `/mcp` endpoint, which this
+ * page's own server reverse-proxies to the upstream MCP server. So the browser
+ * never contacts the MCP server directly — it works from any host that can
+ * reach this page, with no CORS. `?url=` overrides for direct/advanced use.
  */
 
 import { createRoot } from "react-dom/client";
@@ -18,15 +19,17 @@ declare global {
   }
 }
 
-const DEFAULT_URL = "http://127.0.0.1:7777/mcp";
-
 function resolveInitialUrl(): string {
   const fromQuery = new URLSearchParams(window.location.search).get("url");
-  if (fromQuery !== null && fromQuery.length > 0) return fromQuery;
-  if (typeof window.__LEDGER_MCP_URL__ === "string" && window.__LEDGER_MCP_URL__.length > 0) {
-    return window.__LEDGER_MCP_URL__;
+  if (fromQuery !== null && fromQuery.length > 0) {
+    return new URL(fromQuery, window.location.origin).toString();
   }
-  return DEFAULT_URL;
+  const injected =
+    typeof window.__LEDGER_MCP_URL__ === "string" && window.__LEDGER_MCP_URL__.length > 0
+      ? window.__LEDGER_MCP_URL__
+      : "/mcp";
+  // Resolve relative ("/mcp") against this page's origin → absolute URL.
+  return new URL(injected, window.location.origin).toString();
 }
 
 const rootEl = document.getElementById("root");

@@ -34,8 +34,20 @@ bun run packages/ledger-mcp/src/main.ts --cwd "$PWD/examples/sample-ledger" --ht
 # 2a. Terminal UI (new shell):
 bun run packages/ledger-tui/src/main.tsx --url http://127.0.0.1:7777/mcp
 
-# 2b. Browser UI (new shell), then open the printed http://127.0.0.1:5180/ :
+# 2b. Browser UI (new shell), then open http://127.0.0.1:5180/ :
 bun run packages/ledger-web/src/serve.ts --port 5180 --mcp-url http://127.0.0.1:7777/mcp
+```
+
+`ledger-web` **reverse-proxies** `/mcp` to `--mcp-url`, so the browser only
+talks to the page's own origin — it never contacts the MCP server directly
+(no CORS, and the MCP host need not be reachable from the browser). For a
+remote browser, bind the web server on a reachable address and keep
+`--mcp-url` pointed at the MCP host as seen *from the web server*:
+
+```sh
+bun run packages/ledger-web/src/serve.ts --host 0.0.0.0 --port 5180 \
+  --mcp-url http://127.0.0.1:7777/mcp
+# then browse to http://<web-host>:5180/
 ```
 
 ### With Nix

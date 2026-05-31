@@ -62,9 +62,16 @@ export async function buildBundle(outdir: string): Promise<BundleBuild> {
   return { outdir, scriptPath, cssLink };
 }
 
-/** index.html with the default MCP URL injected for the browser app to read. */
-export function renderIndexHtml(b: BundleBuild, mcpUrl: string): string {
-  const cfg = JSON.stringify(mcpUrl);
+/** Path the browser app talks to (same origin); proxied to the upstream MCP. */
+export const MCP_PROXY_PATH = "/mcp";
+
+/**
+ * index.html. The browser app connects to the SAME-ORIGIN `/mcp` endpoint
+ * (this server proxies it to the upstream MCP server); it never contacts the
+ * MCP server directly, so the page works from any host that can reach this
+ * server, with no CORS. `?url=` can still override for direct/advanced use.
+ */
+export function renderIndexHtml(b: BundleBuild): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -72,7 +79,7 @@ export function renderIndexHtml(b: BundleBuild, mcpUrl: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ledger-web</title>
 ${b.cssLink}
-<script>window.__LEDGER_MCP_URL__ = ${cfg};</script>
+<script>window.__LEDGER_MCP_URL__ = ${JSON.stringify(MCP_PROXY_PATH)};</script>
 </head>
 <body><div id="root"></div><script type="module" src="${b.scriptPath}"></script></body>
 </html>
@@ -80,21 +87,64 @@ ${b.cssLink}
 }
 
 /** Build the bundle + write index.html. Returns the build for serving. */
-export async function prepare(outdir: string, mcpUrl: string): Promise<BundleBuild> {
+export async function prepare(outdir: string): Promise<BundleBuild> {
   const build = await buildBundle(outdir);
-  await fs.writeFile(path.join(outdir, "index.html"), renderIndexHtml(build, mcpUrl), "utf8");
+  await fs.writeFile(path.join(outdir, "index.html"), renderIndexHtml(build), "utf8");
   return build;
 }
 
+/**
+ * Reverse-proxy one request to the upstream MCP server (server→server, so no
+ * CORS and the MCP host need not be reachable from the browser). The request
+ * body is small JSON; the RESPONSE is streamed back verbatim so the Streamable
+ * HTTP transport's SSE channel works through the proxy. The `mcp-session-id`
+ * response header is preserved (it rides in the forwarded headers).
+ */
+export async function proxyToMcp(req: Request, upstream: string): Promise<Response> {
+  const headers = new Headers(req.headers);
+  // Hop-by-hop / host headers must not be forwarded; fetch recomputes them.
+  headers.delete("host");
+  headers.delete("connection");
+  headers.delete("content-length");
+  const init: RequestInit = { method: req.method, headers, redirect: "manual" };
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    init.body = await req.arrayBuffer();
+  }
+  let resp: Response;
+  try {
+    resp = await fetch(upstream, init);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return new Response(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: `ledger-web: cannot reach MCP upstream ${upstream}: ${msg}` },
+        id: null,
+      }),
+      { status: 502, headers: { "content-type": "application/json" } },
+    );
+  }
+  // Stream the upstream response (status + headers + body) back unchanged.
+  return new Response(resp.body, {
+    status: resp.status,
+    statusText: resp.statusText,
+    headers: new Headers(resp.headers),
+  });
+}
+
 export async function serve(opts: ServeOpts): Promise<ReturnType<typeof Bun.serve>> {
-  await prepare(opts.outdir, opts.mcpUrl);
+  await prepare(opts.outdir);
   const indexPath = path.join(opts.outdir, "index.html");
 
   return Bun.serve({
     hostname: opts.host,
     port: opts.port,
+    idleTimeout: 0, // long-lived SSE proxy streams must not time out
     async fetch(req): Promise<Response> {
       const url = new URL(req.url);
+      if (url.pathname === MCP_PROXY_PATH) {
+        return proxyToMcp(req, opts.mcpUrl);
+      }
       const reqPath = url.pathname === "/" ? "/index.html" : url.pathname;
       // Resolve within outdir; reject path traversal.
       const resolved = path.resolve(opts.outdir, `.${reqPath}`);
