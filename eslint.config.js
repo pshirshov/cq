@@ -45,4 +45,18 @@ export default tseslint.config(
       },
     },
   },
+  {
+    // Plain-JS ESM helper scripts (e.g. the PTY test harness) run under node,
+    // not bun/TS, so `no-undef` applies — give them node globals. They drive a
+    // terminal, so ANSI control chars in regexes are expected.
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-control-regex": "off",
+    },
+  },
 );

@@ -111,7 +111,7 @@
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
           # Updated after the first build (see README § Nix for workflow).
-          outputHash = "sha256-/MDENhxYySmeJaO7tx/+6IRZHuhvGvJ7wdj0vUmBxY0=";
+          outputHash = "sha256-cS7mZwPedyxkmb3kuhaASDNKG91MS8Ym6NC6xg72yC0=";
         };
 
         # ------------------------------------------------------------------ #

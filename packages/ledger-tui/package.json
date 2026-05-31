@@ -23,6 +23,7 @@
     "@cq/ledger": "workspace:*",
     "@types/react": "19.2.6",
     "bun-types": "^1.1.0",
-    "ink-testing-library": "4.0.0"
+    "ink-testing-library": "4.0.0",
+    "node-pty": "1.1.0"
   }
 }
