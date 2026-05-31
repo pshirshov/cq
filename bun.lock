@@ -46,6 +46,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "0.3.150",
+        "@modelcontextprotocol/sdk": "1.29.0",
         "minisearch": "7.2.0",
         "remark-frontmatter": "^5.0.0",
         "remark-parse": "^11.0.0",
@@ -56,6 +57,20 @@
       },
       "devDependencies": {
         "@types/mdast": "^4.0.4",
+        "bun-types": "^1.1.0",
+      },
+    },
+    "packages/ledger-mcp": {
+      "name": "@cq/ledger-mcp",
+      "version": "0.0.1",
+      "bin": {
+        "ledger-mcp": "./src/main.ts",
+      },
+      "dependencies": {
+        "@cq/ledger": "workspace:*",
+        "@modelcontextprotocol/sdk": "1.29.0",
+      },
+      "devDependencies": {
         "bun-types": "^1.1.0",
       },
     },
@@ -134,6 +149,8 @@
     "@cq/e2e": ["@cq/e2e@workspace:packages/e2e"],
 
     "@cq/ledger": ["@cq/ledger@workspace:packages/ledger"],
+
+    "@cq/ledger-mcp": ["@cq/ledger-mcp@workspace:packages/ledger-mcp"],
 
     "@cq/server": ["@cq/server@workspace:packages/server"],
 

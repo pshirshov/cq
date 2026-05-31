@@ -44,6 +44,7 @@
               ./packages/web/package.json
               ./packages/ledger/package.json
               ./packages/cq-mcp/package.json
+              ./packages/ledger-mcp/package.json
               ./packages/e2e/package.json
             ];
           };
@@ -92,12 +93,13 @@
             # the final `cq` derivation's installPhase to absolute paths so they
             # survive being placed in a different part of the store tree.
             mkdir -p $out/packages/server $out/packages/web $out/packages/shared \
-                     $out/packages/ledger $out/packages/cq-mcp
+                     $out/packages/ledger $out/packages/cq-mcp $out/packages/ledger-mcp
             cp -r packages/server/node_modules $out/packages/server/node_modules
             cp -r packages/web/node_modules    $out/packages/web/node_modules
             cp -r packages/shared/node_modules $out/packages/shared/node_modules
             cp -r packages/ledger/node_modules $out/packages/ledger/node_modules
             cp -r packages/cq-mcp/node_modules $out/packages/cq-mcp/node_modules
+            cp -r packages/ledger-mcp/node_modules $out/packages/ledger-mcp/node_modules
 
             runHook postInstall
           '';
@@ -106,7 +108,7 @@
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
           # Updated after the first build (see README § Nix for workflow).
-          outputHash = "sha256-F1JSOq4Vyc53Wm6fDNf9KTVnW1OCg30/2bFHGHoww8A=";
+          outputHash = "sha256-NqcLeZLcUVmvcEfEh+JW/A9zCW+zJIsmOkQpb/6BFgw=";
         };
 
         # ------------------------------------------------------------------ #
@@ -140,7 +142,8 @@
               "$WORKSPACE/packages/web/node_modules" \
               "$WORKSPACE/packages/shared/node_modules" \
               "$WORKSPACE/packages/ledger/node_modules" \
-              "$WORKSPACE/packages/cq-mcp/node_modules"
+              "$WORKSPACE/packages/cq-mcp/node_modules" \
+              "$WORKSPACE/packages/ledger-mcp/node_modules"
 
             # ── 2. Root node_modules ────────────────────────────────────── #
             # Create a real directory that mirrors the FOD's root node_modules
@@ -306,10 +309,96 @@
           dontStrip = true;
           dontFixup = true;
         };
+
+        # ------------------------------------------------------------------ #
+        # ledger-mcp — standalone, cq-free ledger MCP server.                  #
+        #                                                                      #
+        # An independent product: it serves the 14-tool ledger surface over   #
+        # stdio backed by an FsLedgerStore, with NO dependency on the cq       #
+        # server (no internal WS channel, no ask/submit relays). Any MCP       #
+        # client can spawn it via `command = "ledger-mcp"; args = ["--cwd",    #
+        # <abs>]`.                                                             #
+        #                                                                      #
+        # The closure is the minimal slice of the workspace it needs: the      #
+        # @cq/ledger library + the @cq/ledger-mcp binary, plus their runtime   #
+        # npm deps drawn from the shared FOD. cq, the web bundle, @cq/shared,  #
+        # the Codex SDK and the 240 MB native Claude binary are all absent.    #
+        # ------------------------------------------------------------------ #
+        ledgerMcp = pkgs.stdenv.mkDerivation {
+          pname = "ledger-mcp";
+          version = "0.0.1";
+
+          src = ./.;
+
+          nativeBuildInputs = [ pkgs.bun pkgs.makeWrapper ];
+
+          dontConfigure = true;
+          # Bun transpiles TypeScript at runtime; no compile step here.
+          buildPhase = "true";
+
+          installPhase = ''
+            runHook preInstall
+
+            WORKSPACE=$out/share/ledger-mcp
+            mkdir -p "$WORKSPACE/packages" $out/bin
+
+            # ── 1. Source: only the two packages this product runs ───────── #
+            cp -r packages/ledger    "$WORKSPACE/packages/ledger"
+            cp -r packages/ledger-mcp "$WORKSPACE/packages/ledger-mcp"
+            # Root manifests so bun's workspace resolution stays coherent.
+            cp package.json bun.lock bunfig.toml tsconfig.base.json "$WORKSPACE/"
+            rm -rf \
+              "$WORKSPACE/packages/ledger/node_modules" \
+              "$WORKSPACE/packages/ledger-mcp/node_modules"
+
+            # ── 2. ledger node_modules ──────────────────────────────────── #
+            # Runtime deps: minisearch (FTS), remark-*/unified/yaml (parser),
+            # zod, @modelcontextprotocol/sdk (stdio tool registration), and
+            # @anthropic-ai/claude-agent-sdk (the JS `tool()` helper that the
+            # @cq/ledger barrel re-exports — NOT the native binary).
+            mkdir -p "$WORKSPACE/packages/ledger/node_modules/@anthropic-ai" \
+                     "$WORKSPACE/packages/ledger/node_modules/@modelcontextprotocol"
+            for dep in zod yaml unified remark-frontmatter remark-parse remark-stringify minisearch bun-types; do
+              if [ -e "${bunNodeModules}/packages/ledger/node_modules/$dep" ]; then
+                ln -s "${bunNodeModules}/packages/ledger/node_modules/$dep" \
+                  "$WORKSPACE/packages/ledger/node_modules/$dep"
+              fi
+            done
+            ln -s ${bunNodeModules}/packages/ledger/node_modules/@anthropic-ai/claude-agent-sdk \
+              "$WORKSPACE/packages/ledger/node_modules/@anthropic-ai/claude-agent-sdk"
+            ln -s ${bunNodeModules}/packages/ledger/node_modules/@modelcontextprotocol/sdk \
+              "$WORKSPACE/packages/ledger/node_modules/@modelcontextprotocol/sdk"
+
+            # ── 3. ledger-mcp node_modules ──────────────────────────────── #
+            mkdir -p "$WORKSPACE/packages/ledger-mcp/node_modules/@modelcontextprotocol" \
+                     "$WORKSPACE/packages/ledger-mcp/node_modules/@cq"
+            ln -s ${bunNodeModules}/packages/ledger-mcp/node_modules/@modelcontextprotocol/sdk \
+              "$WORKSPACE/packages/ledger-mcp/node_modules/@modelcontextprotocol/sdk"
+            if [ -e "${bunNodeModules}/packages/ledger-mcp/node_modules/bun-types" ]; then
+              ln -s "${bunNodeModules}/packages/ledger-mcp/node_modules/bun-types" \
+                "$WORKSPACE/packages/ledger-mcp/node_modules/bun-types"
+            fi
+            # workspace dep — absolute so it resolves to source, not an FOD stub
+            ln -s "$WORKSPACE/packages/ledger" \
+              "$WORKSPACE/packages/ledger-mcp/node_modules/@cq/ledger"
+
+            # ── 4. Wrapper ──────────────────────────────────────────────── #
+            # CWD is left as-is; the server only touches the --cwd ledger root.
+            makeWrapper ${pkgs.bun}/bin/bun $out/bin/ledger-mcp \
+              --add-flags "run $WORKSPACE/packages/ledger-mcp/src/main.ts --" \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.bun pkgs.nodejs_22 ]}
+
+            runHook postInstall
+          '';
+
+          dontStrip = true;
+          dontFixup = true;
+        };
       in {
         packages = {
           default = cq;
           cq = cq;
+          ledger-mcp = ledgerMcp;
           # Expose for debugging / hash refresh.
           cq-node-modules = bunNodeModules;
         };
@@ -317,6 +406,11 @@
         apps.default = {
           type = "app";
           program = "${cq}/bin/cq";
+        };
+
+        apps.ledger-mcp = {
+          type = "app";
+          program = "${ledgerMcp}/bin/ledger-mcp";
         };
 
         devShells.default = pkgs.mkShell {
