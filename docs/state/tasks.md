@@ -17,7 +17,7 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
   + Codex locations) — `/plan:start`, `/plan:advance`, `plan-reviewer`.
 - [ ] **M3** — Non-AI watcher (F4): `@cq/ledger-live` process re-invoking the open
   session on the resume predicate.
-- [ ] **M4** — UI quick-transition buttons (TUI + web): render only the legal next
+- [~] **M4** — UI quick-transition buttons (TUI + web): render only the legal next
   statuses from the schema `transitions` map as one-click actions. Edits
   `ledger-tui`/`ledger-web` only. **Depends on PR-01** (the map) AND on that map
   being surfaced in the `fetch_ledger`/schema MCP response. Can run in an isolated
@@ -37,7 +37,7 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
   Acceptance: `bun test packages/ledger/test/transitions.test.ts` passes on both
   stores (illegal `clarifying→planned` throws; field-only update skips guard);
   `bun run check` clean.
-- [ ] **PR-02** — F2 goal preconditions in both stores' `updateItem`: refuse leaving
+- [x] **PR-02** — F2 goal preconditions in both stores' `updateItem`: refuse leaving
   `clarifying` while an open linked question exists; refuse entering `planned`
   without a locked linked `decisions` item. Failing tests first.
   Acceptance: `bun test packages/ledger/test/goal-preconditions.test.ts` passes on
@@ -122,3 +122,24 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
     frontend can read the map from the fetched ledger schema today.
   - The whole `docs/` tree is untracked in git except where individually added; the review-loop
     state (`docs/state/`, `docs/drafts/`) is added explicitly per commit.
+
+- **PR-02** (2026-06-01) — F2 server-enforced goal preconditions. Shipped: a shared pure helper
+  `assertGoalPhasePreconditions` (core.ts) invoked via a `StatusChangePrecondition` hook in
+  `applyUpdateItem` AFTER the F1 transition guard; both stores pass a closure (only when
+  `ledgerId === goals`) over their in-memory questions/decisions ledgers. Rule (a): cannot leave
+  `clarifying` while any `open` question links the goal (`ledgerRefs ∋ "goals:<G>"`). Rule (b):
+  cannot enter `planned` without ≥1 `locked` `decisions` item linking the goal. New
+  `GoalPreconditionError` (names goal, rule, blocking ids).
+  Verification: `bun run check` → tsc/eslint clean, `bun test` 356 pass / 0 fail (31 files);
+  `bun test goal-preconditions.test.ts` 24 pass on both stores.
+  Metrics: review rounds 1 (no major; minor/doc/test fixes verified by the added tests);
+  defects major:0, minor:2, nit:1; verification complete; scope delta none.
+  Notes / constraints for later PRs:
+  - **Ordering invariant:** the precondition runs AFTER the transition guard, so a schema-illegal
+    jump surfaces as `InvalidTransitionError`, not `GoalPreconditionError`. Pinned by a test —
+    don't reorder.
+  - **Enforcement is per-process** (exact within a process, best-effort across processes under the
+    eventual-consistency D-COHERENCE model). Documented in the helper; not lock-enforced.
+  - Goal-specific rules live in the generic store (gated on the `goals` ledger name); a fully
+    declarative precondition DSL was deliberately deferred (simplicity-first). No schema change ⇒
+    no `regen-bootstrap` needed for this PR.

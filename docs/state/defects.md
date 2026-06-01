@@ -46,6 +46,37 @@ Status: `[ ] open` · `[~] under fix` · `[x] resolved`
 **Description:** Runtime guard tests only exercise `goals`; D02 tests use synthetic schemas. No assertion pins the D03 `postponed↔blocked` edges or the other canonical maps. They're validated indirectly (every map passes `validateSchema` at bootstrap), but a regression silently dropping an edge would go uncaught.
 **Fix:** Added a `canonical schema transition maps — pinned edges` block in `transitions.test.ts` with exact-edge assertions across all 7 canonical maps (milestones `postponed↔blocked` + `done:[]`; goals `clarifying→planning` present, `→planned` absent; questions `open→{answered,withdrawn}`; one edge each for defects/tasks/hypothesis/decisions).
 
+---
+
+## PR-02
+
+### [PR-02-D01] "No client can bypass" goal preconditions are per-process, not global (cross-process staleness window)
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** packages/ledger/src/store/FsLedgerStore.ts:451-469 (precondition closure) ↔ invalidate/reloadLedgerFromDisk
+**Description:** The precondition reads the in-memory questions/decisions ledgers under the goals lock only. Across processes (D-COHERENCE eventual consistency), there is no happens-before edge between a peer answering a question / locking a decision and this process evaluating the goal precondition; the check can run against a stale view until the inbound `ledger.changed` invalidation applies. Exact within one process, best-effort across processes — inherent to the existing model, surfaced by F2.
+**Fix:** Added a doc comment on `StatusChangePrecondition` / `assertGoalPhasePreconditions` (core.ts) stating the check is exact within one process and best-effort across processes under the eventual-consistency model. No locking change.
+
+### [PR-02-D02] Precondition tests under-cover the rules the implementation relies on
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** packages/ledger/test/goal-preconditions.test.ts
+**Description:** 8 cases assert the right error type and seed via the store API (good), but miss: (i) illegal-transition-takes-precedence — `clarifying→planned` (schema-illegal) with an open linked question must throw `InvalidTransitionError`, not `GoalPreconditionError`, and not crash; (ii) a `locked` decision linking a DIFFERENT goal must NOT satisfy rule (b); (iii) a `withdrawn` question must not block leaving clarifying; (iv) mixed open+answered linked questions still block. (i) and (ii) are the high-value gaps — the implementation's correctness leans on exactly those invariants and they're unexercised.
+**Fix:** Added dual-store cases to `goal-preconditions.test.ts` (now 24 tests): (i) illegal `clarifying→planned` with an open question rejects with `InvalidTransitionError` (not `GoalPreconditionError`), goal stays clarifying; (ii) a `locked` decision linking a different goal does NOT satisfy rule (b); (iii) a withdrawn question doesn't block leaving clarifying; (iv) mixed open+answered still blocks.
+
+### [PR-02-D03] Precondition hook types from/to as bare `string`
+**Status:** [x] resolved (accepted)
+**Severity:** nit
+**Location:** packages/ledger/src/store/core.ts (`StatusChangePrecondition`, `assertGoalPhasePreconditions`)
+**Description:** Statuses flow as raw `string`; a typo'd status constant would make a rule silently a no-op rather than failing typecheck. Consistent with the codebase-wide `string` status convention, so not a regression.
+**Fix:** Accepted as-is — matches the surrounding convention; the new D02(ii) test guards against the rule silently no-op'ing.
+
+---
+
+## M4 (UI quick-transition buttons)
+
+(under review — changes uncommitted in worktree `worktree-agent-af04491be06bc3584`)
+
 ### [PR-01-D06] `scripts/` excluded from lint
 **Status:** [x] resolved (accepted; see Fix)
 **Severity:** nit

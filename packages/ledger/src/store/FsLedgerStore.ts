@@ -66,6 +66,7 @@ import {
   applyEnsureAmbientMilestone,
   applyUpdateItem,
   applyUpdateMilestoneItem,
+  assertGoalPhasePreconditions,
   assertMilestoneActive,
   assertPrefixUnique,
   findItem,
@@ -93,10 +94,13 @@ import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
 import {
   CANONICAL_LEDGERS,
+  DECISIONS_LEDGER,
+  GOALS_LEDGER,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_ACTIVE_GROUP_TITLE,
   MILESTONES_AMBIENT_ID,
   MILESTONES_LEDGER,
+  QUESTIONS_LEDGER,
 } from "../constants.js";
 
 export interface FsLedgerStoreOpts {
@@ -445,7 +449,23 @@ export class FsLedgerStore implements LedgerStore {
   ): Promise<Item> {
     const it = await this.withLock(ledgerId, async () => {
       const ledger = this.getLedger(ledgerId);
-      const x = applyUpdateItem(ledger, itemId, patch, this.now());
+      // F2: cross-ledger goal-phase preconditions, enforced via the
+      // precondition hook so they run AFTER the F1 transition guard. Read-only
+      // of the in-memory questions/decisions ledgers under the goals lock
+      // (synchronous; no other lock needed). The rule logic lives in
+      // core.ts::assertGoalPhasePreconditions — not duplicated here.
+      const precondition =
+        ledgerId === GOALS_LEDGER
+          ? (from: string, to: string): void =>
+              assertGoalPhasePreconditions(
+                itemId,
+                from,
+                to,
+                this.ledgers.get(QUESTIONS_LEDGER),
+                this.ledgers.get(DECISIONS_LEDGER),
+              )
+          : undefined;
+      const x = applyUpdateItem(ledger, itemId, patch, this.now(), precondition);
       await this.writeLedgerFile(ledger);
       return cloneItem(x);
     });

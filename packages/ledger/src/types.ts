@@ -348,6 +348,24 @@ export class MilestoneItemNotFoundError extends LedgerError {
 }
 
 /**
+ * Thrown when a server-enforced cross-ledger precondition on a `goals`
+ * phase change is violated (F2):
+ *  - leaving `clarifying` while an `open` `questions` item still links to
+ *    the goal, or
+ *  - entering `planned` without a `locked` `decisions` item linking the goal.
+ *
+ * The message names the goal, the rule, and the blocking item ids so the
+ * caller can act without a second round-trip. These are goal-specific
+ * business rules enforced at the store layer so no client can bypass them.
+ */
+export class GoalPreconditionError extends LedgerError {
+  constructor(reason: string) {
+    super(`Goal precondition violated: ${reason}`);
+    this.name = "GoalPreconditionError";
+  }
+}
+
+/**
  * Thrown when an operation would violate a bootstrapped invariant of
  * the `milestones` ledger — e.g. attempting to archive the bootstrap
  * group `M0`, or to re-create the milestones ledger with a different

@@ -20,6 +20,7 @@ import {
   CrossPrefixIdError,
   DuplicateIdError,
   DuplicatePrefixError,
+  GoalPreconditionError,
   InvalidIdError,
   InvalidStatusError,
   InvalidTransitionError,
@@ -31,6 +32,7 @@ import {
   SchemaValidationError,
 } from "../types.js";
 import {
+  GOALS_LEDGER,
   isIsoTimestamp,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_AMBIENT_ID,
@@ -234,11 +236,31 @@ export function searchItems(ledger: Ledger, query: string): Item[] {
   return out;
 }
 
+/**
+ * Optional cross-ledger precondition hook invoked by `applyUpdateItem` AFTER
+ * the (single-ledger) status + transition guards pass but BEFORE the status is
+ * mutated. Receives the actual `from`/`to` statuses. Throws to veto the change.
+ * Used by the stores to enforce F2 goal-phase preconditions, whose evaluation
+ * needs other ledgers this pure helper does not (and should not) see.
+ *
+ * Coherence model: the store wires this to `assertGoalPhasePreconditions`,
+ * which the store evaluates against ITS OWN in-memory view while holding the
+ * goals lock. The cross-ledger check is therefore EXACT within a single
+ * process (the linking questions/decisions a holder of the lock can see are
+ * exactly those committed in this process), but only BEST-EFFORT across
+ * processes: the multi-process D-COHERENCE model is eventually consistent, so a
+ * peer process's just-written `open` question or `locked` decision may not yet
+ * be visible here when the precondition runs. No additional locking closes
+ * that window by design.
+ */
+export type StatusChangePrecondition = (from: string, to: string) => void;
+
 export function applyUpdateItem(
   ledger: Ledger,
   itemId: string,
   patch: UpdateItemPatch,
   now: string,
+  precondition?: StatusChangePrecondition,
 ): Item {
   const { item } = findItem(ledger, itemId);
   if (patch.status !== undefined) {
@@ -248,6 +270,10 @@ export function applyUpdateItem(
     // field-only or no-op (status unchanged) patch never triggers it.
     if (patch.status !== item.status) {
       assertTransitionAllowed(ledger, itemId, item.status, patch.status);
+      // Cross-ledger preconditions (F2) run only for a real, schema-legal
+      // status change — after the transition guard so an illegal jump still
+      // surfaces as a transition error, not a precondition error.
+      if (precondition !== undefined) precondition(item.status, patch.status);
     }
     item.status = patch.status;
   }
@@ -590,6 +616,99 @@ export function assertMilestoneActive(
     throw new MilestoneItemNotFoundError(milestoneId, "terminal");
   }
   return view;
+}
+
+// ---------------------------------------------------------------------------
+// Goal phase preconditions (F2)
+// ---------------------------------------------------------------------------
+
+/** The goals phase a precondition gates on. */
+const GOALS_CLARIFYING_STATUS = "clarifying";
+const GOALS_PLANNED_STATUS = "planned";
+/** Status an `open` question carries. */
+const QUESTIONS_OPEN_STATUS = "open";
+/** Status a `locked` decision carries. */
+const DECISIONS_LOCKED_STATUS = "locked";
+
+/**
+ * Soft cross-ledger ref to a goal, using the established
+ * `<ledgerName>:<itemId>` convention recorded in an item's
+ * `fields.ledgerRefs` array.
+ */
+function goalRef(goalId: string): string {
+  return `${GOALS_LEDGER}:${goalId}`;
+}
+
+/** Every active item across a ledger's milestone-groups that links the goal. */
+function itemsLinkingGoal(ledger: Ledger | undefined, goalId: string): Item[] {
+  if (ledger === undefined) return [];
+  const ref = goalRef(goalId);
+  const out: Item[] = [];
+  for (const m of ledger.milestones) {
+    for (const it of m.items) {
+      const refs = it.fields["ledgerRefs"];
+      if (Array.isArray(refs) && refs.includes(ref)) out.push(it);
+    }
+  }
+  return out;
+}
+
+/**
+ * F2 — server-enforced cross-ledger preconditions on a `goals` item's phase
+ * change. Pure: receives the questions/decisions ledgers explicitly (each
+ * store gathers them from its own view) so the rule logic lives in exactly
+ * one place, mirroring how `assertMilestoneActive` is a core helper the stores
+ * call.
+ *
+ * This is deliberately goal-specific business logic embedded in the generic
+ * store layer — the simplest thing that enforces the rules for every client.
+ * A general declarative-precondition DSL in the schema was considered and is
+ * out of scope; do NOT generalise this without that decision being revisited.
+ *
+ * Preconditions, evaluated only when a `goals` item's status actually changes:
+ *  (a) cannot LEAVE `clarifying` while ANY `open` `questions` item links the
+ *      goal (`fields.ledgerRefs` contains `goals:<goalId>`);
+ *  (b) cannot ENTER `planned` unless at least one `locked` `decisions` item
+ *      links the goal.
+ *
+ * `questionsLedger` / `decisionsLedger` may be undefined (e.g. a store whose
+ * canonical ledgers are not all present) — treated as "no linking items".
+ *
+ * Coherence: the store calls this against its own in-memory view under the
+ * goals lock, so the rule is EXACT within a single process but only
+ * BEST-EFFORT across processes — the multi-process D-COHERENCE model is
+ * eventually consistent, so a peer's just-written question/decision may not yet
+ * be visible here. See `StatusChangePrecondition` for the full statement.
+ */
+export function assertGoalPhasePreconditions(
+  goalId: string,
+  fromStatus: string,
+  toStatus: string,
+  questionsLedger: Ledger | undefined,
+  decisionsLedger: Ledger | undefined,
+): void {
+  // (a) Leaving `clarifying`.
+  if (fromStatus === GOALS_CLARIFYING_STATUS && toStatus !== GOALS_CLARIFYING_STATUS) {
+    const blocking = itemsLinkingGoal(questionsLedger, goalId)
+      .filter((it) => it.status === QUESTIONS_OPEN_STATUS)
+      .map((it) => it.id);
+    if (blocking.length > 0) {
+      throw new GoalPreconditionError(
+        `goal ${goalId} cannot leave "${GOALS_CLARIFYING_STATUS}" while open questions link it: ${blocking.join(", ")}`,
+      );
+    }
+  }
+  // (b) Entering `planned`.
+  if (toStatus === GOALS_PLANNED_STATUS && fromStatus !== GOALS_PLANNED_STATUS) {
+    const locked = itemsLinkingGoal(decisionsLedger, goalId).filter(
+      (it) => it.status === DECISIONS_LOCKED_STATUS,
+    );
+    if (locked.length === 0) {
+      throw new GoalPreconditionError(
+        `goal ${goalId} cannot enter "${GOALS_PLANNED_STATUS}" without a locked decision linking it`,
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
