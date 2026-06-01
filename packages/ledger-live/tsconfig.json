@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "lib": ["ES2023", "DOM"],
+    "outDir": "./dist",
+    "types": ["bun-types"]
+  },
+  "include": ["src", "test"]
+}

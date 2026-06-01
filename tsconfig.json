@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/ledger" },
+    { "path": "./packages/ledger-live" },
     { "path": "./packages/ledger-mcp" },
     { "path": "./packages/ledger-tui" },
     { "path": "./packages/ledger-web" }

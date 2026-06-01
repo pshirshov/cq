@@ -34,6 +34,13 @@
         "bun-types": "^1.1.0",
       },
     },
+    "packages/ledger-live": {
+      "name": "@cq/ledger-live",
+      "version": "0.0.1",
+      "devDependencies": {
+        "bun-types": "^1.1.0",
+      },
+    },
     "packages/ledger-mcp": {
       "name": "@cq/ledger-mcp",
       "version": "0.0.1",
@@ -119,6 +126,8 @@
     "@babel/runtime": ["@babel/runtime@7.29.7", "", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
     "@cq/ledger": ["@cq/ledger@workspace:packages/ledger"],
+
+    "@cq/ledger-live": ["@cq/ledger-live@workspace:packages/ledger-live"],
 
     "@cq/ledger-mcp": ["@cq/ledger-mcp@workspace:packages/ledger-mcp"],
 
