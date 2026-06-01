@@ -17,12 +17,42 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient } from "./types.js";
+import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
 
 const MILESTONES = "milestones";
+
+// Detail-panel layout, persisted to localStorage.
+const PANEL_KEY = "ledger-web.panel";
+const MIN_PANEL = 180;
+type PanelOrientation = "right" | "bottom";
+interface PanelLayout {
+  orientation: PanelOrientation;
+  size: number;
+}
+const DEFAULT_PANEL: PanelLayout = { orientation: "right", size: 380 };
+
+function loadPanel(): PanelLayout {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(PANEL_KEY) : null;
+    if (raw !== null) {
+      const p = JSON.parse(raw) as Partial<PanelLayout>;
+      return {
+        orientation: p.orientation === "bottom" ? "bottom" : "right",
+        size: typeof p.size === "number" && p.size >= MIN_PANEL ? p.size : DEFAULT_PANEL.size,
+      };
+    }
+  } catch {
+    /* fall through to default */
+  }
+  return { ...DEFAULT_PANEL };
+}
+
+export function clampPanelSize(size: number, max: number): number {
+  return Math.max(MIN_PANEL, Math.min(size, Math.max(MIN_PANEL, max)));
+}
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -71,6 +101,42 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
   const [flash, setFlash] = useState("");
   const [mainView, setMainView] = useState<"ledger" | "dag">("ledger");
   const [dag, setDag] = useState<DagData | null>(null);
+  const [panel, setPanel] = useState<PanelLayout>(loadPanel);
+  const [dragging, setDragging] = useState(false);
+  const workareaRef = useRef<HTMLDivElement>(null);
+
+  // Persist panel layout.
+  useEffect(() => {
+    try {
+      localStorage.setItem(PANEL_KEY, JSON.stringify(panel));
+    } catch {
+      /* ignore (e.g. storage disabled) */
+    }
+  }, [panel]);
+
+  // While dragging the splitter, resize from the pointer position.
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: PointerEvent): void => {
+      const el = workareaRef.current;
+      if (el === null) return;
+      const r = el.getBoundingClientRect();
+      const raw = panel.orientation === "right" ? r.right - e.clientX : r.bottom - e.clientY;
+      const max = (panel.orientation === "right" ? r.width : r.height) - MIN_PANEL;
+      setPanel((p) => ({ ...p, size: clampPanelSize(raw, max) }));
+    };
+    const onUp = (): void => setDragging(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragging, panel.orientation]);
+
+  const toggleOrientation = useCallback(() => {
+    setPanel((p) => ({ ...p, orientation: p.orientation === "right" ? "bottom" : "right" }));
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -147,13 +213,26 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
     }
   }, [client, ledger]);
 
-  const setStatus = useCallback(
-    async (row: Row, status: string) => {
+  /**
+   * Persist an edited item: status + all fields in one call. Milestones route
+   * through update_milestone (mapping title/description/blockedBy/dependsOn);
+   * every other ledger through update_item.
+   */
+  const saveEdit = useCallback(
+    async (row: Row, status: string, fields: Record<string, FieldValue>) => {
       if (client === null) return;
       try {
-        if (isMilestones) await client.updateMilestone(row.item.id, { status });
-        else await client.updateItem(ledger!, row.item.id, { status });
-        setFlash(`${row.item.id} → ${status}`);
+        if (isMilestones) {
+          const patch: MilestonePatch = { status };
+          if (typeof fields["title"] === "string") patch.title = fields["title"];
+          if (typeof fields["description"] === "string") patch.description = fields["description"];
+          if (Array.isArray(fields["blockedBy"])) patch.blockedBy = fields["blockedBy"];
+          if (Array.isArray(fields["dependsOn"])) patch.dependsOn = fields["dependsOn"];
+          await client.updateMilestone(row.item.id, patch);
+        } else {
+          await client.updateItem(ledger!, row.item.id, { status, fields });
+        }
+        setFlash(`saved ${row.item.id}`);
         await reload();
         if (mainView === "dag" && ledger !== null) setDag(await loadDagData(client, ledger));
       } catch (e) {
@@ -161,38 +240,6 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
       }
     },
     [client, isMilestones, ledger, reload, mainView],
-  );
-
-  const setFieldValue = useCallback(
-    async (row: Row, field: string, raw: string) => {
-      if (client === null || view === null) return;
-      try {
-        const spec = view.schema.fields[field];
-        const value = parseFieldValue(raw, spec?.type ?? "string");
-        await client.updateItem(ledger!, row.item.id, { fields: { [field]: value } });
-        setFlash(`${row.item.id}.${field} updated`);
-        await reload();
-        if (mainView === "dag" && ledger !== null) setDag(await loadDagData(client, ledger));
-      } catch (e) {
-        setFlash(errMsg(e));
-      }
-    },
-    [client, view, ledger, reload, mainView],
-  );
-
-  const setTitle = useCallback(
-    async (row: Row, title: string) => {
-      if (client === null) return;
-      try {
-        await client.updateMilestone(row.item.id, { title });
-        setFlash(`${row.item.id} title updated`);
-        await reload();
-        if (mainView === "dag" && ledger !== null) setDag(await loadDagData(client, ledger));
-      } catch (e) {
-        setFlash(errMsg(e));
-      }
-    },
-    [client, reload, mainView],
   );
 
   const runSearch = useCallback(
@@ -296,6 +343,15 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
         >
           {mainView === "dag" ? "table" : "graph"}
         </button>
+        <button
+          type="button"
+          data-testid="panel-orientation"
+          className="lw-toggle"
+          title="Move the detail panel"
+          onClick={toggleOrientation}
+        >
+          {panel.orientation === "right" ? "panel ▸ bottom" : "panel ▸ right"}
+        </button>
       </header>
 
       {conn === "error" && (
@@ -323,6 +379,7 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
           ))}
         </nav>
 
+        <div className={`lw-workarea lw-workarea-${panel.orientation}`} ref={workareaRef}>
         <main className="lw-main">
           {mainView === "dag" ? (
             dag !== null ? (
@@ -385,17 +442,32 @@ export function App({ connect, initialUrl }: AppProps): React.ReactElement {
         </main>
 
         {selected !== null && view !== null && (
-          <DetailPanel
-            row={selected}
-            ledger={ledger ?? ""}
-            schema={view.schema}
-            isMilestones={isMilestones}
-            onSetStatus={(s) => void setStatus(selected, s)}
-            onSetField={(f, v) => void setFieldValue(selected, f, v)}
-            onSetTitle={(t) => void setTitle(selected, t)}
-            onClose={() => setSelected(null)}
-          />
+          <>
+            <div
+              className={`lw-splitter lw-splitter-${panel.orientation}`}
+              data-testid="splitter"
+              role="separator"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+            />
+            <div
+              className="lw-detail-wrap"
+              style={panel.orientation === "right" ? { width: panel.size } : { height: panel.size }}
+            >
+              <DetailPanel
+                row={selected}
+                ledger={ledger ?? ""}
+                schema={view.schema}
+                isMilestones={isMilestones}
+                onSave={(status, fields) => void saveEdit(selected, status, fields)}
+                onClose={() => setSelected(null)}
+              />
+            </div>
+          </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -509,40 +581,125 @@ function DetailPanel({
   ledger,
   schema,
   isMilestones,
-  onSetStatus,
-  onSetField,
-  onSetTitle,
+  onSave,
   onClose,
 }: {
   row: Row;
   ledger: string;
   schema: FetchedLedger["schema"];
   isMilestones: boolean;
-  onSetStatus: (status: string) => void;
-  onSetField: (field: string, value: string) => void;
-  onSetTitle: (title: string) => void;
+  onSave: (status: string, fields: Record<string, FieldValue>) => void;
   onClose: () => void;
 }): React.ReactElement {
   const fieldNames = Object.keys(schema.fields);
-  const [status, setStatusVal] = useState(row.item.status);
-  const [field, setFieldName] = useState(fieldNames[0] ?? "");
-  const fieldValRef = useRef<HTMLInputElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [status, setStatus] = useState(row.item.status);
+  const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
 
+  // Reset to view mode (and resync status) whenever a different item loads.
   useEffect(() => {
-    setStatusVal(row.item.status);
-    setFieldName(Object.keys(schema.fields)[0] ?? "");
-  }, [row, schema]);
+    setEditing(false);
+    setStatus(row.item.status);
+  }, [row]);
+
+  const head = (
+    <div className="lw-detail-head">
+      <strong data-testid="detail-id">{row.item.id}</strong>
+      <span className="lw-dim"> @ {ledger}</span>
+      {!editing && (
+        <button type="button" className="lw-edit-btn" data-testid="edit" onClick={() => setEditing(true)}>
+          edit
+        </button>
+      )}
+      <button type="button" className="lw-close" onClick={onClose} data-testid="detail-close">
+        ✕
+      </button>
+    </div>
+  );
+
+  if (editing) {
+    const save = (): void => {
+      const built: Record<string, FieldValue> = {};
+      for (const name of fieldNames) {
+        const raw = fieldRefs.current[name]?.value ?? "";
+        // Keep an existing field even if cleared (lets you blank it); skip
+        // brand-new empty fields so we don't add empties.
+        if (raw.length > 0 || row.item.fields[name] !== undefined) {
+          built[name] = parseFieldValue(raw, schema.fields[name]!.type);
+        }
+      }
+      onSave(status, built);
+      setEditing(false);
+    };
+    return (
+      <aside className="lw-detail" data-testid="detail">
+        {head}
+        <form
+          className="lw-form"
+          data-testid="edit-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+        >
+          <label className="lw-field">
+            <span>status</span>
+            <select data-testid="edit-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+              {schema.statusValues.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+          {fieldNames.map((name) => {
+            const spec = schema.fields[name]!;
+            const multiline = spec.type === "string";
+            return (
+              <label key={name} className="lw-field">
+                <span>
+                  {name}
+                  {spec.required ? " *" : ""}
+                  <span className="lw-dim"> ({spec.type})</span>
+                </span>
+                {multiline ? (
+                  <textarea
+                    data-testid={`edit-field-${name}`}
+                    rows={4}
+                    ref={(el) => {
+                      fieldRefs.current[name] = el;
+                    }}
+                    defaultValue={fieldToString(row.item.fields[name])}
+                  />
+                ) : (
+                  <input
+                    data-testid={`edit-field-${name}`}
+                    ref={(el) => {
+                      fieldRefs.current[name] = el;
+                    }}
+                    defaultValue={fieldToString(row.item.fields[name])}
+                    placeholder={spec.type.endsWith("[]") ? "comma,separated" : ""}
+                  />
+                )}
+              </label>
+            );
+          })}
+          <div className="lw-form-actions">
+            <button type="button" data-testid="save" onClick={save}>
+              save
+            </button>
+            <button type="button" data-testid="cancel-edit" onClick={() => setEditing(false)}>
+              cancel
+            </button>
+          </div>
+        </form>
+      </aside>
+    );
+  }
 
   return (
     <aside className="lw-detail" data-testid="detail">
-      <div className="lw-detail-head">
-        <strong data-testid="detail-id">{row.item.id}</strong>
-        <span className="lw-dim"> @ {ledger}</span>
-        <button type="button" className="lw-close" onClick={onClose} data-testid="detail-close">
-          ✕
-        </button>
-      </div>
+      {head}
       <dl className="lw-fields">
         <dt>status</dt>
         <dd data-testid="detail-status">{row.item.status}</dd>
@@ -557,55 +714,7 @@ function DetailPanel({
         <dt>milestone</dt>
         <dd>{row.milestoneId}</dd>
       </dl>
-
-      <fieldset className="lw-edit">
-        <legend>status</legend>
-        <select data-testid="status-select" value={status} onChange={(e) => setStatusVal(e.target.value)}>
-          {schema.statusValues.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <button type="button" data-testid="status-save" onClick={() => onSetStatus(status)}>
-          set status
-        </button>
-      </fieldset>
-
-      {isMilestones ? (
-        <fieldset className="lw-edit">
-          <legend>title</legend>
-          <input
-            data-testid="title-input"
-            key={`title-${row.item.id}`}
-            ref={titleRef}
-            defaultValue={fieldToString(row.item.fields["title"])}
-          />
-          <button type="button" data-testid="title-save" onClick={() => onSetTitle(titleRef.current?.value ?? "")}>
-            set title
-          </button>
-        </fieldset>
-      ) : fieldNames.length > 0 ? (
-        <fieldset className="lw-edit">
-          <legend>field</legend>
-          <select data-testid="field-select" value={field} onChange={(e) => setFieldName(e.target.value)}>
-            {fieldNames.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-          <input
-            data-testid="field-input"
-            key={`${row.item.id}-${field}`}
-            ref={fieldValRef}
-            defaultValue={fieldToString(row.item.fields[field])}
-          />
-          <button type="button" data-testid="field-save" onClick={() => onSetField(field, fieldValRef.current?.value ?? "")}>
-            set field
-          </button>
-        </fieldset>
-      ) : null}
+      {isMilestones && <p className="lw-dim">Milestone fields (title/deps) are edited via the form.</p>}
     </aside>
   );
 }

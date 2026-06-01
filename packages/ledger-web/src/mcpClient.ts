@@ -117,6 +117,8 @@ export class McpLedgerClient implements LedgerClient {
     if (patch.status !== undefined) args["status"] = patch.status;
     if (patch.title !== undefined) args["title"] = patch.title;
     if (patch.description !== undefined) args["description"] = patch.description;
+    if (patch.blockedBy !== undefined) args["blockedBy"] = patch.blockedBy;
+    if (patch.dependsOn !== undefined) args["dependsOn"] = patch.dependsOn;
     return (await this.call<{ milestone: Item }>("update_milestone", args)).milestone;
   }
 

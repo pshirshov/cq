@@ -37,6 +37,8 @@ export interface MilestonePatch {
   status?: string;
   title?: string;
   description?: string;
+  blockedBy?: string[];
+  dependsOn?: string[];
 }
 
 /**

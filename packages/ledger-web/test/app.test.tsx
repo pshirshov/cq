@@ -12,7 +12,7 @@ registerDom();
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { App } from "../src/App";
+import { App, clampPanelSize } from "../src/App";
 import { FakeClient } from "./fakeClient";
 
 let container: HTMLElement;
@@ -96,31 +96,41 @@ describe("ledger-web App", () => {
     expect(strong?.textContent).toBe("intermittent");
   });
 
-  it("edits an item's status and persists via the client", async () => {
+  it("edits status + a field through the edit form and persists", async () => {
     await mount();
     click(testid("ledger-bugs"));
     await flush();
     click(testid("item-D1"));
     await flush();
-    setValue(testid("status-select"), "wip");
-    click(testid("status-save"));
+    // view mode → click Edit → form appears
+    click(testid("edit"));
     await flush();
-    expect(testid("flash")?.textContent).toContain("D1 → wip");
-    expect((await fake.fetchItem("bugs", "D1")).status).toBe("wip");
+    expect(testid("edit-form")).not.toBeNull();
+    setValue(testid("edit-status"), "wip");
+    setValue(testid("edit-field-headline"), "warp leak fixed");
+    click(testid("save"));
+    await flush();
+    const item = await fake.fetchItem("bugs", "D1");
+    expect(item.status).toBe("wip");
+    expect(item.fields["headline"]).toBe("warp leak fixed");
+    // back in view mode, reflecting the saved values
+    expect(testid("edit-form")).toBeNull();
     expect(testid("detail-status")?.textContent).toBe("wip");
   });
 
-  it("edits an item field value", async () => {
+  it("cancels an edit without saving", async () => {
     await mount();
     click(testid("ledger-bugs"));
     await flush();
     click(testid("item-D1"));
     await flush();
-    // field-select defaults to "headline"; append to its value, then save.
-    setValue(testid("field-input"), "warp leak fixed");
-    click(testid("field-save"));
+    click(testid("edit"));
     await flush();
-    expect((await fake.fetchItem("bugs", "D1")).fields["headline"]).toBe("warp leak fixed");
+    setValue(testid("edit-field-headline"), "should not stick");
+    click(testid("cancel-edit"));
+    await flush();
+    expect(testid("edit-form")).toBeNull();
+    expect((await fake.fetchItem("bugs", "D1")).fields["headline"]).toBe("warp leak");
   });
 
   it("creates a milestone in the milestones ledger", async () => {
@@ -162,5 +172,30 @@ describe("ledger-web App", () => {
     click(testid("hit-D1"));
     await flush();
     expect(testid("detail-id")?.textContent).toBe("D1");
+  });
+
+  it("toggles the detail-panel orientation and persists it to localStorage", async () => {
+    localStorage.removeItem("ledger-web.panel");
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("item-D1")); // selecting an item shows the panel + splitter
+    await flush();
+    expect(q(".lw-workarea-right")).not.toBeNull();
+    expect(testid("splitter")).not.toBeNull();
+    click(testid("panel-orientation"));
+    await flush();
+    expect(q(".lw-workarea-bottom")).not.toBeNull();
+    const saved = JSON.parse(localStorage.getItem("ledger-web.panel") ?? "{}") as { orientation?: string };
+    expect(saved.orientation).toBe("bottom");
+  });
+});
+
+describe("clampPanelSize", () => {
+  it("clamps to the [min, max] band", () => {
+    expect(clampPanelSize(50, 800)).toBe(180); // below min
+    expect(clampPanelSize(400, 800)).toBe(400); // within band
+    expect(clampPanelSize(900, 800)).toBe(800); // above max
+    expect(clampPanelSize(900, 50)).toBe(180); // max below min → min wins
   });
 });
