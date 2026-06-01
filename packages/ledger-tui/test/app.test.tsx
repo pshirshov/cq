@@ -15,9 +15,66 @@ import React from "react";
 import { render } from "ink-testing-library";
 import { App } from "../src/app.js";
 import { FakeClient } from "./fakeClient.js";
+import type { FetchedLedger, Item, LedgerClient } from "../src/types.js";
 
 const DOWN = "[B";
 const ENTER = "\r";
+const ESC = "\u001b";
+
+const TS = "2026-01-01T00:00:00.000Z";
+
+/** A client with a single ledger of N items, for the scroll test. */
+class ManyItemsClient implements LedgerClient {
+  constructor(private readonly n: number) {}
+  async enumerateLedgers(): Promise<string[]> {
+    return ["work"];
+  }
+  async fetchLedger(id: string): Promise<FetchedLedger> {
+    if (id !== "work") throw new Error(`Ledger not found: ${id}`);
+    const items: Item[] = Array.from({ length: this.n }, (_, i) => ({
+      id: `T${i}`,
+      milestoneId: "active",
+      status: "open",
+      fields: { headline: `task ${i}` },
+      createdAt: TS,
+      updatedAt: TS,
+    }));
+    return {
+      id: "work",
+      schema: {
+        statusValues: ["open", "done"],
+        terminalStatuses: ["done"],
+        fields: { headline: { type: "string", required: true } },
+      },
+      counters: { milestone: 1, item: this.n + 1 },
+      milestones: [
+        { id: "active", milestone: { id: "active", status: "open", title: "", description: "" }, items },
+      ],
+      archivePointers: [],
+    };
+  }
+  async fetchItem(): Promise<Item> {
+    throw new Error("not used");
+  }
+  async createItem(): Promise<Item> {
+    throw new Error("not used");
+  }
+  async updateItem(): Promise<Item> {
+    throw new Error("not used");
+  }
+  async ftsSearch(): Promise<never[]> {
+    return [];
+  }
+  async createMilestone(): Promise<Item> {
+    throw new Error("not used");
+  }
+  async updateMilestone(): Promise<Item> {
+    throw new Error("not used");
+  }
+  async close(): Promise<void> {
+    /* no-op */
+  }
+}
 
 const tick = (ms = 25): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -142,5 +199,57 @@ describe("ledger-tui App", () => {
     await tick(40);
     expect(h.frame()).toContain("headline");
     h.unmount();
+  });
+
+  it("shows the path (ledger → milestone → item) in the header", async () => {
+    const h = await mount();
+    await h.key(ENTER); // open bugs (cursor 0)
+    expect(h.frame()).toContain("bugs → M1 → D1");
+    h.unmount();
+  });
+
+  it("shows the highlighted item's detail in the content pane (two-pane)", async () => {
+    const h = await mount();
+    await h.key(ENTER); // open bugs; D1 auto-highlighted → content pane shows it
+    await tick(60);
+    const f = h.frame();
+    // content pane shows the item's field labels + values (no second Enter needed)
+    expect(f).toContain("headline");
+    expect(f).toContain("note");
+    expect(f).toContain("intermittent");
+    // markdown is rendered (see markdownText.test.tsx for the renderer itself)
+    h.unmount();
+  });
+
+  it("preserves the list position when going back with Esc", async () => {
+    const h = await mount();
+    await h.key(DOWN); // bugs → milestones
+    await h.key(ENTER); // open milestones
+    await h.key(ESC); // Esc → back to ledgers
+    // cursor must still be on milestones (the › marker), not reset to bugs
+    expect(h.frame()).toContain("› milestones");
+    h.unmount();
+  });
+});
+
+describe("ledger-tui scrolling", () => {
+  it("scrolls a long list and shows a scrollbar", async () => {
+    const client = new ManyItemsClient(60);
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open the only ledger
+    await tick(40);
+    const first = r.lastFrame() ?? "";
+    expect(first).toContain("T0 "); // top item visible
+    expect(first).toContain("█"); // scrollbar thumb present (list overflows)
+    expect(first).not.toContain("T59 "); // last item not in the initial window
+    // page down to the bottom
+    for (let i = 0; i < 59; i++) {
+      r.stdin.write(DOWN);
+      await tick(4);
+    }
+    await tick(40);
+    expect(r.lastFrame() ?? "").toContain("T59 "); // scrolled into view
+    r.unmount();
   });
 });
