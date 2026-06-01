@@ -34,6 +34,8 @@ import {
 const MILESTONES = "milestones";
 /** Provenance author stamped on writes made by a human through this editor. */
 const UI_AUTHOR = "user";
+/** Debounce for as-you-type search (ms). */
+const SEARCH_DEBOUNCE_MS = 200;
 
 // Detail-panel layout, persisted to localStorage.
 const PANEL_KEY = "ledger-web.panel";
@@ -269,7 +271,11 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
 
   const runSearch = useCallback(
     async (query: string) => {
-      if (client === null || query.trim().length === 0) return;
+      if (client === null) return;
+      if (query.trim().length === 0) {
+        setHits(null); // cleared input → leave search mode, show the ledger
+        return;
+      }
       try {
         const r = await client.ftsSearch(query);
         setHits(r);
@@ -601,23 +607,40 @@ function LiveIndicator({ stats }: { stats: LiveStats | null }): React.ReactEleme
 }
 
 function SearchBar({ onSearch, disabled }: { onSearch: (q: string) => void; disabled: boolean }): React.ReactElement {
-  const ref = useRef<HTMLInputElement>(null);
-  const go = (): void => {
-    const v = ref.current?.value ?? "";
-    if (v.trim().length > 0) onSearch(v);
+  // As-you-type: debounce each keystroke; Enter fires immediately. Uncontrolled
+  // input (ref) so keystrokes register under happy-dom in tests.
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fire = (v: string): void => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    onSearch(v);
   };
+  const schedule = (v: string): void => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onSearch(v), SEARCH_DEBOUNCE_MS);
+  };
+  useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+    },
+    [],
+  );
   return (
     <form
       className="lw-search"
       onSubmit={(e) => {
         e.preventDefault();
-        go();
+        fire((e.currentTarget.elements.namedItem("q") as HTMLInputElement).value);
       }}
     >
-      <input aria-label="search" data-testid="search-input" placeholder="search…" ref={ref} disabled={disabled} defaultValue="" />
-      <button type="button" data-testid="search-go" disabled={disabled} onClick={go}>
-        search
-      </button>
+      <input
+        name="q"
+        aria-label="search"
+        data-testid="search-input"
+        placeholder="search… e.g. status:wip OR ledger:goals"
+        disabled={disabled}
+        defaultValue=""
+        onInput={(e) => schedule((e.target as HTMLInputElement).value)}
+      />
     </form>
   );
 }

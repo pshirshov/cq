@@ -79,7 +79,6 @@ type Frame =
 
 type Overlay =
   | { t: "search" }
-  | { t: "searchResults"; hits: FtsHit[] }
   | { t: "status"; row: Row }
   | { t: "pickField"; row: Row }
   | { t: "editField"; row: Row; field: string }
@@ -270,23 +269,8 @@ export function App({
     }
   }, [client, top, isMilestonesLedger]);
 
-  const runSearch = useCallback(
-    async (query: string) => {
-      if (query.trim().length === 0) {
-        setOverlay(null);
-        return;
-      }
-      try {
-        const hits = await client.ftsSearch(query);
-        setFlash(`${hits.length} hit(s) for "${query}"`);
-        setOverlay({ t: "searchResults", hits });
-      } catch (e) {
-        setFlash(errMsg(e));
-        setOverlay(null);
-      }
-    },
-    [client],
-  );
+  // The live-search overlay drives this directly as the user types.
+  const search = useCallback((query: string) => client.ftsSearch(query), [client]);
 
   const openHit = useCallback(
     async (hit: FtsHit) => {
@@ -457,7 +441,7 @@ export function App({
               onStatus={applyStatus}
               onField={applyField}
               onTitle={applyTitle}
-              onSearch={runSearch}
+              search={search}
               onOpenHit={openHit}
               onCreateMilestone={async (title) => {
                 try {
@@ -689,6 +673,90 @@ function ContentPane({
 }
 
 // ---------------------------------------------------------------------------
+// Live search — type to filter (debounced), ↑↓ to navigate, Enter to open.
+// Accepts the filter query language (status:, ledger:, OR, …) verbatim; the
+// server interprets it.
+// ---------------------------------------------------------------------------
+
+const SEARCH_DEBOUNCE_MS = 200;
+
+function LiveSearch({
+  search,
+  onOpenHit,
+  onCancel,
+}: {
+  search: (q: string) => Promise<FtsHit[]>;
+  onOpenHit: (h: FtsHit) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<FtsHit[]>([]);
+  const [cursor, setCursor] = useState(0);
+
+  // Debounced live query: re-run SEARCH_DEBOUNCE_MS after the last keystroke.
+  // A `cancelled` guard drops a stale in-flight result that resolves late.
+  useEffect(() => {
+    if (query.trim().length === 0) {
+      setHits([]);
+      setCursor(0);
+      return;
+    }
+    let cancelled = false;
+    const id = setTimeout(() => {
+      search(query)
+        .then((r) => {
+          if (cancelled) return;
+          setHits(r);
+          setCursor(0);
+        })
+        .catch(() => {
+          if (!cancelled) setHits([]);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [query, search]);
+
+  useInput((input, key) => {
+    if (key.escape) onCancel();
+    else if (key.upArrow) setCursor((c) => Math.max(0, c - 1));
+    else if (key.downArrow) setCursor((c) => Math.min(Math.max(0, hits.length - 1), c + 1));
+    else if (key.return) {
+      const hit = hits[cursor];
+      if (hit !== undefined) onOpenHit(hit);
+    } else if (key.backspace || key.delete) setQuery((q) => q.slice(0, -1));
+    else if (input.length > 0 && !key.ctrl && !key.meta) setQuery((q) => q + input);
+  });
+
+  return (
+    <Box flexDirection="column">
+      <Text>
+        search: <Text color="cyan">{query}</Text>
+        <Text>▌</Text>
+      </Text>
+      <Text dimColor>filters: status: ledger: author: · OR/NOT/() · ↑↓ Enter Esc</Text>
+      <Box marginTop={1} flexDirection="column">
+        {query.trim().length === 0 ? (
+          <Text dimColor>(type to search across all ledgers)</Text>
+        ) : hits.length === 0 ? (
+          <Text dimColor>(no hits)</Text>
+        ) : (
+          <ScrollList
+            items={hits}
+            getLabel={(h) => `${h.ledgerId}/${h.item.id} [${h.item.status}] ${summarize(h.item)}`}
+            cursor={cursor}
+            height={14}
+            active
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Overlays (edit / create / search) — own input while mounted
 // ---------------------------------------------------------------------------
 
@@ -698,7 +766,7 @@ function Overlays({
   onStatus,
   onField,
   onTitle,
-  onSearch,
+  search,
   onOpenHit,
   onCreateMilestone,
   onCreateItem,
@@ -711,7 +779,7 @@ function Overlays({
   onStatus: (row: Row, status: string) => void;
   onField: (row: Row, field: string, value: string) => void;
   onTitle: (row: Row, title: string) => void;
-  onSearch: (q: string) => void;
+  search: (q: string) => Promise<FtsHit[]>;
   onOpenHit: (h: FtsHit) => void;
   onCreateMilestone: (title: string) => void;
   onCreateItem: (milestoneId: string, status: string, fields: Record<string, FieldValue>) => void;
@@ -745,17 +813,7 @@ function Overlays({
       );
     }
     case "search":
-      return <TextPrompt label="search:" onSubmit={onSearch} onCancel={onCancel} />;
-    case "searchResults":
-      return (
-        <SelectList
-          items={overlay.hits}
-          getLabel={(h) => `${h.ledgerId}/${h.item.id} [${h.item.status}] ${summarize(h.item)}`}
-          onSelect={(h) => onOpenHit(h)}
-          onCancel={onCancel}
-          emptyLabel="(no hits)"
-        />
-      );
+      return <LiveSearch search={search} onOpenHit={onOpenHit} onCancel={onCancel} />;
     case "status":
       return (
         <SelectList

@@ -105,6 +105,16 @@ async function type(h: Harness, text: string): Promise<void> {
   for (const ch of text) await h.key(ch);
 }
 
+/** Poll the rendered frame until it contains `substr`. */
+async function waitFor(h: Harness, substr: string, ms = 1500): Promise<void> {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (h.frame().includes(substr)) return;
+    await tick(10);
+  }
+  throw new Error(`waitFor: '${substr}' never appeared`);
+}
+
 /**
  * Advance a multi-step overlay one step by pressing Enter, resilient to a
  * dropped keystroke. On a cold first render the freshly-mounted SelectList can
@@ -210,15 +220,13 @@ describe("ledger-tui App", () => {
     h.unmount();
   });
 
-  it("searches across ledgers and opens a hit", async () => {
+  it("searches across ledgers as you type and opens a hit", async () => {
     const h = await mount();
-    await h.key("/"); // search from ledgers
+    await h.key("/"); // open live search from ledgers
     await type(h, "warp");
-    await h.key(ENTER);
-    await tick(40);
-    expect(h.frame()).toContain("bugs/D1");
-    await h.key(ENTER); // open the hit -> detail
-    await tick(40);
+    await waitFor(h, "bugs/D1"); // debounced live results appear (no submit)
+    await h.key(ENTER); // open the highlighted hit -> detail
+    await waitFor(h, "headline");
     expect(h.frame()).toContain("headline");
     h.unmount();
   });

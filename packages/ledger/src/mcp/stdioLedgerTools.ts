@@ -21,6 +21,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LedgerStore, CreateItemInit, UpdateItemPatch } from "../store/LedgerStore.js";
+import { QUERY_LANGUAGE_HELP } from "../search/query.js";
 import type { FieldValue, LedgerSchema } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -240,8 +241,7 @@ export function registerLedgerStdioTools(server: McpServer, store: LedgerStore):
   server.registerTool(
     "fts_search",
     {
-      description:
-        "Ranked full-text search across ledger items. Cross-ledger by default (pass `ledger` to restrict to one). Supports fuzzy + prefix matching, an exact status filter, and an `include_archived` flag (default false). Results are ranked by relevance score (descending); field boosts favour headline/title/question over description/rationale over status. Each result carries the full item, its score, and the fields that matched. Use this for discovery; use search_items for precise single-ledger substring matching.",
+      description: `Ranked full-text search across ledger items, with a filter query language. Cross-ledger by default (pass \`ledger\` to restrict to one). Results are ranked by relevance (descending); field boosts favour headline/title/question over description/rationale over status. Each result carries the full item, its score, and the fields that matched. Use this for discovery; use search_items for precise single-ledger substring matching. ${QUERY_LANGUAGE_HELP}`,
       inputSchema: {
         query: z.string(),
         ledger: z.string().optional(),

@@ -184,16 +184,36 @@ describe("ledger-web App", () => {
     expect(headlines).toContain("ion drive misalignment");
   });
 
-  it("searches across ledgers and opens a hit into detail", async () => {
+  it("searches across ledgers as you type and opens a hit into detail", async () => {
     await mount();
+    // As-you-type: typing into the box debounces, then runs the search — no
+    // button. Wait past the debounce window.
     setValue(testid("search-input"), "warp");
-    click(testid("search-go"));
-    await flush();
+    await act(async () => {
+      await sleep(260);
+    });
     expect(testid("search-results")).not.toBeNull();
     expect(testid("hit-D1")).not.toBeNull();
     click(testid("hit-D1"));
     await flush();
     expect(testid("detail-id")?.textContent).toBe("D1");
+  });
+
+  it("clears search results when the box is emptied", async () => {
+    // The query language itself (status:/ledger:/OR/…) is exercised server-side
+    // in the library tests; here we only assert the as-you-type UX: a match
+    // shows results, and clearing the input leaves search mode.
+    await mount();
+    setValue(testid("search-input"), "warp");
+    await act(async () => {
+      await sleep(260);
+    });
+    expect(testid("search-results")).not.toBeNull();
+    setValue(testid("search-input"), "");
+    await act(async () => {
+      await sleep(260);
+    });
+    expect(testid("search-results")).toBeNull();
   });
 
   it("toggles the detail-panel orientation and persists it to localStorage", async () => {

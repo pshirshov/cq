@@ -397,7 +397,7 @@ export class FsLedgerStore implements LedgerStore {
   async ftsSearch(query: string, opts: FtsSearchOpts = {}): Promise<FtsSearchHit[]> {
     this.assertInit();
     return this.searchIndex
-      .search(query, opts)
+      .searchQuery(query, opts)
       .map((h) => ({ ...h, item: cloneItem(h.item) }));
   }
 

@@ -134,3 +134,47 @@ describe("LedgerSearchIndex", () => {
     expect(idx.search("   ").length).toBe(0);
   });
 });
+
+describe("LedgerSearchIndex.searchQuery (filter language)", () => {
+  function fixture(): LedgerSearchIndex {
+    const idx = new LedgerSearchIndex();
+    idx.rebuildLedgerActive("tasks", [
+      item("T1", "done", { headline: "ship the parser", severity: "minor" }),
+      item("T2", "wip", { headline: "ship the web ui" }),
+      item("T3", "planned", { headline: "ship the tui" }),
+    ]);
+    idx.rebuildLedgerActive("goals", [
+      item("G1", "building", { title: "ship a platform", description: "ship everything" }),
+    ]);
+    return idx;
+  }
+  const ids = (hits: { item: { id: string } }[]): string[] => hits.map((h) => h.item.id).sort();
+
+  it("plain free text still ranks via MiniSearch (unchanged path)", () => {
+    expect(ids(fixture().searchQuery("ship"))).toEqual(["G1", "T1", "T2", "T3"]);
+  });
+
+  it("filters by a status qualifier", () => {
+    expect(ids(fixture().searchQuery("status:done"))).toEqual(["T1"]);
+  });
+
+  it("evaluates an OR group of statuses", () => {
+    expect(ids(fixture().searchQuery("(status:done OR status:wip)"))).toEqual(["T1", "T2"]);
+  });
+
+  it("scopes to a ledger via the ledger qualifier", () => {
+    expect(ids(fixture().searchQuery("ledger:goals ship"))).toEqual(["G1"]);
+  });
+
+  it("combines a qualifier with free text (implicit AND)", () => {
+    expect(ids(fixture().searchQuery("status:wip ship"))).toEqual(["T2"]);
+  });
+
+  it("supports negation", () => {
+    expect(ids(fixture().searchQuery("ship -status:done ledger:tasks"))).toEqual(["T2", "T3"]);
+  });
+
+  it("matches a generic item field qualifier", () => {
+    expect(ids(fixture().searchQuery("severity:minor"))).toEqual(["T1"]);
+  });
+});

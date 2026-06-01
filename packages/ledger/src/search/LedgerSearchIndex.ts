@@ -34,6 +34,13 @@
 
 import MiniSearch from "minisearch";
 import type { FieldValue, Item } from "../types.js";
+import {
+  parseQuery,
+  collectTerms,
+  isPlainTextQuery,
+  evaluate,
+  type EvalContext,
+} from "./query.js";
 
 /** Field names whose values go into the high-boost `headline` bucket. */
 const HEADLINE_FIELD_NAMES: ReadonlySet<string> = new Set([
@@ -212,6 +219,75 @@ export class LedgerSearchIndex {
     return hits;
   }
 
+  /**
+   * Search with the GitHub-style query language (qualifiers + boolean groups;
+   * see {@link parseQuery}). Plain free-text queries delegate to {@link search}
+   * unchanged (preserving its ranked OR/fuzzy/prefix semantics). Structured
+   * queries are evaluated as a boolean predicate per item: free-text leaves are
+   * matched (and scored) via MiniSearch per distinct term, qualifier leaves
+   * against the item's metadata (status/ledger/milestone/author/session) or an
+   * item field of that name. Ranking: descending summed term score, then most
+   * recently updated.
+   */
+  searchQuery(query: string, opts: FtsSearchOpts = {}): FtsSearchHit[] {
+    const node = parseQuery(query);
+    if (node.t === "empty") return [];
+    if (isPlainTextQuery(node)) return this.search(query, opts);
+
+    const limit = opts.limit ?? DEFAULT_LIMIT;
+    const includeArchived = opts.includeArchived ?? false;
+    const statusFilter =
+      opts.statusFilter !== undefined ? opts.statusFilter.toLowerCase() : undefined;
+
+    // Per-distinct-term MiniSearch results: docId → { score, fields }.
+    const termHits = new Map<string, Map<string, { score: number; fields: string[] }>>();
+    for (const term of collectTerms(node)) {
+      const m = new Map<string, { score: number; fields: string[] }>();
+      for (const r of this.mini.search(term, {
+        boost: FIELD_BOOSTS,
+        fuzzy: opts.fuzzy === true ? 0.2 : false,
+        prefix: opts.prefix === true,
+      })) {
+        m.set(String(r.id), { score: r.score, fields: matchedFieldsOf(r.match) });
+      }
+      termHits.set(term, m);
+    }
+
+    const scored: Array<{ hit: FtsSearchHit; updatedAt: string; docId: string }> = [];
+    for (const [docId, back] of this.backing) {
+      if (opts.ledger !== undefined && back.ledgerId !== opts.ledger) continue;
+      if (!includeArchived && back.archived) continue;
+      if (statusFilter !== undefined && back.item.status.toLowerCase() !== statusFilter) continue;
+
+      const matchedFields = new Set<string>();
+      let score = 0;
+      const ctx: EvalContext = {
+        matchesTerm: (text) => {
+          const hit = termHits.get(text)?.get(docId);
+          if (hit === undefined) return false;
+          score += hit.score;
+          for (const f of hit.fields) matchedFields.add(f);
+          return true;
+        },
+        matchesQualifier: (key, value) => matchItemQualifier(back.ledgerId, back.item, key, value),
+      };
+      if (!evaluate(node, ctx)) continue;
+      scored.push({
+        hit: { ledgerId: back.ledgerId, item: back.item, score, matchedFields: [...matchedFields] },
+        updatedAt: back.item.updatedAt,
+        docId,
+      });
+    }
+
+    scored.sort(
+      (a, b) =>
+        b.hit.score - a.hit.score ||
+        (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0) ||
+        (a.docId < b.docId ? -1 : 1),
+    );
+    return scored.slice(0, limit).map((s) => s.hit);
+  }
+
   // --- internals ---
 
   /**
@@ -253,6 +329,34 @@ export class LedgerSearchIndex {
         this.mini.discard(id);
         this.backing.delete(id);
       }
+    }
+  }
+}
+
+/**
+ * Resolve a `key:value` qualifier against an item (case-insensitive). Known
+ * metadata keys (ledger/status/milestone/author/session) match item metadata;
+ * any other key matches an item FIELD of that name — exact for scalars,
+ * membership for `string[]` values. Unknown/absent → no match.
+ */
+function matchItemQualifier(ledgerId: string, item: Item, key: string, value: string): boolean {
+  const want = value.toLowerCase();
+  switch (key) {
+    case "ledger":
+      return ledgerId.toLowerCase() === want;
+    case "status":
+      return item.status.toLowerCase() === want;
+    case "milestone":
+      return item.milestoneId.toLowerCase() === want;
+    case "author":
+      return (item.author ?? "").toLowerCase() === want;
+    case "session":
+      return (item.session ?? "").toLowerCase() === want;
+    default: {
+      const v = item.fields[key];
+      if (v === undefined) return false;
+      if (Array.isArray(v)) return v.some((e) => e.toLowerCase() === want);
+      return v.toLowerCase() === want;
     }
   }
 }
