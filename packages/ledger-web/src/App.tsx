@@ -129,6 +129,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [selected, setSelected] = useState<Row | null>(null);
   const [hits, setHits] = useState<FtsHit[] | null>(null);
   const [creating, setCreating] = useState<"item" | "milestone" | null>(null);
+  const [draftMilestones, setDraftMilestones] = useState<Item[]>([]);
   const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
   // Keyboard navigation: which zone has the cursor, plus per-zone cursors.
   // Items reuse `selected` as their cursor (it live-previews into the detail).
@@ -404,6 +405,50 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     [view, filter],
   );
 
+  // When creating a new item, load the milestones to pick from (the editor
+  // shows a milestone selector in create mode).
+  useEffect(() => {
+    if (creating !== "item" || client === null) return;
+    let alive = true;
+    void client.fetchLedger(MILESTONES).then((ms) => {
+      if (alive) setDraftMilestones(ms.milestones.flatMap((g) => g.items));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [creating, client]);
+
+  // A stable blank row to seed the editor in create mode (per create session).
+  const draftRow = useMemo<Row>(
+    () => ({
+      item: {
+        id: "",
+        milestoneId: "",
+        status: view?.schema.statusValues[0] ?? "",
+        fields: {},
+        createdAt: "",
+        updatedAt: "",
+      },
+      milestoneId: "",
+    }),
+    [view, creating],
+  );
+
+  const createDraft = useCallback(
+    async (milestoneId: string, status: string, fields: Record<string, FieldValue>): Promise<void> => {
+      if (client === null || ledger === null) return;
+      try {
+        const it = await client.createItem(ledger, milestoneId, { status, fields, author: UI_AUTHOR });
+        setFlash(`created ${it.id}`);
+        setCreating(null);
+        await reload();
+      } catch (e) {
+        setFlash(errMsg(e));
+      }
+    },
+    [client, ledger, reload],
+  );
+
   // Reset cursors when their underlying lists change.
   useEffect(() => setHitCursor(0), [hits]);
   useEffect(() => setLedgerCursor(Math.max(0, ledgers.indexOf(ledger ?? ""))), [ledger, ledgers]);
@@ -621,7 +666,10 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 <button
                   type="button"
                   data-testid="new-item-or-milestone"
-                  onClick={() => setCreating(isMilestones ? "milestone" : "item")}
+                  onClick={() => {
+                    setSelected(null);
+                    setCreating(isMilestones ? "milestone" : "item");
+                  }}
                 >
                   {isMilestones ? "+ milestone" : "+ item"}
                 </button>
@@ -657,33 +705,13 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                   onCancel={() => setCreating(null)}
                 />
               )}
-              {creating === "item" && client !== null && (
-                <CreateItemForm
-                  view={view}
-                  loadMilestones={() => client.fetchLedger(MILESTONES)}
-                  onCreate={async (milestoneId, status, fields) => {
-                    try {
-                      const it = await client.createItem(ledger!, milestoneId, {
-                        status,
-                        fields,
-                        author: UI_AUTHOR,
-                      });
-                      setFlash(`created ${it.id}`);
-                      setCreating(null);
-                      await reload();
-                    } catch (e) {
-                      setFlash(errMsg(e));
-                    }
-                  }}
-                  onCancel={() => setCreating(null)}
-                />
-              )}
               <ItemTable
                 rows={visibleRows}
                 schema={view.schema}
                 selectedId={selected?.item.id ?? null}
                 onSelect={(r) => {
                   setNavZone("main");
+                  setCreating(null);
                   setSelected(r);
                 }}
               />
@@ -693,7 +721,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
           )}
         </main>
 
-        {selected !== null && view !== null && (
+        {(selected !== null || creating === "item") && view !== null && (
           <>
             <div
               className={`lw-splitter lw-splitter-${panel.orientation}`}
@@ -708,16 +736,34 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
               className="lw-detail-wrap"
               style={panel.orientation === "right" ? { width: panel.size } : { height: panel.size }}
             >
-              <DetailPanel
-                row={selected}
-                ledger={ledger ?? ""}
-                schema={view.schema}
-                isMilestones={isMilestones}
-                orientation={panel.orientation}
-                onToggleOrientation={toggleOrientation}
-                onSave={(status, fields) => void saveEdit(selected, status, fields)}
-                onClose={() => setSelected(null)}
-              />
+              {creating === "item" ? (
+                <DetailPanel
+                  row={draftRow}
+                  ledger={ledger ?? ""}
+                  schema={view.schema}
+                  isMilestones={isMilestones}
+                  orientation={panel.orientation}
+                  onToggleOrientation={toggleOrientation}
+                  draftMilestones={draftMilestones}
+                  onCreate={(milestoneId, status, fields) =>
+                    void createDraft(milestoneId, status, fields)
+                  }
+                  onClose={() => setCreating(null)}
+                />
+              ) : (
+                selected !== null && (
+                  <DetailPanel
+                    row={selected}
+                    ledger={ledger ?? ""}
+                    schema={view.schema}
+                    isMilestones={isMilestones}
+                    orientation={panel.orientation}
+                    onToggleOrientation={toggleOrientation}
+                    onSave={(status, fields) => void saveEdit(selected, status, fields)}
+                    onClose={() => setSelected(null)}
+                  />
+                )
+              )}
             </div>
           </>
         )}
@@ -909,6 +955,8 @@ function DetailPanel({
   orientation,
   onToggleOrientation,
   onSave,
+  onCreate,
+  draftMilestones,
   onClose,
 }: {
   row: Row;
@@ -917,19 +965,32 @@ function DetailPanel({
   isMilestones: boolean;
   orientation: PanelOrientation;
   onToggleOrientation: () => void;
-  onSave: (status: string, fields: Record<string, FieldValue>) => void;
+  onSave?: (status: string, fields: Record<string, FieldValue>) => void;
+  // Create mode: present `draftMilestones` (the milestone options) + `onCreate`.
+  onCreate?: (milestoneId: string, status: string, fields: Record<string, FieldValue>) => void;
+  draftMilestones?: Item[];
   onClose: () => void;
 }): React.ReactElement {
+  const isDraft = draftMilestones !== undefined;
   const fieldNames = Object.keys(schema.fields);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(isDraft);
   const [status, setStatus] = useState(row.item.status);
+  const [milestoneId, setMilestoneId] = useState(draftMilestones?.[0]?.id ?? "");
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
 
-  // Reset to view mode (and resync status) whenever a different item loads.
+  // Reset to the initial mode + values whenever the row changes (a different
+  // item loads, or a fresh create session starts → blank draft row).
   useEffect(() => {
-    setEditing(false);
+    setEditing(isDraft);
     setStatus(row.item.status);
-  }, [row]);
+  }, [row, isDraft]);
+
+  // Default the milestone selection once the options arrive.
+  useEffect(() => {
+    if (isDraft && milestoneId === "" && draftMilestones && draftMilestones.length > 0) {
+      setMilestoneId(draftMilestones[0]!.id);
+    }
+  }, [isDraft, draftMilestones, milestoneId]);
 
   const save = (): void => {
     const built: Record<string, FieldValue> = {};
@@ -941,24 +1002,33 @@ function DetailPanel({
         built[name] = parseFieldValue(raw, schema.fields[name]!.type);
       }
     }
-    onSave(status, built);
-    setEditing(false);
+    if (isDraft) {
+      if (milestoneId.length === 0) return; // need a milestone to attach to
+      onCreate?.(milestoneId, status, built);
+    } else {
+      onSave?.(status, built);
+      setEditing(false);
+    }
+  };
+  const cancel = (): void => {
+    if (isDraft) onClose();
+    else setEditing(false);
   };
 
   // The header carries the action cluster (right-aligned). In edit mode it is
   // save/cancel (close is hidden); in view mode it is dock-toggle/edit/close.
   const head = (
     <div className="lw-detail-head">
-      <strong data-testid="detail-id">{row.item.id}</strong>
+      <strong data-testid="detail-id">{isDraft ? "new item" : row.item.id}</strong>
       <span className="lw-dim"> @ {ledger}</span>
       <div className="lw-detail-actions">
         {editing ? (
           <>
-            <button type="button" data-testid="cancel-edit" onClick={() => setEditing(false)}>
+            <button type="button" data-testid="cancel-edit" onClick={cancel}>
               cancel
             </button>
             <button type="button" data-testid="save" onClick={save}>
-              save
+              {isDraft ? "create" : "save"}
             </button>
           </>
         ) : (
@@ -997,6 +1067,22 @@ function DetailPanel({
             save();
           }}
         >
+          {isDraft && !isMilestones && (
+            <label className="lw-field">
+              <span>milestone</span>
+              <select
+                data-testid="edit-milestone"
+                value={milestoneId}
+                onChange={(e) => setMilestoneId(e.target.value)}
+              >
+                {draftMilestones!.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.id} {fieldToString(m.fields["title"])}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="lw-field">
             <span>status</span>
             <select data-testid="edit-status" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -1111,94 +1197,3 @@ function CreateMilestoneForm({
   );
 }
 
-function CreateItemForm({
-  view,
-  loadMilestones,
-  onCreate,
-  onCancel,
-}: {
-  view: FetchedLedger;
-  loadMilestones: () => Promise<FetchedLedger>;
-  onCreate: (milestoneId: string, status: string, fields: Record<string, FieldValue>) => void;
-  onCancel: () => void;
-}): React.ReactElement {
-  const [milestones, setMilestones] = useState<Item[]>([]);
-  const [milestoneId, setMilestoneId] = useState("");
-  const [status, setStatus] = useState(view.schema.statusValues[0] ?? "");
-  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const fieldNames = Object.keys(view.schema.fields);
-
-  useEffect(() => {
-    let alive = true;
-    void loadMilestones().then((ms) => {
-      if (!alive) return;
-      const items = ms.milestones.flatMap((g) => g.items);
-      setMilestones(items);
-      setMilestoneId(items[0]?.id ?? "");
-    });
-    return () => {
-      alive = false;
-    };
-  }, [loadMilestones]);
-
-  const go = (): void => {
-    const built: Record<string, FieldValue> = {};
-    for (const name of fieldNames) {
-      const raw = fieldRefs.current[name]?.value ?? "";
-      if (raw.length === 0) continue;
-      built[name] = parseFieldValue(raw, view.schema.fields[name]!.type);
-    }
-    if (milestoneId.length > 0) onCreate(milestoneId, status, built);
-  };
-
-  return (
-    <form
-      className="lw-create"
-      data-testid="create-item"
-      onSubmit={(e) => {
-        e.preventDefault();
-        go();
-      }}
-    >
-      <label>
-        milestone
-        <select data-testid="ci-milestone" value={milestoneId} onChange={(e) => setMilestoneId(e.target.value)}>
-          {milestones.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id} {fieldToString(m.fields["title"])}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        status
-        <select data-testid="ci-status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          {view.schema.statusValues.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
-      {fieldNames.map((name) => (
-        <label key={name}>
-          {name}
-          {view.schema.fields[name]!.required ? "*" : ""}
-          <input
-            data-testid={`ci-field-${name}`}
-            ref={(el) => {
-              fieldRefs.current[name] = el;
-            }}
-            defaultValue=""
-          />
-        </label>
-      ))}
-      <button type="button" data-testid="ci-create" onClick={go}>
-        create
-      </button>
-      <button type="button" onClick={onCancel}>
-        cancel
-      </button>
-    </form>
-  );
-}

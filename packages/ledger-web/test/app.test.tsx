@@ -176,14 +176,18 @@ describe("ledger-web App", () => {
     expect(titles).toContain("Phase Two");
   });
 
-  it("creates an item via the create form", async () => {
+  it("creates an item through the shared editor (new item reuses the edit panel)", async () => {
     await mount();
     click(testid("ledger-bugs"));
     await flush();
     click(testid("new-item-or-milestone"));
-    await flush(); // CreateItemForm loads milestones
-    setValue(testid("ci-field-headline"), "ion drive misalignment");
-    click(testid("ci-create"));
+    await flush(); // editor opens in create mode + loads milestones
+    // It is the same editor as edit mode: same form + a milestone picker.
+    expect(testid("edit-form")).not.toBeNull();
+    expect(testid("edit-milestone")).not.toBeNull();
+    expect(testid("detail-id")?.textContent).toBe("new item");
+    setValue(testid("edit-field-headline"), "ion drive misalignment");
+    click(testid("save"));
     await flush();
     const ledger = await fake.fetchLedger("bugs");
     const headlines = ledger.milestones.flatMap((g) => g.items.map((i) => i.fields["headline"]));
