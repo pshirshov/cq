@@ -219,6 +219,15 @@ button:hover {
 .lw-row-active td {
   background: #16202c;
 }
+/* Keyboard cursor highlights (sidebar ledger + search hit). */
+.lw-ledger-cursor {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.lw-hit-cursor {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
 .lw-status {
   color: var(--accent);
   font-weight: 600;

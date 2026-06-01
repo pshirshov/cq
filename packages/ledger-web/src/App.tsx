@@ -16,7 +16,7 @@
  * React's controlled-input onChange.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
@@ -130,6 +130,11 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [hits, setHits] = useState<FtsHit[] | null>(null);
   const [creating, setCreating] = useState<"item" | "milestone" | null>(null);
   const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
+  // Keyboard navigation: which zone has the cursor, plus per-zone cursors.
+  // Items reuse `selected` as their cursor (it live-previews into the detail).
+  const [navZone, setNavZone] = useState<"sidebar" | "main">("sidebar");
+  const [ledgerCursor, setLedgerCursor] = useState(0);
+  const [hitCursor, setHitCursor] = useState(0);
   const [flash, setFlash] = useState("");
   const [mainView, setMainView] = useState<"ledger" | "dag">("ledger");
   const [dag, setDag] = useState<DagData | null>(null);
@@ -389,6 +394,113 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     };
   }, [client, liveUrl, liveWsCtor]);
 
+  // The item rows currently visible (ledger rows after the status filter). The
+  // keyboard handler and the table render from the same list.
+  const visibleRows = useMemo(
+    () =>
+      view === null
+        ? []
+        : ledgerRows(view).filter((r) => statusMatchesFilter(r.item.status, view.schema, filter)),
+    [view, filter],
+  );
+
+  // Reset cursors when their underlying lists change.
+  useEffect(() => setHitCursor(0), [hits]);
+  useEffect(() => setLedgerCursor(Math.max(0, ledgers.indexOf(ledger ?? ""))), [ledger, ledgers]);
+
+  // ---- keyboard navigation ----------------------------------------------
+  // A stable document listener delegates to the freshest handler via a ref, so
+  // it sees current state without re-binding on every keystroke.
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  keyRef.current = (e: KeyboardEvent): void => {
+    const t = e.target as HTMLElement | null;
+    const typing =
+      t !== null &&
+      (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    if (e.key === "/" && !typing) {
+      e.preventDefault();
+      (document.querySelector('[data-testid="search-input"]') as HTMLInputElement | null)?.focus();
+      return;
+    }
+    if (typing) return; // inputs own every other key while focused
+
+    if (e.key === "Escape") {
+      if (selected !== null) setSelected(null);
+      else if (hits !== null) setHits(null);
+      else if (navZone === "main") setNavZone("sidebar");
+      return;
+    }
+    if (mainView === "dag") return; // graph view isn't list-navigable
+
+    const down = e.key === "ArrowDown" || e.key === "j";
+    const up = e.key === "ArrowUp" || e.key === "k";
+    const enter = e.key === "Enter";
+
+    if (hits !== null) {
+      if (down) {
+        e.preventDefault();
+        setHitCursor((c) => Math.min(hits.length - 1, c + 1));
+      } else if (up) {
+        e.preventDefault();
+        setHitCursor((c) => Math.max(0, c - 1));
+      } else if (enter) {
+        const h = hits[hitCursor];
+        if (h !== undefined) void openHit(h);
+      }
+      return;
+    }
+
+    if (navZone === "sidebar") {
+      if (down) {
+        e.preventDefault();
+        setLedgerCursor((c) => Math.min(ledgers.length - 1, c + 1));
+      } else if (up) {
+        e.preventDefault();
+        setLedgerCursor((c) => Math.max(0, c - 1));
+      } else if (e.key === "ArrowRight" || e.key === "l") {
+        if (view !== null) setNavZone("main");
+      } else if (enter) {
+        const name = ledgers[ledgerCursor];
+        if (name !== undefined) {
+          void openLedger(name);
+          setNavZone("main");
+        }
+      }
+      return;
+    }
+
+    // navZone === "main": move through the item rows; `selected` is the cursor
+    // and live-previews into the detail panel (mirrors the TUI two-pane).
+    if (e.key === "ArrowLeft" || e.key === "h") {
+      setNavZone("sidebar");
+      return;
+    }
+    if (visibleRows.length === 0) return;
+    const idx = selected === null ? -1 : visibleRows.findIndex((r) => r.item.id === selected.item.id);
+    if (down) {
+      e.preventDefault();
+      setSelected(visibleRows[Math.min(visibleRows.length - 1, idx + 1)] ?? visibleRows[0]!);
+    } else if (up) {
+      e.preventDefault();
+      setSelected(visibleRows[idx <= 0 ? 0 : idx - 1]!);
+    } else if (enter && idx < 0) {
+      setSelected(visibleRows[0]!);
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => keyRef.current(e);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Keep the active cursor row scrolled into view.
+  useEffect(() => {
+    const id = selected?.item.id;
+    if (id !== undefined) {
+      document.querySelector(`[data-testid="item-${id}"]`)?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selected]);
+
   // ---- render ------------------------------------------------------------
   return (
     <div className="lw-root">
@@ -461,16 +573,29 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
 
       <div className="lw-body">
         <nav className="lw-sidebar" data-testid="ledger-list">
-          {ledgers.map((l) => (
-            <button
-              key={l}
-              data-testid={`ledger-${l}`}
-              className={l === ledger ? "lw-ledger lw-ledger-active" : "lw-ledger"}
-              onClick={() => void openLedger(l)}
-            >
-              {l}
-            </button>
-          ))}
+          {ledgers.map((l, i) => {
+            const cls = [
+              "lw-ledger",
+              l === ledger ? "lw-ledger-active" : "",
+              navZone === "sidebar" && i === ledgerCursor ? "lw-ledger-cursor" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <button
+                key={l}
+                data-testid={`ledger-${l}`}
+                className={cls}
+                onClick={() => {
+                  setLedgerCursor(i);
+                  setNavZone("main");
+                  void openLedger(l);
+                }}
+              >
+                {l}
+              </button>
+            );
+          })}
         </nav>
 
         <div className={`lw-workarea lw-workarea-${panel.orientation}`} ref={workareaRef}>
@@ -484,7 +609,12 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
               </p>
             )
           ) : hits !== null ? (
-            <SearchResults hits={hits} onOpen={(h) => void openHit(h)} onClear={() => setHits(null)} />
+            <SearchResults
+              hits={hits}
+              cursor={hitCursor}
+              onOpen={(h) => void openHit(h)}
+              onClear={() => setHits(null)}
+            />
           ) : view !== null ? (
             <>
               <div className="lw-toolbar">
@@ -549,12 +679,13 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 />
               )}
               <ItemTable
-                rows={ledgerRows(view).filter((r) =>
-                  statusMatchesFilter(r.item.status, view.schema, filter),
-                )}
+                rows={visibleRows}
                 schema={view.schema}
                 selectedId={selected?.item.id ?? null}
-                onSelect={setSelected}
+                onSelect={(r) => {
+                  setNavZone("main");
+                  setSelected(r);
+                }}
               />
             </>
           ) : (
@@ -729,10 +860,12 @@ function ItemTable({
 
 function SearchResults({
   hits,
+  cursor,
   onOpen,
   onClear,
 }: {
   hits: FtsHit[];
+  cursor: number;
   onOpen: (h: FtsHit) => void;
   onClear: () => void;
 }): React.ReactElement {
@@ -747,9 +880,14 @@ function SearchResults({
         <p className="lw-empty">(no hits)</p>
       ) : (
         <ul className="lw-hits">
-          {hits.map((h) => (
+          {hits.map((h, i) => (
             <li key={`${h.ledgerId}/${h.item.id}`}>
-              <button type="button" data-testid={`hit-${h.item.id}`} onClick={() => onOpen(h)}>
+              <button
+                type="button"
+                data-testid={`hit-${h.item.id}`}
+                className={i === cursor ? "lw-hit-cursor" : undefined}
+                onClick={() => onOpen(h)}
+              >
                 <code>
                   {h.ledgerId}/{h.item.id}
                 </code>{" "}

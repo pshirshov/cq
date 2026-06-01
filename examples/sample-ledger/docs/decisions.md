@@ -34,7 +34,7 @@ archives: []
 ### K3 — proposed
 
 - createdAt: 2026-06-01T12:16:25.788Z
-- updatedAt: 2026-06-01T12:16:25.788Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-01T14:11:43.806Z
+- author: user
 - session: seed-20260601
 - headline: Render the dependency graph with a hand-rolled SVG layout

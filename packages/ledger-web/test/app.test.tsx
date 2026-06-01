@@ -47,6 +47,12 @@ function setValue(el: Element | null, value: string): void {
     node.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
+/** Dispatch a document-level keydown (drives the global keyboard nav). */
+function press(key: string): void {
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  });
+}
 async function mount(): Promise<void> {
   fake = new FakeClient();
   await act(async () => {
@@ -257,6 +263,42 @@ describe("ledger-web App", () => {
     expect(testid("cancel-edit")).not.toBeNull();
     expect(testid("detail-close")).toBeNull(); // close hidden while editing
     expect(testid("edit")).toBeNull();
+  });
+});
+
+describe("ledger-web keyboard navigation", () => {
+  it("opens a ledger from the sidebar with arrows + Enter", async () => {
+    await mount();
+    // sidebar focused, cursor on the first ledger (bugs, sorted first)
+    expect(testid("ledger-bugs")?.className).toContain("lw-ledger-cursor");
+    press("ArrowDown"); // → milestones
+    await flush();
+    expect(testid("ledger-milestones")?.className).toContain("lw-ledger-cursor");
+    press("ArrowUp"); // back → bugs
+    await flush();
+    press("Enter"); // open bugs
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+  });
+
+  it("moves through items into the detail panel and Esc closes it", async () => {
+    await mount();
+    press("Enter"); // open bugs → main zone
+    await flush();
+    expect(testid("detail")).toBeNull(); // nothing selected yet
+    press("ArrowDown"); // select first row (D1) → live preview
+    await flush();
+    expect(testid("detail-id")?.textContent).toBe("D1");
+    press("Escape"); // close detail
+    await flush();
+    expect(testid("detail")).toBeNull();
+  });
+
+  it("'/' focuses the search box", async () => {
+    await mount();
+    press("/");
+    await flush();
+    expect(document.activeElement).toBe(testid("search-input"));
   });
 });
 
