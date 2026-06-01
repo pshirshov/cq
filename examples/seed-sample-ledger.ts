@@ -32,12 +32,18 @@ async function main(): Promise<void> {
   });
   await store.updateMilestone("M4", { status: "blocked" });
 
+  // Provenance: most synthetic items are "written" by the seeding agent in one
+  // session; a couple are marked as human ("user") edits to show both forms.
+  const AGENT = "opus-4.8[1m]";
+  const SESSION = "seed-20260601";
   const item = (
     ledger: string,
     milestoneId: string,
     status: string,
     fields: Record<string, FieldValue>,
-  ): Promise<unknown> => store.createItem(ledger, milestoneId, { status, fields });
+    author: string = AGENT,
+  ): Promise<unknown> =>
+    store.createItem(ledger, milestoneId, { status, fields, author, session: SESSION });
 
   // ── tasks ─────────────────────────────────────────────────────────────
   await item("tasks", "M1", "done", {
@@ -49,11 +55,17 @@ async function main(): Promise<void> {
     headline: "Define the ledger data model",
     description: "Milestones own typed items; ids are per-ledger monotonic with a prefix.",
   });
-  await item("tasks", "M1", "wip", {
-    headline: "Wire up CI",
-    description: "Run typecheck, lint and tests on every push.",
-    tags: ["infra"],
-  });
+  await item(
+    "tasks",
+    "M1",
+    "wip",
+    {
+      headline: "Wire up CI",
+      description: "Run typecheck, lint and tests on every push.",
+      tags: ["infra"],
+    },
+    "user",
+  );
   await item("tasks", "M2", "wip", {
     headline: "Implement the markdown parser",
     description:
@@ -122,7 +134,7 @@ async function main(): Promise<void> {
   });
 
   // ── questions ─────────────────────────────────────────────────────────
-  await item("questions", "M1", "open", { question: "Which authentication model for the web console?", suggestions: ["none (local)", "reverse-proxy auth", "OIDC"] });
+  await item("questions", "M1", "open", { question: "Which authentication model for the web console?", suggestions: ["none (local)", "reverse-proxy auth", "OIDC"] }, "user");
   await item("questions", "M3", "answered", { question: "SSR or SPA for the console?", answer: "SPA — it is a pure MCP client, no server-side data path" });
 
   // ── decisions ───────────────────────────────────────────────────────────

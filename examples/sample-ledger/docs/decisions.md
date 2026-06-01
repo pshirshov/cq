@@ -12,16 +12,20 @@ archives: []
 
 ### K1 — locked
 
-- createdAt: 2026-06-01T00:08:33.869Z
-- updatedAt: 2026-06-01T00:08:33.869Z
+- createdAt: 2026-06-01T12:16:25.728Z
+- updatedAt: 2026-06-01T12:16:25.728Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Bun + TypeScript as the runtime/toolchain
 
 ## M2
 
 ### K2 — locked
 
-- createdAt: 2026-06-01T00:08:33.881Z
-- updatedAt: 2026-06-01T00:08:33.881Z
+- createdAt: 2026-06-01T12:16:25.739Z
+- updatedAt: 2026-06-01T12:16:25.739Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Markdown-backed storage (one file per ledger)
 - rationale: human-readable, diffable, git-friendly
 
@@ -29,6 +33,8 @@ archives: []
 
 ### K3 — proposed
 
-- createdAt: 2026-06-01T00:08:33.893Z
-- updatedAt: 2026-06-01T00:08:33.893Z
+- createdAt: 2026-06-01T12:16:25.788Z
+- updatedAt: 2026-06-01T12:16:25.788Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Render the dependency graph with a hand-rolled SVG layout

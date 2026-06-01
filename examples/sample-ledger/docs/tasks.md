@@ -12,23 +12,29 @@ archives: []
 
 ### T1 — done
 
-- createdAt: 2026-06-01T00:08:33.642Z
-- updatedAt: 2026-06-01T00:08:33.642Z
+- createdAt: 2026-06-01T12:16:25.534Z
+- updatedAt: 2026-06-01T12:16:25.534Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Bootstrap the repository
 - description: Initialise the Bun workspace, eslint/prettier, and the flake dev shell.
 - acceptance: bun install + bun test green
 
 ### T2 — done
 
-- createdAt: 2026-06-01T00:08:33.653Z
-- updatedAt: 2026-06-01T00:08:33.653Z
+- createdAt: 2026-06-01T12:16:25.546Z
+- updatedAt: 2026-06-01T12:16:25.546Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Define the ledger data model
 - description: Milestones own typed items; ids are per-ledger monotonic with a prefix.
 
 ### T3 — wip
 
-- createdAt: 2026-06-01T00:08:33.668Z
-- updatedAt: 2026-06-01T00:08:33.668Z
+- createdAt: 2026-06-01T12:16:25.556Z
+- updatedAt: 2026-06-01T12:16:25.556Z
+- author: user
+- session: seed-20260601
 - headline: Wire up CI
 - description: Run typecheck, lint and tests on every push.
 - tags: ["infra"]
@@ -37,8 +43,10 @@ archives: []
 
 ### T4 — wip
 
-- createdAt: 2026-06-01T00:08:33.679Z
-- updatedAt: 2026-06-01T00:08:33.679Z
+- createdAt: 2026-06-01T12:16:25.568Z
+- updatedAt: 2026-06-01T12:16:25.568Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Implement the markdown parser
 - description: |
     Frontmatter plus grouped items must round-trip **losslessly**.
@@ -58,15 +66,19 @@ archives: []
 
 ### T5 — planned
 
-- createdAt: 2026-06-01T00:08:33.694Z
-- updatedAt: 2026-06-01T00:08:33.694Z
+- createdAt: 2026-06-01T12:16:25.583Z
+- updatedAt: 2026-06-01T12:16:25.583Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Add the file-store mutex + lockfile
 - description: Serialise concurrent writers on a per-ledger lockfile so two processes cannot corrupt a file.
 
 ### T6 — planned
 
-- createdAt: 2026-06-01T00:08:33.708Z
-- updatedAt: 2026-06-01T00:08:33.708Z
+- createdAt: 2026-06-01T12:16:25.594Z
+- updatedAt: 2026-06-01T12:16:25.594Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Build the full-text search index
 - description: Cross-ledger ranked search over item fields, backed by minisearch.
 - dependsOn: ["T4"]
@@ -75,15 +87,19 @@ archives: []
 
 ### T7 — planned
 
-- createdAt: 2026-06-01T00:08:33.719Z
-- updatedAt: 2026-06-01T00:08:33.719Z
+- createdAt: 2026-06-01T12:16:25.606Z
+- updatedAt: 2026-06-01T12:16:25.606Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Item table + detail panel
 - description: Browse a ledger's items in a table; click one to view and edit its fields.
 
 ### T8 — blocked
 
-- createdAt: 2026-06-01T00:08:33.737Z
-- updatedAt: 2026-06-01T00:08:33.737Z
+- createdAt: 2026-06-01T12:16:25.617Z
+- updatedAt: 2026-06-01T12:16:25.617Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Milestone DAG layout
 - description: Lay out the milestone dependency graph (dependsOn/blockedBy) as a left-to-right DAG.
 - blockedBy: ["T7"]
@@ -92,7 +108,9 @@ archives: []
 
 ### T9 — planned
 
-- createdAt: 2026-06-01T00:08:33.751Z
-- updatedAt: 2026-06-01T00:08:33.751Z
+- createdAt: 2026-06-01T12:16:25.633Z
+- updatedAt: 2026-06-01T12:16:25.633Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - headline: Marketing landing page
 - description: A static page describing the project with install instructions.

@@ -12,8 +12,10 @@ archives: []
 
 ### G1 — building
 
-- createdAt: 2026-06-01T00:08:33.904Z
-- updatedAt: 2026-06-01T00:08:33.904Z
+- createdAt: 2026-06-01T12:16:25.828Z
+- updatedAt: 2026-06-01T12:16:25.828Z
+- author: "opus-4.8[1m]"
+- session: seed-20260601
 - title: Ship a self-hostable ledger platform
 - description: |
     ## Vision
