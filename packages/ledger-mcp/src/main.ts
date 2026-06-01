@@ -39,11 +39,16 @@ import {
   type LedgerStore,
   registerLedgerStdioTools,
 } from "@cq/ledger";
+import { startLedgerWatcher } from "./watcher.js";
 
 const SERVER_INFO = { name: "ledger-mcp", version: "0.0.1" } as const;
 const DEFAULT_HTTP_HOST = "127.0.0.1";
 /** Path the Streamable HTTP transport is served on. */
 export const MCP_HTTP_PATH = "/mcp";
+/** Path of the live-change WebSocket (push notifications to UIs). */
+export const WS_PATH = "/ws";
+/** Bun pub/sub topic that change notifications are published to. */
+export const LEDGER_TOPIC = "ledger";
 
 /**
  * Permissive CORS for the HTTP transport so a browser MCP client (ledger-web)
@@ -237,18 +242,46 @@ export function serveHttp(
     hostname: opts.host,
     port: opts.port,
     idleTimeout: 0,
-    async fetch(req): Promise<Response> {
+    async fetch(req, server): Promise<Response | undefined> {
       const url = new URL(req.url);
       // CORS preflight — answer before any session/path logic.
       if (req.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: CORS_HEADERS });
+      }
+      // Live-change WebSocket upgrade.
+      if (url.pathname === WS_PATH) {
+        if (server.upgrade(req, { data: undefined })) return undefined; // upgraded; Bun owns the socket
+        return applyCors(new Response("expected a websocket upgrade", { status: 426 }));
       }
       if (url.pathname !== MCP_HTTP_PATH) {
         return applyCors(new Response("not found", { status: 404 }));
       }
       return applyCors(await handle(req));
     },
+    websocket: {
+      open(ws): void {
+        ws.subscribe(LEDGER_TOPIC); // receives every published `changed` event
+      },
+      message(ws, raw): void {
+        // App-level heartbeat (resilient-ws-ui R3): echo ping nonce + ts so the
+        // client can measure RTT and detect a dead connection.
+        let msg: { type?: string; nonce?: string; ts?: number } | undefined;
+        try {
+          msg = JSON.parse(typeof raw === "string" ? raw : raw.toString()) as typeof msg;
+        } catch {
+          return;
+        }
+        if (msg?.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", nonce: msg.nonce, ts: msg.ts, serverTs: Date.now() }));
+        }
+      },
+    },
   });
+}
+
+/** Build a `changed` notification frame for the WS topic. */
+export function changedFrame(ledgerId: string | null): string {
+  return JSON.stringify(ledgerId !== null ? { type: "changed", ledger: ledgerId } : { type: "changed" });
 }
 
 export async function main(argv: readonly string[]): Promise<void> {
@@ -262,7 +295,13 @@ export async function main(argv: readonly string[]): Promise<void> {
 
   if (http !== null) {
     const server = serveHttp(store, http);
+    // Watch the files; push a `changed` frame to subscribed UIs on any change
+    // (incl. writes by another process — the agent's own server, git, etc.).
+    const watcher = startLedgerWatcher(store, cwd, (ledger) => {
+      server.publish(LEDGER_TOPIC, changedFrame(ledger));
+    });
     const shutdown = (): void => {
+      watcher.close();
       server.stop(true);
       process.exit(0);
     };
@@ -275,9 +314,13 @@ export async function main(argv: readonly string[]): Promise<void> {
   }
 
   const server = buildServer(store);
+  // Even on stdio, watch the files so this server's cache stays fresh when
+  // another process writes the same ledgers.
+  const watcher = startLedgerWatcher(store, cwd);
 
   // Graceful shutdown on SIGTERM / SIGINT.
   const shutdown = (): void => {
+    watcher.close();
     process.exit(0);
   };
   process.on("SIGTERM", shutdown);
