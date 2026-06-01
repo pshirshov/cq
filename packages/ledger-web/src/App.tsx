@@ -118,6 +118,7 @@ export interface AppProps {
 
 export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProps): React.ReactElement {
   const [url, setUrl] = useState(initialUrl);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const urlRef = useRef<HTMLInputElement>(null);
   const [client, setClient] = useState<LedgerClient | null>(null);
   const [conn, setConn] = useState<"connecting" | "connected" | "error">("connecting");
@@ -397,24 +398,6 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
           {conn === "connected" ? "● connected" : conn === "connecting" ? "○ connecting…" : "✕ error"}
         </span>
         {liveUrl !== null && <LiveIndicator stats={live} />}
-        <form
-          className="lw-urlform"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (urlRef.current !== null) setUrl(urlRef.current.value);
-          }}
-        >
-          <input aria-label="MCP URL" data-testid="mcp-url" ref={urlRef} defaultValue={url} />
-          <button
-            type="button"
-            data-testid="connect"
-            onClick={() => {
-              if (urlRef.current !== null) setUrl(urlRef.current.value);
-            }}
-          >
-            connect
-          </button>
-        </form>
         <SearchBar onSearch={(q) => void runSearch(q)} disabled={client === null} />
         <button
           type="button"
@@ -428,15 +411,41 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
         >
           {mainView === "dag" ? "table" : "graph"}
         </button>
-        <button
-          type="button"
-          data-testid="panel-orientation"
-          className="lw-toggle"
-          title="Move the detail panel"
-          onClick={toggleOrientation}
-        >
-          {panel.orientation === "right" ? "panel ▸ bottom" : "panel ▸ right"}
-        </button>
+        <div className="lw-settings">
+          <button
+            type="button"
+            data-testid="settings-toggle"
+            className="lw-gear"
+            aria-label="settings"
+            title="Server connection"
+            onClick={() => setSettingsOpen((o) => !o)}
+          >
+            ⚙
+          </button>
+          {settingsOpen && (
+            <form
+              className="lw-settings-popup"
+              data-testid="settings-popup"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (urlRef.current !== null) setUrl(urlRef.current.value);
+                setSettingsOpen(false);
+              }}
+            >
+              <input aria-label="MCP URL" data-testid="mcp-url" ref={urlRef} defaultValue={url} />
+              <button
+                type="button"
+                data-testid="connect"
+                onClick={() => {
+                  if (urlRef.current !== null) setUrl(urlRef.current.value);
+                  setSettingsOpen(false);
+                }}
+              >
+                connect
+              </button>
+            </form>
+          )}
+        </div>
       </header>
 
       {conn === "error" && (
@@ -573,6 +582,8 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 ledger={ledger ?? ""}
                 schema={view.schema}
                 isMilestones={isMilestones}
+                orientation={panel.orientation}
+                onToggleOrientation={toggleOrientation}
                 onSave={(status, fields) => void saveEdit(selected, status, fields)}
                 onClose={() => setSelected(null)}
               />
@@ -757,6 +768,8 @@ function DetailPanel({
   ledger,
   schema,
   isMilestones,
+  orientation,
+  onToggleOrientation,
   onSave,
   onClose,
 }: {
@@ -764,6 +777,8 @@ function DetailPanel({
   ledger: string;
   schema: FetchedLedger["schema"];
   isMilestones: boolean;
+  orientation: PanelOrientation;
+  onToggleOrientation: () => void;
   onSave: (status: string, fields: Record<string, FieldValue>) => void;
   onClose: () => void;
 }): React.ReactElement {
@@ -778,35 +793,61 @@ function DetailPanel({
     setStatus(row.item.status);
   }, [row]);
 
+  const save = (): void => {
+    const built: Record<string, FieldValue> = {};
+    for (const name of fieldNames) {
+      const raw = fieldRefs.current[name]?.value ?? "";
+      // Keep an existing field even if cleared (lets you blank it); skip
+      // brand-new empty fields so we don't add empties.
+      if (raw.length > 0 || row.item.fields[name] !== undefined) {
+        built[name] = parseFieldValue(raw, schema.fields[name]!.type);
+      }
+    }
+    onSave(status, built);
+    setEditing(false);
+  };
+
+  // The header carries the action cluster (right-aligned). In edit mode it is
+  // save/cancel (close is hidden); in view mode it is dock-toggle/edit/close.
   const head = (
     <div className="lw-detail-head">
       <strong data-testid="detail-id">{row.item.id}</strong>
       <span className="lw-dim"> @ {ledger}</span>
-      {!editing && (
-        <button type="button" className="lw-edit-btn" data-testid="edit" onClick={() => setEditing(true)}>
-          edit
-        </button>
-      )}
-      <button type="button" className="lw-close" onClick={onClose} data-testid="detail-close">
-        ✕
-      </button>
+      <div className="lw-detail-actions">
+        {editing ? (
+          <>
+            <button type="button" data-testid="cancel-edit" onClick={() => setEditing(false)}>
+              cancel
+            </button>
+            <button type="button" data-testid="save" onClick={save}>
+              save
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="lw-dock"
+              data-testid="panel-orientation"
+              title={orientation === "right" ? "Dock panel to bottom" : "Dock panel to right"}
+              aria-label="toggle panel orientation"
+              onClick={onToggleOrientation}
+            >
+              {orientation === "right" ? "▭" : "▯"}
+            </button>
+            <button type="button" className="lw-edit-btn" data-testid="edit" onClick={() => setEditing(true)}>
+              edit
+            </button>
+            <button type="button" className="lw-close" onClick={onClose} data-testid="detail-close">
+              ✕
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 
   if (editing) {
-    const save = (): void => {
-      const built: Record<string, FieldValue> = {};
-      for (const name of fieldNames) {
-        const raw = fieldRefs.current[name]?.value ?? "";
-        // Keep an existing field even if cleared (lets you blank it); skip
-        // brand-new empty fields so we don't add empties.
-        if (raw.length > 0 || row.item.fields[name] !== undefined) {
-          built[name] = parseFieldValue(raw, schema.fields[name]!.type);
-        }
-      }
-      onSave(status, built);
-      setEditing(false);
-    };
     return (
       <aside className="lw-detail" data-testid="detail">
         {head}
@@ -860,14 +901,6 @@ function DetailPanel({
               </label>
             );
           })}
-          <div className="lw-form-actions">
-            <button type="button" data-testid="save" onClick={save}>
-              save
-            </button>
-            <button type="button" data-testid="cancel-edit" onClick={() => setEditing(false)}>
-              cancel
-            </button>
-          </div>
         </form>
       </aside>
     );

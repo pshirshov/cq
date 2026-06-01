@@ -72,8 +72,35 @@ body {
 .lw-urlform input {
   width: 280px;
 }
+/* Settings (MCP URL + connect) tucked behind a gear at the far right. */
+.lw-settings {
+  margin-left: auto;
+  position: relative;
+}
+.lw-gear {
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 8px;
+}
+.lw-settings-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.lw-settings-popup input {
+  width: 320px;
+}
 input,
 select,
+textarea,
 button {
   background: #0c0e12;
   color: var(--fg);
@@ -81,6 +108,9 @@ button {
   border-radius: 4px;
   padding: 3px 6px;
   font: inherit;
+}
+textarea {
+  resize: vertical;
 }
 button {
   cursor: pointer;
@@ -273,6 +303,16 @@ button:hover {
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
+}
+/* Right-aligned action cluster in the detail header (edit/dock or save/cancel). */
+.lw-detail-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.lw-dock {
+  padding: 2px 7px;
+  line-height: 1;
 }
 .lw-fields {
   display: grid;

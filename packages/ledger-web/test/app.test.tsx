@@ -231,6 +231,33 @@ describe("ledger-web App", () => {
     const saved = JSON.parse(localStorage.getItem("ledger-web.panel") ?? "{}") as { orientation?: string };
     expect(saved.orientation).toBe("bottom");
   });
+
+  it("hides the MCP URL/connect behind a gear popup", async () => {
+    await mount();
+    expect(testid("mcp-url")).toBeNull(); // not shown until the gear is opened
+    click(testid("settings-toggle"));
+    await flush();
+    expect(testid("mcp-url")).not.toBeNull();
+    expect(testid("connect")).not.toBeNull();
+    click(testid("settings-toggle"));
+    await flush();
+    expect(testid("mcp-url")).toBeNull(); // toggles closed
+  });
+
+  it("in edit mode shows save/cancel in the header and hides close", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("item-D1"));
+    await flush();
+    expect(testid("detail-close")).not.toBeNull(); // view mode: close present
+    click(testid("edit"));
+    await flush();
+    expect(testid("save")).not.toBeNull();
+    expect(testid("cancel-edit")).not.toBeNull();
+    expect(testid("detail-close")).toBeNull(); // close hidden while editing
+    expect(testid("edit")).toBeNull();
+  });
 });
 
 describe("clampPanelSize", () => {
