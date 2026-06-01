@@ -10,10 +10,10 @@ archives: []
 
 ## M1
 
-### G1 — planning
+### G1 — planned
 
 - createdAt: 2026-06-01T19:24:30.427Z
-- updatedAt: 2026-06-01T19:54:39.683Z
+- updatedAt: 2026-06-01T20:20:20.767Z
 - author: "opus-4.8[1m]"
 - session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
 - title: "Implement the /implement:* command family"

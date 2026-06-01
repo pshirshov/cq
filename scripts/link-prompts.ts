@@ -29,8 +29,14 @@ interface PromptLink {
 const LINKS: readonly PromptLink[] = [
   { link: ".claude/commands/plan/start.md", source: "llm/commands/plan/start.md" },
   { link: ".claude/commands/plan/advance.md", source: "llm/commands/plan/advance.md" },
+  { link: ".claude/commands/plan/follow-up.md", source: "llm/commands/plan/follow-up.md" },
   { link: ".claude/agents/plan-advance.md", source: "llm/agents/plan-advance.md" },
   { link: ".claude/agents/plan-reviewer.md", source: "llm/agents/plan-reviewer.md" },
+  { link: ".claude/commands/implement/start.md", source: "llm/commands/implement/start.md" },
+  { link: ".claude/commands/implement/advance.md", source: "llm/commands/implement/advance.md" },
+  { link: ".claude/agents/implement-worker.md", source: "llm/agents/implement-worker.md" },
+  { link: ".claude/agents/implement-reviewer.md", source: "llm/agents/implement-reviewer.md" },
+  { link: ".claude/agents/implement-conflict-resolver.md", source: "llm/agents/implement-conflict-resolver.md" },
 ];
 
 async function linkExists(absLink: string): Promise<boolean> {

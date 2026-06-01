@@ -2,8 +2,11 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 23
-archives: []
+  item: 25
+archives:
+  - id: M5
+    path: ./archive/tasks/M5.md
+    summary: "Dogfood complete: T24 driven to done through the real implement-flow loop (manual worktree (K4 Codex path) -> implement-worker created+committed the marker -> bun run check green in worktree (379 pass) -> implement-reviewer approved 0/0 -> ff merge-back into throwaway dogfood/base). Throwaway branches deleted; nothing landed on main. Two setup findings recorded as defects under goals:G1."
 ---
 
 # tasks
@@ -116,12 +119,12 @@ archives: []
 
 ## M3
 
-### T4 — planned
+### T4 — done
 
 - createdAt: 2026-06-01T19:53:03.892Z
-- updatedAt: 2026-06-01T19:53:03.892Z
+- updatedAt: 2026-06-01T20:23:08.075Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: "Design decision: cross-tool model resolution + worktree strategy"
 - suggestedModel: frontier
 - description: |
@@ -131,14 +134,14 @@ archives: []
     2. REVIEWER 'most capable' resolves per host: Claude -> opus; Codex -> its top tier.
     3. WORKTREE STRATEGY (Q1). Native `isolation: worktree` is a Claude-Code-only subagent feature. Codex has no equivalent declarative subagent-worktree mechanism, so under Codex the orchestrator must run manual `git worktree add/remove`. Specify the branch in the advance command body: native isolation under Claude, manual git worktree under Codex.
 - acceptance: "A `decisions` item is created and locked capturing: the tier vocabulary + per-host model map, the reviewer capability resolution, and the dual worktree strategy (Claude native / Codex manual). The mapping is concrete enough that the advance command can implement it without further questions."
-- ledgerRefs: ["goals:G1"]
+- ledgerRefs: ["goals:G1","decisions:K4"]
 
-### T5 — planned
+### T5 — done
 
 - createdAt: 2026-06-01T19:53:14.108Z
-- updatedAt: 2026-06-01T20:12:33.719Z
+- updatedAt: 2026-06-01T20:28:10.323Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: implement-worker subagent (llm/agents/implement-worker.md)
 - suggestedModel: frontier
 - description: "Subagent that implements ONE task end-to-end inside an isolated worktree. Frontmatter carries `isolation: worktree` for Claude. Brief: read the task's description/acceptance from the ledger, implement the change, run `bun run check`, and return a STRUCTURED result (status pass/fail, resultCommit, check output tail, summary, files touched). It must NOT mutate task status or merge — the orchestrator owns ledger state and merge-back. Reads its inputs (task id, resolved model, any prior-round criticism) from the dispatch prompt. Tool-agnostic body so Codex can route it as a sub-agent."
@@ -146,12 +149,12 @@ archives: []
 - dependsOn: ["T4","T15"]
 - ledgerRefs: ["goals:G1"]
 
-### T6 — planned
+### T6 — done
 
 - createdAt: 2026-06-01T19:53:20.720Z
-- updatedAt: 2026-06-01T20:12:36.565Z
+- updatedAt: 2026-06-01T20:28:11.698Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: implement-reviewer subagent (llm/agents/implement-reviewer.md)
 - suggestedModel: frontier
 - description: "Adversarial per-task reviewer, dispatched at the host's most-capable model. Reads the task acceptance + the worktree diff + check output, returns a STRUCTURED verdict: approve | disapprove, with `criticism[]` (autonomously fixable) and `questions[]` (need the user). Distinguishes the two: criticism = objective defects the implementor can fix; questions = genuine ambiguities/decisions only the user can resolve. DESIGN POINT to resolve here: per-round verdicts return to the orchestrator (which records ONE terminal `reviews` item per task), rather than flooding the ledger with a review per round."
@@ -159,12 +162,12 @@ archives: []
 - dependsOn: ["T4","T15"]
 - ledgerRefs: ["goals:G1"]
 
-### T7 — planned
+### T7 — done
 
 - createdAt: 2026-06-01T19:53:25.932Z
-- updatedAt: 2026-06-01T20:12:38.897Z
+- updatedAt: 2026-06-01T20:28:12.695Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: implement-conflict-resolver subagent (llm/agents/implement-conflict-resolver.md)
 - suggestedModel: frontier
 - description: "Subagent invoked during merge-back (Q6) when a rebase-before-merge produces a conflict. Brief: given the conflicting worktree/branch and the updated base, resolve the conflict preserving both intents, re-run `bun run check`, return structured success/failure. On unresolvable conflict it returns failure so the orchestrator registers a question and leaves the worktree intact."
@@ -172,12 +175,12 @@ archives: []
 - dependsOn: ["T4","T15"]
 - ledgerRefs: ["goals:G1"]
 
-### T8 — planned
+### T8 — done
 
 - createdAt: 2026-06-01T19:53:31.570Z
-- updatedAt: 2026-06-01T19:53:31.570Z
+- updatedAt: 2026-06-01T20:30:33.070Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: "/implement:start command prompt (llm/commands/implement/start.md)"
 - suggestedModel: frontier
 - description: "Thin bootstrap command, mirroring plan/start.md. Args = list of milestone ids; if empty -> target ALL non-archived, non-terminal milestones in the `milestones` ledger. Validate the targets exist and resolve their task DAG. Record the execution scope (e.g. a marker/decision or just report it). Then hand off to the same loop body as /implement:advance (do not duplicate loop logic — delegate to advance, exactly as plan:start hands to plan-advance). Carries provenance + the runtime-identity author rule."
@@ -185,12 +188,12 @@ archives: []
 - dependsOn: ["T4"]
 - ledgerRefs: ["goals:G1"]
 
-### T9 — planned
+### T9 — done
 
 - createdAt: 2026-06-01T19:53:43.394Z
-- updatedAt: 2026-06-01T20:12:41.571Z
+- updatedAt: 2026-06-01T20:30:05.495Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: "/implement:advance orchestrator command (llm/commands/implement/advance.md)"
 - suggestedModel: frontier
 - description: |
@@ -206,12 +209,12 @@ archives: []
 - dependsOn: ["T4","T5","T6","T7","T15"]
 - ledgerRefs: ["goals:G1"]
 
-### T10 — planned
+### T10 — done
 
 - createdAt: 2026-06-01T19:53:48.977Z
-- updatedAt: 2026-06-01T19:53:48.977Z
+- updatedAt: 2026-06-01T20:33:35.779Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: Wire links + docs (link-prompts.ts, .codex/prompts, READMEs)
 - suggestedModel: standard
 - description: "Add the new assets to the symlink wiring so both tools discover them. Extend the LINKS array in scripts/link-prompts.ts with .claude entries for implement/start, implement/advance, and the three implement-* agents. Add the committed .codex/prompts symlinks (flat names mirroring the plan-flow convention: implement-start.md, implement-advance.md, implement-*-agent.md). Update .codex/prompts/README.md and llm/README.md tables to list the new prompts. Run `bun run link-prompts`."
@@ -219,38 +222,39 @@ archives: []
 - dependsOn: ["T5","T6","T7","T8","T9"]
 - ledgerRefs: ["goals:G1"]
 
-### T11 — planned
+### T11 — done
 
 - createdAt: 2026-06-01T19:53:54.172Z
-- updatedAt: 2026-06-01T19:53:54.172Z
+- updatedAt: 2026-06-01T20:26:10.601Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: "Make /plan:* populate tasks.suggestedModel"
 - suggestedModel: standard
 - description: "Q3 follow-up: the plan-flow planner must fill the `suggestedModel` field when it emits work tasks, so the downstream /implement:* loop has a model hint. Update llm/agents/plan-advance.md so each created `tasks` item carries a `suggestedModel` (using the portable tier vocabulary locked in T4). Add brief guidance on choosing the tier from task nature (design/architecture -> frontier; mechanical -> standard/fast). Independent of the implement command files."
 - acceptance: plan-advance agent body instructs setting suggestedModel on every emitted task using T4's tier vocabulary, with selection guidance. Consistent with the T4 decision.
 - dependsOn: ["T4"]
-- ledgerRefs: ["goals:G1"]
+- ledgerRefs: ["goals:G1","decisions:K4"]
 
-### T12 — planned
+### T12 — done
 
 - createdAt: 2026-06-01T19:53:59.674Z
-- updatedAt: 2026-06-01T19:53:59.674Z
+- updatedAt: 2026-06-01T20:42:55.041Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: End-to-end dogfood + check
 - suggestedModel: frontier
 - description: "Validate the full loop against a real, trivial task. Pick or create a tiny task in a throwaway milestone, run /implement (start->advance) on it, and confirm the chain works: worktree created -> implement-worker implements -> `bun run check` green -> implement-reviewer approves -> rebase + merge-back -> task set `done` with resultCommit. Exercise at least one criticism round and one blocked-on-question path if feasible. Confirm `bun run check` passes at repo root afterward."
 - acceptance: A documented dogfood run shows a task driven to `done` through the real loop (worktree, review, merge-back). Repo-root `bun run check` is green. Any defects found are filed in the `defects` ledger.
 - dependsOn: ["T10"]
 - ledgerRefs: ["goals:G1"]
+- completion: "Dogfood ran the real loop end-to-end on throwaway task T24 (milestone M5, now archived): manual worktree (K4 Codex path) -> real implement-worker subagent created+committed the marker (resultCommit 6653815) -> bun run check green in worktree (379 pass) -> real implement-reviewer subagent approved (0 criticism/0 questions) -> ff merge-back into throwaway dogfood/base -> task set done + terminal review R2 recorded + two session logs written to docs/logs/. Worktree+branches cleaned; nothing landed on main; repo-root bun run check green. Criticism/blocked-question paths not exercised (trivial task converged round 1) but are specified in advance.md. One hardening finding filed+resolved as defect D2 (worktree node_modules bootstrap). Note: subagent_type name-resolution needs a session restart (T13), so the worker/reviewer ran as general-purpose agents carrying the agent bodies inline."
 
-### T15 — planned
+### T15 — done
 
 - createdAt: 2026-06-01T20:03:42.221Z
-- updatedAt: 2026-06-01T20:12:30.908Z
+- updatedAt: 2026-06-01T20:25:47.867Z
 - author: "opus-4.8[1m]"
-- session: 86ec6253-6f0d-405a-9a97-a89319e33ce3
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
 - headline: "Cross-flow convention: subagents write a session-log on handover"
 - suggestedModel: frontier
 - description: |
@@ -304,3 +308,25 @@ archives: []
 - acceptance: advance.md handles empty $ARGUMENTS by selecting all goals in clarifying/planning and running the round on each; explicit-id behaviour unchanged. The 4-iteration cap applies per goal. Per-goal outcome summary is reported.
 - dependsOn: ["T13"]
 - ledgerRefs: ["goals:G1"]
+
+### T25 — done
+
+- createdAt: 2026-06-01T20:49:09.369Z
+- updatedAt: 2026-06-01T20:53:29.939Z
+- author: "opus-4.8[1m]"
+- session: 94b7733c-6379-4acb-a300-7d92f856f321
+- headline: "Add /plan:follow-up <id> <request> command (+ goal re-open transitions)"
+- suggestedModel: frontier
+- description: |
+    User request: a command to add more scope to an EXISTING goal once its plan is done. Decisions (asked + answered): re-open the SAME goal via a schema change; clarify-first.
+    
+    Constraint found in code: GOALS_SCHEMA forbids leaving terminal states, and validateSchema enforces 'a terminal status must have no outgoing transitions' (core.ts:177). So done/abandoned cannot gain a ->planning edge without dropping them from terminalStatuses (which regresses milestone archiving + the meaning of done). The plan-flow/implement-flow only ever drive a goal to `planned` or `building` (both non-terminal), so re-open from those covers every reachable state incl. G1 (currently planned).
+    
+    Scope:
+    1. @cq/ledger: add `planned->planning` and `building->planning` to GOALS_SCHEMA.transitions (constants.ts). Leave done/abandoned terminal+empty. Update the comment.
+    2. Tests (repro-first): transitions.test.ts behavioral re-open (planned->planning, building->planning) over both adapters + pinned-edge assertions.
+    3. New asset llm/commands/plan/follow-up.md: thin, mirrors plan/start.md. Validate goal exists & is non-terminal; append the follow-up request to the goal description (preserve history); re-open planned/building -> planning -> clarifying; hand to plan-advance (clarify-first); write session log; report. Terminal goal -> refuse with guidance.
+    4. Wire: link-prompts.ts LINKS + .codex/prompts/plan-follow-up.md symlink + both README tables (+ How-Codex list).
+    5. bun run check green.
+- ledgerRefs: ["goals:G1"]
+- completion: "Done. (1) GOALS_SCHEMA gained planned->planning + building->planning re-open edges (constants.ts); docs/ledgers.yaml regenerated. (2) transitions.test.ts: behavioral re-open tests over both adapters + pinned-edge assertions (repro-first: confirmed 5 failures pre-change, all green after). (3) llm/commands/plan/follow-up.md created (parse id+request, phase-gate terminal goals, append request to description, re-open ->planning->clarifying, hand to plan-advance, write session log, report). (4) Wired: link-prompts.ts, .codex/prompts/plan-follow-up.md symlink, both README tables + How-Codex list + ledger-ref; plan-advance.md transitions note updated. bun run check green (384 pass). RESTART CAVEAT: the running ledger MCP server loaded the OLD schema at session start, so planned->planning is rejected until it restarts (same registry-load-at-start limitation as T13); docs/ledgers.yaml is already correct for the next boot."

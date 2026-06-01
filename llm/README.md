@@ -19,8 +19,14 @@ Current assets:
 |-----------------------------------|----------------------------------------------------|
 | `commands/plan/start.md`          | slash command — start a goal, file first questions |
 | `commands/plan/advance.md`        | slash command — thin planner↔reviewer loop         |
+| `commands/plan/follow-up.md`      | slash command — add scope to an existing goal, re-clarify |
 | `agents/plan-advance.md`          | subagent — the planner (one state step)            |
 | `agents/plan-reviewer.md`         | subagent — the adversarial reviewer                |
+| `commands/implement/start.md`     | slash command — resolve scope, hand to advance loop |
+| `commands/implement/advance.md`   | slash command — the implement orchestrator loop    |
+| `agents/implement-worker.md`      | subagent — implements one task in an isolated worktree |
+| `agents/implement-reviewer.md`    | subagent — adversarial per-task reviewer           |
+| `agents/implement-conflict-resolver.md` | subagent — resolves rebase conflicts on merge-back |
 
 Edit the files HERE, never a symlink or a consumer's copy.
 
@@ -33,8 +39,14 @@ Edit the files HERE, never a symlink or a consumer's copy.
    |--------------------------------------|-----------------------------------|
    | `.claude/commands/plan/start.md`     | `llm/commands/plan/start.md`      |
    | `.claude/commands/plan/advance.md`   | `llm/commands/plan/advance.md`    |
+   | `.claude/commands/plan/follow-up.md` | `llm/commands/plan/follow-up.md`  |
    | `.claude/agents/plan-advance.md`     | `llm/agents/plan-advance.md`      |
    | `.claude/agents/plan-reviewer.md`    | `llm/agents/plan-reviewer.md`     |
+   | `.claude/commands/implement/start.md`   | `llm/commands/implement/start.md`   |
+   | `.claude/commands/implement/advance.md` | `llm/commands/implement/advance.md` |
+   | `.claude/agents/implement-worker.md`    | `llm/agents/implement-worker.md`    |
+   | `.claude/agents/implement-reviewer.md`  | `llm/agents/implement-reviewer.md`  |
+   | `.claude/agents/implement-conflict-resolver.md` | `llm/agents/implement-conflict-resolver.md` |
 
 2. **Codex** (`.codex/prompts/*`) — committed symlinks into this tree; a fresh
    clone works with no extra step.
@@ -46,6 +58,21 @@ Edit the files HERE, never a symlink or a consumer's copy.
    layout (`~/.claude/commands`, `~/.codex/prompts`, …) globally — no symlink
    script needed there. The repo-local symlinks above remain for in-repo
    dogfooding.
+
+## Session logs — subagent handover convention
+
+Every subagent these flows dispatch (plan-flow *and* implement-flow) ends its
+final message with a `### Session summary` block (**Did / Achieved / Discovered
+/ Issues**). The subagent writes **no file** — it only emits the section. The
+**orchestrator** command (`plan/start`, `plan/advance`, `implement/start`,
+`implement/advance`) persists it to
+`docs/logs/<timestamp>-<agent-id>.md` after each `Agent` call returns:
+`<agent-id>` comes from the Agent tool result, `<timestamp>` is stamped by the
+orchestrator (`date -u +%Y%m%d-%H%M%S`). This keeps subagents read-only (no
+`Write` tool), avoids carrying a log file across worktree merge-back, and stays
+concurrency-safe (a single writer, unique filenames). `docs/logs/` is tracked
+via `.gitkeep`; the `docs/*.md` ledger files live in a different place and are
+unaffected.
 
 ## No root `AGENTS.md` — deliberate
 

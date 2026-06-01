@@ -231,12 +231,17 @@ export const GOALS_SCHEMA: LedgerSchema = {
   idPrefix: "G",
   // F1 transition guard. clarifying → planning → planned → building → done,
   // with abandoned reachable from each non-terminal state; planning may loop
-  // back to clarifying. done/abandoned are terminal.
+  // back to clarifying. `planned` and `building` may RE-OPEN to `planning` so
+  // /plan:follow-up can add scope to an already-planned/in-progress goal (the
+  // command then steps planning → clarifying for the clarify-first round).
+  // done/abandoned stay terminal (a terminal status must have no outgoing
+  // transitions), so a fully-finished goal takes new scope via a fresh linked
+  // goal, not by re-opening.
   transitions: {
     clarifying: ["planning", "abandoned"],
     planning: ["clarifying", "planned", "abandoned"],
-    planned: ["building", "abandoned"],
-    building: ["done", "abandoned"],
+    planned: ["building", "abandoned", "planning"],
+    building: ["done", "abandoned", "planning"],
     done: [],
     abandoned: [],
   },

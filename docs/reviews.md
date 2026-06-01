@@ -2,8 +2,11 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 1
-archives: []
+  item: 2
+archives:
+  - id: M5
+    path: ./archive/reviews/M5.md
+    summary: "Dogfood complete: T24 driven to done through the real implement-flow loop (manual worktree (K4 Codex path) -> implement-worker created+committed the marker -> bun run check green in worktree (379 pass) -> implement-reviewer approved 0/0 -> ff merge-back into throwaway dogfood/base). Throwaway branches deleted; nothing landed on main. Two setup findings recorded as defects under goals:G1."
 ---
 
 # reviews

@@ -156,6 +156,53 @@ for (const factory of [fsFactory, inMemFactory]) {
         await factory.teardown(store);
       }
     });
+
+    // /plan:follow-up re-open. A goal that has reached `planned` (and then
+    // `building`) must be able to return to `planning` to take on added scope.
+    // `done`/`abandoned` stay terminal (the terminal-⇒-no-outgoing invariant).
+    it("5. re-open: planned → planning succeeds (follow-up)", async () => {
+      const store = await factory.build([]);
+      try {
+        const m = await store.createMilestone({ title: "m" });
+        const goal = await store.createItem(GOALS_LEDGER, m.id, {
+          status: "clarifying",
+          fields: { title: "g", description: "d" },
+        });
+        await store.updateItem(GOALS_LEDGER, goal.id, { status: "planning" });
+        // entering `planned` requires a locked decision linking the goal
+        await store.createItem("decisions", m.id, {
+          status: "locked",
+          fields: { headline: "approved", ledgerRefs: [`goals:${goal.id}`] },
+        });
+        await store.updateItem(GOALS_LEDGER, goal.id, { status: "planned" });
+        const reopened = await store.updateItem(GOALS_LEDGER, goal.id, { status: "planning" });
+        expect(reopened.status).toBe("planning");
+      } finally {
+        await factory.teardown(store);
+      }
+    });
+
+    it("6. re-open: building → planning succeeds (follow-up)", async () => {
+      const store = await factory.build([]);
+      try {
+        const m = await store.createMilestone({ title: "m" });
+        const goal = await store.createItem(GOALS_LEDGER, m.id, {
+          status: "clarifying",
+          fields: { title: "g", description: "d" },
+        });
+        await store.updateItem(GOALS_LEDGER, goal.id, { status: "planning" });
+        await store.createItem("decisions", m.id, {
+          status: "locked",
+          fields: { headline: "approved", ledgerRefs: [`goals:${goal.id}`] },
+        });
+        await store.updateItem(GOALS_LEDGER, goal.id, { status: "planned" });
+        await store.updateItem(GOALS_LEDGER, goal.id, { status: "building" });
+        const reopened = await store.updateItem(GOALS_LEDGER, goal.id, { status: "planning" });
+        expect(reopened.status).toBe("planning");
+      } finally {
+        await factory.teardown(store);
+      }
+    });
   });
 }
 
@@ -270,6 +317,13 @@ describe("canonical schema transition maps — pinned edges", () => {
   it("goals: clarifying → planning present, clarifying → planned absent", () => {
     expect(GOALS_SCHEMA.transitions?.["clarifying"]).toContain("planning");
     expect(GOALS_SCHEMA.transitions?.["clarifying"]).not.toContain("planned");
+  });
+
+  it("goals: follow-up re-open edges planned→planning and building→planning present; done/abandoned stay terminal", () => {
+    expect(GOALS_SCHEMA.transitions?.["planned"]).toContain("planning");
+    expect(GOALS_SCHEMA.transitions?.["building"]).toContain("planning");
+    expect(GOALS_SCHEMA.transitions?.["done"]).toEqual([]);
+    expect(GOALS_SCHEMA.transitions?.["abandoned"]).toEqual([]);
   });
 
   it("reviews: both verdicts (go-ahead, revise) are terminal", () => {

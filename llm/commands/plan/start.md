@@ -1,7 +1,7 @@
 ---
 description: Start a plan-flow goal — create the goal, then hand off to the planner for the first clarifying questions.
 argument-hint: <goal description>
-allowed-tools: mcp__ledger__*, Agent
+allowed-tools: mcp__ledger__*, Agent, Write, Bash
 ---
 
 You are starting a **plan-flow goal**. The user's goal is:
@@ -48,7 +48,15 @@ report its id and stop instead of creating a new one.
    clarifying questions and returns `awaiting-answers`. You drive it exactly once
    here — there is nothing to review yet, so no loop is needed.
 
-4. **Report.** Tell the user:
+4. **Write the session log.** The `plan-advance` subagent ends its reply with a
+   `### Session summary` section. Persist it: take `<agent-id>` from the `Agent`
+   tool result, stamp `<timestamp>` via `Bash` (`date -u +%Y%m%d-%H%M%S`),
+   `mkdir -p docs/logs`, and `Write` `docs/logs/<timestamp>-<agent-id>.md` with a
+   short header (goal id, role: planner, returned status token) followed by the
+   verbatim summary block. The subagent writes no file itself — the orchestrator
+   does.
+
+5. **Report.** Tell the user:
    - the goal id **G** and milestone **M**;
    - the questions the planner filed (from its returned summary);
    - that they should answer the questions in the TUI or web client (set each to

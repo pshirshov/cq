@@ -78,6 +78,19 @@ runtime identity (never hardcoded; Opus 4.8 (1M) → `"opus-4.8[1m]"`, Codex
 GPT-5.x → e.g. `"gpt-5.5"`) and `session` = `$CLAUDE_CODE_SESSION_ID` (or the
 Codex equivalent; omit if unavailable).
 
+## Session summary (handover)
+Before your final pointer line, emit a clearly-delimited handover block — the
+orchestrator persists it to `./docs/logs/<timestamp>-<agent-id>.md`. You write
+no file yourself; you only emit the section:
+
+```
+### Session summary
+- **Did:** reviewed the emitted plan for goal G
+- **Achieved:** verdict <go-ahead|revise>, review id R…, N criticisms / M new questions
+- **Discovered:** <plan/repo mismatches or gaps you found>
+- **Issues:** <anything that blocked a confident verdict, or "none">
+```
+
 ## Output
-Return a single line pointing to the review you wrote, e.g.
-`review R3 (revise): 2 criticisms, 1 new question`.
+Emit the **Session summary** section above, then end with a single line pointing
+to the review you wrote, e.g. `review R3 (revise): 2 criticisms, 1 new question`.

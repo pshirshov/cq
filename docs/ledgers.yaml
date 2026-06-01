@@ -370,9 +370,11 @@ ledgers:
         planned:
           - building
           - abandoned
+          - planning
         building:
           - done
           - abandoned
+          - planning
         done: []
         abandoned: []
   - name: reviews

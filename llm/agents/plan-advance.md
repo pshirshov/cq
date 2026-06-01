@@ -67,8 +67,10 @@ phase by construction.
 The `goals` phases are `clarifying → planning → planned → building → done /
 abandoned`; the legal transitions are `clarifying→planning`, `planning→clarifying`,
 `planning→planned`, `planned→building`, `building→done`, and `→abandoned` from
-any non-terminal phase. Illegal jumps throw `InvalidTransitionError`. Do not
-attempt any other transition.
+any non-terminal phase. Re-open edges `planned→planning` and `building→planning`
+also exist, but they are reserved for `/plan:follow-up` (adding scope to an
+existing goal) — do not use them in the normal planning flow. Illegal jumps
+throw `InvalidTransitionError`. Do not attempt any other transition.
 
 1. **`clarifying`, any linked question still `open`** → the user hasn't finished
    answering. Do nothing. Return `awaiting-answers`.
@@ -102,9 +104,19 @@ attempt any other transition.
        - fine-grained **tasks**: for each unit of work, create it under the
          appropriate WORK milestone `Wᵢ` (not M): `create_item("tasks", Wᵢ,
          status: "planned", fields: { headline, description, acceptance: "<how
-         we'll verify this task is done>", dependsOn?: [...], ledgerRefs:
-         ["goals:<G>"] })`. Tasks must be small, correctly sequenced (express
-         ordering via `dependsOn`), and each testable (fill `acceptance`).
+         we'll verify this task is done>", suggestedModel: "<tier>", dependsOn?:
+         [...], ledgerRefs: ["goals:<G>"] })`. Tasks must be small, correctly
+         sequenced (express ordering via `dependsOn`), and each testable (fill
+         `acceptance`).
+         - **`suggestedModel` (always set it)** — the portable model-tier label
+           the downstream `/implement:*` loop resolves to a concrete model per
+           host (decision: cross-tool model-tier vocabulary). Use exactly one of:
+           - `frontier` — design, architecture, ambiguous/high-blast-radius, or
+             cross-cutting work that needs the most capable model;
+           - `standard` — ordinary implementation, mechanical-but-nontrivial edits;
+           - `fast` — trivial mechanical work (renames, link wiring, doc tables).
+           Choose from the task's nature, not its size alone. Setting it on every
+           task means `/implement:*` never has to warn about a missing hint.
      Return `review-requested`.
 
 3. **`planning`, latest review is `revise` with EMPTY `new_questions`** (only
@@ -141,9 +153,23 @@ attempt any other transition.
 
 8. **Anything else / nothing applies** → Return `noop`.
 
+## Session summary (handover)
+Before the status token, emit a clearly-delimited handover block — the
+orchestrator persists it to `./docs/logs/<timestamp>-<agent-id>.md`. You do NOT
+write any file yourself; you only emit the section:
+
+```
+### Session summary
+- **Did:** <the single step you performed this run>
+- **Achieved:** <concrete outcome — ids created/updated, phase reached>
+- **Discovered:** <anything non-obvious about the goal/repo you learned>
+- **Issues:** <blockers, risks, follow-ups, or "none">
+```
+
 ## Output contract
-Do whatever the single matched rule prescribes, then end your reply with the
-token on its own final line, one of exactly:
-`awaiting-answers` | `review-requested` | `completed` | `noop`.
-Add at most a one or two line human summary above the token (what you did, which
-ids you touched). Never return more than one token.
+Do whatever the single matched rule prescribes, emit the **Session summary**
+section above, then end your reply with the token on its own final line, one of
+exactly: `awaiting-answers` | `review-requested` | `completed` | `noop`.
+The token MUST be the last line (the orchestrator reads it from there); the
+session summary goes ABOVE it. Add at most a one or two line human summary too.
+Never return more than one token.

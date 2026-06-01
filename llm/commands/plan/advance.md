@@ -1,7 +1,7 @@
 ---
 description: Advance a plan-flow goal one full round — runs the planner↔reviewer loop until the goal needs the user or reaches `planned`.
 argument-hint: <goalId>
-allowed-tools: mcp__ledger__fetch_ledger, mcp__ledger__fetch_item, mcp__ledger__fts_search, mcp__ledger__list_milestone_items, mcp__ledger__enumerate_ledgers, Agent
+allowed-tools: mcp__ledger__fetch_ledger, mcp__ledger__fetch_item, mcp__ledger__fts_search, mcp__ledger__list_milestone_items, mcp__ledger__enumerate_ledgers, Agent, Write, Bash
 ---
 
 You are the **thin orchestrator** for the plan-flow advance loop. The goal id is:
@@ -41,6 +41,22 @@ Repeat at most **4 iterations** (a hard cap to prevent a runaway loop):
 If you hit the 4-iteration cap without a terminal token, stop and report that
 the loop did not converge (so the user can re-run `/plan:advance` or inspect the
 goal manually).
+
+## Session logs (after EVERY subagent returns)
+
+Each subagent (planner and reviewer) ends its reply with a `### Session summary`
+section. After each `Agent` call returns, persist that summary so the run leaves
+a durable trace (the subagents are read-only and write nothing themselves):
+
+1. Take `<agent-id>` from the `Agent` tool result (the returned agent id).
+2. Stamp `<timestamp>` yourself: `date -u +%Y%m%d-%H%M%S` via `Bash`.
+3. `Bash`: `mkdir -p docs/logs` (the dir is tracked via `.gitkeep`).
+4. `Write` `docs/logs/<timestamp>-<agent-id>.md` containing a short header
+   (which goal, which subagent/role, the returned status token or verdict) and
+   the verbatim `### Session summary` block the subagent emitted.
+
+Do this for the planner AND the reviewer on every iteration — one log file per
+spawned subagent.
 
 ## Report to the user
 
