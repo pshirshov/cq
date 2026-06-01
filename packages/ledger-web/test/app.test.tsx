@@ -53,6 +53,13 @@ function press(key: string): void {
     document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
   });
 }
+/** Dispatch a keydown on a specific element (drives element-level onKeyDown). */
+function pressOn(el: Element | null, key: string): void {
+  if (el === null) throw new Error("pressOn: element not found");
+  act(() => {
+    el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  });
+}
 async function mount(): Promise<void> {
   fake = new FakeClient();
   await act(async () => {
@@ -303,6 +310,34 @@ describe("ledger-web keyboard navigation", () => {
     press("/");
     await flush();
     expect(document.activeElement).toBe(testid("search-input"));
+  });
+
+  it("Enter in the search box hands focus to the results", async () => {
+    await mount();
+    setValue(testid("search-input"), "warp");
+    await act(async () => {
+      await sleep(260);
+    });
+    expect(testid("hit-D1")).not.toBeNull();
+    // Enter in the box commits + blurs → results take over keyboard focus.
+    pressOn(testid("search-input"), "Enter");
+    await flush();
+    expect(document.activeElement).not.toBe(testid("search-input"));
+    // A document-level Enter now opens the highlighted hit.
+    press("Enter");
+    await flush();
+    expect(testid("detail-id")?.textContent).toBe("D1");
+  });
+
+  it("'?' toggles the keyboard-shortcuts help (Esc closes)", async () => {
+    await mount();
+    expect(testid("help-overlay")).toBeNull();
+    press("?");
+    await flush();
+    expect(testid("help-overlay")).not.toBeNull();
+    press("Escape");
+    await flush();
+    expect(testid("help-overlay")).toBeNull();
   });
 });
 

@@ -119,6 +119,7 @@ export interface AppProps {
 export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProps): React.ReactElement {
   const [url, setUrl] = useState(initialUrl);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const urlRef = useRef<HTMLInputElement>(null);
   const [client, setClient] = useState<LedgerClient | null>(null);
   const [conn, setConn] = useState<"connecting" | "connected" | "error">("connecting");
@@ -317,6 +318,8 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
         setView(v);
         setHits(null);
         setSelected({ item: hit.item, milestoneId: hit.item.milestoneId });
+        setNavZone("main"); // opening a hit lands in the item/detail zone
+
       } catch (e) {
         setFlash(errMsg(e));
       }
@@ -462,9 +465,25 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     const typing =
       t !== null &&
       (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    // While the help dialog is open it captures the keyboard: only Esc/? close
+    // it; nav keys must not drive the list underneath.
+    if (helpOpen) {
+      if (e.key === "Escape" || e.key === "?") {
+        e.preventDefault();
+        setHelpOpen(false);
+      }
+      return;
+    }
     if (e.key === "/" && !typing) {
       e.preventDefault();
-      (document.querySelector('[data-testid="search-input"]') as HTMLInputElement | null)?.focus();
+      const box = document.querySelector('[data-testid="search-input"]') as HTMLInputElement | null;
+      box?.focus();
+      box?.select(); // typing replaces the previous query → "start a new search"
+      return;
+    }
+    if (e.key === "?" && !typing) {
+      e.preventDefault();
+      setHelpOpen(true);
       return;
     }
     if (typing) return; // inputs own every other key while focused
@@ -568,6 +587,17 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
         >
           {mainView === "dag" ? "table" : "graph"}
         </button>
+        <div className="lw-header-right">
+        <button
+          type="button"
+          data-testid="help-toggle"
+          className="lw-gear"
+          aria-label="keyboard shortcuts"
+          title="Keyboard shortcuts ( ? )"
+          onClick={() => setHelpOpen((o) => !o)}
+        >
+          ?
+        </button>
         <div className="lw-settings">
           <button
             type="button"
@@ -603,7 +633,9 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
             </form>
           )}
         </div>
+        </div>
       </header>
+      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
 
       {conn === "error" && (
         <div className="lw-error" data-testid="conn-error">
@@ -807,10 +839,49 @@ function LiveIndicator({ stats }: { stats: LiveStats | null }): React.ReactEleme
   );
 }
 
+/** Keyboard shortcut reference (opened with `?` or the header button). */
+const SHORTCUTS: ReadonlyArray<[string, string]> = [
+  ["↑ / ↓  ·  j / k", "Move within the focused list"],
+  ["Enter", "Open the highlighted ledger / item / hit"],
+  ["→ / l  ·  ← / h", "Move between the ledger sidebar and the item list"],
+  ["Esc", "Close detail → leave search → back to sidebar (and close dialogs)"],
+  ["/", "Focus the search box (start a new search)"],
+  ["in search: Enter / ↓", "Run it and jump to the results"],
+  ["?", "Show / hide this help"],
+];
+
+function HelpOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
+  return (
+    <div className="lw-help-backdrop" data-testid="help-overlay" onClick={onClose}>
+      <div className="lw-help" role="dialog" aria-label="keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
+        <div className="lw-help-head">
+          <strong>Keyboard shortcuts</strong>
+          <button type="button" className="lw-close" data-testid="help-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <dl className="lw-help-list">
+          {SHORTCUTS.map(([keys, what]) => (
+            <React.Fragment key={keys}>
+              <dt>
+                <kbd>{keys}</kbd>
+              </dt>
+              <dd>{what}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+
 function SearchBar({ onSearch, disabled }: { onSearch: (q: string) => void; disabled: boolean }): React.ReactElement {
-  // As-you-type: debounce each keystroke; Enter fires immediately. Uncontrolled
-  // input (ref) so keystrokes register under happy-dom in tests.
+  // As-you-type: debounce each keystroke. Enter or ArrowDown commit immediately
+  // and BLUR, handing keyboard focus to the results list so the global handler
+  // can arrow through hits (Esc also blurs). Uncontrolled input (ref) so
+  // keystrokes register under happy-dom in tests.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const fire = (v: string): void => {
     if (timer.current !== null) clearTimeout(timer.current);
     onSearch(v);
@@ -825,22 +896,27 @@ function SearchBar({ onSearch, disabled }: { onSearch: (q: string) => void; disa
     },
     [],
   );
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === "Enter" || e.key === "ArrowDown") {
+      e.preventDefault();
+      fire(inputRef.current?.value ?? "");
+      inputRef.current?.blur(); // → results navigation takes over
+    } else if (e.key === "Escape") {
+      inputRef.current?.blur();
+    }
+  };
   return (
-    <form
-      className="lw-search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        fire((e.currentTarget.elements.namedItem("q") as HTMLInputElement).value);
-      }}
-    >
+    <form className="lw-search" onSubmit={(e) => e.preventDefault()}>
       <input
+        ref={inputRef}
         name="q"
         aria-label="search"
         data-testid="search-input"
-        placeholder="search… e.g. status:wip OR ledger:goals"
+        placeholder="search… e.g. status:wip OR ledger:goals  ( / )"
         disabled={disabled}
         defaultValue=""
         onInput={(e) => schedule((e.target as HTMLInputElement).value)}
+        onKeyDown={onKeyDown}
       />
     </form>
   );
