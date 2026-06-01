@@ -273,6 +273,22 @@ describe("ledger-tui App", () => {
     h.unmount();
   });
 
+  it("toggles pane orientation and resizes without losing content", async () => {
+    const h = await mount();
+    await h.key(ENTER); // open bugs → two panes (list + detail)
+    expect(h.frame()).toContain("D1");
+    expect(h.frame()).toContain("headline"); // detail pane visible
+    await h.key("o"); // right → bottom orientation
+    await tick(20);
+    expect(h.frame()).toContain("D1");
+    expect(h.frame()).toContain("headline"); // both panes still render stacked
+    await h.key("]"); // grow the list pane
+    await h.key("["); // shrink it back
+    await tick(20);
+    expect(h.frame()).toContain("D1");
+    h.unmount();
+  });
+
   it("preserves the list position when going back with Esc", async () => {
     const h = await mount();
     await h.key(DOWN); // bugs → milestones

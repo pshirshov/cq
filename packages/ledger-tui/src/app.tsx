@@ -31,9 +31,20 @@ import {
 import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient, LedgerSchema } from "./types.js";
 
 const MILESTONES = "milestones";
-const LIST_WIDTH = 34;
 /** Provenance author stamped on writes made by a human through this editor. */
 const UI_AUTHOR = "user";
+
+/** List/detail split: orientation + the list pane's fraction of the body. */
+type PanelOrientation = "right" | "bottom";
+interface PanelLayout {
+  orientation: PanelOrientation;
+  ratio: number;
+}
+const PANEL_DEFAULT: PanelLayout = { orientation: "right", ratio: 0.5 };
+const PANEL_MIN_RATIO = 0.2;
+const PANEL_MAX_RATIO = 0.8;
+const PANEL_STEP = 0.05;
+const clampRatio = (r: number): number => Math.max(PANEL_MIN_RATIO, Math.min(PANEL_MAX_RATIO, r));
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -110,6 +121,7 @@ export function App({
   const [flash, setFlash] = useState("");
   const [live, setLive] = useState<LiveStats | null>(null);
   const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
+  const [panel, setPanel] = useState<PanelLayout>(PANEL_DEFAULT);
   const refreshRef = React.useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -298,6 +310,19 @@ export function App({
   useInput(
     (input, key) => {
       if (overlay !== null) return; // overlay components own input while open
+      // Global layout controls (both views): toggle orientation, resize panes.
+      if (input === "o") {
+        setPanel((p) => ({ ...p, orientation: p.orientation === "right" ? "bottom" : "right" }));
+        return;
+      }
+      if (input === "[") {
+        setPanel((p) => ({ ...p, ratio: clampRatio(p.ratio - PANEL_STEP) }));
+        return;
+      }
+      if (input === "]") {
+        setPanel((p) => ({ ...p, ratio: clampRatio(p.ratio + PANEL_STEP) }));
+        return;
+      }
       if (top.kind === "ledgers") {
         if (key.upArrow || input === "k") patchTop({ cursor: Math.max(0, top.cursor - 1) });
         else if (key.downArrow || input === "j")
@@ -339,8 +364,15 @@ export function App({
   );
 
   // ---- derived for render ------------------------------------------------
-  const bodyHeight = Math.max(3, rows - 2); // minus header + status bar
-  const contentWidth = Math.max(20, cols - LIST_WIDTH - 3);
+  const bodyRows = Math.max(3, rows - 2); // minus header + status bar
+  // Pane sizing from the panel layout. Each pane has a 1-char round border on
+  // every side (-2) and the content pane adds paddingX={1} (-2 more on width).
+  const horizontal = panel.orientation === "right";
+  const listOuterW = horizontal ? Math.max(16, Math.round(cols * panel.ratio)) : cols;
+  const listOuterH = horizontal ? bodyRows : Math.max(3, Math.round(bodyRows * panel.ratio));
+  const listInnerH = Math.max(1, listOuterH - 2);
+  const contentInnerH = Math.max(1, (horizontal ? bodyRows : bodyRows - listOuterH) - 2);
+  const contentInnerW = Math.max(20, (horizontal ? cols - listOuterW : cols) - 4);
 
   let pathStr: string;
   let hints: string;
@@ -349,13 +381,13 @@ export function App({
 
   if (top.kind === "ledgers") {
     pathStr = "all ledgers";
-    hints = "↑↓ move · Enter open · / search · q quit";
+    hints = "↑↓ move · Enter open · / search · o/[ ] panes · q quit";
     listEl = (
       <ScrollList
         items={ledgers}
         getLabel={(l) => l}
         cursor={top.cursor}
-        height={bodyHeight}
+        height={listInnerH}
         active={overlay === null}
       />
     );
@@ -378,8 +410,8 @@ export function App({
     if (fLabel.length > 0) pathStr += `  [${fLabel}]`;
     hints =
       top.focus === "content"
-        ? "↑↓ scroll · s status · e edit · Esc back to list"
-        : "↑↓ move · Enter open · s status · e edit · n new · f filter · / search · Esc back";
+        ? "↑↓ scroll · s status · e edit · o/[ ] panes · Esc back to list"
+        : "↑↓ move · Enter open · s status · e edit · n new · f filter · / search · o/[ ] panes · Esc back";
     listEl = (
       <ScrollList
         items={rowsArr}
@@ -393,7 +425,7 @@ export function App({
           />
         )}
         cursor={top.cursor}
-        height={bodyHeight}
+        height={listInnerH}
         active={overlay === null && top.focus === "list"}
         emptyLabel={filter.kind === "all" ? "(no items — press n)" : "(no items match filter — f)"}
       />
@@ -404,8 +436,8 @@ export function App({
           row={cur}
           ledger={top.ledger}
           schema={schema}
-          width={contentWidth}
-          height={bodyHeight}
+          width={contentInnerW}
+          height={contentInnerH}
           scroll={top.scroll}
         />
       ) : (
@@ -428,9 +460,15 @@ export function App({
         {liveUrl !== null && <LiveBadge stats={live} />}
       </Box>
 
-      {/* body: list | content */}
-      <Box flexGrow={1} flexDirection="row">
-        <Box width={LIST_WIDTH} flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+      {/* body: list | content — split right (row) or bottom (column) */}
+      <Box flexGrow={1} flexDirection={horizontal ? "row" : "column"}>
+        <Box
+          {...(horizontal ? { width: listOuterW } : { height: listOuterH })}
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="gray"
+          paddingX={1}
+        >
           {listEl}
         </Box>
         <Box flexGrow={1} flexDirection="column" borderStyle="round" borderColor={top.kind === "items" && top.focus === "content" ? "cyan" : "gray"} paddingX={1}>
