@@ -12,23 +12,23 @@ archives: []
 
 ### T1 — done
 
-- createdAt: 2026-05-31T23:23:37.766Z
-- updatedAt: 2026-05-31T23:23:37.766Z
+- createdAt: 2026-06-01T00:08:33.642Z
+- updatedAt: 2026-06-01T00:08:33.642Z
 - headline: Bootstrap the repository
 - description: Initialise the Bun workspace, eslint/prettier, and the flake dev shell.
 - acceptance: bun install + bun test green
 
 ### T2 — done
 
-- createdAt: 2026-05-31T23:23:37.777Z
-- updatedAt: 2026-05-31T23:23:37.777Z
+- createdAt: 2026-06-01T00:08:33.653Z
+- updatedAt: 2026-06-01T00:08:33.653Z
 - headline: Define the ledger data model
 - description: Milestones own typed items; ids are per-ledger monotonic with a prefix.
 
 ### T3 — wip
 
-- createdAt: 2026-05-31T23:23:37.789Z
-- updatedAt: 2026-05-31T23:23:37.789Z
+- createdAt: 2026-06-01T00:08:33.668Z
+- updatedAt: 2026-06-01T00:08:33.668Z
 - headline: Wire up CI
 - description: Run typecheck, lint and tests on every push.
 - tags: ["infra"]
@@ -37,24 +37,36 @@ archives: []
 
 ### T4 — wip
 
-- createdAt: 2026-05-31T23:23:37.800Z
-- updatedAt: 2026-05-31T23:23:37.800Z
+- createdAt: 2026-06-01T00:08:33.679Z
+- updatedAt: 2026-06-01T00:08:33.679Z
 - headline: Implement the markdown parser
 - description: |
-    Frontmatter plus grouped items must round-trip losslessly.
-    Values are stored as YAML field lines under each item heading.
+    Frontmatter plus grouped items must round-trip **losslessly**.
+    
+    Cases that must survive a read:
+    
+    - inline `code`, *emphasis*, and [links](https://example.test)
+    - fenced code blocks
+    - blank lines between paragraphs
+    
+    ```ts
+    const back = parseLedger(serializeLedger(ledger));
+    assert.deepEqual(back, ledger);
+    ```
+    
+    > Field values are stored as YAML field lines under each item heading.
 
 ### T5 — planned
 
-- createdAt: 2026-05-31T23:23:37.817Z
-- updatedAt: 2026-05-31T23:23:37.817Z
+- createdAt: 2026-06-01T00:08:33.694Z
+- updatedAt: 2026-06-01T00:08:33.694Z
 - headline: Add the file-store mutex + lockfile
 - description: Serialise concurrent writers on a per-ledger lockfile so two processes cannot corrupt a file.
 
 ### T6 — planned
 
-- createdAt: 2026-05-31T23:23:37.828Z
-- updatedAt: 2026-05-31T23:23:37.828Z
+- createdAt: 2026-06-01T00:08:33.708Z
+- updatedAt: 2026-06-01T00:08:33.708Z
 - headline: Build the full-text search index
 - description: Cross-ledger ranked search over item fields, backed by minisearch.
 - dependsOn: ["T4"]
@@ -63,15 +75,15 @@ archives: []
 
 ### T7 — planned
 
-- createdAt: 2026-05-31T23:23:37.841Z
-- updatedAt: 2026-05-31T23:23:37.841Z
+- createdAt: 2026-06-01T00:08:33.719Z
+- updatedAt: 2026-06-01T00:08:33.719Z
 - headline: Item table + detail panel
 - description: Browse a ledger's items in a table; click one to view and edit its fields.
 
 ### T8 — blocked
 
-- createdAt: 2026-05-31T23:23:37.853Z
-- updatedAt: 2026-05-31T23:23:37.853Z
+- createdAt: 2026-06-01T00:08:33.737Z
+- updatedAt: 2026-06-01T00:08:33.737Z
 - headline: Milestone DAG layout
 - description: Lay out the milestone dependency graph (dependsOn/blockedBy) as a left-to-right DAG.
 - blockedBy: ["T7"]
@@ -80,7 +92,7 @@ archives: []
 
 ### T9 — planned
 
-- createdAt: 2026-05-31T23:23:37.868Z
-- updatedAt: 2026-05-31T23:23:37.868Z
+- createdAt: 2026-06-01T00:08:33.751Z
+- updatedAt: 2026-06-01T00:08:33.751Z
 - headline: Marketing landing page
 - description: A static page describing the project with install instructions.

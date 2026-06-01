@@ -65,5 +65,17 @@ In the **web** console: click a ledger in the sidebar, click an item for the
 detail/edit panel, use the search box, and click **graph** (top right) for the
 milestone DAG — click a node to open that milestone.
 
+### Where to see markdown
+
+Field values render as markdown in both UIs. The richest examples:
+
+- **tasks → T4** ("Implement the markdown parser") — its `description` has
+  bold, a bullet list, a link, a fenced code block, and a blockquote.
+- **goals → G1** — `description` with a heading + numbered list.
+- **defects → D1** — `description` with inline `code` and **bold**.
+
+Open the item (web: click the row; TUI: highlight it — the right pane shows
+the rendered detail) to see it formatted.
+
 > Edits write back through the server to the Markdown files under
 > `examples/sample-ledger/docs/` — re-run the seed script to reset.

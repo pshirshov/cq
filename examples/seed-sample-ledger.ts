@@ -56,7 +56,14 @@ async function main(): Promise<void> {
   });
   await item("tasks", "M2", "wip", {
     headline: "Implement the markdown parser",
-    description: "Frontmatter plus grouped items must round-trip losslessly.\nValues are stored as YAML field lines under each item heading.",
+    description:
+      "Frontmatter plus grouped items must round-trip **losslessly**.\n\n" +
+      "Cases that must survive a read:\n\n" +
+      "- inline `code`, *emphasis*, and [links](https://example.test)\n" +
+      "- fenced code blocks\n" +
+      "- blank lines between paragraphs\n\n" +
+      "```ts\nconst back = parseLedger(serializeLedger(ledger));\nassert.deepEqual(back, ledger);\n```\n\n" +
+      "> Field values are stored as YAML field lines under each item heading.",
   });
   await item("tasks", "M2", "planned", {
     headline: "Add the file-store mutex + lockfile",
@@ -84,7 +91,9 @@ async function main(): Promise<void> {
   // ── defects (severity is required) ─────────────────────────────────────
   await item("defects", "M2", "open", {
     headline: "Parser drops a trailing newline on serialize",
-    description: "Round-tripping a ledger removes the final newline, producing a noisy git diff.",
+    description:
+      "Round-tripping a ledger removes the final newline, producing a noisy `git diff`. " +
+      "The fix belongs in **serializeLedger** — emit exactly one trailing `\\n`.",
     severity: "minor",
   });
   await item("defects", "M3", "wip", {
@@ -124,7 +133,13 @@ async function main(): Promise<void> {
   // ── goals (title + description required) ─────────────────────────────────
   await item("goals", "M1", "building", {
     title: "Ship a self-hostable ledger platform",
-    description: "An MCP server plus terminal and browser frontends for planning ledgers.",
+    description:
+      "## Vision\n\n" +
+      "A self-hostable platform for planning ledgers:\n\n" +
+      "1. an **MCP server** (stdio + Streamable HTTP)\n" +
+      "2. a **terminal** UI (`ledger-tui`)\n" +
+      "3. a **web** UI with a milestone **DAG** view\n\n" +
+      "All data lives as plain Markdown — *diffable* and `git`-friendly.",
   });
 
   await store.dispose();
