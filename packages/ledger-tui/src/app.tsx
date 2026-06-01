@@ -130,10 +130,17 @@ export function App({
   client,
   liveUrl = null,
   liveWsCtor,
+  onSubscribe = null,
 }: {
   client: LedgerClient;
   liveUrl?: string | null;
   liveWsCtor?: { new (url: string): WebSocket };
+  /**
+   * In-process change source for embedded mode (no WebSocket): given a refresh
+   * callback, start watching and return a disposer. When set (and `liveUrl` is
+   * null) the App refreshes on external file changes via this instead of a WS.
+   */
+  onSubscribe?: ((onChange: () => void) => () => void) | null;
 }): React.ReactElement {
   const { exit } = useApp();
   const { cols, rows } = useTermSize();
@@ -222,22 +229,31 @@ export function App({
     };
   }, [client, reloadItems]);
 
-  // Live updates: connect to the server's /ws, refetch the current frame on a
-  // pushed change, and expose health to the status bar.
+  // Live updates. REMOTE (liveUrl): connect to the server's /ws, refetch the
+  // current frame on a pushed change, expose health to the status bar. EMBEDDED
+  // (onSubscribe, no WS): wire the in-process file watcher to the same refresh.
   useEffect(() => {
-    if (liveUrl === null) return;
-    const mgr = new LiveManager({
-      url: liveUrl,
-      ...(liveWsCtor !== undefined ? { WebSocketCtor: liveWsCtor } : {}),
-      onChanged: () => refreshRef.current(),
-      onUpdate: (s) => setLive(s),
-    });
-    mgr.start();
-    return () => {
-      mgr.destroy();
-      setLive(null);
-    };
-  }, [liveUrl, liveWsCtor]);
+    if (liveUrl !== null) {
+      const mgr = new LiveManager({
+        url: liveUrl,
+        ...(liveWsCtor !== undefined ? { WebSocketCtor: liveWsCtor } : {}),
+        onChanged: () => refreshRef.current(),
+        onUpdate: (s) => setLive(s),
+      });
+      mgr.start();
+      return () => {
+        mgr.destroy();
+        setLive(null);
+      };
+    }
+    if (onSubscribe !== null) {
+      const dispose = onSubscribe(() => refreshRef.current());
+      return () => {
+        dispose();
+      };
+    }
+    return undefined;
+  }, [liveUrl, liveWsCtor, onSubscribe]);
 
   // ---- mutations (called from overlays) ----------------------------------
   const isMilestonesLedger = top.kind === "items" && top.ledger === MILESTONES;
@@ -540,6 +556,9 @@ export function App({
           {conn === "error" ? `error: ${connErr}` : pathStr}
         </Text>
         {liveUrl !== null && <LiveBadge stats={live} />}
+        {liveUrl === null && onSubscribe !== null && (
+          <Text dimColor>{"  ◆ in-process"}</Text>
+        )}
       </Box>
 
       {/* body: list | content — split right (row) or bottom (column) */}
