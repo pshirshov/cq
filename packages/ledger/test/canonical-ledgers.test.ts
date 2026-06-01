@@ -27,6 +27,8 @@ import {
   QUESTIONS_LEDGER,
   DECISIONS_LEDGER,
   GOALS_LEDGER,
+  REVIEWS_LEDGER,
+  InvalidStatusError,
   DEFECTS_SCHEMA,
   TASKS_SCHEMA,
   HYPOTHESIS_SCHEMA,
@@ -202,9 +204,88 @@ for (const factory of [inMem, fs_]) {
           expect(ids.has(it.id)).toBe(false);
           ids.add(it.id);
         }
-        expect(ids.size).toBe(CASES.length);
+        // `reviews` is excluded from CASES (verdict-as-status, no lifecycle
+        // update step), so mint one directly to exercise the `R` prefix in
+        // the cross-ledger uniqueness/prefix assertion.
+        const review = await store.createItem(REVIEWS_LEDGER, m.id, {
+          status: "go-ahead",
+          fields: { criticism: ["looks fine"] },
+        });
+        expect(ids.has(review.id)).toBe(false);
+        ids.add(review.id);
+        expect(ids.size).toBe(CASES.length + 1);
         // Each id carries its ledger's distinct prefix.
-        expect([...ids].map((id) => id[0]).sort()).toEqual(["D", "G", "H", "K", "Q", "T"]);
+        expect([...ids].map((id) => id[0]).sort()).toEqual(["D", "G", "H", "K", "Q", "R", "T"]);
+      } finally {
+        await store.dispose();
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// F3 — reviews ledger: the item `status` IS the verdict. Both verdict statuses
+// (`go-ahead`, `revise`) are terminal, so a review is an immutable one-round
+// record (no update/transition step — that is what makes the standard CASES
+// lifecycle shape inapplicable here). Status enforcement is generic, so an
+// out-of-enum verdict throws InvalidStatusError with no review-specific code.
+// ---------------------------------------------------------------------------
+
+for (const factory of [inMem, fs_]) {
+  describe(`reviews ledger — verdict-as-status (${factory.name})`, () => {
+    it("creates a go-ahead review with new_questions/criticism/ledgerRefs and round-trips", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "reviews milestone" });
+        const goal = await store.createItem(GOALS_LEDGER, m.id, {
+          status: "clarifying",
+          fields: { title: "Goal under review", description: "the goal" },
+        });
+        const created = await store.createItem(REVIEWS_LEDGER, m.id, {
+          status: "go-ahead",
+          fields: {
+            new_questions: ["does the plan cover rollback?"],
+            criticism: ["step 3 lacks a verification command"],
+            ledgerRefs: [`${GOALS_LEDGER}:${goal.id}`],
+          },
+        });
+        expect(created.id).toBe("R1");
+        expect(created.status).toBe("go-ahead");
+
+        const fetched = store.fetchItem(REVIEWS_LEDGER, created.id);
+        expect(fetched.status).toBe("go-ahead");
+        expect(fetched.fields["new_questions"]).toEqual(["does the plan cover rollback?"]);
+        expect(fetched.fields["criticism"]).toEqual(["step 3 lacks a verification command"]);
+        expect(fetched.fields["ledgerRefs"]).toEqual([`${GOALS_LEDGER}:${goal.id}`]);
+      } finally {
+        await store.dispose();
+      }
+    });
+
+    it("creates a revise review", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "reviews milestone" });
+        const created = await store.createItem(REVIEWS_LEDGER, m.id, {
+          status: "revise",
+          fields: { criticism: ["acceptance criteria are not testable"] },
+        });
+        expect(created.status).toBe("revise");
+      } finally {
+        await store.dispose();
+      }
+    });
+
+    it("rejects an out-of-enum verdict status", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "reviews milestone" });
+        await expect(
+          store.createItem(REVIEWS_LEDGER, m.id, {
+            status: "maybe",
+            fields: { criticism: ["unsure"] },
+          }),
+        ).rejects.toThrow(InvalidStatusError);
       } finally {
         await store.dispose();
       }
@@ -362,11 +443,11 @@ describe("§11 worked-example parser round-trips", () => {
 
 // ---------------------------------------------------------------------------
 // The bootstrapped milestones file renders the §8d `## active` header on a
-// fresh cwd, and all seven canonical ledgers are present.
+// fresh cwd, and all canonical ledgers are present.
 // ---------------------------------------------------------------------------
 
 describe("fresh-cwd bootstrap shape", () => {
-  it("writes `## active` in docs/milestones.md and provisions all seven ledgers", async () => {
+  it("writes `## active` in docs/milestones.md and provisions all canonical ledgers", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "ledger-canon-fresh-"));
     dirs.push(dir);
     const store = new FsLedgerStore({ root: dir });

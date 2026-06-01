@@ -11,8 +11,8 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ## Milestones (high-level)
 
-- [~] **M1** — Server/data formality: transition guard (F1, all canonical ledgers),
-  goal preconditions (F2), `reviews` ledger (F3), bootstrap regeneration.
+- [x] **M1** — Server/data formality: transition guard (F1, all canonical ledgers),
+  goal preconditions (F2), `reviews` ledger (F3), bootstrap regeneration. ALL PRs done.
 - [ ] **M2** — Portable orchestration: `prompts/` source dir (symlinked into Claude
   + Codex locations) — `/plan:start`, `/plan:advance`, `plan-reviewer`.
 - [ ] **M3** — Non-AI watcher (F4): `@cq/ledger-live` process re-invoking the open
@@ -42,15 +42,16 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
   without a locked linked `decisions` item. Failing tests first.
   Acceptance: `bun test packages/ledger/test/goal-preconditions.test.ts` passes on
   both stores; `bun run check` clean.
-- [ ] **PR-03** — F3 `reviews` ledger: new canonical ledger; verdict = `status`
+- [x] **PR-03** — F3 `reviews` ledger: new canonical ledger; verdict = `status`
   enum (`go-ahead|revise`); `new_questions`/`criticism` as `string[]`; linked to
   goal via `ledgerRefs`. Failing test first.
   Acceptance: reviews case in `canonical-ledgers.test.ts` passes both stores;
   out-of-enum verdict throws `InvalidStatusError`; `bun run check` clean.
-- [ ] **PR-04** — Regenerate bootstrap `docs/ledgers.yaml` (+ example ledgers) to
-  match the bumped canonical schemas. No forward-compat path (per user: not in
-  production yet). Acceptance: `ledger-mcp` starts against the repo `docs/` with
-  no divergence error; `bun run check` clean.
+- [x] **PR-04** — Regenerate bootstrap `docs/ledgers.yaml`. **Absorbed**: PR-01 created
+  `scripts/regen-bootstrap.ts` (the durable artifact) and regenerated; PR-03 re-ran it for
+  the 8th (`reviews`) ledger. `docs/ledgers.yaml` is gitignored (local dogfood), so there is
+  nothing separate to commit — the script + its invocation in the schema PRs is the whole of
+  PR-04. Boot regression test (PR-01) green against the 8-ledger registry.
 
 ---
 
@@ -59,9 +60,10 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
 - [x] **No backwards-compat / no migration path** — repo not in production (user
   decision 2026-06-01). PR-04 just regenerates the on-disk bootstrap; no
   forward-compat upgrade code in `FsLedgerStore.init`.
-- [x] **`transitions` populated for ALL 7 canonical ledgers** (user decision
+- [x] **`transitions` populated for ALL canonical ledgers** (user decision
   2026-06-01), not goals-only. The guard mechanism is general; every canonical
-  schema declares its allowed map. Lands PR-01.
+  schema declares its allowed map. Lands PR-01 (the 7 then-existing ledgers);
+  PR-03 adds the 8th, `reviews`, also with a `transitions` map.
 - [x] **Codex/Claude prompt sharing = single `prompts/` source dir + symlinks**
   (user decision 2026-06-01) into `.claude/commands/`, `.claude/agents/`, and the
   Codex locations. One source of truth. Lands M2.
@@ -122,6 +124,24 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
     frontend can read the map from the fetched ledger schema today.
   - The whole `docs/` tree is untracked in git except where individually added; the review-loop
     state (`docs/state/`, `docs/drafts/`) is added explicitly per commit.
+
+- **PR-03** (2026-06-01) — F3 `reviews` ledger. Shipped: a new canonical `reviews` ledger
+  whose item STATUS is the reviewer verdict — `statusValues:["go-ahead","revise"]`, both
+  terminal, `transitions:{"go-ahead":[],"revise":[]}`, `idPrefix:"R"`, fields `new_questions`
+  / `criticism` (`string[]`) + `ledgerRefs`/`tags`/`sourceRefs`. Added to `CANONICAL_LEDGERS`
+  (now 8) and re-exported (`REVIEWS_LEDGER`/`REVIEWS_SCHEMA`). Out-of-enum verdicts are rejected
+  by the generic `assertStatusAllowed` (`InvalidStatusError`) — no new validation code. Created
+  directly at a terminal status (the transition guard fires only on update, not create).
+  Verification: `bun run check` → tsc/eslint clean, `bun test` 369 pass / 0 fail (31 files);
+  `bun test canonical-ledgers.test.ts transitions.test.ts` 54 pass; `bun run regen-bootstrap`
+  idempotent, 8 ledgers; PR-01 boot regression green against the 8-ledger registry.
+  Metrics: review rounds 1 (no major; 2 minor coverage gaps + 2 nits, all fixed/handled);
+  verification complete; scope delta none.
+  Notes for later PRs (M2):
+  - The reviewer prompt (M2) writes its verdict by `create_item("reviews", milestone, {status:
+    "go-ahead"|"revise", fields:{new_questions, criticism, ledgerRefs:["goals:<G>"]}})`. The
+    advance step reads the latest review for a goal and acts on status + arrays.
+  - Each review is an immutable per-round record (both verdicts terminal at creation).
 
 - **M4** (2026-06-01) — UI quick-transition buttons (TUI + web). Shipped: both clients read
   `schema.transitions[item.status]` from the fetched MCP ledger schema and render one-click

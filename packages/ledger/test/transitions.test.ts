@@ -29,6 +29,7 @@ import {
   QUESTIONS_SCHEMA,
   DECISIONS_SCHEMA,
   GOALS_SCHEMA,
+  REVIEWS_SCHEMA,
   type LedgerSchema,
   type LedgerStore,
 } from "../src/index.js";
@@ -269,6 +270,11 @@ describe("canonical schema transition maps — pinned edges", () => {
   it("goals: clarifying → planning present, clarifying → planned absent", () => {
     expect(GOALS_SCHEMA.transitions?.["clarifying"]).toContain("planning");
     expect(GOALS_SCHEMA.transitions?.["clarifying"]).not.toContain("planned");
+  });
+
+  it("reviews: both verdicts (go-ahead, revise) are terminal", () => {
+    expect(REVIEWS_SCHEMA.transitions?.["go-ahead"]).toEqual([]);
+    expect(REVIEWS_SCHEMA.transitions?.["revise"]).toEqual([]);
   });
 });
 

@@ -77,7 +77,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         { name: NOTES, schema: notesSchema },
       ]);
       try {
-        // All seven canonical ledgers are bootstrapped on init() (§8, B).
+        // All canonical ledgers are bootstrapped on init() (§8, B).
         expect(store.enumerate()).toEqual([...BOOTSTRAPPED, WIDGETS, NOTES].sort());
       } finally {
         await factory.teardown?.(store);

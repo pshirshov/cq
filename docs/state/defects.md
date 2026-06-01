@@ -48,6 +48,38 @@ Status: `[ ] open` · `[~] under fix` · `[x] resolved`
 
 ---
 
+## PR-03
+
+### [PR-03-D01] `reviews`/`R` excluded from the global prefix-uniqueness / cross-ledger id-collision test
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** packages/ledger/test/canonical-ledgers.test.ts:194-209
+**Description:** The "global id uniqueness" test iterates `CASES`, which omits `reviews` (its verdicts are terminal-at-creation, so the create→update→archive CASES shape doesn't fit). So `R` is never exercised in the cross-ledger uniqueness check every other item-bearing canonical ledger gets — a real gap, since prefix uniqueness underpins the soft `ledger:id` ref scheme.
+**Fix:** The "global id uniqueness" test now mints a `reviews` item (`status:"go-ahead"`), asserts its id is distinct, and expects `["D","G","H","K","Q","R","T"]` as the sorted prefix set.
+
+### [PR-03-D02] Pinned-edges transition block covers 7 of 8 canonical schemas (no `REVIEWS_SCHEMA`)
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** packages/ledger/test/transitions.test.ts:236-272
+**Description:** The per-ledger pinned-edge block has no `REVIEWS_SCHEMA` case. Reviews' shape is validated indirectly at bootstrap (D02 rule), but the block that exists to pin per-ledger edges under-covers the new ledger.
+**Fix:** Added a `reviews` case to the pinned-edges block asserting both `go-ahead` and `revise` map to `[]`; imported `REVIEWS_SCHEMA`.
+
+### [PR-03-D03] Stale "all seven canonical ledgers" comment in store-abstract.ts
+**Status:** [x] resolved
+**Severity:** nit
+**Location:** packages/ledger/test/store-abstract.ts:80
+**Description:** Assertion derives from `CANONICAL_LEDGERS` (auto-covers reviews, passes); only the adjacent comment is stale (now 8).
+**Fix:** Comment reworded to "All canonical ledgers …" (dropped the hardcoded count).
+
+### [PR-03-D04] Repo prose / review-loop ledger says "7 canonical ledgers" (now 8)
+**Status:** [x] resolved (orchestrator-owned docs updated; dogfood docs left)
+**Severity:** nit
+**Location:** docs/state/tasks.md (locked note), docs/tasks.md (dogfood state)
+**Description:** Non-asserting doc strings now understate the count. `docs/tasks.md` is generated dogfood state (left as-is); the review-loop locked note in `docs/state/tasks.md` is orchestrator-owned and updated.
+**Fix:** Updated the `docs/state/tasks.md` locked note to reflect that `transitions` now covers all 8 canonical ledgers (reviews added in PR-03). Dogfood `docs/tasks.md` left untouched (surgical).
+
+---
+
 ## PR-02
 
 ### [PR-02-D01] "No client can bypass" goal preconditions are per-process, not global (cross-process staleness window)

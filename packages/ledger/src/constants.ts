@@ -80,6 +80,7 @@ export const HYPOTHESIS_LEDGER = "hypothesis" as const;
 export const QUESTIONS_LEDGER = "questions" as const;
 export const DECISIONS_LEDGER = "decisions" as const;
 export const GOALS_LEDGER = "goals" as const;
+export const REVIEWS_LEDGER = "reviews" as const;
 
 /**
  * Common cross-cutting fields shared by the canonical ledgers (§1). Spread
@@ -253,6 +254,33 @@ export const GOALS_SCHEMA: LedgerSchema = {
 };
 
 /**
+ * F3 — reviews ledger. The plan-flow's adversarial reviewer records its
+ * verdict here as a schema-validated item whose `status` IS the verdict.
+ * Both verdict statuses are terminal: a review is an immutable record of one
+ * round's outcome, so neither carries an outgoing transition (the empty
+ * transition maps satisfy the D02 "terminal statuses have no outgoing edges"
+ * rule, consistent with how the other terminal-only states are declared). The
+ * review is linked to its goal via the common `ledgerRefs` field as
+ * `"goals:<G>"`. idPrefix R (M/D/T/H/Q/K/G are taken).
+ */
+export const REVIEWS_SCHEMA: LedgerSchema = {
+  statusValues: ["go-ahead", "revise"],
+  terminalStatuses: ["go-ahead", "revise"],
+  idPrefix: "R",
+  transitions: {
+    "go-ahead": [],
+    revise: [],
+  },
+  fields: {
+    new_questions: { type: "string[]", required: false },
+    criticism: { type: "string[]", required: false },
+    ledgerRefs: { type: "id[]", required: false },
+    tags: { type: "string[]", required: false },
+    sourceRefs: { type: "string[]", required: false },
+  },
+};
+
+/**
  * Bootstrap manifest. `milestones` MUST be first (the others reference it
  * for milestone-group resolution). On init() every entry is provisioned if
  * its file is absent and guarded against on-disk schema divergence.
@@ -265,6 +293,7 @@ export const CANONICAL_LEDGERS: ReadonlyArray<{ name: string; schema: LedgerSche
   { name: QUESTIONS_LEDGER, schema: QUESTIONS_SCHEMA },
   { name: DECISIONS_LEDGER, schema: DECISIONS_SCHEMA },
   { name: GOALS_LEDGER, schema: GOALS_SCHEMA },
+  { name: REVIEWS_LEDGER, schema: REVIEWS_SCHEMA },
 ];
 
 /**
