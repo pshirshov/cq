@@ -119,6 +119,8 @@ export class FakeClient implements LedgerClient {
       createdAt: TS,
       updatedAt: TS,
     };
+    if (init.author !== undefined) item.author = init.author;
+    if (init.session !== undefined) item.session = init.session;
     let group = d.groups.find((g) => g.id === milestoneId);
     if (group === undefined) {
       group = { id: milestoneId, items: [] };
@@ -134,6 +136,8 @@ export class FakeClient implements LedgerClient {
     if (patch.fields !== undefined) {
       for (const [k, v] of Object.entries(patch.fields)) it.fields[k] = v as FieldValue;
     }
+    if (patch.author !== undefined) it.author = patch.author;
+    if (patch.session !== undefined) it.session = patch.session;
     return it;
   }
 

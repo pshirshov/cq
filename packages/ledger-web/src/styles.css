@@ -191,6 +191,40 @@ button:hover {
 }
 .lw-status {
   color: var(--accent);
+  font-weight: 600;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+}
+/* Status badge colors by semantic bucket (see src/status.ts). */
+.lw-status-start {
+  color: var(--accent);
+}
+.lw-status-progress {
+  color: var(--warn);
+}
+.lw-status-blocked {
+  color: var(--err);
+}
+.lw-status-done {
+  color: var(--ok);
+}
+.lw-status-dropped {
+  color: var(--dim);
+}
+/* Terminal (closed) items recede: dimmed text + muted summary. */
+.lw-row-terminal td {
+  color: var(--dim);
+}
+.lw-filter {
+  margin-left: 8px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
 }
 .lw-empty,
 .lw-dim {

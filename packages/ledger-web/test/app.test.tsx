@@ -83,6 +83,25 @@ describe("ledger-web App", () => {
     expect(text()).toContain("warp leak");
   });
 
+  it("colorizes the status badge and filters items by status type", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    // D1 is "open" → non-terminal "start" bucket badge.
+    expect(testid("status-D1")?.className).toContain("lw-status-start");
+
+    // Filter to terminal: D1 (open) drops out, table shows the empty state.
+    setValue(testid("status-filter"), "terminal");
+    await flush();
+    expect(testid("item-D1")).toBeNull();
+    expect(text()).toContain("(no items)");
+
+    // Filter to active: D1 returns.
+    setValue(testid("status-filter"), "active");
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+  });
+
   it("opens item detail when a row is clicked", async () => {
     await mount();
     click(testid("ledger-bugs"));
@@ -116,6 +135,9 @@ describe("ledger-web App", () => {
     // back in view mode, reflecting the saved values
     expect(testid("edit-form")).toBeNull();
     expect(testid("detail-status")?.textContent).toBe("wip");
+    // a human edit stamps author="user", surfaced in the provenance line
+    expect(item.author).toBe("user");
+    expect(testid("detail-provenance")?.textContent).toContain("user");
   });
 
   it("cancels an edit without saving", async () => {

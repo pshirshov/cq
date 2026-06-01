@@ -231,6 +231,28 @@ describe("ledger-tui App", () => {
     h.unmount();
   });
 
+  it("filters the item list by status type (active/terminal)", async () => {
+    const h = await mount();
+    await h.key(ENTER); // open bugs — D1 [open] visible (open is non-terminal)
+    expect(h.frame()).toContain("D1");
+    expect(h.frame()).toContain("[open]");
+
+    await h.key("f"); // filter overlay: all / active / terminal / status:…
+    await h.key(DOWN); // → active
+    await h.key(DOWN); // → terminal
+    await h.key(ENTER);
+    await tick(30);
+    expect(h.frame()).toContain("[terminal]"); // header chip
+    expect(h.frame()).not.toContain("D1"); // the only item is non-terminal → hidden
+
+    await h.key("f");
+    await h.key(DOWN); // → active
+    await h.key(ENTER);
+    await tick(30);
+    expect(h.frame()).toContain("D1"); // active filter shows the open item again
+    h.unmount();
+  });
+
   it("preserves the list position when going back with Esc", async () => {
     const h = await mount();
     await h.key(DOWN); // bugs → milestones

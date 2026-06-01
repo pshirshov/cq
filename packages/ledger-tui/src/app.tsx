@@ -21,7 +21,14 @@ import { TextPrompt } from "./components/TextPrompt.js";
 import { Markdown } from "./markdownText.js";
 import { useTermSize } from "./useTermSize.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
-import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient } from "./types.js";
+import {
+  statusColor,
+  isTerminal,
+  statusMatchesFilter,
+  filterLabel,
+  type StatusFilter,
+} from "./status.js";
+import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient, LedgerSchema } from "./types.js";
 
 const MILESTONES = "milestones";
 const LIST_WIDTH = 34;
@@ -78,7 +85,8 @@ type Overlay =
   | { t: "editField"; row: Row; field: string }
   | { t: "editTitle"; row: Row }
   | { t: "createMilestone" }
-  | { t: "createItem"; milestones: Item[] };
+  | { t: "createItem"; milestones: Item[] }
+  | { t: "filter" };
 
 // ---------------------------------------------------------------------------
 // App
@@ -102,6 +110,7 @@ export function App({
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [flash, setFlash] = useState("");
   const [live, setLive] = useState<LiveStats | null>(null);
+  const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
   const refreshRef = React.useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -132,11 +141,20 @@ export function App({
     });
   }, []);
 
+  // Rows of an items view after the active status filter. The cursor indexes
+  // into THIS list, so every input/render path must use it (not raw rows).
+  const visibleRows = useCallback(
+    (view: FetchedLedger): Row[] =>
+      ledgerRows(view).filter((r) => statusMatchesFilter(r.item.status, view.schema, filter)),
+    [filter],
+  );
+
   const openLedger = useCallback(
     async (name: string) => {
       try {
         const view = await client.fetchLedger(name);
         setStack((s) => [...s, { kind: "items", ledger: name, view, cursor: 0, focus: "list", scroll: 0 }]);
+        setFilter({ kind: "all" });
         setFlash("");
       } catch (e) {
         setFlash(errMsg(e));
@@ -281,6 +299,9 @@ export function App({
           { kind: "ledgers", cursor: Math.max(0, ledgers.indexOf(hit.ledgerId)) },
           { kind: "items", ledger: hit.ledgerId, view, cursor: idx, focus: "list", scroll: 0 },
         ]);
+        // The hit's row index is into the unfiltered list — clear any filter so
+        // the cursor lands on the right row.
+        setFilter({ kind: "all" });
         setOverlay(null);
       } catch (e) {
         setFlash(errMsg(e));
@@ -305,7 +326,7 @@ export function App({
         return;
       }
       // items frame
-      const rowsArr = ledgerRows(top.view);
+      const rowsArr = visibleRows(top.view);
       const cur = rowsArr[top.cursor];
       if (top.focus === "content") {
         if (key.upArrow || input === "k") patchTop({ scroll: Math.max(0, top.scroll - 1) });
@@ -327,6 +348,7 @@ export function App({
       else if (input === "s" && cur) setOverlay({ t: "status", row: cur });
       else if (input === "e" && cur)
         setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
+      else if (input === "f") setOverlay({ t: "filter" });
       else if (input === "/") setOverlay({ t: "search" });
     },
     { isActive: true },
@@ -363,27 +385,45 @@ export function App({
       </Box>
     );
   } else {
-    const rowsArr = ledgerRows(top.view);
+    const rowsArr = visibleRows(top.view);
     const cur = rowsArr[top.cursor];
+    const schema = top.view.schema;
+    const fLabel = filterLabel(filter);
     pathStr =
       cur !== undefined ? `${top.ledger} → ${cur.milestoneId} → ${cur.item.id}` : top.ledger;
+    if (fLabel.length > 0) pathStr += `  [${fLabel}]`;
     hints =
       top.focus === "content"
         ? "↑↓ scroll · s status · e edit · Esc back to list"
-        : "↑↓ move · Enter open · s status · e edit · n new · / search · Esc back";
+        : "↑↓ move · Enter open · s status · e edit · n new · f filter · / search · Esc back";
     listEl = (
       <ScrollList
         items={rowsArr}
         getLabel={(r) => `${r.item.id} [${r.item.status}] ${summarize(r.item)}`}
+        renderLabel={(r) => (
+          <ItemRowLabel
+            id={r.item.id}
+            status={r.item.status}
+            summary={summarize(r.item)}
+            schema={schema}
+          />
+        )}
         cursor={top.cursor}
         height={bodyHeight}
         active={overlay === null && top.focus === "list"}
-        emptyLabel="(no items — press n)"
+        emptyLabel={filter.kind === "all" ? "(no items — press n)" : "(no items match filter — f)"}
       />
     );
     contentEl =
       cur !== undefined ? (
-        <ContentPane row={cur} ledger={top.ledger} width={contentWidth} height={bodyHeight} scroll={top.scroll} />
+        <ContentPane
+          row={cur}
+          ledger={top.ledger}
+          schema={schema}
+          width={contentWidth}
+          height={bodyHeight}
+          scroll={top.scroll}
+        />
       ) : (
         <Text dimColor>(no item selected)</Text>
       );
@@ -444,6 +484,11 @@ export function App({
                 }
                 setOverlay(null);
               }}
+              onFilter={(f) => {
+                setFilter(f);
+                patchTop({ cursor: 0 });
+                setOverlay(null);
+              }}
               setOverlay={setOverlay}
               onCancel={() => setOverlay(null)}
             />
@@ -487,9 +532,35 @@ function LiveBadge({ stats }: { stats: LiveStats | null }): React.ReactElement {
   );
 }
 
+/**
+ * One item row: `id [status] summary`, with the status badge colored by its
+ * semantic bucket and the whole row dimmed when the item is terminal (so
+ * closed work recedes). `author` provenance is shown as a trailing tag.
+ */
+function ItemRowLabel({
+  id,
+  status,
+  summary,
+  schema,
+}: {
+  id: string;
+  status: string;
+  summary: string;
+  schema: LedgerSchema;
+}): React.ReactElement {
+  const terminal = isTerminal(status, schema);
+  const color = statusColor(status, schema);
+  return (
+    <Text dimColor={terminal}>
+      {id} <Text color={color}>[{status}]</Text> {summary}
+    </Text>
+  );
+}
+
 function ScrollList<T>({
   items,
   getLabel,
+  renderLabel,
   cursor,
   height,
   active,
@@ -497,6 +568,8 @@ function ScrollList<T>({
 }: {
   items: readonly T[];
   getLabel: (item: T, index: number) => string;
+  /** Optional rich (colored) label; falls back to getLabel's plain string. */
+  renderLabel?: (item: T, index: number) => React.ReactNode;
   cursor: number;
   height: number;
   active: boolean;
@@ -524,7 +597,7 @@ function ScrollList<T>({
           return (
             <Text key={i} inverse={sel && active} {...(sel && !active ? { color: "cyan" as const } : {})} wrap="truncate-end">
               {sel ? "› " : "  "}
-              {getLabel(it, i)}
+              {renderLabel !== undefined ? renderLabel(it, i) : getLabel(it, i)}
             </Text>
           );
         })}
@@ -557,20 +630,24 @@ function estimateLines(value: string, width: number): number {
 function ContentPane({
   row,
   ledger,
+  schema,
   width,
   height,
   scroll,
 }: {
   row: Row;
   ledger: string;
+  schema: LedgerSchema;
   width: number;
   height: number;
   scroll: number;
 }): React.ReactElement {
   const f = row.item.fields;
   const entries = Object.entries(f);
+  const { author, session } = row.item;
+  const hasProvenance = author !== undefined || session !== undefined;
   // Estimate total height to clamp scrolling.
-  let est = 4; // header + status + milestone + timestamps
+  let est = 4 + (hasProvenance ? 1 : 0); // header + status + milestone + timestamps (+ provenance)
   for (const [, v] of entries) est += 1 + estimateLines(fieldToString(v as FieldValue), width);
   const maxScroll = Math.max(0, est - height);
   const clamped = Math.min(scroll, maxScroll);
@@ -582,12 +659,18 @@ function ContentPane({
           <Text bold>{row.item.id}</Text>
           <Text dimColor> @ {ledger}</Text>
           {"  "}
-          <Text color="cyan">{row.item.status}</Text>
+          <Text color={statusColor(row.item.status, schema)}>{row.item.status}</Text>
         </Text>
         <Text dimColor>
           milestone {row.milestoneId} · created {row.item.createdAt.slice(0, 10)} · updated{" "}
           {row.item.updatedAt.slice(0, 10)}
         </Text>
+        {hasProvenance && (
+          <Text dimColor>
+            by {author ?? "?"}
+            {session !== undefined ? ` · session ${session}` : ""}
+          </Text>
+        )}
         {entries.length === 0 ? (
           <Text dimColor>(no fields)</Text>
         ) : (
@@ -619,6 +702,7 @@ function Overlays({
   onOpenHit,
   onCreateMilestone,
   onCreateItem,
+  onFilter,
   setOverlay,
   onCancel,
 }: {
@@ -631,10 +715,35 @@ function Overlays({
   onOpenHit: (h: FtsHit) => void;
   onCreateMilestone: (title: string) => void;
   onCreateItem: (milestoneId: string, status: string, fields: Record<string, FieldValue>) => void;
+  onFilter: (f: StatusFilter) => void;
   setOverlay: (o: Overlay | null) => void;
   onCancel: () => void;
 }): React.ReactElement {
   switch (overlay.t) {
+    case "filter": {
+      const opts: StatusFilter[] = [
+        { kind: "all" },
+        { kind: "active" },
+        { kind: "terminal" },
+        ...(view?.schema.statusValues ?? []).map((v): StatusFilter => ({ kind: "status", value: v })),
+      ];
+      return (
+        <SelectList
+          items={opts}
+          getLabel={(f) =>
+            f.kind === "all"
+              ? "all (everything)"
+              : f.kind === "active"
+                ? "active (non-terminal)"
+                : f.kind === "terminal"
+                  ? "terminal (done/closed)"
+                  : `status: ${f.value}`
+          }
+          onSelect={(f) => onFilter(f)}
+          onCancel={onCancel}
+        />
+      );
+    }
     case "search":
       return <TextPrompt label="search:" onSubmit={onSearch} onCancel={onCancel} />;
     case "searchResults":

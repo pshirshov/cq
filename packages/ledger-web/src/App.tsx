@@ -22,6 +22,14 @@ import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
+import {
+  statusBucket,
+  isTerminal,
+  statusMatchesFilter,
+  filterToValue,
+  valueToFilter,
+  type StatusFilter,
+} from "./status.js";
 
 const MILESTONES = "milestones";
 /** Provenance author stamped on writes made by a human through this editor. */
@@ -105,6 +113,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [selected, setSelected] = useState<Row | null>(null);
   const [hits, setHits] = useState<FtsHit[] | null>(null);
   const [creating, setCreating] = useState<"item" | "milestone" | null>(null);
+  const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
   const [flash, setFlash] = useState("");
   const [mainView, setMainView] = useState<"ledger" | "dag">("ledger");
   const [dag, setDag] = useState<DagData | null>(null);
@@ -115,6 +124,11 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   // Latest-callback ref: the live connection lives across ledger changes, so
   // its onChanged must call the freshest refresh closure, not a stale one.
   const refreshRef = useRef<() => void>(() => {});
+
+  // A status filter is per-ledger; reset it whenever the active ledger changes.
+  useEffect(() => {
+    setFilter({ kind: "all" });
+  }, [ledger]);
 
   // Persist panel layout.
   useEffect(() => {
@@ -453,6 +467,22 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 >
                   {isMilestones ? "+ milestone" : "+ item"}
                 </button>
+                <select
+                  className="lw-filter"
+                  data-testid="status-filter"
+                  aria-label="filter by status"
+                  value={filterToValue(filter)}
+                  onChange={(e) => setFilter(valueToFilter(e.target.value))}
+                >
+                  <option value="all">all statuses</option>
+                  <option value="active">active (non-terminal)</option>
+                  <option value="terminal">terminal (done/closed)</option>
+                  {view.schema.statusValues.map((s) => (
+                    <option key={s} value={`status:${s}`}>
+                      status: {s}
+                    </option>
+                  ))}
+                </select>
               </div>
               {creating === "milestone" && client !== null && (
                 <CreateMilestoneForm
@@ -490,7 +520,14 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                   onCancel={() => setCreating(null)}
                 />
               )}
-              <ItemTable rows={ledgerRows(view)} selectedId={selected?.item.id ?? null} onSelect={setSelected} />
+              <ItemTable
+                rows={ledgerRows(view).filter((r) =>
+                  statusMatchesFilter(r.item.status, view.schema, filter),
+                )}
+                schema={view.schema}
+                selectedId={selected?.item.id ?? null}
+                onSelect={setSelected}
+              />
             </>
           ) : (
             <p className="lw-empty">{conn === "connected" ? "select a ledger" : "…"}</p>
@@ -587,10 +624,12 @@ function SearchBar({ onSearch, disabled }: { onSearch: (q: string) => void; disa
 
 function ItemTable({
   rows,
+  schema,
   selectedId,
   onSelect,
 }: {
   rows: Row[];
+  schema: FetchedLedger["schema"];
   selectedId: string | null;
   onSelect: (row: Row) => void;
 }): React.ReactElement {
@@ -606,21 +645,36 @@ function ItemTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.item.id}
-            data-testid={`item-${r.item.id}`}
-            className={r.item.id === selectedId ? "lw-row lw-row-active" : "lw-row"}
-            onClick={() => onSelect(r)}
-          >
-            <td>{r.milestoneId}</td>
-            <td>{r.item.id}</td>
-            <td>
-              <span className="lw-status">{r.item.status}</span>
-            </td>
-            <td>{summarize(r.item)}</td>
-          </tr>
-        ))}
+        {rows.map((r) => {
+          const terminal = isTerminal(r.item.status, schema);
+          const cls = [
+            "lw-row",
+            r.item.id === selectedId ? "lw-row-active" : "",
+            terminal ? "lw-row-terminal" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <tr
+              key={r.item.id}
+              data-testid={`item-${r.item.id}`}
+              className={cls}
+              onClick={() => onSelect(r)}
+            >
+              <td>{r.milestoneId}</td>
+              <td>{r.item.id}</td>
+              <td>
+                <span
+                  className={`lw-status lw-status-${statusBucket(r.item.status, schema)}`}
+                  data-testid={`status-${r.item.id}`}
+                >
+                  {r.item.status}
+                </span>
+              </td>
+              <td>{summarize(r.item)}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -788,7 +842,11 @@ function DetailPanel({
       {head}
       <dl className="lw-fields">
         <dt>status</dt>
-        <dd data-testid="detail-status">{row.item.status}</dd>
+        <dd data-testid="detail-status">
+          <span className={`lw-status lw-status-${statusBucket(row.item.status, schema)}`}>
+            {row.item.status}
+          </span>
+        </dd>
         {Object.entries(row.item.fields).map(([k, v]) => (
           <React.Fragment key={k}>
             <dt>{k}</dt>
@@ -799,6 +857,15 @@ function DetailPanel({
         ))}
         <dt>milestone</dt>
         <dd>{row.milestoneId}</dd>
+        {(row.item.author !== undefined || row.item.session !== undefined) && (
+          <>
+            <dt>by</dt>
+            <dd data-testid="detail-provenance">
+              {row.item.author ?? "?"}
+              {row.item.session !== undefined ? ` · session ${row.item.session}` : ""}
+            </dd>
+          </>
+        )}
       </dl>
       {isMilestones && <p className="lw-dim">Milestone fields (title/deps) are edited via the form.</p>}
     </aside>
