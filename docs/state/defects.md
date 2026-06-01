@@ -48,6 +48,65 @@ Status: `[ ] open` · `[~] under fix` · `[x] resolved`
 
 ---
 
+## PR-05 (M2 prompts)
+
+All seven findings fixed as described in each "Suggested fix" below; a round-2
+re-review confirmed D01 fully resolved and found no major. D07 (multi-milestone
+discovery) was fixed in a follow-up: M holds goal/questions/reviews/decision; the
+plan's work milestones are recorded in `goal.fields.milestones` and discovery
+iterates them. Final `bun run check`: 369 pass / 0 fail, tsc + eslint clean.
+
+### [PR-05-D01] Malformed link-discovery query: `fts_search(query:"goals:G")` matches zero items
+**Status:** [x] resolved
+**Severity:** major
+**Location:** prompts/plan-advance-agent.md (state-read steps 2-3, rules 2/4), prompts/plan-reviewer.md (steps 2-4)
+**Description:** `query.ts` parses `goals:G` as a QUALIFIER (`key="goals"`, value="G"), not free text; `matchItemQualifier` looks up a nonexistent `item.fields["goals"]` and returns false for every item. So the planner/reviewer find no linked questions/reviews/tasks → core state discovery silently fails (planner could try to leave `clarifying` with open questions; reviewer reviews an empty plan).
+**Suggested fix:** Use `list_milestone_items(M)` + client-side filter on `fields.ledgerRefs.includes("goals:<G>")` (matches the server's own `itemsLinkingGoal`), or the quoted nested-colon qualifier `ledgerRefs:"goals:<G>"`. Replace every `query:"goals:G"` occurrence.
+
+### [PR-05-D02] Code samples use literal `["goals:G"]` instead of a substitution placeholder
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** prompts/plan-start.md step 3 example; plan-advance-agent.md rules 2a/4/5
+**Description:** The store matches `ledgerRefs` by exact string membership (`"goals:"+goalId`). A model copying the literal `"goals:G"` instead of the real id (`goals:G1`) breaks F2 + discovery. Prose says "use the literal id" but samples show bare `G`.
+**Suggested fix:** Use `["goals:<G>"]` (angle-bracket placeholder) in all samples; never bare `["goals:G"]`.
+
+### [PR-05-D03] Host-specific codegraph tool prefix hardcoded in subagent `tools:`
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** prompts/plan-advance-agent.md, prompts/plan-reviewer.md frontmatter `tools:`
+**Description:** `mcp__plugin_claude-code-home-manager_codegraph__*` is host-specific; on another host/Codex the prefix differs/absent. Degrades gracefully (unknown tool simply not granted; Read/Grep/Glob remain) but is a portability smell in files meant to be portable.
+**Suggested fix:** Drop codegraph entries from `tools:`; keep the in-body prose note that codegraph may be used when available, else Read/Grep/Glob.
+
+### [PR-05-D04] `.claude/` gitignored — no committed commands/subagents and no regen mechanism
+**Status:** [x] resolved
+**Severity:** minor
+**Location:** repo layout; `.gitignore` (`.claude/`)
+**Description:** The `.claude/*` symlinks wiring `/plan:*` + subagents are not committed; a fresh clone has `prompts/` + `.codex/prompts/` but no working Claude commands until symlinks are recreated by hand. No regen script/doc.
+**Suggested fix:** Add a `scripts/link-prompts.ts` (+ `link-prompts` npm script) that idempotently recreates the `.claude/commands/plan/*` and `.claude/agents/*` symlinks into `prompts/`; document the layout in a README. Keep NO root `AGENTS.md` (would shadow CLAUDE.md via Codex `project_doc_fallback_filenames`) — record that decision.
+
+### [PR-05-D05] "have not yet acted on it" clause is not state-derivable (misleading)
+**Status:** [x] resolved
+**Severity:** nit
+**Location:** prompts/plan-advance-agent.md rule 3
+**Description:** Implies a memory the stateless subagent lacks. The loop invariant (a fresh review follows every `review-requested`) already prevents double-consuming a verdict, so the clause is redundant/confusing.
+**Suggested fix:** Drop the clause; rely on the loop invariant.
+
+### [PR-05-D06] "latest review" ordering left implicit
+**Status:** [x] resolved
+**Severity:** nit
+**Location:** prompts/plan-advance-agent.md step 3, prompts/plan-reviewer.md step 4
+**Description:** "Most recently created reviews item" doesn't name the ordering key; the brain could pick a stale review if it doesn't sort.
+**Suggested fix:** State "latest = highest `R<n>` id (equivalently max `createdAt`)".
+
+### [PR-05-D07] Plan-task discovery misses tasks under the plan's work milestones (single-group `list_milestone_items`)
+**Status:** [x] resolved
+**Severity:** minor (but bites the intended multi-milestone case)
+**Location:** prompts/plan-advance-agent.md rule 2b (plan emission) + revise step; prompts/plan-reviewer.md (plan discovery)
+**Description:** `list_milestone_items(M)` enumerates only the single planning milestone M (where goal/questions/reviews/decision live). The user's spec has the flow create work **milestones + tasks** (plural milestones). If the planner places the work breakdown under additional milestones, those tasks are invisible to both the reviewer's discovery and the planner's revise round — the reviewer would assess an incomplete plan. The server's `itemsLinkingGoal` scans all milestones, but no MCP tool replicates that; discovery must instead follow the goal's own milestone registry.
+**Suggested fix:** Establish the model explicitly: M = the planning/coordination milestone (goal, questions, reviews, approval decision). The plan's WORK milestones are created during `planning`, their ids recorded in `goal.fields.milestones` (via `update_item`). Plan-task discovery (reviewer + revise step) iterates `goal.fields.milestones` and calls `list_milestone_items` for EACH, collecting tasks across them. Keeps the goal↔plan linkage explicit and discovery complete for multi-milestone plans.
+
+---
+
 ## PR-03
 
 ### [PR-03-D01] `reviews`/`R` excluded from the global prefix-uniqueness / cross-ledger id-collision test

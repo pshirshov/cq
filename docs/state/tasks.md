@@ -13,8 +13,10 @@ Status: `[ ]` planned · `[~]` in progress · `[x]` done · `[!]` blocked
 
 - [x] **M1** — Server/data formality: transition guard (F1, all canonical ledgers),
   goal preconditions (F2), `reviews` ledger (F3), bootstrap regeneration. ALL PRs done.
-- [ ] **M2** — Portable orchestration: `prompts/` source dir (symlinked into Claude
-  + Codex locations) — `/plan:start`, `/plan:advance`, `plan-reviewer`.
+- [x] **M2** — Portable orchestration: `prompts/` source dir (symlinked into Claude
+  + Codex locations) — `/plan:start`, `/plan:advance`, `plan-advance`, `plan-reviewer`.
+  - [x] **PR-05** — the 4 prompt files in `prompts/` + symlinks into `.claude/commands/plan/`,
+    `.claude/agents/`, and `.codex/prompts/`; reviewer writes to the F3 `reviews` ledger.
 - [ ] **M3** — Non-AI watcher (F4): `@cq/ledger-live` process re-invoking the open
   session on the resume predicate.
 - [x] **M4** — UI quick-transition buttons (TUI + web): render only the legal next
@@ -124,6 +126,37 @@ Detail in `./docs/drafts/20260601-1606-plan-flow.md`. One line per PR here.
     frontend can read the map from the fetched ledger schema today.
   - The whole `docs/` tree is untracked in git except where individually added; the review-loop
     state (`docs/state/`, `docs/drafts/`) is added explicitly per commit.
+
+- **PR-05 / M2** (2026-06-01) — portable plan-flow prompts. Shipped: 4 single-source prompt
+  files in `prompts/` symlinked into Claude (`.claude/commands/plan/{start,advance}.md`,
+  `.claude/agents/{plan-advance,plan-reviewer}.md`) and Codex (`.codex/prompts/*`):
+  - `/plan:start "<goal>"` — bootstrap: planning milestone M + `goals` item (clarifying) + first
+    `open` question batch linked via `ledgerRefs:["goals:<G>"]`.
+  - `/plan:advance <G>` — thin main-session loop (subagents can't nest): spawns `plan-advance`,
+    and on `review-requested` spawns `plan-reviewer`, looping (cap 4) until awaiting-answers/
+    completed/noop.
+  - `plan-advance` subagent (brain) — state-driven phase dispatch; emits work milestones (ids
+    recorded in `goal.fields.milestones`) + tasks; revises on `revise`; files new_questions →
+    clarifying; on `go-ahead` creates a `locked` decision THEN transitions to `planned` (F2 order).
+  - `plan-reviewer` subagent — adversarial; writes verdict as a `reviews` item (status
+    go-ahead|revise + new_questions/criticism + ledgerRefs).
+  Plus `scripts/link-prompts.ts` (+ `link-prompts` npm script) to regenerate the gitignored
+  `.claude/*` symlinks after clone, and `prompts/README.md`.
+  Verification: `bun run check` 369 pass / 0 fail, tsc/eslint clean; `bun run link-prompts`
+  idempotent; all symlinks resolve.
+  Metrics: review rounds 2 + 1 follow-up fix; defects major:1 (malformed link query), minor:4,
+  nit:2 — all resolved; verification complete; scope delta none.
+  Notes / constraints:
+  - **Link discovery** uses `list_milestone_items(M)` + client-side `fields.ledgerRefs` filter
+    (NOT `fts_search(query:"goals:G")`, which parses as a qualifier and matches nothing).
+  - **Milestone model:** M = coordination (goal/questions/reviews/decision); work milestones are
+    listed in `goal.fields.milestones`; task discovery iterates that list.
+  - **Provenance** is self-identified per run (never hardcoded); `author`=model class,
+    `session`=session id.
+  - **No root `AGENTS.md`** (would shadow CLAUDE.md via Codex `project_doc_fallback_filenames`).
+  - `.claude/` is gitignored → run `bun run link-prompts` after clone for Claude.
+  - Codegraph tool names are host-specific; dropped from `tools:` frontmatter, kept as optional
+    prose fallback.
 
 - **PR-03** (2026-06-01) — F3 `reviews` ledger. Shipped: a new canonical `reviews` ledger
   whose item STATUS is the reviewer verdict — `statusValues:["go-ahead","revise"]`, both
