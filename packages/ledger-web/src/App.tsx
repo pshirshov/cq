@@ -1372,6 +1372,13 @@ function BatchAnswerModal({
   onClose: () => void;
 }): React.ReactElement {
   const answerRef = useRef<HTMLTextAreaElement>(null);
+  // True once the user has typed at least one non-whitespace character; gates
+  // the 'as recommended' button so it cannot clobber a draft answer (T88 / Web #15).
+  const [answerHasText, setAnswerHasText] = useState(false);
+  // Reset the guard whenever the active question changes.
+  useEffect(() => {
+    setAnswerHasText(false);
+  }, [index]);
   const row = rows[index];
   const renderVal = (v: FieldValue): React.ReactNode =>
     Array.isArray(v) ? renderListField(v) : <Markdown text={v} />;
@@ -1432,6 +1439,7 @@ function BatchAnswerModal({
                 ref={answerRef}
                 defaultValue={fieldToString(row.item.fields[ANSWER_FIELD])}
                 placeholder="type an answer…"
+                onInput={(e) => setAnswerHasText((e.currentTarget as HTMLTextAreaElement).value.trim().length > 0)}
               />
               <div className="lw-answer-actions">
                 <button
@@ -1445,6 +1453,7 @@ function BatchAnswerModal({
                   <button
                     type="button"
                     data-testid="batch-answer-as-recommended"
+                    disabled={answerHasText}
                     onClick={() => onSave(row, AS_RECOMMENDED_ANSWER)}
                   >
                     as recommended
@@ -2067,12 +2076,17 @@ function DetailPanel({
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   // Uncontrolled answer box for the questions "answer & resolve" affordance.
   const answerRef = useRef<HTMLTextAreaElement>(null);
+  // True once the user has typed at least one non-whitespace character into the
+  // answer textarea; gates the 'as recommended' and per-suggestion 'pick'
+  // buttons so they cannot clobber a draft answer (T88 / Web #15).
+  const [answerHasText, setAnswerHasText] = useState(false);
 
   // Reset to the initial mode + values whenever the row changes (a different
   // item loads, or a fresh create session starts → blank draft row).
   useEffect(() => {
     setEditing(isDraft);
     setStatus(row.item.status);
+    setAnswerHasText(false);
   }, [row, isDraft]);
 
   // Default the milestone selection once the options arrive.
@@ -2276,6 +2290,7 @@ function DetailPanel({
         ref={answerRef}
         defaultValue={fieldToString(row.item.fields[ANSWER_FIELD])}
         placeholder="type an answer…"
+        onInput={(e) => setAnswerHasText((e.currentTarget as HTMLTextAreaElement).value.trim().length > 0)}
       />
       <div className="lw-answer-actions">
         <button type="button" data-testid="answer-submit" onClick={submitAnswer}>
@@ -2285,6 +2300,7 @@ function DetailPanel({
           <button
             type="button"
             data-testid="answer-as-recommended"
+            disabled={answerHasText}
             onClick={() => answerWith(AS_RECOMMENDED_ANSWER)}
           >
             as recommended
@@ -2359,6 +2375,7 @@ function DetailPanel({
                           type="button"
                           className="lw-pick-suggestion"
                           data-testid={`answer-pick-suggestion-${i}`}
+                          disabled={answerHasText}
                           onClick={() => answerWith(item)}
                         >
                           pick
