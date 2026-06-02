@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 53
+  item: 54
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -561,6 +561,19 @@ archives:
 - ledgerRefs: ["goals:G2"]
 - answer: as recommended
 
+### Q54 — answered
+
+- createdAt: 2026-06-02T14:55:31.510Z
+- updatedAt: 2026-06-02T14:57:51.116Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- question: "Item #18 (orchestrator-generated file-and-defer ROUTING questions, e.g. Q52/Q53): these are created by the implement/plan flows (file-and-defer per K8/Q26) to point you at `/investigate:start <D>` for an out-of-scope/pre-existing defect. They carry only question+context+ledgerRefs (no suggestions/recommendation), so they 'don't look like questions'. Decide the model: (a) DO NOT create them as `questions` items at all — the open defect + its `goals:<G>`/`defects:<D>` ledgerRefs already make it discoverable to the orchestrator's ledger query, so the routing pointer is redundant noise in the questions ledger; OR (b) KEEP them as questions but give them proper shape — a routing-question MARKER field plus standard suggestions (e.g. ['run /investigate:start D3','defer','wontfix']) and a recommendation — so they read like real, actionable questions and are visually distinguishable from clarifying questions. Which model do you want, and (if (b)) should the distinction be a dedicated schema field/marker or just convention in the flow prompts?"
+- context: "Verified context: the relevant memory (K8 point 3 superseded by K12) is that the /plan:* orchestrator already RE-DERIVES the auto-investigate worklist by QUERYING the ledger for open defects newly linked goals:<G> — so the routing *defect record* (open status + ledgerRefs) is the authoritative signal, NOT the prose routing-question. That makes (a) viable: dropping the routing question loses nothing the orchestrator needs. The counter-argument for (b): a human scanning the questions view sees the pending decision (investigate vs defer vs wontfix) explicitly. This spans the flow prompts (llm/commands/implement/advance.md §3 file-and-defer, llm/commands/plan/advance.md auto-investigate routing, llm/agents/plan-reviewer.md) and possibly the questions schema/rendering (a routing-question marker would be a schema/render change). Because the questions ledger is dogfood-only with no back-compat constraint, either model is cheap to apply. This is the only item in follow-up #4 that is a genuine design/process decision (16/17 are plain rendering fix-tasks, 19 is a CSS refinement) — it warrants a clarifying answer and likely a `decisions` lock recording the chosen routing-pointer model."
+- suggestions: ["(a) Do NOT create routing pointers as questions items at all — rely on the open defect + ledgerRefs (which the orchestrator already queries); remove the file-a-question step from the flow prompts","(b) Keep them as questions but give proper shape: add a routing-question marker (schema field) + standard suggestions ['run /investigate:start <D>','defer','wontfix'] + recommendation, rendered distinctly from clarifying questions","(b-lite) Keep them as questions with proper suggestions/recommendation shape but NO new schema marker — distinguish purely by convention/wording in the flow prompts"]
+- recommendation: "Prefer (a): stop creating file-and-defer routing POINTERS as `questions` items entirely. Per K12 the orchestrator re-derives the auto-investigate worklist from the ledger (open defects linked goals:<G>), so the routing question is redundant and pollutes the questions ledger; the defect record is already the authoritative, discoverable signal. Apply by removing the 'file a run /investigate:start question' step from llm/commands/implement/advance.md, llm/commands/plan/advance.md, and llm/agents/plan-reviewer.md, and lock the decision. (If you want the human-visible prompt, fall back to (b) with a marker.)"
+- ledgerRefs: ["goals:G2"]
+- answer: "Direction (a), per the user: the questions ledger is RESERVED for genuine user-interaction questions. Do NOT create file-and-defer 'routing' questions (the Q52/Q53 kind) at all. /investigate:start already accepts a bare defect id (resume path), so no question is needed to point at it; the open defect + its ledgerRefs are already discoverable by ledger query. The triage/deferral note belongs ON the defect record itself (a defect field), not a separate question item. Flow change: implement/advance.md §3, plan/advance.md auto-investigate routing, and plan-reviewer.md must stop filing the 'run /investigate:start <D>' question — file only the open defect (carrying the triage note). One-time cleanup: retire existing routing questions Q52/Q53 and fold their notes into D3/D4/D5/D6. See decision K13."
+
 ## M11
 
 ### Q37 — answered
@@ -658,24 +671,26 @@ archives:
 
 ## M14
 
-### Q52 — open
+### Q52 — withdrawn
 
 - createdAt: 2026-06-02T12:19:19.551Z
-- updatedAt: 2026-06-02T12:19:19.551Z
+- updatedAt: 2026-06-02T16:16:58.610Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - question: "Out-of-scope defects D3 (stale @cq/ledger exports map — major, latent clean-checkout/nix bundle break) and D4 (headline column-eligible — low) surfaced during implement-flow review of T61/T62. They do NOT block G2's tasks (file-and-defer per Q26). Run `/investigate:start D3` and `/investigate:start D4` to triage them when ready."
 - context: "D3: packages/ledger/package.json exports/main point at ./dist/*.js but tsc emits ./dist/src/*.js; masked in-repo by tsconfig paths→source, but breaks published/nix bundling in a clean (dist-less) checkout. D4: columns.ts eligibleColumnFields offers `headline` as an extra column, duplicating the summary cell. Both filed under M14, linked goals:G2."
 - ledgerRefs: ["defects:D3","defects:D4","goals:G2"]
+- answer: "Withdrawn per locked decision K13 (item 18): routing-questions are retired — the questions ledger is reserved for genuine clarifying/decision questions. D3 (major) and D4 (low) remain open defects linked goals:G2 and carry their full triage notes (severity, root cause, suggestedFix) on their own records; they are discoverable by ledger query and runnable via `/investigate:start D3` / `/investigate:start D4` with a bare defect id (no pointer-question needed). No triage information is lost by this withdrawal."
 
 ## M18
 
-### Q53 — open
+### Q53 — withdrawn
 
 - createdAt: 2026-06-02T13:39:37.492Z
-- updatedAt: 2026-06-02T13:39:37.492Z
+- updatedAt: 2026-06-02T16:17:00.032Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - question: "Two low-severity out-of-scope defects surfaced while reviewing T80: D5 (archived milestone heads have no reachable status to badge — needs a data-model change to thread status through ArchivePointer/archive payload) and D6 (MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA because @cq/ledger has no browser-safe constants export; related to D3). Run /investigate:start D5 and /investigate:start D6 (or fold D6 into D3's exports-map cleanup) to triage when you choose."
 - context: Both low severity; neither blocks T80/M18 task work, but both gate M18 archival until terminal. D6 overlaps D3 (stale @cq/ledger exports map).
 - ledgerRefs: ["defects:D5","defects:D6","defects:D3","tasks:T80","goals:G2"]
+- answer: "Withdrawn per locked decision K13 (item 18): routing-questions are retired. D5 (low) and D6 (low) remain open defects linked goals:G2 and carry their full triage notes on their own records (D6 notes its overlap with D3's exports-map cleanup); discoverable by ledger query and runnable via `/investigate:start D5` / `/investigate:start D6` with a bare defect id. No triage information is lost by this withdrawal."

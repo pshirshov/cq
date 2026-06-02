@@ -73,7 +73,7 @@ archives: []
 ### G2 — planned
 
 - createdAt: 2026-06-02T08:27:10.593Z
-- updatedAt: 2026-06-02T10:40:44.910Z
+- updatedAt: 2026-06-02T16:29:25.591Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - title: Ledger-suite UI/schema enhancements (columns, batch-answer, colors, titles)
@@ -106,6 +106,13 @@ archives: []
     
     ## Follow-up (2026-06-02, #3) — disable answer-fill buttons once the user is typing
     15) FEATURE: when the user has entered ANY text into the question answer field, DISABLE both the 'as recommended' button and the per-suggestion 'pick as answer' buttons (item #14). Rationale: those buttons overwrite/auto-fill the answer; once the user is composing their own answer they should not clobber it. Web: disabled state on the buttons gated on non-empty answer input. TUI: the analogous keybindings (the `r` as-recommended key and the #14 pick-suggestion key) become inert/no-op once the answer buffer is non-empty. Depends on #14 (pick-as-answer) and the existing 'as recommended' affordance.
+    
+    ## Follow-up (2026-06-02, #4) — milestones-ledger archived rendering + routing-question shape + batch-modal sizing
+    Four reports against the just-shipped M18/M19 + M14 work. Items 16 and 17 are UI-correctness DEFECTS (causes plainly in the rendering code shipped by T79/T83/T80 — treat as fix tasks, no investigation needed). Item 18 is a process/schema concern about orchestrator-generated routing questions. Item 19 is a batch-modal sizing refinement.
+    16) DEFECT: in the MILESTONES ledger list, do NOT add per-milestone subsections for ARCHIVED milestones — it makes no sense and the SAME milestone is shown TWICE (once as the milestone item/row, again as an archived section). The T79 unification (render archived groups through the same collapsible subsection renderer) is correct for NON-milestones ledgers (tasks/defects/etc. grouped by their coordination milestone), but for the MILESTONES ledger itself a milestone is its own row — it must NOT also get an archived 'section'. Scope the archived-subsection rendering so it does NOT apply to the milestones ledger (no duplicate).
+    17) DEFECT: archived milestone SECTION TITLES display the milestone's `description` field instead of its `title` field. The section head should show the `title` (like active milestone sections do), not the long description.
+    18) PROCESS/SCHEMA: the orchestrator-generated file-and-defer ROUTING questions (e.g. Q52, Q53) carry only `question`+`context`+`ledgerRefs` — no `suggestions`/`recommendation` — so they 'don't look like questions'. These are created by the implement/plan flows (file-and-defer per K8/Q26) to point the user at `/investigate:start <D>` for out-of-scope defects. Reconsider this: either (a) such routing pointers should NOT be created as `questions` items at all (they pollute the questions ledger; the open defect + its ledgerRefs already make it discoverable), or (b) if they remain questions, give them proper shape (suggestions like ['run /investigate:start D3', 'defer', 'wontfix'] + a recommendation) and/or a visual marker distinguishing routing-questions from clarifying-questions. Decide the right model and apply it in the relevant flow prompts and/or the questions schema/rendering.
+    19) FEATURE/POLISH: the batch answer-questions popup/modal (item #5, web T63) should be WIDER and TALLER; the font can be reduced a bit (it is currently sized larger than necessary). Tune the modal dimensions + font so more of each question is visible at once.
 - grounding: |
     Repo grounding for G2 (verified by reading source):
     
@@ -133,7 +140,7 @@ archives: []
     #13 TUI-NAV-PERF (Q49, FIX task — no investigate; touches render path shared with T31/T62 and T53/T51): every cursor move = patchTop({cursor})→setStack→FULL App re-render; the items-frame body (app.tsx L644-714) is NOT memoized so per-keystroke it (i) re-filters via visibleRows (L644), (ii) recomputes maxIdW reducing over ALL rows (L672) + maxStatusW (L673), (iii) rebuilds the ENTIRE ListEntry array via buildItemEntries (L125-147, L676). Draw is already windowed (ScrollList maps only `win`, L941-971), so cost is the O(N) per-keystroke recompute. FIX: useMemo the three derivations keyed on (view, filter, showArchive, archiveRows) — keys MUST include whatever T62 (columns) / T59 (header element) add to the render path. Reproduction-first: documented keystroke-latency repro at large N (≈500/1000) + acceptance asserting the heavy builders run once per data-change, not per keystroke. Defer React.memo list-extraction unless memoization proves insufficient.
     #14 PICK-AS-ANSWER (Q50, BOTH UIs; DEPENDS ON M13 T56/T57; questions ledger only): once suggestions render as a list, add a per-suggestion 'pick as answer' control that sets THAT suggestion's text as the answer, parity with existing 'as recommended'. WEB: small button after each <li> in renderQuestionFields() (where `answerable`/answerWith are in scope), shown ONLY when answerable, calling answerWith(suggestionText) → immediate save + mark answered (answerWith pattern at App.tsx L1733-1741). TUI: bind number keys 1-9 to pick the Nth suggestion, gated on canAnswer + presence of suggestions, calling applyAnswer(cur, suggestionText) immediately, mirroring the `r` as-recommended key (app.tsx L548-557,L572-581). Sequence after T56 (web list) / T57 (TUI list).
     #15 DISABLE-WHEN-TYPING (Q51, BOTH UIs; DEPENDS ON #14 + 'as recommended'; ALSO applies inside batch modal T63/T64): once the user has entered ANY non-whitespace text into the answer field, DISABLE both 'as recommended' and the #14 per-suggestion 'pick' controls (they auto-fill/clobber the answer). WEB: answer textarea is UNCONTROLLED (ref answerRef + defaultValue, App.tsx L1720-1728) so there is no reactive value today — add a minimal onInput-driven 'answer non-empty (NON-WHITESPACE)' signal (onInput fires on uncontrolled textarea under happy-dom; onChange on controlled text does NOT — CLAUDE.md) and gate the buttons' `disabled` on it. TUI: the `r` key + #14 pick keys fire in LIST/CONTENT focus OUTSIDE the answer overlay, reading the PERSISTED cur.item.fields.answer — make them inert/no-op when fieldToString(fields[ANSWER_FIELD]).trim().length>0 (symmetric with web). Apply the rule WHEREVER these auto-fill controls render, INCLUDING the batch-answer modal (#5: web T63 / TUI T64). Sequence after T56/T57 and after #14.
-- milestones: ["M12","M13","M14","M18","M19"]
+- milestones: ["M12","M13","M14","M18","M19","M21"]
 
 ## M15
 
@@ -177,10 +184,10 @@ archives: []
 
 ## M20
 
-### G4 — planning
+### G4 — planned
 
 - createdAt: 2026-06-02T11:27:09.012Z
-- updatedAt: 2026-06-02T11:27:09.012Z
+- updatedAt: 2026-06-02T16:39:14.185Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - title: "Fix D2: graceful backup-and-reinit on ledger schema divergence (no fatal BootstrapViolationError)"
@@ -196,3 +203,4 @@ archives: []
     NOTE: implementing this in source does NOT retroactively fix an already-running stale GLOBAL binary — that needs a rebuild; and an immediate manual unblock is to back up/remove the divergent docs/ before launch. This goal is the durable code fix.
 - grounding: "Confirmed root cause + fix verified against source during the D2 investigation (hypotheses H1/H2 refuted; H4 confirmed via the user's verbatim runtime error). Key sites: packages/ledger/src/store/FsLedgerStore.ts:254-340 (init: mkdir/ENOENT-swallow/bootstrap; the throw at 283-289), packages/ledger-mcp/src/main.ts:337-344 (main awaits init before serve), BootstrapViolationError type in packages/ledger/src/types.ts. CANONICAL_LEDGERS + serializeRegistry/writeRegistry/freshLedger already exist in the store for the reinit path; archiveDir/backup-style dir creation patterns exist (the store already mkdir's docs/archive). Tests use the dual-tests pattern (FsLedgerStore over a seeded tmpdir)."
 - tags: ["defect-seeded","defect:D2","ledger-bootstrap","backup-and-reinit"]
+- milestones: ["M22"]

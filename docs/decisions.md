@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 12
+  item: 15
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -94,6 +94,41 @@ archives:
 - rationale: Reviewer go-ahead on the G2 follow-up plan (M18/M19 tasks T79-T89), 0 criticisms / 0 new questions / no out-of-scope defects; ref review R33 (original M12/M13/M14 scope already approved under R30/K9).
 - ledgerRefs: ["goals:G2"]
 
+### K13 — locked
+
+- createdAt: 2026-06-02T14:58:01.261Z
+- updatedAt: 2026-06-02T14:58:01.261Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Questions ledger reserved for genuine user-interaction questions; defect triage stays on the defect (no routing-questions)
+- rationale: |
+    User decision (G2 follow-up #4, item 18 / answers Q54). REFINES K8/Q26 file-and-defer: the 'defer' half must NOT manifest as a `questions` item.
+    
+    Rule:
+    1. The `questions` ledger is RESERVED for genuine questions requiring human interaction (clarifying/decision questions). Orchestrators must NOT create 'routing' questions whose only purpose is to tell the user to run /investigate:start <D>.
+    2. /investigate:start already accepts a BARE defect id (intake resume path, ^D\d+$), so it works WITHOUT any question. An `open` defect linked via ledgerRefs is already discoverable by ledger query — no pointer-question needed.
+    3. The triage/deferral note (severity rationale, suggestedFix, 'out-of-scope, triage later') lives ON the defect record itself (its description/suggestedFix fields), NOT in a separate question.
+    
+    Flow changes (item 18 fix tasks):
+    - llm/commands/implement/advance.md §3 (reviewer defects[] file-and-defer): file the `open` defect (with the triage note in its fields) ONLY; DELETE the step that creates a 'run /investigate:start <D>' open question.
+    - llm/commands/plan/advance.md auto-investigate routing + llm/agents/plan-reviewer.md: same — file the defect, never a routing question.
+    - Keep file-and-defer's NON-blocking property (defects still don't block the in-scope task; still gate milestone archival until terminal).
+    - One-time cleanup: retire existing routing questions Q52/Q53 (fold their D3/D4/D5/D6 triage notes into those defect records).
+    
+    K8 points 1,2,4,5 unaffected; K12 (auto-investigate from plan:*) unaffected — it already derives its worklist by LEDGER QUERY (open defects linked goals:<G>), not from questions, so dropping routing-questions does not break auto-investigate discovery.
+- supersedes: ["K8"]
+- ledgerRefs: ["goals:G2","decisions:K8","decisions:K12","questions:Q54"]
+
+### K14 — locked
+
+- createdAt: 2026-06-02T16:29:22.449Z
+- updatedAt: 2026-06-02T16:29:22.449Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved (follow-up #4)"
+- rationale: "Reviewer go-ahead (ref review R74, round 2): follow-up #4 plan is fine-grained, sequenced, testable, grounded, complete for items 16-19; 0 criticisms, 0 new questions, no out-of-scope defects. Work milestone M21 (tasks T90-T93, defects D7/D8) covers items 16-19."
+- ledgerRefs: ["goals:G2"]
+
 ## M15
 
 ### K10 — locked
@@ -127,3 +162,15 @@ archives:
 - supersedes: ["K8"]
 - ledgerRefs: ["goals:G3","decisions:K8"]
 - tags: ["plan-flow","investigate-flow","auto-investigate","supersedes-K8","follow-up-G3"]
+
+## M20
+
+### K15 — locked
+
+- createdAt: 2026-06-02T16:39:10.543Z
+- updatedAt: 2026-06-02T16:39:10.543Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R76, round 2): both R75 criticisms resolved against source (T96 mandatory migration of canonical-ledgers.test.ts:332-356 to onSchemaDivergence:'abort'; T95 pinned in-place this.registry reinit). D2-fix plan under work milestone M22 (tasks T94-T97) approved as fine-grained, sequenced, testable, grounded, and complete."
+- ledgerRefs: ["goals:G4","defects:D2"]

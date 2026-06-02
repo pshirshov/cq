@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 89
+  item: 97
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -326,3 +326,139 @@ archives:
 - ledgerRefs: ["goals:G2"]
 - resultCommit: 84a9196
 - completion: "TUI nav-perf: 3 O(N) derivations (filterVisibleRows, computeColumnLayout, buildItemEntries) hoisted to module scope + one useMemo (ItemsDerived) keyed on view/ledger/filter/showArchive/archiveRows/columnsKey — NOT cursor; input handler + render body both read the bundle. Pure cursor move = zero O(N) work; reproduction verified (top.cursor in deps → 40 builds). Round 1: replaced NUL memo-key separator with '|'. Orchestrator integration fix: navMemo test reset counters before measure + waitQuiescent (module-global counters cross-file polluted). full check 584/0."
+
+## M21
+
+### T90 — planned
+
+- createdAt: 2026-06-02T16:17:46.146Z
+- updatedAt: 2026-06-02T16:17:46.146Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Web: do not render archived subsections for the MILESTONES ledger (fix D7 / item 16)"
+- description: Fixes D7 (G2 follow-up #4 item 16). In packages/ledger-web/src/App.tsx, gate the `<ArchiveSubsections .../>` render (currently at ~L1193-1205, conditioned only on `showArchive && view.archivePointers.length > 0 && client !== null && ledger !== null`) on `!isMilestones`, so the milestones ledger view does NOT render archived per-milestone subsections (each archived milestone is already its own row in the flat ItemTable isMilestones branch; rendering it again duplicates it). `isMilestones` is already computed/in scope in App. Do NOT change the non-milestones path — those ledgers must still show their archived coordination-milestone subsections. Surgical change.
+- acceptance: "happy-dom test: with the MILESTONES ledger selected and showArchive enabled, no `data-testid=archive-section` (and no archived `ms-section-*` duplicating an already-listed milestone row) is rendered; with a NON-milestones ledger selected and showArchive enabled, the archive subsections still render. `bun run check` (bun test + tsc -b + eslint) passes."
+- suggestedModel: standard
+- ledgerRefs: ["defects:D7","goals:G2"]
+
+### T91 — planned
+
+- createdAt: 2026-06-02T16:17:55.978Z
+- updatedAt: 2026-06-02T16:25:22.512Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Web: archived milestone section heads show milestone title, not description (fix D8 / item 17)"
+- description: |
+    Fixes D8 (G2 follow-up #4 item 17). In packages/ledger-web/src/App.tsx the ArchiveSubsections component builds the head label from the archive pointer `summary` (~L2000: `p.summary.length > 0 ? `${p.id}: ${p.summary}` : p.id`), which carries the milestone DESCRIPTION, not its TITLE. Active milestone sections show the title. Render the milestone `title` in archived heads for parity.
+    
+    MECHANISM IS NOT IMPLEMENTER'S CHOICE (R73 revision): archived sections default COLLAPSED and lazy-fetch their group content on first expand (ArchiveSubsections ~L1939-1981; app.test.tsx L724-754). Deriving the title from the lazily-fetched ArchiveContent group payload (c.milestone.title) only populates AFTER expand, so a COLLAPSED head built that way would show p.id / p.summary (description) — NOT the title. Therefore the title MUST come from EXTENDING the ArchivePointer payload at the MCP/server boundary: add a `title` field to the ArchivePointer shape in packages/ledger/src/types.ts (ArchivePointer ~L155) AND populate it wherever the server builds archive pointers (the `archivePointers[]` returned by fetch_ledger), then use `p.title` for the archived head label. This is a small `@cq/ledger` + server change. No back-compat constraint (dogfood only).
+    
+    COORDINATE WITH D5 (R73 non-blocking note): open defect D5 proposes the SAME ArchivePointer-payload extension to carry the milestone terminal `status` (for the #10 archived-head status badge). Do the payload extension ONCE: add BOTH `title` and `status` to the ArchivePointer shape + server build in this task, so D5 does not require a second boundary edit. This task closes the `title` half (its own acceptance) and lands the `status` field too; note that on D5 (D5 stays open for its consuming badge-render work, but its payload-extension prerequisite is satisfied here). Reference defects:D5.
+    
+    Coordinate with T90: both edit the App.tsx archive render path — sequence after T90 to avoid merge contention. Keep the change surgical.
+- acceptance: "happy-dom test: a COLLAPSED (un-expanded) archived milestone section head displays the milestone `title` (NOT its long `description`) — this is satisfiable only via the ArchivePointer-payload `title`, which the test thereby exercises. A unit/type assertion covers the extended ArchivePointer shape (new `title` field, and `status` landed for D5), and the server populates both. `bun run check` (bun test + tsc -b + eslint) passes."
+- suggestedModel: standard
+- dependsOn: ["T90"]
+- ledgerRefs: ["defects:D8","defects:D5","goals:G2"]
+
+### T92 — planned
+
+- createdAt: 2026-06-02T16:18:12.738Z
+- updatedAt: 2026-06-02T16:25:48.394Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Retire routing-questions from the flow prompts per K13 (item 18): file-the-defect only, no `/investigate:start` pointer question"
+- description: |
+    Implements locked decision K13 (G2 follow-up #4 item 18), which REFINES K8/Q26 file-and-defer: the 'defer' half must NOT manifest as a `questions` item. Edit the prompt suite so orchestrators file the `open` defect (triage note in the defect's OWN fields) ONLY and never create a 'run /investigate:start <D>' routing question.
+    
+    WHERE THE REAL EDIT IS (R73 confirmation — do not hunt for non-existent text):
+    1. llm/commands/implement/advance.md §3 — the ONLY file that actually contains a `/investigate:start <D>` routing-question step (the reviewer defects[] file-and-defer, ~L103-108). REAL DELETION: remove the step that creates the 'run /investigate:start <D>' open question; KEEP filing the open defect with the triage note in its fields.
+    2. llm/commands/plan/advance.md — ALREADY CONFORMS to K13: its auto-investigate worklist is derived by LEDGER QUERY (~L87-98) and it contains NO routing-question creation. This is a VERIFY / guard step: confirm the LEDGER-QUERY framing still holds and that no routing-question text exists; expect a verify-no-op (no edit, or at most a one-line clarifying touch). Do NOT invent a deletion here.
+    3. llm/agents/plan-reviewer.md — ALREADY CONFORMS: its defects[] bucket is report-only (~L62-78), no routing question. VERIFY-no-op / light touch only; confirm the report-only framing, do not invent a deletion.
+    
+    Preserve file-and-defer's NON-blocking property in all three (defects still do not block the in-scope task; still gate milestone archival until terminal). Rationale to embed in the edited prose: /investigate:start already accepts a BARE defect id (^D\d+$ intake-resume path), and an open defect linked via ledgerRefs is discoverable by ledger query — no pointer-question needed.
+    
+    NOTE — the one-time ledger-data cleanup half of item 18 is ALREADY DONE (this planning run): routing questions Q52 (D3/D4) and Q53 (D5/D6) were set status=withdrawn, and their triage notes were verified already present on the D3/D4/D5/D6 defect records (description + suggestedFix), so no fold was needed. This task is therefore the PROMPT EDITS only (effectively the single deletion in implement/advance.md §3 plus the two verify-confirmations); as a guard, assert no remaining `open` routing-question items exist.
+- acceptance: "llm/commands/implement/advance.md §3 no longer instructs creating a `run /investigate:start <D>` routing question (it files the open defect with triage note only); llm/commands/plan/advance.md and llm/agents/plan-reviewer.md are confirmed already conforming (LEDGER-QUERY worklist / report-only defects[] bucket respectively — verify-no-op, no routing-question text present). All three explicitly preserve non-blocking file-and-defer. No `open` questions item remains whose sole purpose is an /investigate:start pointer (Q52/Q53 already withdrawn). `bun run check` passes (markdown-only edits should not regress it; run it to confirm)."
+- suggestedModel: standard
+- ledgerRefs: ["decisions:K13","goals:G2"]
+
+### T93 — planned
+
+- createdAt: 2026-06-02T16:18:24.658Z
+- updatedAt: 2026-06-02T16:25:31.317Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Web: make the batch-answer modal wider and taller with a slightly reduced font (item 19)"
+- description: |
+    G2 follow-up #4 item 19 (FEATURE/POLISH). The batch answer-questions modal (item #5 / T63, done @ commit e677b77, the `.lw-batch` dialog rendered by BatchAnswerModal in packages/ledger-web/src/App.tsx) is currently sized larger-font but cramped.
+    
+    RE-GROUNDED (R73 revision): packages/ledger-web/src/styles.css (full ~763-line file) contains NO `.lw-batch`, `.lw-batch-body`, or `.lw-batch-nav` rule today. The batch modal reused the HelpOverlay backdrop pattern; `.lw-batch` exists only as a MARKER class on the dialog element (queried in app.test.tsx L1039 as q('.lw-batch')) with no backing CSS rule, and `.lw-batch-body`/`.lw-batch-nav` are unconfirmed anywhere. So the work is to ADD/DEFINE new modal-sizing CSS rules, NOT to tune pre-existing ones.
+    
+    Work: FIRST confirm against the actual BatchAnswerModal JSX which element(s) carry the box / body / nav classes the rules must target. THEN in packages/ledger-web/src/styles.css ADD a rule for the batch dialog (`.lw-batch`) giving it an explicit WIDER + TALLER box (explicit width/height — larger than the current backdrop-default sizing — via viewport-relative caps like max-width/max-height with vw/vh) and a slightly REDUCED font-size, plus a body rule so long questions SCROLL inside the body (overflow handling) rather than overflowing the dialog. Keep it within the viewport. CSS-only change — no App.tsx logic edits, so this is disjoint from T90/T91 and can proceed in parallel. Match surrounding styles.css conventions.
+- acceptance: "happy-dom assertion on the modal: the `.lw-batch` dialog renders carrying the expected sizing class/dimensions — assert its width/height (or max-width/max-height) and font-size resolve to the new larger-box / smaller-font values (via computed style or the literal newly-added CSS rule the test reads). Modal content scrolls within the body for long questions rather than overflowing. `bun run check` passes."
+- suggestedModel: fast
+- ledgerRefs: ["goals:G2"]
+
+## M22
+
+### T94 — planned
+
+- createdAt: 2026-06-02T16:31:03.192Z
+- updatedAt: 2026-06-02T16:31:03.192Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Add backupAndReinit helper to FsLedgerStore
+- description: "Add a private async helper on FsLedgerStore (packages/ledger/src/store/FsLedgerStore.ts) that backs up the divergent on-disk ledger state and reinitializes canonical files. Steps: (a) compute a timestamped backup dir under docs/.backup/<ISO-timestamp>/ using this.now() (sanitize the ISO string for filesystem safety, e.g. replace ':' so it is a valid dir name on all platforms); mkdir it recursively. (b) Copy/move the divergent on-disk ledger file(s) (this.ledgerPath(name) for the affected canonical ledgers) AND docs/ledgers.yaml (this.registryPath) into that backup dir, preserving filenames; tolerate ENOENT on any source (a registry/file may legitimately be absent). (c) Write fresh canonical registry + ledger(s) from CANONICAL_LEDGERS via the existing serializeRegistry/writeRegistry + freshLedger/writeLedgerFile primitives, seeding the milestones bootstrap group / ambient milestone exactly as the empty-dir path does. (d) Emit a single loud WARNING to process.stderr naming the absolute backup path. Keep the helper self-contained so init() just calls it on the divergence branch. Reuse existing fields: this.docsDir, this.registryPath, this.ledgerPath, this.now, freshLedger, serializeRegistry, writeRegistry, writeLedgerFile, seedBootstrapGroup/applyEnsureAmbientMilestone, CANONICAL_LEDGERS."
+- acceptance: A private backup-and-reinit helper exists on FsLedgerStore that, given the set of divergent canonical ledgers, (1) creates docs/.backup/<sanitized-ISO-ts>/, (2) copies the prior ledger file(s) + docs/ledgers.yaml into it (ENOENT-tolerant), (3) rewrites fresh canonical registry + ledger files (milestones seeded), and (4) writes one stderr WARNING with the backup path. Verified by the tests in the dual-tests task. tsc clean (bun run typecheck).
+- suggestedModel: standard
+- ledgerRefs: ["defects:D2","goals:G4"]
+
+### T95 — planned
+
+- createdAt: 2026-06-02T16:31:16.074Z
+- updatedAt: 2026-06-02T16:36:23.722Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Replace fatal throw at FsLedgerStore.init() divergence branch with backup-and-reinit (default) + opt-out flag
+- description: |
+    Rewire the !schemasEqual branch in FsLedgerStore.init() (packages/ledger/src/store/FsLedgerStore.ts:283-289). Currently it throws BootstrapViolationError. Change it so that, by DEFAULT, it collects the set of divergent canonical ledgers across the bootstrap loop and invokes the backupAndReinit helper (from T94) ONCE for that set, then continues startup normally. Add an opt-out: a constructor option on FsLedgerStoreOptions (the opts object destructured at ~line 150), e.g. `onSchemaDivergence?: 'backup-reinit' | 'abort'` (default 'backup-reinit'), stored as a private field; when set to 'abort', preserve the existing hard throw of BootstrapViolationError. Keep BootstrapViolationError defined and exported (packages/ledger/src/types.ts) for the opt-out path. Ensure the no-divergence (entry schema equal) and empty-dir (entry undefined → push canonical) paths are UNCHANGED.
+    
+    RE-LOAD MECHANISM — PINNED (no executor choice): T94's helper writes fresh canonical files via writeRegistry (which serializes this.registry) + writeLedgerFile. The helper MUST authoritatively update the in-memory this.registry IN PLACE to the fresh canonical state as part of its work — i.e. set this.registry.ledgers to the CANONICAL_LEDGERS schema entries (the same value it serialized to disk) so this.registry is the single source of truth. this.registry is exactly what the existing load loop at FsLedgerStore.ts:294-334 iterates; after backup-and-reinit completes, that load loop MUST iterate the FRESH canonical registry (not the stale divergent entries). Do NOT leave the alternative of re-deriving from the file vs in-place as an open choice — pin it to: helper mutates this.registry in place to canonical, load loop then reads the canonical in-memory registry and loads the fresh canonical ledger files. The end state: this.registry.ledgers schemas equal CANONICAL_LEDGERS schemas, and the in-memory ledgers loaded by the loop reflect the fresh canonical files, NOT the divergent prior state.
+    
+    Wire the flag through from main()/server construction only if trivially in scope; otherwise leave the default and note the wiring is unneeded for the fix.
+- acceptance: "With default options, seeding a divergent on-disk ledger schema and calling init() does NOT throw: it backs up + reinitializes and completes init. Operationally verifiable post-reinit IN-MEMORY state: after a divergence-triggered init() with default options, this.registry.ledgers schemas equal the CANONICAL_LEDGERS schemas (NOT the divergent prior schema), and the in-memory loaded ledger for the affected name is fresh-canonical (canonical schema, no divergent prior items). With onSchemaDivergence:'abort', init() still throws BootstrapViolationError on divergence. No-divergence and empty-dir init paths behave exactly as before. tsc + lint clean."
+- suggestedModel: frontier
+- dependsOn: ["T94"]
+- ledgerRefs: ["defects:D2","goals:G4"]
+
+### T96 — planned
+
+- createdAt: 2026-06-02T16:31:28.465Z
+- updatedAt: 2026-06-02T16:36:11.150Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Tests: schema-divergence backup-and-reinit (and abort opt-out) for FsLedgerStore.init() + MIGRATE existing divergence-guard suite"
+- description: |
+    Add tests in the FsLedgerStore test suite (alongside the existing init/bootstrap tests for packages/ledger, dual-tests pattern over a seeded tmpdir + injected now()), AND migrate the existing divergence-guard suite that T95's default flip will invert.
+    
+    MANDATORY MIGRATION (do not skip): packages/ledger/test/canonical-ledgers.test.ts:332-356 contains a parameterized suite `divergence guard fires for a hand-edited <name> schema` that runs for SIX canonical ledgers (defects, tasks, hypothesis, questions, decisions, goals). Each case seeds docs/ledgers.yaml with a divergent (superset statusValues) schema for one ledger and asserts `await store.init()` REJECTS with /different schema/ under DEFAULT options (`new FsLedgerStore({ root: dir })`). After T95 flips the default to backup-and-reinit (no throw on divergence), all six of those assertions INVERT and will FAIL. MIGRATE this suite to the new semantics: re-target each of the six cases to construct the store with the abort opt-out — `new FsLedgerStore({ root: dir, onSchemaDivergence: 'abort' })` — preserving the existing `rejects.toThrow(/different schema/)` assertion, thereby repurposing this suite as the abort-opt-out coverage for all six canonical ledgers. (Equivalently, the case may assert the new default backup-and-reinit behavior; the abort re-target is preferred because it keeps the per-ledger /different schema/ coverage.) Note: this existing suite seeds ONLY ledgers.yaml (no on-disk .md ledger file present), which is exactly why T94's ENOENT-tolerance on the per-ledger ledger file is load-bearing — keep the migration and T94 consistent on that (the backup step must tolerate the absent .md file).
+    
+    NEW CASES (default backup-and-reinit + regressions): (1) DIVERGENCE → BACKUP+REINIT (default): seed a tmpdir docs/ with a ledgers.yaml whose registry records a canonical ledger (e.g. goals) under a DIVERGENT schema plus its on-disk ledger file containing some prior items; construct FsLedgerStore with default options and an injected deterministic now(); call init(). Assert: init() resolves with NO throw; docs/.backup/<sanitized-ts>/ exists and contains the prior ledgers.yaml AND the prior divergent ledger file (byte-for-byte the seeded content); the live on-disk + in-memory ledger for that ledger is fresh-canonical (canonical schema, zero/seeded items); the milestones bootstrap group + ambient milestone are present. (2) ABORT opt-out (single representative case, separate from the migrated parameterized suite): same seed, construct with onSchemaDivergence:'abort'; assert init() rejects with BootstrapViolationError and the on-disk files are untouched (no backup dir created). (3) REGRESSION — no-divergence: seed a valid canonical docs/ with items; init() leaves files + items unchanged and creates NO backup dir. (4) REGRESSION — empty dir: empty tmpdir; init() auto-creates canonical set as before and creates NO backup dir. Capture stderr (or stub the warn path) to assert exactly one WARNING naming the backup path in case (1).
+- acceptance: "The existing parameterized suite `divergence guard fires for a hand-edited <name> schema` in packages/ledger/test/canonical-ledgers.test.ts:332-356 is MIGRATED so its six cases construct the store with onSchemaDivergence:'abort' (still asserting rejects-with /different schema/), and NO test asserts that the DEFAULT init() throws on divergence. New tests cover divergence→backup+reinit (default, no throw), abort opt-out (throws, files untouched), no-divergence regression (unchanged, no backup), and empty-dir regression (unchanged, no backup). `bun test` passes for the new tests AND the migrated canonical-ledgers.test.ts suite with no inverted/failing assertions; the divergence test asserts the backup dir holds the prior file(s) and the live ledger is fresh-canonical."
+- suggestedModel: standard
+- dependsOn: ["T95"]
+- ledgerRefs: ["defects:D2","goals:G4"]
+
+### T97 — planned
+
+- createdAt: 2026-06-02T16:31:36.255Z
+- updatedAt: 2026-06-02T16:31:36.255Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Repo gate: bun run check green for the D2 fix"
+- description: "Run the full repo gate from the root after T94/T95/T96 land: `bun run check` (bun test + bun run typecheck + bun run lint). Resolve any failures introduced by the change (type errors, lint, regressions in other packages that depend on FsLedgerStore or BootstrapViolationError). No new failures may be attributable to this change."
+- acceptance: "`bun run check` exits 0 from the repo root with the D2 fix in place; no test/type/lint regressions."
+- suggestedModel: fast
+- dependsOn: ["T96"]
+- ledgerRefs: ["defects:D2","goals:G4"]
