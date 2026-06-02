@@ -233,6 +233,9 @@ export function App({
 }): React.ReactElement {
   const { exit } = useApp();
   const { cols, rows } = useTermSize();
+  // displayName() is synchronous (captured at connect time by the client).
+  const dn = client.displayName();
+  const headerTitle = dn.length > 0 ? `[${dn}] LLM ledgers` : "ledger-tui";
   const [conn, setConn] = useState<"connecting" | "connected" | "error">("connecting");
   const [connErr, setConnErr] = useState("");
   const [ledgers, setLedgers] = useState<LedgerSummary[]>([]);
@@ -872,7 +875,7 @@ export function App({
       {/* header */}
       <Box>
         <Text bold color="cyan">
-          ledger-tui
+          {headerTitle}
         </Text>
         <Text dimColor>
           {"  "}

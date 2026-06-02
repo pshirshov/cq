@@ -215,6 +215,14 @@ describe("ledger-tui App", () => {
     h.unmount();
   });
 
+  it("renders [<dir>] LLM ledgers in the header using the client's displayName (T68)", async () => {
+    const client = new FakeClient("cq1");
+    const r = render(<App client={client} />);
+    await tick();
+    expect(r.lastFrame()).toContain("[cq1] LLM ledgers");
+    r.unmount();
+  });
+
   it("shows each ledger's item count right-aligned in the ledgers list", async () => {
     const h = await mount();
     // FakeClient: bugs has 1 item (D1), milestones has 1 item (M1). The count
