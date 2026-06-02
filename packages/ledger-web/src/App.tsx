@@ -1432,7 +1432,30 @@ function BatchAnswerModal({
               {row.item.fields[SUGGESTIONS_FIELD] !== undefined && (
                 <>
                   <dt>{SUGGESTIONS_FIELD}</dt>
-                  <dd data-testid="batch-field-suggestions">{renderVal(row.item.fields[SUGGESTIONS_FIELD]!)}</dd>
+                  <dd data-testid="batch-field-suggestions">
+                    {(() => {
+                      const sv = row.item.fields[SUGGESTIONS_FIELD]!;
+                      const items = Array.isArray(sv) ? sv : [sv];
+                      return (
+                        <ul className="lw-field-list">
+                          {items.map((suggestion, i) => (
+                            <li key={i}>
+                              {suggestion}
+                              <button
+                                type="button"
+                                className="lw-pick-suggestion"
+                                data-testid={`batch-pick-suggestion-${i}`}
+                                disabled={answerHasText}
+                                onClick={() => onSave(row, suggestion)}
+                              >
+                                pick
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
+                  </dd>
                 </>
               )}
               {fieldToString(row.item.fields[RECOMMENDATION_FIELD]).trim().length > 0 && (
