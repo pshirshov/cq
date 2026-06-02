@@ -11,6 +11,10 @@ import {
   TASKS_SCHEMA,
   GOALS_SCHEMA,
   REVIEWS_SCHEMA,
+  DEFECTS_SCHEMA,
+  HYPOTHESIS_SCHEMA,
+  QUESTIONS_SCHEMA,
+  DECISIONS_SCHEMA,
 } from "../src/index.js";
 
 describe("eligibleColumnFields", () => {
@@ -42,6 +46,29 @@ describe("eligibleColumnFields", () => {
     const eligible = eligibleColumnFields(REVIEWS_SCHEMA);
     expect(eligible).not.toContain("summary");
     expect(eligible).not.toContain("criticism");
+  });
+
+  it("excludes summary-source fields headline/title/question to prevent duplication with summary cell", () => {
+    // headline appears in defects, tasks, hypothesis, decisions
+    expect(eligibleColumnFields(DEFECTS_SCHEMA)).not.toContain("headline");
+    expect(eligibleColumnFields(TASKS_SCHEMA)).not.toContain("headline");
+    expect(eligibleColumnFields(HYPOTHESIS_SCHEMA)).not.toContain("headline");
+    expect(eligibleColumnFields(DECISIONS_SCHEMA)).not.toContain("headline");
+
+    // title appears in goals
+    expect(eligibleColumnFields(GOALS_SCHEMA)).not.toContain("title");
+
+    // question appears in questions ledger
+    expect(eligibleColumnFields(QUESTIONS_SCHEMA)).not.toContain("question");
+  });
+
+  it("still includes genuine eligible fields when excluding summary-source fields", () => {
+    // suggestedModel should still be eligible on tasks despite headline exclusion
+    expect(eligibleColumnFields(TASKS_SCHEMA)).toContain("suggestedModel");
+    // severity should still be eligible on defects despite headline exclusion
+    expect(eligibleColumnFields(DEFECTS_SCHEMA)).toContain("severity");
+    // parentHypothesis should still be eligible on hypothesis despite headline exclusion
+    expect(eligibleColumnFields(HYPOTHESIS_SCHEMA)).toContain("parentHypothesis");
   });
 });
 

@@ -59,15 +59,31 @@ export const ALWAYS_SHOWN_COLUMNS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Schema field names that are sources for the summary cell (headline, title, question).
+ * These are excluded from the eligible-fields set to prevent duplication: the summary cell
+ * already displays the rendered value of one of these fields (via summarize() logic that
+ * picks headline ?? title ?? question ?? summary), so showing them as a separate toggleable
+ * column would create redundancy. Drawn from the canonical ledger schemas.
+ */
+export const SUMMARY_SOURCE_FIELDS: ReadonlySet<string> = new Set([
+  "headline",
+  "title",
+  "question",
+]);
+
+/**
  * Returns the schema field names that may be offered as toggleable table
- * columns: every declared field name, minus the long/narrative denylist and
- * minus the always-shown intrinsic columns. Order follows the schema's field
+ * columns: every declared field name, minus the long/narrative denylist,
+ * minus the always-shown intrinsic columns, and minus the summary-source fields
+ * that would duplicate the summary cell. Order follows the schema's field
  * declaration order.
  */
 export function eligibleColumnFields(schema: LedgerSchema): string[] {
   return Object.keys(schema.fields).filter(
     (name) =>
-      !LONG_FIELD_DENYLIST.has(name) && !ALWAYS_SHOWN_COLUMNS.has(name),
+      !LONG_FIELD_DENYLIST.has(name) &&
+      !ALWAYS_SHOWN_COLUMNS.has(name) &&
+      !SUMMARY_SOURCE_FIELDS.has(name),
   );
 }
 

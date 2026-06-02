@@ -86,9 +86,10 @@ describe("ledger-web column selector", () => {
     click(testid("column-menu-toggle"));
     const popup = testid("column-popup");
     expect(popup).not.toBeNull();
-    // Eligible fields offered: headline, suggestedModel, acceptance.
-    // The long/narrative `description` is NOT offered; intrinsic id/status are not either.
-    expect(testid("column-toggle-headline")).not.toBeNull();
+    // Eligible fields offered: suggestedModel, acceptance.
+    // headline is excluded (summary-source field); description is excluded (long/narrative);
+    // intrinsic id/status are not offered either.
+    expect(testid("column-toggle-headline")).toBeNull();
     expect(testid("column-toggle-suggestedModel")).not.toBeNull();
     expect(testid("column-toggle-acceptance")).not.toBeNull();
     expect(testid("column-toggle-description")).toBeNull();
