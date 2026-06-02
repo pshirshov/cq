@@ -752,6 +752,37 @@ describe("ledger-web App", () => {
     expect(testid("item-D99")).not.toBeNull();
   });
 
+  it("a rejected archived-section lazy fetch surfaces a flash and does not stay stuck on 'loading…' (retryable)", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+
+    // Arm the next lazy fetch of A1 to reject.
+    fake.failArchiveFetch.add("bugs/A1");
+
+    // First expand → fetch rejects: error surfaced via flash, items absent, and
+    // the section is NOT stuck on the 'loading…' placeholder.
+    click(testid("ms-toggle-A1"));
+    await flush();
+    expect(fake.archiveFetches["bugs/A1"]).toBe(1);
+    expect(testid("flash")?.textContent).toContain("archive fetch failed: bugs/A1");
+    expect(testid("archive-loading-A1")).toBeNull();
+    expect(testid("archive-error-A1")).not.toBeNull();
+    expect(testid("item-D99")).toBeNull();
+
+    // Collapse then re-expand with the failure cleared → retry succeeds.
+    fake.failArchiveFetch.delete("bugs/A1");
+    click(testid("ms-toggle-A1"));
+    await flush();
+    click(testid("ms-toggle-A1"));
+    await flush();
+    expect(fake.archiveFetches["bugs/A1"]).toBe(2);
+    expect(testid("archive-error-A1")).toBeNull();
+    expect(testid("item-D99")).not.toBeNull();
+  });
+
   it("opening an archived item shows it read-only with NO edit/transition/answer controls", async () => {
     await mount();
     click(testid("ledger-bugs"));

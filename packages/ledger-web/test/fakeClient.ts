@@ -97,6 +97,8 @@ export class FakeClient implements LedgerClient {
   closed = false;
   /** Per-`<ledger>/<archiveId>` count of fetchLedgerArchive calls (lazy-fetch assertions). */
   readonly archiveFetches: Record<string, number> = {};
+  /** `<ledger>/<archiveId>` keys whose fetchLedgerArchive must reject (error-path assertions). */
+  readonly failArchiveFetch: Set<string> = new Set();
   private readonly _displayName: string;
   private msCounter = 1;
   private itemCounter = 1;
@@ -262,6 +264,7 @@ export class FakeClient implements LedgerClient {
   async fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
     const key = `${ledgerId}/${archiveId}`;
     this.archiveFetches[key] = (this.archiveFetches[key] ?? 0) + 1;
+    if (this.failArchiveFetch.has(key)) throw new Error(`archive fetch failed: ${key}`);
     const entries = this.archives[ledgerId] ?? [];
     const entry = entries.find((e) => e.pointer.id === archiveId);
     if (entry === undefined) throw new Error(`Archive not found: ${ledgerId}/${archiveId}`);

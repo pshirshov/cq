@@ -1177,6 +1177,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                     setSelectedArchiveRow(r);
                     setSelected(null);
                   }}
+                  onError={(msg) => setFlash(msg)}
                 />
               )}
             </>
@@ -1828,16 +1829,22 @@ function ArchiveSubsections({
   schema,
   selectedId,
   onSelectRow,
+  onError,
 }: {
   pointers: Array<{ id: string; path: string; summary: string }>;
   fetchArchive: (archiveId: string) => Promise<ArchiveContent>;
   schema: FetchedLedger["schema"];
   selectedId: string | null;
   onSelectRow: (row: Row) => void;
+  onError: (message: string) => void;
 }): React.ReactElement {
   // Per-pointer expansion + lazily-fetched content. Default: all collapsed.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [content, setContent] = useState<Record<string, ArchiveContent>>({});
+  // Pointers whose lazy fetch rejected — tracked so the placeholder shows an
+  // error instead of staying stuck on 'loading…', and re-armed for retry on
+  // the next expand.
+  const [failed, setFailed] = useState<Set<string>>(new Set());
 
   const toggle = useCallback(
     (id: string): void => {
@@ -1848,17 +1855,31 @@ function ArchiveSubsections({
           return next;
         }
         next.add(id);
+        // Clear any prior failure so a re-expand reverts to 'loading…' and retries.
+        setFailed((prevFailed) => {
+          if (!prevFailed.has(id)) return prevFailed;
+          const nextFailed = new Set(prevFailed);
+          nextFailed.delete(id);
+          return nextFailed;
+        });
         // Lazy-fetch on first expand only (not yet cached).
         setContent((cur) => {
           if (cur[id] === undefined) {
-            void fetchArchive(id).then((c) => setContent((c2) => ({ ...c2, [id]: c })));
+            void fetchArchive(id)
+              .then((c) => setContent((c2) => ({ ...c2, [id]: c })))
+              .catch((e: unknown) => {
+                // Boundary error handling: surface the failure and mark the
+                // pointer failed so it shows an error, not 'loading…' forever.
+                setFailed((f) => new Set(f).add(id));
+                onError(errMsg(e));
+              });
           }
           return cur;
         });
         return next;
       });
     },
-    [fetchArchive],
+    [fetchArchive, onError],
   );
 
   const rowsOf = (c: ArchiveContent | undefined, id: string): Row[] => {
@@ -1876,6 +1897,7 @@ function ArchiveSubsections({
         {pointers.map((p) => {
           const collapsed = !expanded.has(p.id);
           const c = content[p.id];
+          const didFail = failed.has(p.id);
           const rows = rowsOf(c, p.id);
           const headerLabel = p.summary.length > 0 ? `${p.id}: ${p.summary}` : p.id;
           return (
@@ -1887,7 +1909,11 @@ function ArchiveSubsections({
               collapsed={collapsed}
               onToggle={() => toggle(p.id)}
             >
-              {c === undefined ? (
+              {c === undefined && didFail ? (
+                <p className="lw-empty" data-testid={`archive-error-${p.id}`}>
+                  failed to load — expand again to retry
+                </p>
+              ) : c === undefined ? (
                 <p className="lw-empty" data-testid={`archive-loading-${p.id}`}>
                   loading…
                 </p>
