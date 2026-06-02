@@ -338,8 +338,9 @@ describe("FsLedgerStore.init() divergence + onSchemaDivergence:'abort'", () => {
 
 describe("FsLedgerStore.init() regression — no divergence", () => {
   /**
-   * Seed a docs/ that is already valid canonical (all schemas match), with
-   * one item in the goals ledger. Then run init() and verify unchanged state.
+   * Prime an empty canonical store (storeA.init() with no items created),
+   * dispose, then re-init from those files. Verifies byte-for-byte idempotence:
+   * no backup directory is created and no files are modified by the second init.
    */
   it("init() leaves files unchanged when schemas match", async () => {
     const { root, docsDir } = await makeTmpDir();
