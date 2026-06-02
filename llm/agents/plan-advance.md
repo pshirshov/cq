@@ -185,6 +185,14 @@ Plan-flow operates on BOTH ledgers (Q19/Q20). The `tasks` ledger is the
 its answered questions) describes a DEFECT — an existing fault to repair, not
 greenfield work — model it as a defect record PLUS one-or-more fix tasks:
 
+> Per **K12 / Q42**, user-reported faults are also auto-investigated: any `open`
+> defect linked to this goal — whether it came from the user or from the
+> reviewer's bucket — is picked up by the `/plan:*` COMMAND orchestrator (T74),
+> which re-derives the worklist by LEDGER QUERY and launches `/investigate:advance`
+> itself after its primary planning work. The defect-record + fix-task mechanics
+> below are UNCHANGED by that; you still only FILE/plan here (you never spawn
+> subagents and never run `/investigate:advance`).
+
 1. **The defect record.** Create (or reuse, if the goal is **defect-seeded** and
    already carries a `defects:<D>` ledgerRef — then reuse that D, do not create a
    second) an `open` defects item under a milestone:
@@ -210,7 +218,7 @@ greenfield work — model it as a defect record PLUS one-or-more fix tasks:
    fix-task ids. The defect resolves only when its fix tasks complete — but the
    defect itself is never handed to `/implement:*`; only its fix tasks are.
 
-## Consuming the reviewer's `defects[]` bucket (file-and-defer, Q26)
+## Consuming the reviewer's `defects[]` bucket (file-only, K12 supersedes K8 pt3 / Q26)
 Each `reviews` item carries a `defects` field (T40): an array of objects
 `{ headline, severity, rootCause?, suggestedFix? }` describing OUT-OF-SCOPE or
 PRE-EXISTING faults the reviewer found — faults this plan neither caused nor can
@@ -224,22 +232,25 @@ EACH entry:
    "<entry.severity>", rootCause?: "<entry.rootCause>", suggestedFix?:
    "<entry.suggestedFix>", description: "<filed from plan review R… as
    out-of-scope/pre-existing>", ledgerRefs: ["goals:<G>"] })`. Capture the new id
-   as **D**. (`severity` is REQUIRED — the reviewer always supplies it.)
+   as **D**. (`severity` is REQUIRED — the reviewer always supplies it.) The
+   `open` status + the `goals:<G>` link are what the orchestrator's ledger query
+   will key on to discover this defect for auto-investigation (see below).
 
-2. **Route to `investigate:*` — do NOT plan or fix it here.** File an `open`
-   question that points the user at the investigate flow:
-   `create_item("questions", M, status: "open", fields: { question: "Out-of-scope
-   defect <D> surfaced during plan review — run `/investigate:start <D>` to
-   triage it.", context: "<the reviewer's headline + why it is out of scope for
-   goal G>", ledgerRefs: ["defects:<D>", "goals:<G>"] })`.
+That is the WHOLE step — **file only**. Per **K12** (which supersedes K8 point
+3's handoff *direction*), you do NOT file a `run /investigate:start <D>` user
+question for these defects. The `/plan:*` COMMAND orchestrator (T74), after its
+primary planning work, **re-derives the auto-investigate worklist by QUERYING
+THE LEDGER** — `open` defects newly linked `goals:<G>` with no terminal status —
+and launches `/investigate:advance` itself. You are a SUBAGENT: you only FILE
+the defect; you never spawn subagents and you never run `/investigate:advance`
+(K12 point 3 keeps subagents-cannot-spawn-subagents in force).
 
-This is **file-and-defer**: the defect is recorded and routed for separate
-triage, while THIS plan proceeds unchanged. These filed questions do NOT gate the
-goal's phase — they link `goals:<G>` but pertain to a *separate* `defects:<D>`
-investigation, not to this goal's clarification. (The orchestrator only blocks
-the `clarifying→planning` hop on open questions while the goal is in
-`clarifying`; consuming the defects bucket happens in the `planning` phase, so it
-never stalls the current plan.)
+This is **file-and-defer**: the defect is recorded for separate triage, while
+THIS plan proceeds unchanged. The defect record itself (its `open` status +
+`goals:<G>` link) is the AUTHORITATIVE signal the orchestrator queries — your
+prose summary is NOT a contract. You MAY note the filed `defects:<D>` id in your
+Session summary as **advisory context only**; the orchestrator does NOT parse the
+summary text to build its worklist (it re-derives that from the ledger query).
 
 ## Session summary (handover)
 Before the status token, emit a clearly-delimited handover block — the
