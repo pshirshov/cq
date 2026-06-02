@@ -2,17 +2,23 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 54
+  item: 60
 archives:
   - id: M2
     path: ./archive/questions/M2.md
     summary: TUI + web UI improvements — complete. Per-ledger counts (T1), answer-and-resolve for questions (T2), view persistence (T3), embedded in-process MCP mode for ledger-tui + ledger-web (T17–T22), question-detail field order + highlighted recommendation (T23). Decision K2 (in-process = co-locate the MCP server, don't bypass MCP). Defect D1 (web counts undefined) resolved. Shipped on main (commits 63df0f3, 5cf4916; merged b510170).
+    title: ""
+    status: ""
   - id: M14
     path: ./archive/questions/M14.md
     summary: G2-W3 column selector + batch-answer + project title — COMPLETE. T60-T68 (eligibleColumnFields/defaultColumns, web+TUI column selectors, web batch-answer modal + TUI overlay, displayName + web/TUI titles). Out-of-scope defects D3 (exports map) + D4 (column eligibility) RESOLVED via G5; Q52 withdrawn (K13). Reviews R54/R57-R61. Shipped on main.
+    title: ""
+    status: ""
   - id: M18
     path: ./archive/questions/M18.md
     summary: "G2 follow-up #9-13 — COMPLETE. T79 archived-subsection unification, T80/T81 milestone-status badge (web)/color (TUI), T82 colgroup column proportions, T83/T84 goals flat-list, T85 TUI nav-perf memoization. Out-of-scope D5 (archived-head badge) + D6 (browser-safe constants) RESOLVED via G5; Q53 withdrawn (K13). Reviews R62-R68. Shipped on main."
+    title: ""
+    status: ""
 ---
 
 # questions
@@ -674,3 +680,74 @@ archives:
 - recommendation: Archive the completed work milestones, then print an explicit 'all work for goal G is complete and its milestones are archived — goal G is ready to close; close it yourself in the TUI/web (set G to done) when satisfied' line, and make NO goal-status change. Keep auto-marking individual tasks/defects terminal (that is fine); the prohibition is strictly on closing the GOAL. Use TUI/web as the close mechanism unless you want a new /plan command (separate, larger scope).
 - ledgerRefs: ["goals:G3"]
 - answer: as recommended
+
+## M27
+
+### Q55 — answered
+
+- createdAt: 2026-06-02T22:31:00.050Z
+- updatedAt: 2026-06-02T22:32:49.299Z
+- author: user
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "For the universal /advance command, what are the concrete LEDGER-QUERY detection predicates for 'anything to investigate / plan / implement'? Propose: (investigate) there exists an `open` (non-terminal) defect NOT blocked solely on an `open` question — i.e. a defect actionable by /investigate:advance; (plan) there exists a goal in a non-terminal planning phase (`clarifying` with no open question, or `planning`) that /plan:advance can move; (implement) there exists a goal in `planned`/`building` with a DAG-ready non-terminal task (per implement/advance.md step-1 READY-SET: non-blocked, deps done, no open question). Confirm or correct each predicate."
+- context: "advance.md already defines the implement READY-SET precisely (llm/commands/implement/advance.md:69-74). plan:advance and investigate:advance have analogous internal stop predicates. /advance must re-derive 'is there work' by ledger query (the K12 ledger-as-source-of-truth pattern) rather than parsing sub-command prose. The exact predicates determine when /advance runs each sub-flow vs. skips it."
+- recommendation: Adopt the three predicates as proposed above, each expressed as an explicit ledger query, mirroring implement/advance.md's READY-SET derivation.
+- ledgerRefs: ["goals:G6"]
+- answer: as recommended
+
+### Q56 — open
+
+- createdAt: 2026-06-02T22:31:10.069Z
+- updatedAt: 2026-06-02T22:31:10.069Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: Does /advance run ONE pass of each sub-flow in sequence (investigate -> plan -> implement, once) and then report, OR does it LOOP the whole sequence until quiescent (no sub-flow makes progress)? The verbatim request says 'checks ... if so it runs ...' for each in order, which reads as one ordered pass; but because investigate can SEED a goal (-> new plan work) and implement can FILE defects (-> new investigate work), a single pass leaves discovered work for the next manual run.
+- context: "Each sub-command (plan:advance, investigate:advance, implement:advance) is itself ALREADY an internal loop that runs until ITS own stop predicate (needs-user / drained). The open question is only about the OUTER composition across the three flows. A loop-until-quiescent outer needs a fixpoint/termination guard (e.g. stop when a full sequence pass produces zero ledger mutations, with a max-iterations safety cap) to avoid spinning."
+- suggestions: ["One ordered pass (investigate -> plan -> implement), then report what remains discovered for the next run (simplest; matches the verbatim wording)","Loop the sequence until a full pass makes no progress (fixpoint), with a max-iteration safety cap and per-iteration progress logging","One pass by default, with an explicit opt-in flag/argument to loop-to-quiescence"]
+- recommendation: Loop the sequence to quiescence with a max-iteration cap, since the explicit motivation (investigate seeds plan, implement files defects -> investigate) is precisely cross-flow discovery that a single pass would strand; report the drained/blocked state at the fixpoint.
+- ledgerRefs: ["goals:G6"]
+
+### Q57 — open
+
+- createdAt: 2026-06-02T22:31:18.689Z
+- updatedAt: 2026-06-02T22:31:18.689Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Confirm the cross-flow RE-CHECK / ordering contract: after investigate:advance completes, /advance should re-check the PLAN predicate (a confirmed root cause file-and-defers a fix into a goal/plan); after implement:advance completes, /advance should re-check the INVESTIGATE predicate (a reviewer may file out-of-scope defects). Is the canonical cycle therefore investigate -> plan -> implement -> (back to investigate if implement filed defects)? And within the loop, should plan:advance's own auto-investigate phase (it launches /investigate:advance for goal-linked open defects per K12) be left to plan:advance, with /advance NOT separately launching investigate for those same defects (to avoid double-triage)?"
+- context: "plan:advance (the COMMAND orchestrator, T74) already re-derives an auto-investigate worklist by ledger query and launches /investigate:advance itself for `open` defects linked to its goal. /advance must not duplicate that triage. Clarifying the ownership boundary prevents /advance and plan:advance both launching investigate on the same defect in one outer iteration."
+- recommendation: "Cycle order investigate -> plan -> implement, re-checking the investigate predicate after implement (since implement files defects); rely on plan:advance to own auto-investigate of goal-linked defects, so /advance's standalone investigate step targets only defects NOT already covered by an active goal's plan:advance triage (or simply lets the next outer iteration's plan step pick them up)."
+- ledgerRefs: ["goals:G6"]
+
+### Q58 — open
+
+- createdAt: 2026-06-02T22:31:31.025Z
+- updatedAt: 2026-06-02T22:31:31.025Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Confirm /advance's execution model under the subagents-cannot-spawn-subagents constraint (K12): /advance is a top-level COMMAND run in the MAIN session (not a subagent), so it is permitted to chain the three sub-COMMANDS (investigate:advance, plan:advance, implement:advance) by invoking their loops inline in the main session — the same way each existing command orchestrates its own subagents. /advance itself dispatches NO subagents directly; it only sequences the sub-commands, each of which owns its own subagent dispatch. Is this the intended shape (a command-of-commands), and should it be implemented as a slash-command prompt under llm/commands/advance.md (no namespace) that literally instructs the runtime to run the three sub-commands in order per the resolved predicates?"
+- context: K12 keeps 'subagents cannot spawn subagents' in force but explicitly allows a COMMAND to chain other commands' loops. /advance has no namespace (unlike plan/implement/investigate which are families). It needs LINKS wiring in scripts/link-prompts.ts (.claude/commands/advance.md -> llm/commands/advance.md) plus the committed .codex/prompts mirror, like the other command families. Confirming the shape fixes whether /advance is a thin sequencer prompt vs. a new orchestrator with its own ledger logic.
+- recommendation: Implement /advance as a thin top-level sequencer command (llm/commands/advance.md, no namespace) run in the main session that evaluates the three ledger predicates and invokes the corresponding existing sub-commands in order, dispatching no subagents of its own; wire it into link-prompts.ts LINKS + .codex/prompts mirror exactly like the existing families.
+- ledgerRefs: ["goals:G6"]
+
+### Q59 — open
+
+- createdAt: 2026-06-02T22:31:39.492Z
+- updatedAt: 2026-06-02T22:31:39.492Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "For the 'nothing to do' report, what exactly must /advance distinguish and surface? Proposed taxonomy: (a) DRAINED — no open defects, no goal in a movable planning phase, no DAG-ready task; nothing actionable anywhere. (b) BLOCKED-ON-QUESTIONS — work exists but every actionable item is gated by an `open` question (defects/goals/tasks waiting on user answers); report which question ids block which items and instruct the user to answer them then re-run. (c) MIXED — some progress was made this run AND some items remain blocked-on-questions; report both. Should the report enumerate the blocking question ids (and their owning defect/goal/task), mirroring implement:advance's end-of-pass report?"
+- context: The verbatim request requires /advance to 'explain that' when there is nothing to do, distinguishing 'ledgers drained' from 'everything blocked by questions'. implement/advance.md already has a precedent end-of-pass report (lines 216-225) that enumerates blocked tasks + the question ids to answer. /advance's report should compose the three sub-flows' blocked/drained states into one coherent message.
+- recommendation: Adopt the (a)/(b)/(c) taxonomy and enumerate blocking question ids with their owning item, mirroring implement/advance.md's report; on DRAINED say so plainly, on BLOCKED list the questions to answer and instruct re-run after answering.
+- ledgerRefs: ["goals:G6"]
+
+### Q60 — open
+
+- createdAt: 2026-06-02T22:31:48.832Z
+- updatedAt: 2026-06-02T22:31:48.832Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Scope of the N=4 -> N=8 subagent-parallelism bump (item 3): confirm it applies to the implement-flow concurrent-worker cap in llm/commands/implement/advance.md ('Concurrency' rule, currently 'N = 4', line 36) and any N=4 default referenced in llm/commands/implement/start.md. Does the bump apply ANYWHERE ELSE — e.g. does investigate:advance cap concurrent explorer subagents, does plan:advance cap concurrent reviewers, or does the new /advance command introduce/reference any parallelism cap? Should all such caps move to 8 consistently, or is 8 specifically the implement-flow worker cap only?"
+- context: "Verified: the only explicit 'N = 4' concurrency cap is in implement/advance.md:36 ('at most N = 4 workers in flight'). Need to confirm whether implement/start.md restates it and whether the investigate/plan families have their own concurrency caps that should move in lockstep, vs. leaving them as-is. This bounds the edit scope (markdown-only) and the bun run check no-op gate."
+- suggestions: ["Bump only the implement-flow worker cap (advance.md + any restatement in start.md) to 8; leave other flows untouched","Bump every subagent-concurrency cap across all flows to 8 for consistency","Bump implement to 8 and have /advance document that it inherits each sub-flow's own cap (no new cap of its own)"]
+- recommendation: Bump the implement-flow worker cap to 8 in implement/advance.md (and any N=4 restatement in implement/start.md); audit investigate/plan for any concurrency cap and bump those to 8 too only if they exist, so the parallelism story is consistent; /advance introduces no cap of its own (it inherits each sub-flow's).
+- ledgerRefs: ["goals:G6"]

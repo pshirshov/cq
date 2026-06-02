@@ -244,12 +244,12 @@ archives: []
 
 ## M27
 
-### G6 — planned
+### G6 — clarifying
 
 - createdAt: 2026-06-02T19:51:45.748Z
-- updatedAt: 2026-06-02T20:53:40.882Z
+- updatedAt: 2026-06-02T22:30:10.899Z
 - author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - title: "Low-severity cleanup: D9 test flake, D10 store parity, D11 sticky filter bar"
 - description: |
     DEFECT-SEEDED goal (linked defects:D9, D10, D11) — all three are small, well-understood fixes with confirmed/grounded root causes + suggestedFixes, so this goal enters `planning` directly and SKIPS clarifying (K8 pt4 / K12). plan-advance should produce reviewed FIX TASKS directly. The three are file-DISJOINT and parallel-safe.
@@ -268,6 +268,16 @@ archives: []
     ## Follow-up (2026-06-02, #1) — D12: archived milestones missing from the milestones view
     === FIX UNIT D — D12: web milestones ledger shows NO archived milestones (medium; user-reported issues 1+2) ===
     GROUNDED + CONFIRMED (already-filed defect D12; no investigation needed): D7/T90 added `&& !isMilestones` to the ArchiveSubsections render gate (App.tsx ~L1193) to stop the milestones ledger showing an archived milestone TWICE (row + duplicate section). That correctly killed the duplication but OVER-CORRECTED: the milestones ledger now shows archived milestones NOT AT ALL (issue 2), so their titles never appear (issue 1). Archived milestones exist only as view.archivePointers for the milestones ledger (not live items); ArchiveSubsections was their only surfacing and it is now suppressed there. FIX (per D12.suggestedFix): when showArchive is on, the web milestones ledger lists each archived milestone ONCE as a ROW in the flat ItemTable (one per view.archivePointers entry), using the ArchivePointer `title` + `status` that T91 landed, marked with an archived badge (reuse .lw-archived-badge); ideally clicking the row opens the archived detail (lazy fetch_ledger_archive). Do NOT reintroduce the duplicate per-milestone SECTION (keep D7's !isMilestones gate on ArchiveSubsections) — the rows ARE the milestones-ledger representation of archived milestones. happy-dom test: milestones ledger + showArchive renders an archived milestone as a single row with its title + archived badge (no duplicate section). File: packages/ledger-web/src/App.tsx (+ test) — DISJOINT from D11 (styles.css) and the D9/D10 ledger fixes; parallel-safe. Depends on T91 (ArchivePointer title/status) which is already merged. (NOTE: issue 3 — TUI nav still ~500ms — is filed separately as D13 and routed to /investigate:start D13, NOT folded here, because its root cause is unknown and needs profiling.)
+    [STATUS 2026-06-02: D12 RESOLVED — T109 (commit 8dfc415, FsLedgerStore.init backfill) + T108 (commit 9d3c068, web archived rows) merged under work milestone M28.]
+    
+    ## Follow-up (2026-06-02, #2) — universal /advance command + subagent parallelism bump
+    (Item 1 of the user's follow-up request — 'archived-milestone titles still not showing on most archived milestones' — was INVESTIGATED and resolved as a NON-ISSUE, NOT folded as scope: all 20 archive .md files carry a `title:` line, parseMilestoneItemArchive extracts every one, and the T109 init-time backfill populates ALL 20 ArchivePointer titles when run against the live docs (verified: 0 empty after init). M21 shows its title because its docs/milestones.md pointer was written WITH an inline title at archive time; the historical M2..M26 pointers have no inline title and rely on the T109 backfill. Titles were missing in the user's UI only because the running web MCP server process PREDATES the T109 merge (8dfc415) — restarting the browser tab does not reload server code. ACTION: rebuild + restart the ledger-web server process; no fix task.)
+    
+    Two greenfield ORCHESTRATION / command-suite items (folded into G6 per explicit user direction; thematically akin to the now-closed G3 flow-behavior work). These are PROMPT-SUITE changes under llm/commands + llm/agents (+ scripts/link-prompts.ts wiring for a new command), no product code expected:
+    
+    2) UNIVERSAL /advance COMMAND (verbatim request): 'create a universal command /advance which would combine plan:advance investigate:advance and implement:advance, the idea is simple: a) it checks if there is anything to investigate, if so it runs investigate:advance, then - checks if there is anything to plan and invokes plan:advance, after that it checks if there is anything what could be implemented - runs implement:advance, if there is nothing to do (ledgers drained or everything is blocked by questions) - it explains that.' Resolve in clarifying/planning: the concrete 'anything to investigate/plan/implement' detection predicates (ledger queries); whether it runs ONE pass of each sub-flow or LOOPS until quiescent; ordering and re-checks (e.g. investigate may seed a goal → re-check plan; implement may file defects → re-check investigate); how it composes with each sub-flow's existing stop predicates (K12) and the subagents-cannot-spawn-subagents constraint (a command may chain other commands' loops — K12); and the 'nothing to do' explanation (distinguish drained vs blocked-on-open-questions). Wire it into scripts/link-prompts.ts LINKS + .codex/prompts mirror like the other command families.
+    
+    3) SUBAGENT PARALLELISM (verbatim request): 'increase subagent parallelism to 8 from current 4.' Concretely: raise the implement-flow concurrent-worker cap from N=4 to N=8 in llm/commands/implement/advance.md ('Concurrency' rule) and any N=4 default referenced in implement/start.md. Confirm whether the new /advance command and/or other flows reference the same cap so it is bumped consistently. Repo gate: bun run check (markdown-only edits should be a no-op; run it).
 - grounding: |
     D9: packages/ledger-tui/test/mcpClient.test.ts + displayName.test.ts (HTTP McpLedgerClient); the server-bind vs client-connect race under bun's concurrent test execution. Fix in the test harness (ephemeral port + readiness wait), not product code.
     D10: T91 added InMemoryLedgerStore.performArchive Phase-1b guard (parity with FsLedgerStore); the dual-store abstract suite (packages/ledger/test/store-abstract.ts) asserts only the throw, not the no-partial-mutation post-state — add that assertion for both adapters.
