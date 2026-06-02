@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 15
+  item: 18
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -114,3 +114,44 @@ archives:
 - description: Filed out-of-scope independently by BOTH the T106 and T107 reviewers (round 1) — same underlying fault, deduped here. packages/ledger-tui/test/app.test.tsx ('live updates > shows a live badge and refetches the current frame on a pushed change') asserts the frame contains 'pushed-tui' after a FakeWS push + await tick(60), but the new item does not render. The T106 reviewer observed it fail deterministically (3/3) in isolation and reproduce identically on the base commit (9d6da3e / f67e5ee); the T107 reviewer observed it ~1/4 in the full suite. Either way it is PRE-EXISTING (present at base), in a package neither task touches, and makes `bun run check` non-deterministic on this tree. Conservatively rated medium given the T106 reviewer's deterministic-in-isolation finding. Did not block T106 or T107 (both approved); GATES M28 archival until terminal.
 - suggestedFix: "Replace the fixed `await tick(60)` with a bounded poll/wait-for predicate that re-checks r.lastFrame() until it contains 'pushed-tui', so the assertion does not depend on a single fixed delay matching refetch+render latency; or verify FakeWS.instances[0].push still triggers the live-refetch path."
 - ledgerRefs: ["tasks:T106","tasks:T107","goals:G6"]
+
+### D16 — open
+
+- createdAt: 2026-06-02T22:37:29.747Z
+- updatedAt: 2026-06-02T22:37:29.747Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Archived milestone titles missing in NON-milestones ledger views (tasks/defects/etc.) — T109 backfill gated on isMilestones
+- severity: medium
+- description: "User-reported repro (refutes the earlier 'stale server' hypothesis): start a FRESH ledger-web process → open the TASKS ledger → press 'show archived' → every archived milestone SECTION HEAD shows WITHOUT its title EXCEPT M21. The MILESTONES ledger 'show archived' view renders titles correctly (that path is the T108 rows, which read the backfilled milestones-ledger pointers). The non-milestones ledgers render archived groups via ArchiveSubsections, whose section-head label is the archive pointer's `title` (T91/D8) — and those pointers are NOT backfilled."
+- rootCause: "CONFIRMED by probe (FsLedgerStore.init() against a copy of live docs, then fetch each ledger's archivePointers): milestones 0/20 empty titles; tasks 19/20 empty; defects 3/4 empty (only M21, whose pointer carries an inline title written at archive time). T109's backfillLegacyArchivePointers is gated `if (isMilestones)` at packages/ledger/src/store/FsLedgerStore.ts:402, so ONLY the milestones ledger's archivePointers are backfilled. Every other ledger's archivePointers keep title:'' → ArchiveSubsections heads (App.tsx ~L1209-1211, label from pointer.title per T91/D8) show no title in tasks/defects/etc. archived views. This is a too-narrow scope in D12's fix task T109."
+- suggestedFix: "Remove the isMilestones gate (or call the backfill for EVERY loaded ledger): the milestone title/status is recoverable from docs/archive/milestones/<id>.md regardless of which ledger the pointer sits in, so backfillLegacyArchivePointers should run for all ledgers' archivePointers at init. Add a regression test asserting fetch('tasks').archivePointers carry non-empty titles after init against a fixture with legacy (no-inline-title) pointers. Confirm parity for both stores (InMemory has no on-disk archive .md — only Fs backfills, consistent with T109)."
+- ledgerRefs: ["tasks:T109","defects:D12","goals:G6"]
+
+### D17 — open
+
+- createdAt: 2026-06-02T22:37:37.789Z
+- updatedAt: 2026-06-02T22:37:37.789Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Milestones-ledger archived ROW shows an 'archived' badge in the id column that wraps the column (T108)
+- severity: low
+- description: "User-reported repro: open the MILESTONES ledger → press 'show archived' → archived milestones render as rows showing e.g. 'M13 [ARCHIVED]' where the archived badge sits in the id column and WRAPS it. User: the badge should NOT be shown there (in the id cell). The archived rows are already visually distinct / under the show-archived toggle, so an inline badge in the id column is redundant and breaks the column layout."
+- rootCause: "T108's archived-row rendering places the <span className=\"lw-archived-badge\"> inside the id cell of the archived ItemTable row (packages/ledger-web/src/App.tsx:1862, data-testid `archived-badge-${p.id}`), so the narrow id column must wrap to fit 'M13' + the badge."
+- suggestedFix: Remove the per-row archived badge from the id column of the milestones-ledger archived rows (the show-archived grouping already signals archived state), or relocate it to a non-id cell / give the id column nowrap and the badge its own column. Keep the row's click-to-open-archive behavior. Update the happy-dom test in milestonesArchivedRows.test.tsx accordingly.
+- ledgerRefs: ["tasks:T108","defects:D12","goals:G6"]
+
+## M10
+
+### D18 — open
+
+- createdAt: 2026-06-02T22:37:45.916Z
+- updatedAt: 2026-06-02T22:37:45.916Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Batch answer-questions modal is missing the per-suggestion 'pick' buttons (present only in the detail answer view)
+- severity: medium
+- description: "User-reported repro: the answer-questions dialog (the batch answer modal) shows no 'pick' buttons next to suggestions. The per-suggestion pick affordance from G2 item #14 exists in the DETAIL answer view but NOT in the batch modal."
+- rootCause: "In packages/ledger-web/src/App.tsx the DETAIL answer view renders per-suggestion pick buttons (renderQuestionFields narrative, App.tsx:2438-2443: <button className=\"lw-pick-suggestion\" data-testid=`answer-pick-suggestion-${i}` onClick={()=>answerWith(item)}>pick</button>). The BatchAnswerModal (App.tsx ~1392-1475) renders suggestions as a plain <dd data-testid=\"batch-field-suggestions\"> (App.tsx:1435) and only offers the 'as recommended' button (App.tsx:1475) — it never renders per-suggestion pick buttons. G2 #14 (web pick = T86) was applied to the detail view; the batch modal got 'as recommended' + the #15 disable-when-typing gate (T88) but not the per-suggestion pick controls."
+- suggestedFix: Add per-suggestion 'pick' buttons to the BatchAnswerModal suggestions rendering, mirroring the detail view (answerWith(suggestionText) on click), and apply the same #15 disable-when-answer-non-empty gate already used for 'as recommended'. Add a happy-dom assertion that the batch modal renders one pick button per suggestion and that picking sets the answer.
+- ledgerRefs: ["tasks:T86","tasks:T88","goals:G2"]

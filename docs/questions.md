@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 60
+  item: 65
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -695,59 +695,125 @@ archives:
 - ledgerRefs: ["goals:G6"]
 - answer: as recommended
 
-### Q56 — open
+### Q56 — answered
 
 - createdAt: 2026-06-02T22:31:10.069Z
-- updatedAt: 2026-06-02T22:31:10.069Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:33:47.140Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: Does /advance run ONE pass of each sub-flow in sequence (investigate -> plan -> implement, once) and then report, OR does it LOOP the whole sequence until quiescent (no sub-flow makes progress)? The verbatim request says 'checks ... if so it runs ...' for each in order, which reads as one ordered pass; but because investigate can SEED a goal (-> new plan work) and implement can FILE defects (-> new investigate work), a single pass leaves discovered work for the next manual run.
 - context: "Each sub-command (plan:advance, investigate:advance, implement:advance) is itself ALREADY an internal loop that runs until ITS own stop predicate (needs-user / drained). The open question is only about the OUTER composition across the three flows. A loop-until-quiescent outer needs a fixpoint/termination guard (e.g. stop when a full sequence pass produces zero ledger mutations, with a max-iterations safety cap) to avoid spinning."
 - suggestions: ["One ordered pass (investigate -> plan -> implement), then report what remains discovered for the next run (simplest; matches the verbatim wording)","Loop the sequence until a full pass makes no progress (fixpoint), with a max-iteration safety cap and per-iteration progress logging","One pass by default, with an explicit opt-in flag/argument to loop-to-quiescence"]
 - recommendation: Loop the sequence to quiescence with a max-iteration cap, since the explicit motivation (investigate seeds plan, implement files defects -> investigate) is precisely cross-flow discovery that a single pass would strand; report the drained/blocked state at the fixpoint.
 - ledgerRefs: ["goals:G6"]
+- answer: Loop without max-iteration cap - until progress is genuinely impossible without human intervention (ledgers drained or everything is blocked by unanswered questions)
 
-### Q57 — open
+### Q57 — answered
 
 - createdAt: 2026-06-02T22:31:18.689Z
-- updatedAt: 2026-06-02T22:31:18.689Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:34:26.929Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "Confirm the cross-flow RE-CHECK / ordering contract: after investigate:advance completes, /advance should re-check the PLAN predicate (a confirmed root cause file-and-defers a fix into a goal/plan); after implement:advance completes, /advance should re-check the INVESTIGATE predicate (a reviewer may file out-of-scope defects). Is the canonical cycle therefore investigate -> plan -> implement -> (back to investigate if implement filed defects)? And within the loop, should plan:advance's own auto-investigate phase (it launches /investigate:advance for goal-linked open defects per K12) be left to plan:advance, with /advance NOT separately launching investigate for those same defects (to avoid double-triage)?"
 - context: "plan:advance (the COMMAND orchestrator, T74) already re-derives an auto-investigate worklist by ledger query and launches /investigate:advance itself for `open` defects linked to its goal. /advance must not duplicate that triage. Clarifying the ownership boundary prevents /advance and plan:advance both launching investigate on the same defect in one outer iteration."
 - recommendation: "Cycle order investigate -> plan -> implement, re-checking the investigate predicate after implement (since implement files defects); rely on plan:advance to own auto-investigate of goal-linked defects, so /advance's standalone investigate step targets only defects NOT already covered by an active goal's plan:advance triage (or simply lets the next outer iteration's plan step pick them up)."
 - ledgerRefs: ["goals:G6"]
+- answer: as recommended
 
-### Q58 — open
+### Q58 — answered
 
 - createdAt: 2026-06-02T22:31:31.025Z
-- updatedAt: 2026-06-02T22:31:31.025Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:34:52.786Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "Confirm /advance's execution model under the subagents-cannot-spawn-subagents constraint (K12): /advance is a top-level COMMAND run in the MAIN session (not a subagent), so it is permitted to chain the three sub-COMMANDS (investigate:advance, plan:advance, implement:advance) by invoking their loops inline in the main session — the same way each existing command orchestrates its own subagents. /advance itself dispatches NO subagents directly; it only sequences the sub-commands, each of which owns its own subagent dispatch. Is this the intended shape (a command-of-commands), and should it be implemented as a slash-command prompt under llm/commands/advance.md (no namespace) that literally instructs the runtime to run the three sub-commands in order per the resolved predicates?"
 - context: K12 keeps 'subagents cannot spawn subagents' in force but explicitly allows a COMMAND to chain other commands' loops. /advance has no namespace (unlike plan/implement/investigate which are families). It needs LINKS wiring in scripts/link-prompts.ts (.claude/commands/advance.md -> llm/commands/advance.md) plus the committed .codex/prompts mirror, like the other command families. Confirming the shape fixes whether /advance is a thin sequencer prompt vs. a new orchestrator with its own ledger logic.
 - recommendation: Implement /advance as a thin top-level sequencer command (llm/commands/advance.md, no namespace) run in the main session that evaluates the three ledger predicates and invokes the corresponding existing sub-commands in order, dispatching no subagents of its own; wire it into link-prompts.ts LINKS + .codex/prompts mirror exactly like the existing families.
 - ledgerRefs: ["goals:G6"]
+- answer: as recommended
 
-### Q59 — open
+### Q59 — answered
 
 - createdAt: 2026-06-02T22:31:39.492Z
-- updatedAt: 2026-06-02T22:31:39.492Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:36:33.982Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "For the 'nothing to do' report, what exactly must /advance distinguish and surface? Proposed taxonomy: (a) DRAINED — no open defects, no goal in a movable planning phase, no DAG-ready task; nothing actionable anywhere. (b) BLOCKED-ON-QUESTIONS — work exists but every actionable item is gated by an `open` question (defects/goals/tasks waiting on user answers); report which question ids block which items and instruct the user to answer them then re-run. (c) MIXED — some progress was made this run AND some items remain blocked-on-questions; report both. Should the report enumerate the blocking question ids (and their owning defect/goal/task), mirroring implement:advance's end-of-pass report?"
 - context: The verbatim request requires /advance to 'explain that' when there is nothing to do, distinguishing 'ledgers drained' from 'everything blocked by questions'. implement/advance.md already has a precedent end-of-pass report (lines 216-225) that enumerates blocked tasks + the question ids to answer. /advance's report should compose the three sub-flows' blocked/drained states into one coherent message.
 - recommendation: Adopt the (a)/(b)/(c) taxonomy and enumerate blocking question ids with their owning item, mirroring implement/advance.md's report; on DRAINED say so plainly, on BLOCKED list the questions to answer and instruct re-run after answering.
 - ledgerRefs: ["goals:G6"]
+- answer: as recommended
 
-### Q60 — open
+### Q60 — answered
 
 - createdAt: 2026-06-02T22:31:48.832Z
-- updatedAt: 2026-06-02T22:31:48.832Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:37:14.158Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "Scope of the N=4 -> N=8 subagent-parallelism bump (item 3): confirm it applies to the implement-flow concurrent-worker cap in llm/commands/implement/advance.md ('Concurrency' rule, currently 'N = 4', line 36) and any N=4 default referenced in llm/commands/implement/start.md. Does the bump apply ANYWHERE ELSE — e.g. does investigate:advance cap concurrent explorer subagents, does plan:advance cap concurrent reviewers, or does the new /advance command introduce/reference any parallelism cap? Should all such caps move to 8 consistently, or is 8 specifically the implement-flow worker cap only?"
 - context: "Verified: the only explicit 'N = 4' concurrency cap is in implement/advance.md:36 ('at most N = 4 workers in flight'). Need to confirm whether implement/start.md restates it and whether the investigate/plan families have their own concurrency caps that should move in lockstep, vs. leaving them as-is. This bounds the edit scope (markdown-only) and the bun run check no-op gate."
 - suggestions: ["Bump only the implement-flow worker cap (advance.md + any restatement in start.md) to 8; leave other flows untouched","Bump every subagent-concurrency cap across all flows to 8 for consistency","Bump implement to 8 and have /advance document that it inherits each sub-flow's own cap (no new cap of its own)"]
 - recommendation: Bump the implement-flow worker cap to 8 in implement/advance.md (and any N=4 restatement in implement/start.md); audit investigate/plan for any concurrency cap and bump those to 8 too only if they exist, so the parallelism story is consistent; /advance introduces no cap of its own (it inherits each sub-flow's).
+- ledgerRefs: ["goals:G6"]
+- answer: as recommended
+
+### Q61 — answered
+
+- createdAt: 2026-06-02T22:39:21.377Z
+- updatedAt: 2026-06-02T22:40:31.620Z
+- author: user
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "For the ledger archive-and-reset command (Follow-up #3), what is the exact SURFACE: a standalone `ledger-reset` binary, a `ledger-mcp --reset` flag, or both?"
+- context: The verbatim request offers both as alternatives ('ledger-reset or ledger-mcp --reset'). @cq/ledger-mcp currently ships the MCP server entrypoint; a --reset flag would short-circuit that entrypoint to run the reset then exit (no server), whereas a sibling bin (ledger-reset) is a distinct package.json bin target + Nix product. The choice bounds whether this is one new arg-parse branch in the existing mcp entrypoint vs a new bin + Nix derivation. Either way it shares the @cq/ledger reset helper.
+- suggestions: ["`ledger-mcp --reset` flag only (smallest surface: one branch in the existing entrypoint, no new bin/Nix product)","Standalone `ledger-reset` binary only (clear separation; new package.json bin + Nix product)","Both: a `ledger-reset` bin that is a thin wrapper over the same code path the `--reset` flag invokes"]
+- recommendation: "`ledger-mcp --reset` flag only — smallest surface, no new Nix product to package, and the reset is operationally adjacent to the server that owns the docs/ tree; add a standalone bin later only if a server-independent invocation is needed."
+- ledgerRefs: ["goals:G6"]
+- answer: as recommended
+
+### Q62 — open
+
+- createdAt: 2026-06-02T22:39:33.204Z
+- updatedAt: 2026-06-02T22:39:33.204Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "What is the precise OPERATIONAL MEANING of 'archive and reset'? Option A: archive every active milestone (with all its items) into the docs/archive/ tree, then re-init the canonical empty ledger set in place. Option B: back-up-and-reinit — move/copy the whole docs/ tree to a timestamped docs/.backup/<ts>/ and write a fresh canonical empty set (the existing G4/T94 `backupAndReinit` behavior). And is the operation destructive (no recoverable copy) or backup-first?"
+- context: These two readings of 'archive and reset' differ materially. Option A preserves per-milestone archive semantics (archived milestones remain queryable via fetch_ledger_archive, ArchivePointers carry title/status per T91/T109) but requires every active milestone's items to be terminal-or-force-archivable. Option B (the G4/T94 helper) is a coarse whole-tree snapshot + fresh start that does NOT produce per-milestone ArchivePointers — it just sidelines the old docs/ wholesale. The user said 'archive AND reset', which could mean either. This determines whether the command reuses backupAndReinit verbatim or composes archive_milestone over all active milestones first.
+- suggestions: ["A — per-milestone archive of all active milestones, then re-init empty (preserves archive queryability; requires force-archive of non-terminal items)","B — whole-tree backup to timestamped docs/.backup/<ts>/ then fresh canonical set (reuse G4/T94 backupAndReinit as-is; coarse, non-destructive)","B as the default mechanism, with the backup being the 'archive' (safety copy) and a fresh empty canonical set being the 'reset'"]
+- recommendation: B (backup-first via the existing backupAndReinit) — it is non-destructive by construction (timestamped docs/.backup snapshot), already implemented and tested under G4/T94/T95, and matches the colloquial 'archive' = safety copy + 'reset' = fresh start; reserve Option A only if the user specifically wants the reset milestones to remain queryable as per-milestone archives.
+- ledgerRefs: ["goals:G6"]
+
+### Q63 — open
+
+- createdAt: 2026-06-02T22:39:41.222Z
+- updatedAt: 2026-06-02T22:39:41.222Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "What is the SCOPE of the reset: all ledgers at once (the entire canonical set — milestones, tasks, defects, hypothesis, decisions, questions, goals), or selectable per-ledger / per-milestone?"
+- context: "'archive and reset ledgers' reads as the whole canonical set, but the command could accept an optional selector (e.g. `--ledger tasks` or `--milestone M27`) to reset a subset. A subset reset is materially more complex: it must preserve cross-ledger ledgerRefs/dependsOn integrity (e.g. a goal referencing a defect that was reset), which a whole-set reset sidesteps entirely. Bounds whether the command takes a selector argument and integrity-preservation logic, or is an all-or-nothing whole-tree operation."
+- suggestions: ["All ledgers at once — reset the entire canonical set as one atomic operation (no selector; simplest, no cross-ledger integrity concerns)","Selectable per-ledger (e.g. `--ledger tasks,defects`), preserving cross-ledger references","Selectable per-milestone (archive+remove one milestone subtree and its items)"]
+- recommendation: All ledgers at once — the request says 'reset ledgers' (the whole set), a whole-tree backup+reinit sidesteps every cross-ledger reference-integrity problem, and a partial reset is a much larger, separately-justifiable feature; add selectors later only if a concrete need appears.
+- ledgerRefs: ["goals:G6"]
+
+### Q64 — open
+
+- createdAt: 2026-06-02T22:39:50.175Z
+- updatedAt: 2026-06-02T22:39:50.175Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: What SAFETY / confirmation behavior should the reset command have to guard against an accidental wipe of a populated ledger tree?
+- context: Reset is a high-blast-radius, irreversible-feeling operation (even backup-first, it empties the live tree). A CLI flag like `ledger-mcp --reset` can be invoked accidentally. Options range from an interactive y/N prompt (problematic in non-TTY / unattended contexts — this repo mandates batch-mode tools), to a required explicit confirmation flag, to a dry-run preview. This determines the command's UX and whether it is safely scriptable.
+- suggestions: ["Require an explicit confirmation flag (e.g. `--reset --yes` or `--reset --confirm`) — refuse to proceed without it; non-interactive and scriptable","Interactive y/N prompt when a TTY is present, plus a `--yes` flag to skip it for unattended use","Print a summary of what will be archived/backed-up (counts per ledger) and require `--yes` to proceed; refuse on a non-empty tree without confirmation","No guard — rely on the backup being recoverable (the docs/.backup snapshot is the safety net)"]
+- recommendation: Require an explicit `--yes`/`--confirm` flag with NO interactive prompt (this repo mandates batch-mode/unattended tools), and print a per-ledger summary of what is being backed up before proceeding; the timestamped backup is the recovery path if invoked in error.
+- ledgerRefs: ["goals:G6"]
+
+### Q65 — open
+
+- createdAt: 2026-06-02T22:39:58.579Z
+- updatedAt: 2026-06-02T22:39:58.579Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "What is the relationship to the EXISTING FsLedgerStore backup-and-reinit (G4 / T94 / T95 `backupAndReinit`): should the reset command REUSE that helper verbatim, EXTEND it, or implement a distinct code path?"
+- context: G4/T94 already landed a `backupAndReinit` helper in @cq/ledger FsLedgerStore (timestamped docs/.backup/ snapshot + fresh canonical empty set), with tests under T95. If the reset command's operational meaning (Q on operational meaning) matches that helper, reusing it avoids duplicating the snapshot/reinit logic and keeps a single tested path. If a distinct semantic is chosen (e.g. per-milestone archive rather than whole-tree backup), the command needs new helper logic. This also affects whether the reset is exposed only on the FS store (the only persistent backend) and whether InMemory needs a parallel.
+- suggestions: ["Reuse `backupAndReinit` verbatim — the reset command is a thin CLI wrapper that calls it (assumes the backup-first/whole-tree semantic is chosen)","Extend `backupAndReinit` (e.g. add a per-ledger summary return, or a dry-run mode) and wrap it","Implement a distinct path (only if a per-milestone-archive semantic is chosen, which backupAndReinit does not provide)"]
+- recommendation: Reuse `backupAndReinit` verbatim as the single source of truth for the snapshot+reinit, with the reset command as a thin CLI wrapper that adds only arg-parsing, the confirmation guard, and the per-ledger summary; this is contingent on choosing the backup-first/whole-tree operational meaning. Reset is FS-only (the InMemory store is non-persistent; no parallel needed).
 - ledgerRefs: ["goals:G6"]
