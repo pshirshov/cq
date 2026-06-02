@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 63
+  item: 65
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -467,3 +467,25 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T81","goals:G2"]
 - tags: ["implement-flow","round-1","criticism-resolved","T81 milestone-header statusColor approved"]
+
+### R64 — go-ahead
+
+- createdAt: 2026-06-02T13:39:15.592Z
+- updatedAt: 2026-06-02T13:39:15.592Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T80","goals:G2"]
+- tags: ["implement-flow","round-0","approve","active head renders shared status badge via statusBucket; archived-head + schema-dup filed out-of-scope (D5/D6); check 578"]
+
+### R65 — go-ahead
+
+- createdAt: 2026-06-02T13:39:17.948Z
+- updatedAt: 2026-06-02T13:39:17.948Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T84","goals:G2"]
+- tags: ["implement-flow","round-0","approve","goals flat list + fields.milestones in content pane; other ledgers + T81 coloring unchanged; check 578"]

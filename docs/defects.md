@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 4
+  item: 6
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -50,3 +50,29 @@ archives:
 - description: "Out-of-scope defect surfaced by the T62 reviewer (property of the T60 helper, not the T62 diff). In packages/ledger/src/columns.ts, eligibleColumnFields excludes only LONG_FIELD_DENYLIST plus id/status/summary; `headline` is in neither set, so the column picker (T61 web / T62 TUI) offers `headline` as a toggleable extra column. Selecting it renders the headline text BOTH as an extra column cell AND as the trailing summary (summarize() picks headline first), duplicating it in each row. Affects no acceptance clause; cosmetic. suggestedFix: add `headline` (and likely `title`/`question`) to the always-shown/denylist set in columns.ts so summary-source fields are never offered as redundant extra columns."
 - suggestedFix: In packages/ledger/src/columns.ts, exclude the summary-source fields (headline, title, question) from eligibleColumnFields (add to ALWAYS_SHOWN or the denylist) so the column picker never offers a field that just duplicates the summary cell. Add a unit test.
 - ledgerRefs: ["tasks:T62","goals:G2"]
+
+## M18
+
+### D5 — open
+
+- createdAt: 2026-06-02T13:39:23.597Z
+- updatedAt: 2026-06-02T13:39:23.597Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Archived milestone subsection heads cannot render a status badge — ArchivePointer/Milestone carry no status
+- description: "ArchiveSubsections (packages/ledger-web/src/App.tsx) renders archived heads from ArchivePointer ({id,path,summary}) and lazily-fetched ArchiveContent whose 'group' variant carries a Milestone (packages/ledger/src/types.ts L97-104) — neither has a `status` field; only ResolvedMilestone (L116-121) does. So an archived head omits the T80 status badge. T80's acceptance only requires an active milestone head; the description gated archived coverage on item #9 (T79), which did not thread status through. Closing this requires adding the milestone's terminal status to ArchivePointer or the archive group payload over MCP, then passing it as milestoneStatus to the archived MilestoneSubsection."
+- severity: low
+- suggestedFix: Add the milestone terminal status to ArchivePointer (or ArchiveContent group payload) over MCP; pass as milestoneStatus to the archived MilestoneSubsection.
+- ledgerRefs: ["tasks:T80","goals:G2"]
+
+### D6 — open
+
+- createdAt: 2026-06-02T13:39:28.419Z
+- updatedAt: 2026-06-02T13:39:28.419Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA in the web bundle (no browser-safe constants export)
+- description: packages/ledger-web/src/App.tsx (T80) adds a hand-maintained MILESTONE_STATUS_SCHEMA const that must stay in sync with MILESTONES_SCHEMA (packages/ledger/src/constants.ts). The duplication exists because @cq/ledger exposes no browser-safe subpath export for its constants — only `.`, `./relationships`, `./columns`, and the `.` index pulls Node-builtin-laden store/parser code into the browser bundle. The copy can drift silently. Related to D3 (stale @cq/ledger exports map).
+- severity: low
+- suggestedFix: Add a browser-safe `@cq/ledger/constants` subpath export (constants.ts has no Node deps) and import MILESTONES_SCHEMA from it, removing the duplicate. Fold into D3's exports-map cleanup.
+- ledgerRefs: ["tasks:T80","goals:G2","defects:D3"]

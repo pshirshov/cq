@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 52
+  item: 53
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -667,3 +667,15 @@ archives:
 - question: "Out-of-scope defects D3 (stale @cq/ledger exports map — major, latent clean-checkout/nix bundle break) and D4 (headline column-eligible — low) surfaced during implement-flow review of T61/T62. They do NOT block G2's tasks (file-and-defer per Q26). Run `/investigate:start D3` and `/investigate:start D4` to triage them when ready."
 - context: "D3: packages/ledger/package.json exports/main point at ./dist/*.js but tsc emits ./dist/src/*.js; masked in-repo by tsconfig paths→source, but breaks published/nix bundling in a clean (dist-less) checkout. D4: columns.ts eligibleColumnFields offers `headline` as an extra column, duplicating the summary cell. Both filed under M14, linked goals:G2."
 - ledgerRefs: ["defects:D3","defects:D4","goals:G2"]
+
+## M18
+
+### Q53 — open
+
+- createdAt: 2026-06-02T13:39:37.492Z
+- updatedAt: 2026-06-02T13:39:37.492Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- question: "Two low-severity out-of-scope defects surfaced while reviewing T80: D5 (archived milestone heads have no reachable status to badge — needs a data-model change to thread status through ArchivePointer/archive payload) and D6 (MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA because @cq/ledger has no browser-safe constants export; related to D3). Run /investigate:start D5 and /investigate:start D6 (or fold D6 into D3's exports-map cleanup) to triage when you choose."
+- context: Both low severity; neither blocks T80/M18 task work, but both gate M18 archival until terminal. D6 overlaps D3 (stale @cq/ledger exports map).
+- ledgerRefs: ["defects:D5","defects:D6","defects:D3","tasks:T80","goals:G2"]

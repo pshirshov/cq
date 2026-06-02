@@ -608,10 +608,10 @@ archives:
 - resultCommit: 0cddb64
 - completion: "Archived milestone-groups unified into the active collapsible <section> subsection renderer (shared SubsectionItemTable + MilestoneSubsection), each with an 'archived' badge, listed after active sections, all present at once; default collapsed; single lazy-fetch via fetchLedgerArchive on first expand (cached). lw-archive-pointer path + dead state/CSS retired. Round 1: restored error handling (.catch→setFlash, retryable error placeholder, re-expand retries) with a reproduced rejection test. Reviewer approve round 1."
 
-### T80 — wip
+### T80 — done
 
 - createdAt: 2026-06-02T10:35:55.985Z
-- updatedAt: 2026-06-02T13:26:49.362Z
+- updatedAt: 2026-06-02T13:39:09.463Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #10: render milestone-section status as a badge from the shared M12 palette"
@@ -623,6 +623,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T52"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: a2736d0
+- completion: "Web active milestone subsection head renders status as <span class='lw-status lw-status-<bucket>'> via statusBucket (local MILESTONE_STATUS_SCHEMA mirrors canonical, avoids @cq/ledger main index in browser bundle); bare [status] removed from headerLabel. 2 happy-dom tests (badge+bucket class, absence of bare [status]). Archived heads omitted (no reachable status — filed D5, out of scope). Reviewer approve 0/0."
 
 ### T81 — done
 
@@ -642,12 +644,12 @@ archives:
 - resultCommit: c00006b
 - completion: "TUI milestone subsection header renders the status token colored via statusColor(status, MILESTONES_SCHEMA) (open→cyan, done→green); ListEntry gained optional node?:ReactNode (label preserved for T85 memo stability), ScrollList renders node||label. Round 1: replaced whole-frame ANSI assertions with buildItemEntries node-prop unit tests (reproduction verified: 3/4 fail without source coloring). Merge resolved a test-file conflict (kept main's T62 block + T81 block). Reviewer approve round 1."
 
-### T82 — planned
+### T82 — wip
 
 - createdAt: 2026-06-02T10:36:15.468Z
-- updatedAt: 2026-06-02T10:36:15.468Z
+- updatedAt: 2026-06-02T13:39:38.906Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #11: CSS column proportions — id/status hug content, summary takes remainder (all web tables)"
 - description: |
     Item #11 (WEB-ONLY per Q41; TUI already content-sizes via padEnd and is untouched). The web .lw-table is width:100% with border-collapse:collapse and NO table-layout/colgroup, so the browser's automatic table layout distributes width by content and over-allocates id/status (the reported ~1/5 id, ~2/5 status, ~2/5 summary). .lw-summary-cell already uses max-width:0 + ellipsis (styles.css L306-311).
@@ -674,10 +676,10 @@ archives:
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
 
-### T84 — wip
+### T84 — done
 
 - createdAt: 2026-06-02T10:36:35.467Z
-- updatedAt: 2026-06-02T13:26:50.781Z
+- updatedAt: 2026-06-02T13:39:12.713Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #12: GOALS ledger as a flat list (no subsection headers) showing fields.milestones"
@@ -688,13 +690,15 @@ archives:
 - acceptance: "ink-testing-library test on the GOALS ledger: the list frame shows goals as a flat list with NO milestone subsection header lines; the content pane for a goal shows a `milestones` list of the work-milestone ids from fields.milestones (e.g. M12, M13, M14) and not a single coordination 'milestone <id>' line. Other ledgers' grouping/content unchanged. `bun run check` green."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 999af06
+- completion: TUI goals ledger renders flat (buildItemEntries isMilestones→generalized `flat`; call site flat for milestones+goals); goal ContentPane lifts fields.milestones into a leading `milestones` list and suppresses the single 'milestone <coordinationId>' line; milestones field filtered from generic iteration (no double-render); T81 coloring + other ledgers unchanged. 3 ink tests. Reviewer approve 0/0.
 
-### T85 — planned
+### T85 — wip
 
 - createdAt: 2026-06-02T10:36:52.987Z
-- updatedAt: 2026-06-02T10:36:52.987Z
+- updatedAt: 2026-06-02T13:39:40.314Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #13: memoize the per-keystroke O(N) list derivations (nav latency fix)"
 - description: |
     Item #13 (TUI; FIX task — cause localized to the render path, NO /investigate needed per Q49). Symptom: TUI navigation latency GROWS with item count — the pause when moving the cursor up/down scales O(N) in the ledger size.
