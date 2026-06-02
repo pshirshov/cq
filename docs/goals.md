@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 5
+  item: 6
 archives: []
 ---
 
@@ -241,3 +241,33 @@ archives: []
     Fix A (D3+D6) share the package.json exports edit. Fix C (D5) sequences after T91 (M21). Tests: bun:test (ledger), happy-dom (web). Repo gate bun run check.
 - tags: ["defect-seeded","defect:D3","defect:D4","defect:D5","defect:D6","packaging","out-of-scope-cleanup"]
 - milestones: ["M24","M25","M26"]
+
+## M27
+
+### G6 — planned
+
+- createdAt: 2026-06-02T19:51:45.748Z
+- updatedAt: 2026-06-02T20:00:59.372Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- title: "Low-severity cleanup: D9 test flake, D10 store parity, D11 sticky filter bar"
+- description: |
+    DEFECT-SEEDED goal (linked defects:D9, D10, D11) — all three are small, well-understood fixes with confirmed/grounded root causes + suggestedFixes, so this goal enters `planning` directly and SKIPS clarifying (K8 pt4 / K12). plan-advance should produce reviewed FIX TASKS directly. The three are file-DISJOINT and parallel-safe.
+    
+    === FIX UNIT A — D9: ledger-tui HTTP-client test flake (low) ===
+    GROUNDED: packages/ledger-tui/test/{mcpClient,displayName}.test.ts McpLedgerClient-over-HTTP tests intermittently fail with 'Unable to connect' under full-suite concurrency — a port-binding / connection-setup race (the client connects before the server confirms listening). NOT a product defect; test-harness flakiness. FIX: in the HTTP McpLedgerClient test harness, allocate an ephemeral port and WAIT for the server to confirm listening (readiness probe) before the client connects (or serialize those HTTP tests). Acceptance: the affected tests are deterministic under repeated full-suite runs (no connection-race); `bun run check` green across multiple runs.
+    
+    === FIX UNIT B — D10: InMemoryLedgerStore partial-mutation parity (low; test-hardening) ===
+    GROUNDED: T91 already added the Phase-1b terminal guard to InMemoryLedgerStore.performArchive (behavior is FIXED — a non-terminal milestone-item now rejects BEFORE any Phase-2 mutation, matching FsLedgerStore). D10 is the remaining TEST-HARDENING + tracking item. FIX: add a dual-store abstract assertion (packages/ledger/test/store-abstract.ts) that after a non-terminal archiveMilestone REJECTION, the non-milestones ledger groups remain ATTACHED (no partial archive) — asserted in BOTH FsLedgerStore and InMemoryLedgerStore. Acceptance: the new abstract-suite assertion exists, runs against both adapters, and would FAIL against the pre-T91 InMemory behavior (reproduction); `bun run check` green.
+    
+    === FIX UNIT C — D11: sticky web filter/toolbar bar (low) ===
+    GROUNDED: .lw-main (styles.css:274) is the scroll container (overflow:auto, padding 8px 12px); .lw-toolbar (styles.css:305) is normal-flow inside it, so it scrolls away. FIX: .lw-toolbar `position: sticky; top: 0;` + opaque background + z-index BELOW the column-selector popup (z-index:10); handle the .lw-main padding so items don't peek above the bar and the bar background spans the horizontal gutters. happy-dom assertion that the rule carries position:sticky (scroll behavior isn't observable under happy-dom). TUI unaffected.
+    
+    Scope: D9 = ledger-tui test harness; D10 = ledger store-abstract test (behavior already fixed by T91); D11 = ledger-web styles.css + a happy-dom test. All file-disjoint → parallel-safe. Repo gate: `bun run check`. No new ledgers; pure-MCP-client invariant for the web change.
+- grounding: |
+    D9: packages/ledger-tui/test/mcpClient.test.ts + displayName.test.ts (HTTP McpLedgerClient); the server-bind vs client-connect race under bun's concurrent test execution. Fix in the test harness (ephemeral port + readiness wait), not product code.
+    D10: T91 added InMemoryLedgerStore.performArchive Phase-1b guard (parity with FsLedgerStore); the dual-store abstract suite (packages/ledger/test/store-abstract.ts) asserts only the throw, not the no-partial-mutation post-state — add that assertion for both adapters.
+    D11: styles.css .lw-main:274 (scroll container) / .lw-toolbar:305 (normal-flow, no sticky); .lw-column-popup:316 z-index:10 (sticky toolbar z-index must stay below it). Web only; TUI has no scroll-detached toolbar.
+    Tests: bun:test (ledger), ink-testing-library (TUI), happy-dom (web). Gate bun run check.
+- tags: ["defect-seeded","defect:D9","defect:D10","defect:D11","low-severity-cleanup"]
+- milestones: ["M28"]

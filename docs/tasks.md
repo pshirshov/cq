@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 104
+  item: 107
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -145,3 +145,51 @@ archives:
 - ledgerRefs: ["goals:G2"]
 - resultCommit: 261b48f
 - completion: "styles.css .lw-batch: width min(900px,90vw) (wider), max-height 90vh (taller than prior 88vh), font-size 0.95rem (reduced), overflow-y auto (scrolls). New batchModalSizing.test.tsx asserts the sizing + non-vacuous scroll clause. Round 1: corrected max-height 85vh→90vh (round-0 had decreased it) + test. Reviewer approve round 1."
+
+## M28
+
+### T105 — planned
+
+- createdAt: 2026-06-02T19:52:29.136Z
+- updatedAt: 2026-06-02T19:58:04.984Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "D9: de-flake ledger-tui HTTP McpLedgerClient tests (ephemeral port + TCP readiness wait, reuse pty.e2e helpers)"
+- description: |
+    FIX UNIT A (D9, low). packages/ledger-tui/test/{mcpClient,displayName}.test.ts run McpLedgerClient over HTTP and intermittently fail with 'Unable to connect' under full-suite concurrency. ROOT CAUSE (refined per R93): these harnesses ALREADY run a GET-based waitForServer readiness probe before McpLedgerClient.connect, so the bare-connect-before-listening framing is imprecise — the real flake mechanism is the FIXED ports (mcpClient.test.ts uses 7793, displayName.test.ts uses 7795) colliding under concurrent test execution, and/or the GET probe returning before the MCP session layer is fully ready.
+    
+    FIX (test harness only; no product-code diff): switch both flaky HTTP tests off fixed ports onto an EPHEMERAL/OS-assigned port, and wait for the server to actually accept connections via a TCP readiness wait. REUSE the existing proven precedent rather than reinventing it: pty.e2e.test.ts:49-76 already implements `freePort()` (bind :0, read the OS-assigned port) + `waitForPort()` (raw TCP connect loop). If those helpers are local to pty.e2e.test.ts, EXTRACT them into a shared test helper module and import from all three sites; otherwise import the existing ones.
+    
+    AVOID merely relocating the race: do NOT bind-then-close-then-reuse a port (the freePort() bind-:0-read-close pattern has a TOCTOU window between releasing the port and the server re-binding it). PREFER either (a) letting the server bind port 0 / OS-assigned and reading back the actual listening port (no intermediate close), or (b) retry-on-EADDRINUSE, combined with the TCP-connect `waitForPort()` readiness wait (preferred over the bare-GET probe). Reproduction note: the flake is intermittent — verify by running the ledger-tui suite repeatedly and observing no connection-race failures.
+- acceptance: The affected ledger-tui HTTP McpLedgerClient tests (mcpClient.test.ts, displayName.test.ts) use a NON-FIXED (ephemeral / OS-assigned) port plus a TCP-connect readiness wait (reusing/sharing pty.e2e.test.ts's freePort()+waitForPort() rather than reinventing), with no bind-then-close TOCTOU reintroducing the race; tests are deterministic across repeated full-suite runs (no 'Unable to connect'); `bun run check` green across multiple consecutive runs. Fix confined to the test harness (no product-code diff).
+- suggestedModel: standard
+- ledgerRefs: ["defects:D9","goals:G6"]
+
+### T106 — planned
+
+- createdAt: 2026-06-02T19:52:36.278Z
+- updatedAt: 2026-06-02T19:58:14.865Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "D10: dual-store assertion — no partial mutation after Phase-1b non-terminal archiveMilestone rejection"
+- description: |
+    FIX UNIT B (D10, low; test-hardening). The behavior is ALREADY fixed: T91 added the Phase-1b terminal guard to InMemoryLedgerStore.performArchive (parity with FsLedgerStore — a non-terminal milestone-ITEM now rejects BEFORE any Phase-2 mutation). The remaining gap is test coverage: the current dual-store abstract suite (store-abstract.ts:261) asserts only the throw, not the no-partial-mutation post-state.
+    
+    FIX: in packages/ledger/test/store-abstract.ts, extending the existing throw-only assertion at store-abstract.ts:261, add an abstract assertion that after a non-terminal archiveMilestone REJECTION, the non-milestones ledger groups remain ATTACHED (no partial archive), run against BOTH adapters via the existing dual-store harness (FsLedgerStore + InMemoryLedgerStore).
+    
+    PIN THE SCENARIO (per R93 — the reproduction claim only holds for the Phase-1b path): the rejection MUST come via the Phase-1b milestone-item-non-terminal gate, NOT Phase-1. Concretely: make ALL non-milestones group items TERMINAL (e.g. updateItem(it1, resolved) as at store-abstract.ts:261) while the milestone-ITEM itself stays NON-TERMINAL (open), so performArchive passes Phase-1 and is rejected by the Phase-1b guard (InMemoryLedgerStore.ts ~L464-497) which runs BEFORE Phase-2 (~L500). Then assert the non-milestones groups remain attached. This pinning matters because if the test instead rejects via Phase-1 (a non-terminal GROUP item), no Phase-2 mutation ever runs and the assertion would pass even pre-T91 — a non-reproduction. NOTE in the test that this assertion FAILS against pre-T91 InMemory behavior (where Phase-2 mutated before the Phase-3 throw) and passes now.
+- acceptance: "New abstract-suite assertion in packages/ledger/test/store-abstract.ts (extending the throw-only assertion at :261) that PINS the Phase-1b path — all non-milestones group items terminal + milestone-item non-terminal — then asserts the non-milestones groups stay ATTACHED after the rejection; runs against BOTH FsLedgerStore and InMemoryLedgerStore; documented to FAIL against pre-T91 InMemory behavior (reproduction) and pass now; `bun run check` green."
+- suggestedModel: standard
+- ledgerRefs: ["defects:D10","goals:G6"]
+
+### T107 — planned
+
+- createdAt: 2026-06-02T19:52:42.815Z
+- updatedAt: 2026-06-02T19:52:42.815Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "D11: make web .lw-toolbar sticky at top of scroll container (styles.css + happy-dom test)"
+- description: "FIX UNIT C (D11, low). In ledger-web, .lw-toolbar (styles.css:305) is a normal-flow row inside the scroll container .lw-main (styles.css:274, overflow:auto, padding 8px 12px), so it scrolls away with the items. FIX: give .lw-toolbar `position: sticky; top: 0;` plus an opaque background (var(--bg)/--panel) and a z-index BELOW the column-selector popup (which is z-index:10 at styles.css:316) so the popup still layers above the sticky bar. Handle the .lw-main padding (8px 12px): offset the sticky top so items don't peek above the bar, and make the bar background span the horizontal gutters (e.g. negative side margins + matching padding) so scrolled content doesn't show beside it. Add a happy-dom test asserting the .lw-toolbar rule carries position:sticky (actual scroll behavior isn't observable under happy-dom — assert the rule). TUI is unaffected. Honor the pure-MCP-client invariant (no direct docs/ reads)."
+- acceptance: "styles.css .lw-toolbar carries position:sticky; top:0 with opaque background and z-index below the column-selector popup (z-index:10); .lw-main padding handled so items don't peek above the bar and the bar spans the gutters. A happy-dom test asserts the .lw-toolbar rule has position:sticky. `bun run check` green."
+- suggestedModel: standard
+- ledgerRefs: ["defects:D11","goals:G6"]

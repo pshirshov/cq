@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 16
+  item: 17
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -186,3 +186,15 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead R78 (round-2, all R77 criticisms resolved: T103 withdrawn, T104 re-pointed to T91, T98 fixed on the ./dist/src/* realign primary). D3-D6 fix plan approved across work milestones M24/M25/M26 (tasks T98-T102, T104). Locking the plan; G5 planning -> planned."
 - ledgerRefs: ["goals:G5","defects:D3","defects:D4","defects:D5","defects:D6"]
+
+## M27
+
+### K17 — locked
+
+- createdAt: 2026-06-02T20:00:56.252Z
+- updatedAt: 2026-06-02T20:00:56.252Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead R94 (round 2, 0 criticisms / 0 new_questions; both R93 grounding/acceptance gaps on T106 and T105 resolved). Plan locked: work milestone M28 carries fix tasks T105 (D9 ledger-tui HTTP test de-flake), T106 (D10 dual-store no-partial-mutation assertion), T107 (D11 sticky web .lw-toolbar) — file-disjoint, parallel-safe; gate `bun run check`."
+- ledgerRefs: ["goals:G6","defects:D9","defects:D10","defects:D11"]

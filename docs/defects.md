@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 10
+  item: 11
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -68,7 +68,7 @@ archives:
 ### D9 — open
 
 - createdAt: 2026-06-02T18:25:44.398Z
-- updatedAt: 2026-06-02T18:25:44.398Z
+- updatedAt: 2026-06-02T19:52:48.598Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Flaky ledger-tui HTTP-client tests under full-suite concurrency (ConnectionRefused / 'Unable to connect')
@@ -76,11 +76,12 @@ archives:
 - description: "Surfaced (out-of-scope) during T90 review. Under one `bun run check` invocation, ~3-4 tests in packages/ledger-tui/test/{mcpClient,displayName}.test.ts failed with 'Unable to connect. Is the computer able to access the url?' (McpLedgerClient over HTTP — update status / surface validation errors; displayName HTTP — serverInfo.title). They PASS on isolated re-run (6/0) and in the full suite on re-run, indicating a connection-setup / port-binding race under concurrent test execution — NOT a product defect, a test-harness flakiness. Independent of any G2/G4/G5 task diff."
 - suggestedFix: "In the HTTP McpLedgerClient test harness, allocate an ephemeral port and WAIT for the server to confirm listening (readiness probe) before the client connects, so concurrent test execution cannot race the bind. Or serialize those HTTP tests. Triage via /investigate:start D9 when chosen."
 - ledgerRefs: ["tasks:T90","goals:G2"]
+- dependsOn: ["T105"]
 
 ### D10 — open
 
 - createdAt: 2026-06-02T18:49:30.407Z
-- updatedAt: 2026-06-02T18:49:30.407Z
+- updatedAt: 2026-06-02T19:52:50.122Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: InMemoryLedgerStore.performArchive lacked a pre-mutation terminal guard (partial-mutation divergence from FsLedgerStore)
@@ -88,3 +89,20 @@ archives:
 - description: Surfaced (out-of-scope) during T91 review. Before T91, InMemoryLedgerStore.performArchive relied solely on Phase 3's applyDetachMilestoneItem to reject a non-terminal milestone-item; because Phase 2 (detach+archive of every non-milestones group) runs first, a non-terminal milestone-item left Phase-2 in-memory state mutated before the Phase-3 throw — a partial archive, diverging from FsLedgerStore's pre-existing Phase 1b gate. T91 added the Phase 1b terminal-guard to InMemoryLedgerStore (correct + harmless, restores dual-store parity) as a side effect of needing the milestone-item lookup for title/status. The latent inconsistency it remediates was pre-existing/out-of-scope; it warrants its own tracking item plus a dual-store abstract assertion that post-rejection state is unchanged in BOTH adapters (the current non-terminal test asserts only the throw, not the absence of partial mutation).
 - suggestedFix: "Add an abstract store-suite assertion that after a non-terminal archiveMilestone rejection, the non-milestones ledger groups remain attached (no partial archive) in BOTH FsLedgerStore and InMemoryLedgerStore. The Phase 1b guard T91 added already prevents the InMemory partial mutation; this is a test-hardening + tracking item. Triage via /investigate:start D10 when chosen."
 - ledgerRefs: ["tasks:T91","goals:G2"]
+- dependsOn: ["T106"]
+
+## M27
+
+### D11 — open
+
+- createdAt: 2026-06-02T19:51:24.026Z
+- updatedAt: 2026-06-02T19:52:51.146Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Web: ledger filter/toolbar bar scrolls away with items — should stay pinned (sticky) at the top during scroll"
+- severity: low
+- description: "User-reported (G2 area). In the web client the filter/toolbar row (.lw-toolbar, styles.css:305 — the status filter + milestone filter + column-selector menu) lives INSIDE the scrolling content container .lw-main (styles.css:274, `overflow: auto`). So scrolling the items list scrolls the toolbar out of view. EXPECTED: the filter bar stays pinned at the top of the items pane while the items scroll beneath it."
+- rootCause: "GROUNDED: .lw-main (styles.css:274-280) is the scroll container (overflow:auto, padding 8px 12px); .lw-toolbar (styles.css:305-310) is a normal-flow flex row inside it with no sticky/fixed positioning, so it scrolls with the content."
+- suggestedFix: "Make .lw-toolbar `position: sticky; top: 0;` with an opaque background (var(--bg)/--panel) and a z-index BELOW the column-selector popup (which is z-index:10, styles.css:316-320) so the popup still layers above it. Because .lw-main has padding-top:8px, offset the sticky top (e.g. top:0 with a small negative margin / matching padding, or move the padding) so items don't peek above the bar; ensure the bar's background spans the .lw-main horizontal padding (e.g. negative side margins + matching padding) so scrolled content doesn't show in the gutters. Add a happy-dom assertion that the .lw-toolbar rule carries position:sticky (computed scroll behavior isn't observable under happy-dom; assert the rule). TUI is unaffected (no scroll-detached toolbar)."
+- ledgerRefs: ["goals:G2"]
+- dependsOn: ["T107"]

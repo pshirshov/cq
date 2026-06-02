@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 26
+  item: 28
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -121,3 +121,16 @@ archives:
 - createdAt: 2026-06-02T17:25:15.494Z
 - updatedAt: 2026-06-02T17:25:15.494Z
 - title: "Plan: @cq/ledger packaging + UI-eligibility defect cleanup (D3-D6)"
+
+### M27 — open
+
+- createdAt: 2026-06-02T19:51:11.686Z
+- updatedAt: 2026-06-02T19:51:11.686Z
+- title: "Plan: low-severity cleanup — D9 test flake, D10 store parity, D11 sticky filter bar"
+
+### M28 — open
+
+- createdAt: 2026-06-02T19:52:19.215Z
+- updatedAt: 2026-06-02T19:52:19.215Z
+- title: "G6 fixes: D9 test flake, D10 store parity, D11 sticky toolbar"
+- description: "Work milestone for defect-seeded goal G6. Three file-disjoint, parallel-safe low-severity fix tasks: D9 (ledger-tui HTTP test-harness flake), D10 (ledger store-abstract dual-store no-partial-mutation assertion), D11 (ledger-web sticky .lw-toolbar). Gate: bun run check."

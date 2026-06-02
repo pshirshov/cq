@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 92
+  item: 94
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -268,3 +268,26 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T93","goals:G2"]
 - tags: ["implement-flow","round-1","criticism-resolved","batch modal wider/taller/smaller-font/scrolls; check 659"]
+
+## M27
+
+### R93 — revise
+
+- createdAt: 2026-06-02T19:55:45.077Z
+- updatedAt: 2026-06-02T19:55:45.077Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- new_questions: []
+- criticism: ["Verdict: coverage/sequencing/files all correct (D9->T105, D10->T106, D11->T107; bidirectional defect.dependsOn; file-disjoint, no inter-task deps = parallel-safe); two planner-fixable grounding/acceptance gaps keep this on revise.","T106 (D10): the acceptance 'would FAIL against pre-T91 InMemory' only holds if the rejected archiveMilestone is rejected by the Phase-1b milestone-item-non-terminal gate (all non-milestones group items terminal, milestone-item still open) -- exactly the store-abstract.ts:261 scenario after updateItem(it1, resolved). If the test instead rejects via Phase-1 (a non-terminal GROUP item), no Phase-2 mutation ever runs and the assertion passes even pre-T91, making it a non-reproduction. Pin the scenario explicitly in the task: all group items terminal + milestone-item non-terminal, then assert the non-milestones groups remain attached. Otherwise the reproduction claim in the acceptance is not guaranteed. (Confirmed against InMemoryLedgerStore.ts:464-497 Phase-1b guard running before Phase-2 at line 500.)","T105 (D9): the root-cause framing ('the client connects before the server confirms listening') is imprecise -- the flaky harness in mcpClient.test.ts:27-58 and displayName.test.ts:49-75 ALREADY runs a GET-based waitForServer readiness probe before McpLedgerClient.connect. The more plausible flake mechanism is the FIXED ports (7793/7795) colliding under concurrency and/or the GET probe returning before the MCP session layer is ready. The proposed fix (ephemeral port + readiness probe) is correct AND already proven in-repo: pty.e2e.test.ts:49-76 implements freePort() (bind :0, read assigned port) + waitForPort() (raw TCP connect). The task should (a) reference that existing precedent to reuse rather than reinvent, (b) prefer the TCP-connect readiness probe over the bare-GET probe, and (c) note freePort()'s bind-then-close TOCTOU window, so binding :0 and reading the port without an intermediate close (or retry-on-EADDRINUSE) avoids merely relocating the race."]
+- ledgerRefs: ["goals:G6"]
+
+### R94 — go-ahead
+
+- createdAt: 2026-06-02T20:00:04.457Z
+- updatedAt: 2026-06-02T20:00:04.457Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G6"]
+- tags: ["round-2","go-ahead","both-R93-criticisms-resolved"]
