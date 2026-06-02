@@ -65,3 +65,9 @@ export {
   hypothesisRelationships,
 } from "./relationships.js";
 export type { HypothesisRelationships } from "./relationships.js";
+export {
+  eligibleColumnFields,
+  defaultColumns,
+  LONG_FIELD_DENYLIST,
+  ALWAYS_SHOWN_COLUMNS,
+} from "./columns.js";
