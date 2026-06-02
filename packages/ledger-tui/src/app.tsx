@@ -14,7 +14,7 @@
  * as a centered overlay that owns input while active.
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import { SelectList } from "./components/SelectList.js";
 import { TextPrompt } from "./components/TextPrompt.js";
@@ -128,6 +128,68 @@ function ledgerRows(view: FetchedLedger): Row[] {
   return view.milestones.flatMap((g) => g.items.map((item) => ({ item, milestoneId: g.id })));
 }
 
+// ---------------------------------------------------------------------------
+// Heavy per-data derivations + invocation instrumentation (T85).
+//
+// The items frame re-renders on every keystroke — including a pure cursor move,
+// which only changes `top.cursor`. The three derivations below are O(N) in the
+// ledger size; left inline in the render body they ran on EVERY keystroke. They
+// are now hoisted to module scope and invoked through useMemo keyed on their
+// real inputs, so a cursor move does NO O(N) work. The counters let a test
+// assert exactly that: the builders run once per data change, never per nav.
+// ---------------------------------------------------------------------------
+
+/** Per-derivation invocation counters, observable by tests (T85). */
+export const derivationCounters = {
+  filterVisibleRows: 0,
+  computeColumnLayout: 0,
+  buildItemEntries: 0,
+};
+/** Reset all derivation counters (test helper). */
+export function resetDerivationCounters(): void {
+  derivationCounters.filterVisibleRows = 0;
+  derivationCounters.computeColumnLayout = 0;
+  derivationCounters.buildItemEntries = 0;
+}
+
+/** Rows of `view` passing the active status `filter`. O(N) over all rows. */
+export function filterVisibleRows(view: FetchedLedger, filter: StatusFilter): Row[] {
+  derivationCounters.filterVisibleRows += 1;
+  return ledgerRows(view).filter((r) => statusMatchesFilter(r.item.status, view.schema, filter));
+}
+
+/** Stable empty-rows sentinel so a non-items frame keeps the memo dep stable. */
+const EMPTY_ROWS: readonly Row[] = [];
+
+/** Aligned-column widths over every displayed row (active + archive). */
+export interface ColumnLayout {
+  maxIdW: number;
+  maxStatusW: number;
+  /** Index-aligned with `extraColumns`. */
+  columnWidths: number[];
+}
+/**
+ * Column widths for the items list: id width, status width, and per-extra-column
+ * widths. O(N) over `allRows` (× the extra columns); recomputed only when the
+ * displayed rows, the schema, or the column selection change.
+ */
+export function computeColumnLayout(
+  allRows: readonly Row[],
+  schema: LedgerSchema,
+  extraColumns: readonly string[],
+): ColumnLayout {
+  derivationCounters.computeColumnLayout += 1;
+  const maxIdW = allRows.reduce((m, r) => Math.max(m, r.item.id.length), 2);
+  const maxStatusW = schema.statusValues.reduce((m, s) => Math.max(m, s.length), 4);
+  const columnWidths = extraColumns.map((field) =>
+    allRows.reduce(
+      (m, r) => Math.max(m, fieldToString(r.item.fields[field]).length),
+      field.length,
+    ),
+  );
+  return { maxIdW, maxStatusW, columnWidths };
+}
+
 /**
  * Rows of `view` that are currently answerable (their status admits the
  * `answered` transition) — i.e. the still-open items the batch-answer stepper
@@ -160,6 +222,7 @@ export type ListEntry<T> =
  * statusColor() so open/done/postponed/blocked render in their semantic color.
  */
 export function buildItemEntries(view: FetchedLedger, filteredRows: Row[], flat: boolean, milestonesSchema: LedgerSchema): ListEntry<Row>[] {
+  derivationCounters.buildItemEntries += 1;
   if (flat) {
     return filteredRows.map((r, i) => ({ t: "item", item: r, itemIdx: i }));
   }
@@ -191,6 +254,20 @@ export function buildItemEntries(view: FetchedLedger, filteredRows: Row[], flat:
     }
   }
   return entries;
+}
+
+/**
+ * The memoized bundle of items-frame derivations (T85). `activeRows` is the
+ * filtered active set; `allRows` appends the archive rows when shown; `layout`
+ * holds the aligned column widths; `activeEntries` is the built list (without
+ * the archive section, which is appended cheaply per render).
+ */
+interface ItemsDerived {
+  activeRows: Row[];
+  allRows: Row[];
+  extraColumns: string[];
+  layout: ColumnLayout;
+  activeEntries: ListEntry<Row>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -328,8 +405,7 @@ export function App({
   // Rows of an items view after the active status filter. The cursor indexes
   // into THIS list, so every input/render path must use it (not raw rows).
   const visibleRows = useCallback(
-    (view: FetchedLedger): Row[] =>
-      ledgerRows(view).filter((r) => statusMatchesFilter(r.item.status, view.schema, filter)),
+    (view: FetchedLedger): Row[] => filterVisibleRows(view, filter),
     [filter],
   );
 
@@ -636,6 +712,38 @@ export function App({
     [client, ledgers],
   );
 
+  // ---- memoized items-frame derivations (T85) ----------------------------
+  // The O(N) list derivations recompute ONLY when their data inputs change
+  // (view/filter/showArchive/archiveRows/ledger/column selection), NOT on a
+  // pure cursor move. Both the input handler and the render body read this
+  // bundle, so navigation does zero O(N) work. When the top frame is the
+  // ledgers list this is null (the items render path is inactive).
+  const itemsView = top.kind === "items" ? top.view : null;
+  const itemsLedger = top.kind === "items" ? top.ledger : null;
+  const itemsShowArchive = top.kind === "items" ? top.showArchive : false;
+  const itemsArchiveRows = top.kind === "items" ? top.archiveRows : EMPTY_ROWS;
+  // The effective extra-column selection, restricted to schema-eligible fields.
+  const itemsColumnsKey =
+    itemsLedger !== null ? columnsFor(itemsLedger).join(" ") : "";
+  const itemsDerived = useMemo<ItemsDerived | null>(() => {
+    if (itemsView === null || itemsLedger === null) return null;
+    const schema = itemsView.schema;
+    const activeRows = filterVisibleRows(itemsView, filter);
+    const allRows = itemsShowArchive ? [...activeRows, ...itemsArchiveRows] : activeRows;
+    const extraColumns = columnsFor(itemsLedger).filter((c) =>
+      eligibleColumnFields(schema).includes(c),
+    );
+    const layout = computeColumnLayout(allRows, schema, extraColumns);
+    // Goals (T84 / Q48) and the milestones ledger render flat (no subsection
+    // headers); buildItemEntries takes MILESTONES_SCHEMA (T81 colored header).
+    const flatList = itemsLedger === MILESTONES || itemsLedger === GOALS_LEDGER;
+    const activeEntries = buildItemEntries(itemsView, activeRows, flatList, MILESTONES_SCHEMA);
+    return { activeRows, allRows, extraColumns, layout, activeEntries };
+    // `columnsFor` is read inside; its content is captured by `itemsColumnsKey`
+    // (the joined per-ledger selection), so the key — not the callback identity
+    // — drives recomputation. A pure cursor move changes none of these inputs.
+  }, [itemsView, itemsLedger, filter, itemsShowArchive, itemsArchiveRows, itemsColumnsKey]);
+
   // ---- input -------------------------------------------------------------
   useInput(
     (input, key) => {
@@ -664,11 +772,10 @@ export function App({
         else if (input === "q") exit();
         return;
       }
-      // items frame
-      const activeRowsArr = visibleRows(top.view);
-      const activeCount = activeRowsArr.length;
-      // Combined list: active rows followed by archive rows (when archive shown).
-      const allRows = top.showArchive ? [...activeRowsArr, ...top.archiveRows] : activeRowsArr;
+      // items frame — read the memoized derivations (no O(N) work per key).
+      if (itemsDerived === null) return;
+      const activeCount = itemsDerived.activeRows.length;
+      const allRows = itemsDerived.allRows;
       const totalRows = allRows.length;
       const cur = allRows[top.cursor];
       // Whether the cursor currently points at an archived row (read-only).
@@ -777,10 +884,12 @@ export function App({
       </Box>
     );
   } else {
-    const rowsArr = visibleRows(top.view);
+    // All O(N) list derivations come from the memoized bundle (T85): a pure
+    // cursor move does NOT recompute them. itemsDerived is non-null here.
+    const derived = itemsDerived!;
+    const rowsArr = derived.activeRows;
     const activeCount = rowsArr.length;
-    // Combined row array: active rows then archive rows (when archive is shown).
-    const allRows = top.showArchive ? [...rowsArr, ...top.archiveRows] : rowsArr;
+    const allRows = derived.allRows;
     const cur = allRows[top.cursor];
     const cursorInArchive = top.showArchive && top.cursor >= activeCount;
     const schema = top.view.schema;
@@ -803,30 +912,12 @@ export function App({
       top.focus === "content"
         ? `↑↓ scroll · s status${answerHint} · e edit · o/[ ] panes · Esc back to list${cursorInArchive ? " [read-only]" : ""}`
         : `↑↓ move · Enter open · s status${answerHint} · e edit · n new · b batch-answer · f filter · c columns · / search · o/[ ] panes${archiveHint} · Esc back`;
-    // Column widths: computed over all displayed rows (active + archive) so
-    // columns align consistently across the whole list.
-    const maxIdW = allRows.reduce((m, r) => Math.max(m, r.item.id.length), 2);
-    const maxStatusW = schema.statusValues.reduce((m, s) => Math.max(m, s.length), 4);
-    // Extra columns (T62): the session's per-ledger selection, restricted to
-    // fields the schema still declares as column-eligible. Each column's width
-    // is the max of its header (field name) and any rendered cell across rows,
-    // so cells align; the summary column then absorbs whatever width remains.
-    const extraColumns = columnsFor(top.ledger).filter((c) =>
-      eligibleColumnFields(schema).includes(c),
-    );
-    const columnWidths = extraColumns.map((field) =>
-      allRows.reduce(
-        (m, r) => Math.max(m, fieldToString(r.item.fields[field]).length),
-        field.length,
-      ),
-    );
-    // Build entries: active section via buildItemEntries, then a header +
-    // flat archive rows appended when archive is shown.
-    // Goals (T84 / Q48): render the goals ledger as a FLAT list with no
-    // per-coordination-milestone subsection headers, exactly like the
-    // milestones ledger. Every other ledger keeps its subsection grouping.
-    const flatList = isMilestonesLedger || top.ledger === GOALS_LEDGER;
-    const activeEntries = buildItemEntries(top.view, rowsArr, flatList, MILESTONES_SCHEMA);
+    // Column widths (T62) computed over all displayed rows, and the active
+    // list entries — both from the memoized bundle (see ItemsDerived). The
+    // archive section header + rows are appended cheaply below.
+    const { maxIdW, maxStatusW, columnWidths } = derived.layout;
+    const extraColumns = derived.extraColumns;
+    const activeEntries = derived.activeEntries;
     let itemEntries: ListEntry<Row>[];
     if (top.showArchive) {
       const archiveEntries: ListEntry<Row>[] = top.archiveLoading
