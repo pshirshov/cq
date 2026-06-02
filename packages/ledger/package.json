@@ -13,6 +13,10 @@
     "./relationships": {
       "import": "./dist/relationships.js",
       "types": "./dist/relationships.d.ts"
+    },
+    "./columns": {
+      "import": "./dist/src/columns.js",
+      "types": "./dist/src/columns.d.ts"
     }
   },
   "dependencies": {

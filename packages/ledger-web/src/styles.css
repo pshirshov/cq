@@ -272,6 +272,35 @@ button:hover {
 }
 .lw-toolbar {
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Push the column-selector to the right end of the toolbar. */
+.lw-column-menu {
+  position: relative;
+  margin-left: auto;
+}
+.lw-column-popup {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--bg, #0d1117);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+}
+.lw-column-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 .lw-table {
   width: 100%;

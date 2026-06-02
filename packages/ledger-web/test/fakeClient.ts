@@ -49,6 +49,21 @@ const plainSchema: LedgerSchema = {
   idPrefix: "P",
   // No `transitions` map.
 };
+// `tasks` ledger: exercises the column selector. `description` is on the
+// LONG_FIELD_DENYLIST (never eligible); `headline`/`suggestedModel`/`acceptance`
+// are eligible. defaultColumns("tasks") seeds `suggestedModel`.
+const tasksSchema: LedgerSchema = {
+  statusValues: ["planned", "wip", "done"],
+  terminalStatuses: ["done"],
+  idPrefix: "T",
+  transitions: { planned: ["wip"], wip: ["done", "planned"], done: [] },
+  fields: {
+    headline: { type: "string", required: true },
+    description: { type: "string", required: false },
+    suggestedModel: { type: "string", required: false },
+    acceptance: { type: "string", required: false },
+  },
+};
 const questionsSchema: LedgerSchema = {
   statusValues: ["open", "answered", "withdrawn"],
   terminalStatuses: ["answered", "withdrawn"],
@@ -149,6 +164,23 @@ export class FakeClient implements LedgerClient {
           id: "M1",
           items: [
             { id: "P1", milestoneId: "M1", status: "open", fields: { headline: "no guard" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+      ],
+    },
+    tasks: {
+      schema: tasksSchema,
+      groups: [
+        {
+          id: "M1",
+          items: [
+            { id: "T1", milestoneId: "M1", status: "planned", fields: { headline: "wire toolbar", description: "long narrative", suggestedModel: "opus", acceptance: "renders" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+        {
+          id: "M2",
+          items: [
+            { id: "T2", milestoneId: "M2", status: "wip", fields: { headline: "persist columns", suggestedModel: "sonnet" }, createdAt: TS, updatedAt: TS },
           ],
         },
       ],

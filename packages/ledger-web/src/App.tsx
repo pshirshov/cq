@@ -23,6 +23,10 @@ import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
+// Leaf subpath: the @cq/ledger index pulls Node builtins (node:fs/os/path),
+// which must not enter the browser bundle. `./columns` is side-effect-free and
+// Node-free, mirroring the `./relationships` leaf import above.
+import { eligibleColumnFields, defaultColumns } from "@cq/ledger/columns";
 
 // Ledger names for the relationship panels — consistent with the canonical
 // constants in @cq/ledger but defined locally to avoid bundling Node.js
@@ -103,6 +107,30 @@ function loadView(): SavedView {
     /* fall through to default */
   }
   return { ledger: null, itemId: null, mainView: "ledger" };
+}
+
+// Per-ledger extra-column selection, persisted to localStorage (mirrors
+// PANEL_KEY/VIEW_KEY). Maps a ledger name → the chosen extra column field
+// names. A ledger absent from the map has never been customised, so its
+// columns are seeded lazily from defaultColumns(ledgerName) on first read.
+const COLUMNS_KEY = "ledger-web.columns";
+function loadColumns(): Record<string, string[]> {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(COLUMNS_KEY) : null;
+    if (raw !== null) {
+      const p = JSON.parse(raw) as unknown;
+      if (p !== null && typeof p === "object" && !Array.isArray(p)) {
+        const out: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
+          if (Array.isArray(v)) out[k] = v.filter((x): x is string => typeof x === "string");
+        }
+        return out;
+      }
+    }
+  } catch {
+    /* fall through to default */
+  }
+  return {};
 }
 
 export function clampPanelSize(size: number, max: number): number {
@@ -207,6 +235,10 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [dag, setDag] = useState<DagData | null>(null);
   const [panel, setPanel] = useState<PanelLayout>(loadPanel);
   const [dragging, setDragging] = useState(false);
+  // Per-ledger extra-column selection (persisted) + the open/closed state of
+  // the column-selector popup in the toolbar.
+  const [columnsByLedger, setColumnsByLedger] = useState<Record<string, string[]>>(loadColumns);
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const workareaRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState<LiveStats | null>(null);
   // Archive: show/hide the archive section + selected archive + loaded content.
@@ -237,6 +269,48 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
       /* ignore (e.g. storage disabled) */
     }
   }, [panel]);
+
+  // Persist the per-ledger column selection.
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMNS_KEY, JSON.stringify(columnsByLedger));
+    } catch {
+      /* ignore (e.g. storage disabled) */
+    }
+  }, [columnsByLedger]);
+
+  // Close the column-selector popup whenever the active ledger changes.
+  useEffect(() => {
+    setColumnMenuOpen(false);
+  }, [ledger]);
+
+  // Effective extra columns for a ledger: the persisted selection if present,
+  // otherwise the per-ledger default (seeded lazily — an unsaved ledger shows
+  // defaultColumns(ledgerName) without writing it back until the user edits).
+  const columnsFor = useCallback(
+    (name: string): string[] =>
+      Object.prototype.hasOwnProperty.call(columnsByLedger, name)
+        ? columnsByLedger[name]!
+        : defaultColumns(name),
+    [columnsByLedger],
+  );
+
+  // Toggle an extra column on/off for the active ledger. Materialises the
+  // seeded default into the map on first edit so the choice persists.
+  const toggleColumn = useCallback(
+    (name: string, field: string): void => {
+      setColumnsByLedger((prev) => {
+        const current = Object.prototype.hasOwnProperty.call(prev, name)
+          ? prev[name]!
+          : defaultColumns(name);
+        const next = current.includes(field)
+          ? current.filter((c) => c !== field)
+          : [...current, field];
+        return { ...prev, [name]: next };
+      });
+    },
+    [],
+  );
 
   // While dragging the splitter, resize from the pointer position.
   useEffect(() => {
@@ -956,6 +1030,33 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                     {showArchive ? "hide archived" : "show archived"}
                   </button>
                 )}
+                <div className="lw-column-menu">
+                  <button
+                    type="button"
+                    data-testid="column-menu-toggle"
+                    className={columnMenuOpen ? "lw-toggle lw-toggle-active" : "lw-toggle"}
+                    aria-label="choose columns"
+                    aria-expanded={columnMenuOpen}
+                    onClick={() => setColumnMenuOpen((o) => !o)}
+                  >
+                    ⋮
+                  </button>
+                  {columnMenuOpen && ledger !== null && (
+                    <div className="lw-column-popup" data-testid="column-popup" role="menu">
+                      {eligibleColumnFields(view.schema).map((field) => (
+                        <label key={field} className="lw-column-option">
+                          <input
+                            type="checkbox"
+                            data-testid={`column-toggle-${field}`}
+                            checked={columnsFor(ledger).includes(field)}
+                            onChange={() => toggleColumn(ledger, field)}
+                          />
+                          {field}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               {creating === "milestone" && client !== null && (
                 <CreateMilestoneForm
@@ -978,6 +1079,13 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 isMilestones={isMilestones}
                 statusFilter={filter}
                 milestoneFilter={milestoneFilter}
+                extraColumns={
+                  ledger === null
+                    ? []
+                    : eligibleColumnFields(view.schema).filter((f) =>
+                        columnsFor(ledger).includes(f),
+                      )
+                }
                 selectedId={selected?.item.id ?? null}
                 onSelect={(r) => {
                   setNavZone("main");
@@ -1207,6 +1315,7 @@ function ItemTable({
   isMilestones,
   statusFilter,
   milestoneFilter,
+  extraColumns,
   selectedId,
   onSelect,
 }: {
@@ -1215,6 +1324,9 @@ function ItemTable({
   isMilestones: boolean;
   statusFilter: StatusFilter;
   milestoneFilter: string;
+  /** Extra column field names (after id/status/summary), already filtered to
+   *  the schema's eligible fields and in eligible-field order. */
+  extraColumns: string[];
   selectedId: string | null;
   onSelect: (row: Row) => void;
 }): React.ReactElement {
@@ -1245,6 +1357,9 @@ function ItemTable({
             <th>id</th>
             <th>status</th>
             <th>summary</th>
+            {extraColumns.map((c) => (
+              <th key={c} data-testid={`column-header-${c}`}>{c}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -1275,6 +1390,11 @@ function ItemTable({
                   </span>
                 </td>
                 <td className="lw-summary-cell">{summarize(r.item)}</td>
+                {extraColumns.map((c) => (
+                  <td key={c} data-testid={`cell-${r.item.id}-${c}`}>
+                    {fieldToString(r.item.fields[c])}
+                  </td>
+                ))}
               </tr>
             );
           })}
@@ -1325,6 +1445,9 @@ function ItemTable({
                     <th>id</th>
                     <th>status</th>
                     <th>summary</th>
+                    {extraColumns.map((c) => (
+                      <th key={c} data-testid={`column-header-${c}`}>{c}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -1354,6 +1477,11 @@ function ItemTable({
                           </span>
                         </td>
                         <td className="lw-summary-cell">{summarize(r.item)}</td>
+                        {extraColumns.map((c) => (
+                          <td key={c} data-testid={`cell-${r.item.id}-${c}`}>
+                            {fieldToString(r.item.fields[c])}
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}
