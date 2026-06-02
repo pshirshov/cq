@@ -141,8 +141,11 @@ function orderItemFields(entries: Array<[string, FieldValue]>): Array<[string, F
     ...entries.filter(([, v]) => !isShortField(v)),
   ];
 }
-function parseFieldValue(raw: string, type: string): FieldValue {
-  if (type === "string[]" || type === "id[]") {
+export function parseFieldValue(raw: string, type: string): FieldValue {
+  if (type === "string[]") {
+    return raw.split(/[;\n]/).map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+  if (type === "id[]") {
     return raw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
   }
   return raw;
@@ -1672,7 +1675,7 @@ function DetailPanel({
                       fieldRefs.current[name] = el;
                     }}
                     defaultValue={fieldToString(row.item.fields[name])}
-                    placeholder={spec.type.endsWith("[]") ? "comma,separated" : ""}
+                    placeholder={spec.type === "string[]" ? "semicolon; or newline separated" : spec.type === "id[]" ? "comma,separated" : ""}
                   />
                 )}
               </label>
