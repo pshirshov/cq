@@ -668,6 +668,66 @@ describe("ledger-web App", () => {
     // No archived badge.
     expect(testid("archived-badge")).toBeNull();
   });
+
+  // ---- M6 follow-up cross-cutting regression (T34) ----
+  // Confirms that the combined archive/subsection/column follow-up changes do NOT
+  // break active-item editing or plan/implement flows. No single per-task test
+  // owns this because it spans subsection rendering + milestone filter + archive
+  // toggle + edit/transition affordances all simultaneously.
+
+  it("cross-cutting: edit and transition affordances survive subsections + milestone-filter + archive all active", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+
+    // (1) Subsections are rendered (M6 T31 follow-up): both milestone groups
+    //     visible, items accessible under their headers.
+    expect(testid("ms-section-M1")).not.toBeNull();
+    expect(testid("ms-section-M2")).not.toBeNull();
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).not.toBeNull();
+
+    // (2) Apply milestone filter (narrows to M1) while subsections are shown.
+    setValue(testid("milestone-filter"), "M1");
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).toBeNull(); // M2 filtered out
+
+    // (3) Open the archive toggle while the milestone filter is also active.
+    click(testid("toggle-archive"));
+    await flush();
+    expect(testid("archive-section")).not.toBeNull(); // archive section visible
+
+    // (4) In this combined state, select an active item and confirm it is
+    //     fully editable — edit form and quick-transition buttons are intact.
+    click(testid("item-D1"));
+    await flush();
+    expect(testid("archived-badge")).toBeNull(); // not an archived item
+    expect(testid("edit")).not.toBeNull(); // edit affordance present
+    expect(testid("transitions")).not.toBeNull(); // transition buttons present (D1 is "open")
+    expect(testid("transition-wip")).not.toBeNull();
+    expect(testid("transition-closed")).not.toBeNull();
+
+    // (5) Exercise a full edit round-trip (simulating the plan/implement write path).
+    click(testid("edit"));
+    await flush();
+    expect(testid("edit-form")).not.toBeNull();
+    setValue(testid("edit-status"), "wip");
+    setValue(testid("edit-field-headline"), "warp leak [T34 regression]");
+    click(testid("save"));
+    await flush();
+    const item = await fake.fetchItem("bugs", "D1");
+    expect(item.status).toBe("wip");
+    expect(item.fields["headline"]).toBe("warp leak [T34 regression]");
+    expect(testid("edit-form")).toBeNull(); // back to view mode
+
+    // (6) Quick-transition from the new status still works (wip → closed/open).
+    expect(testid("transitions")).not.toBeNull();
+    click(testid("transition-closed"));
+    await flush();
+    const closed = await fake.fetchItem("bugs", "D1");
+    expect(closed.status).toBe("closed");
+  });
 });
 
 describe("ledger-web keyboard navigation", () => {

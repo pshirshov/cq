@@ -906,3 +906,132 @@ describe("ledger-tui archive view (T33)", () => {
     r.unmount();
   });
 });
+
+// ---------------------------------------------------------------------------
+// M6 follow-up cross-cutting regression (T34)
+// Confirms that the combined archive / subsection / column follow-up changes
+// do NOT break active-item editing or plan/implement flows.
+// No single per-task test covers this because it spans subsection rendering +
+// status-filter + archive toggle + edit/transition key bindings simultaneously.
+// ---------------------------------------------------------------------------
+
+/**
+ * A client that combines multi-milestone subsections AND an archive pointer,
+ * so we can exercise all M6 follow-up features in a single scenario.
+ */
+class MultiMilestoneArchiveClient implements LedgerClient {
+  statusApplied = "";
+
+  async enumerateLedgers(): Promise<LedgerSummary[]> {
+    return [{ name: "tasks", itemCount: 2 }];
+  }
+
+  async fetchLedger(id: string): Promise<FetchedLedger> {
+    if (id !== "tasks") throw new Error(`Ledger not found: ${id}`);
+    return {
+      id: "tasks",
+      schema: {
+        statusValues: ["planned", "wip", "done"],
+        terminalStatuses: ["done"],
+        fields: { headline: { type: "string", required: true } },
+        idPrefix: "T",
+        transitions: { planned: ["wip", "done"], wip: ["done"], done: [] },
+      },
+      counters: { milestone: 2, item: 2 },
+      milestones: [
+        {
+          id: "M1",
+          milestone: { id: "M1", status: "open", title: "Sprint One", description: "" },
+          items: [
+            { id: "T1", milestoneId: "M1", status: "planned", fields: { headline: "active item" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+        {
+          id: "M2",
+          milestone: { id: "M2", status: "open", title: "Sprint Two", description: "" },
+          items: [
+            { id: "T2", milestoneId: "M2", status: "wip", fields: { headline: "in progress" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+      ],
+      archivePointers: [
+        { id: "M0", path: "./archive/tasks/M0.md", summary: "Archived sprint" },
+      ],
+    };
+  }
+
+  async fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
+    if (ledgerId !== "tasks" || archiveId !== "M0") throw new Error("unexpected");
+    const milestone: import("@cq/ledger").Milestone = {
+      id: "M0",
+      title: "Archived sprint",
+      description: "",
+      items: [
+        { id: "T0", milestoneId: "M0", status: "done", fields: { headline: "old archived task" }, createdAt: TS, updatedAt: TS },
+      ],
+    };
+    return { kind: "group", milestone };
+  }
+
+  async fetchItem(): Promise<Item> { throw new Error("not used"); }
+  async createItem(): Promise<Item> { throw new Error("not used"); }
+  async updateItem(_ledger: string, _id: string, patch: import("../src/types.js").ItemPatch): Promise<Item> {
+    this.statusApplied = patch.status ?? "";
+    return { id: "T1", milestoneId: "M1", status: patch.status ?? "planned", fields: { headline: "active item" }, createdAt: TS, updatedAt: TS };
+  }
+  async ftsSearch(): Promise<never[]> { return []; }
+  async createMilestone(): Promise<Item> { throw new Error("not used"); }
+  async updateMilestone(): Promise<Item> { throw new Error("not used"); }
+  async close(): Promise<void> { /* no-op */ }
+}
+
+describe("ledger-tui M6 cross-cutting regression (T34)", () => {
+  it("subsection headers + archive toggle + status picker all coexist: active items remain editable", async () => {
+    const client = new MultiMilestoneArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open tasks ledger
+    await tick(40);
+    const afterOpen = r.lastFrame() ?? "";
+
+    // (1) Subsection headers for both milestone groups are rendered (T31 follow-up).
+    expect(afterOpen).toContain("Sprint One");
+    expect(afterOpen).toContain("T1");
+    expect(afterOpen).toContain("Sprint Two");
+
+    // (2) Show archive section — subsection headers and active items must persist
+    //     alongside the archive section (combined T31+T33 state).
+    r.stdin.write("A");
+    await waitForFrame(() => r.lastFrame() ?? "", "old archived task");
+    const withArchive = r.lastFrame() ?? "";
+    expect(withArchive).toContain("Sprint One");        // subsection header still present
+    expect(withArchive).toContain("T1 ");               // active item still visible
+    expect(withArchive).toContain("old archived task"); // archive section appeared
+
+    // (3) Cursor is on T1 (index 0 = first active item); 's' opens status picker.
+    //     This verifies the plan/implement write path — active items are editable
+    //     even when subsection headers and the archive section are all rendered.
+    r.stdin.write("s");
+    await tick(40);
+    const withPicker = r.lastFrame() ?? "";
+    // The status picker for T1 (planned) should offer the guard-allowed targets
+    // from the transitions map: planned → [wip, done].
+    expect(withPicker).toContain("wip");
+    expect(withPicker).toContain("done");
+
+    // (4) Apply the transition (pick "wip" — first option).
+    r.stdin.write(ENTER);
+    await tick(40);
+    // The update was applied (client.statusApplied updated in updateItem).
+    expect(client.statusApplied).toBe("wip");
+
+    // (5) Edit the item's field while the archive is visible ('e' key).
+    r.stdin.write("e"); // open field editor
+    await tick(40);
+    const withEditor = r.lastFrame() ?? "";
+    // The field editor lists available fields — "headline" is the only one.
+    expect(withEditor).toContain("headline");
+
+    r.unmount();
+  });
+});
