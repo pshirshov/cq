@@ -69,10 +69,9 @@ Then classify each problem you find into exactly one of THREE buckets:
   (it is a required field on `defects` items); `rootCause` and `suggestedFix`
   are optional. You only *report* these in the review — you do NOT write to the
   `defects` ledger yourself (your single ledger write is the review item). The
-  /plan:advance orchestrator reads this array and files each as an `open`
-  `defects` item, linked `goals:<G>`, then routes it to `/investigate:start` (an
-  `investigate:*` flow) for later triage — separately from, and without
-  blocking, this plan.
+  /plan:advance orchestrator reads this array, files each as an `open`
+  `defects` item linked `goals:<G>`, and AUTO-LAUNCHES an `investigate:*` pass
+  for each (per K12) — separately from, and without blocking, this plan.
 
 The test for `criticism` vs `defects`: ask "is the fault caused by, and fixable
 within, this plan?" Yes → `criticism` (planner fixes it now). No → `defects`

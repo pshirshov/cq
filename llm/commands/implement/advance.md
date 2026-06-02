@@ -100,15 +100,19 @@ suggestedFix? }`, see implement-reviewer T42). This is INDEPENDENT of the
 verdict and never blocks the current in-scope task (Q26). For each entry,
 `create_item("defects", <taskMilestone>, status: "open", fields: { headline,
 description, severity: <reviewer's severity>, suggestedFix?, ledgerRefs:
-["tasks:<id>", "goals:<G>"] })`. Then ROUTE it to investigate:* by file-and-defer
-— file an `open` question pointing the user at the new defect:
-`create_item("questions", <taskMilestone>, status: "open", fields: { question:
-"Out-of-scope defect <D> surfaced while reviewing <task>; run /investigate:start
-<D> to triage it.", ledgerRefs: ["defects:<D>", "tasks:<id>", "goals:<G>"] })`.
-Do NOT block, fail, or re-dispatch the current task on a filed defect, and do NOT
-add it to the criticism loop — it is tracked separately and triaged on its own
-via the investigate-flow. Filing a defect is idempotent: on a re-run, skip
-entries already filed for this task (match by headline + task ledgerRef).
+["tasks:<id>", "goals:<G>"] })`. Then ROUTE it to investigate:* by file-and-defer — file an `open` question
+pointing the user at the new defect: `create_item("questions", <taskMilestone>,
+status: "open", fields: { question: "Out-of-scope defect <D> surfaced while
+reviewing <task>; it will be picked up by the next /plan:advance auto-investigate
+pass (K12/Q43), or run /investigate:start <D> manually to triage it sooner.",
+ledgerRefs: ["defects:<D>", "tasks:<id>", "goals:<G>"] })`. **Implement:* does
+NOT auto-launch investigate inline (Q43) — that is plan:*'s responsibility, since
+implement:* is an execution flow, not a planning flow. The filed defect will be
+triaged by the next /plan:advance cycle's auto-investigate phase, or by a direct
+user /investigate:start.** Do NOT block, fail, or re-dispatch the current task on
+a filed defect, and do NOT add it to the criticism loop — it is tracked
+separately. Filing a defect is idempotent: on a re-run, skip entries already
+filed for this task (match by headline + task ledgerRef).
 
 ### 4. Autonomous criticism loop (NO fixed cap)
 For a task whose reviewer verdict is `disapprove` with non-empty `criticism` and

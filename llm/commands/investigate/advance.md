@@ -31,8 +31,15 @@ durable ledger state left off. **ONE invocation = ONE research round.**
   depends on the parent's validated findings.
 - **Handoff = file-and-defer**, never an inline plan loop (see step 5). On a
   confirmed root cause you write `defects.rootCause`/`suggestedFix`, seed/extend a
-  plan-flow goal, point the user at `/plan:advance <G>`, and STOP. You MUST NOT
-  re-implement or invoke the planner↔plan-reviewer loop yourself.
+  plan-flow goal, and STOP. You MUST NOT re-implement or invoke the
+  planner↔plan-reviewer loop yourself. **Two contexts (K12):**
+  - *Standalone* (`/investigate:start` run directly by the user): file the
+    open question pointing at `/plan:advance <G>` and STOP — the user resumes
+    manually.
+  - *Auto-launched inside plan:*\*: this investigation was triggered by
+    `/plan:advance` (K12 auto-investigate). File the goal and STOP; the parent
+    plan-flow session automatically resumes `G` without requiring a fresh
+    user-run `/plan:advance`.
 
 ## Provenance (every ledger write)
 On every `create_item` / `update_item`, pass `author` = your OWN model class
@@ -141,13 +148,19 @@ goal SKIPS the clarifying round and proceeds straight to planning — the planne
 prompt (T41) explicitly permits skipping clarification when a goal is
 `defect-seeded`. Do NOT create the goal in `clarifying`; seed it ready to plan.
 
-(c) **Point the user at the planner, and STOP.** File an `open` question linked to
-the defect AND emit a Report line instructing the user to run **`/plan:advance
-<G>`**: `create_item("questions", <defectMilestone>, status: "open", fields: {
-question: "Root cause of <D> confirmed and a defect-seeded goal G is ready — run
-`/plan:advance G` to produce the reviewed fix tasks.", context: "<root cause +
-suggestedFix summary>", ledgerRefs: ["defects:<D>", "goals:<G>"] })`. Then STOP —
-this command does not advance G.
+(c) **Hand back to the planner, and STOP.** File an `open` question linked to
+the defect. Then STOP — this command does not advance G. The action depends on
+context (K12):
+- *Standalone* (`/investigate:start` run directly): the question text instructs
+  the user to run **`/plan:advance <G>`**: `create_item("questions",
+  <defectMilestone>, status: "open", fields: { question: "Root cause of <D>
+  confirmed and a defect-seeded goal G is ready — run `/plan:advance G` to
+  produce the reviewed fix tasks.", context: "<root cause + suggestedFix
+  summary>", ledgerRefs: ["defects:<D>", "goals:<G>"] })`.
+- *Auto-launched inside plan:*\* (K12): the parent plan session detects the
+  confirmed goal and resumes it automatically — a manual `/plan:advance G` is
+  NOT needed. File the same question for traceability, but note in its `context`
+  that this investigation was auto-launched and the goal will be auto-resumed.
 
 ### 6. NEEDS user input → file an open question and STOP (resumable)
 If the investigation cannot proceed without the user (ambiguous repro, missing
@@ -166,8 +179,11 @@ Summarize the round concisely:
 - hypotheses **seeded/drilled** this round (id + statement + new `status`);
 - citations **validated** (`[correct]` vs `[incorrect]` counts per node);
 - any node **confirmed** → the defect's `rootCause`/`suggestedFix`, the
-  defect-seeded goal **G**, and the explicit next action: **"run `/plan:advance
-  G`"** (this command does NOT run it — file-and-defer);
+  defect-seeded goal **G**, and the next action (K12):
+  - *Standalone*: **"run `/plan:advance G`"** (file-and-defer; this command does
+    NOT run it);
+  - *Auto-launched inside plan:*\*: the parent plan session resumes G
+    automatically — no user action needed;
 - whether the loop is **parked on a question** (id to answer) — if so, "answer it
   in the TUI/web, then run `/investigate:advance D` to resume";
 - if the tree still has `uncertain`/`open` leaves and no question is pending, say
