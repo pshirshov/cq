@@ -53,6 +53,12 @@ function press(key: string): void {
     document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
   });
 }
+/** Dispatch a document-level keydown carrying a ctrl modifier. */
+function pressCtrl(key: string): void {
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: true, bubbles: true, cancelable: true }));
+  });
+}
 /** Dispatch a keydown on a specific element (drives element-level onKeyDown). */
 function pressOn(el: Element | null, key: string): void {
   if (el === null) throw new Error("pressOn: element not found");
@@ -844,6 +850,81 @@ describe("ledger-web keyboard navigation", () => {
     press("Escape");
     await flush();
     expect(testid("help-overlay")).toBeNull();
+  });
+
+  // Q33: batch-answer modal stepping through open questions.
+  it("sidebar-bottom button opens the batch modal showing the first open question (larger font + suggestions list)", async () => {
+    await mount();
+    expect(testid("batch-overlay")).toBeNull();
+    click(testid("batch-open"));
+    await flush();
+    // (1) the modal opens.
+    expect(testid("batch-overlay")).not.toBeNull();
+    // (2) larger-font container class + first open question (Q1).
+    const dialog = q(".lw-batch");
+    expect(dialog).not.toBeNull();
+    expect(dialog?.classList.contains("lw-batch")).toBe(true);
+    expect(testid("batch-progress")?.textContent).toBe("open question 1 of 3");
+    expect(testid("batch-field-question")?.textContent).toContain("Ship on Friday?");
+    // Step to Q2 to assert the suggestions render as a <ul> list.
+    click(testid("batch-next"));
+    await flush();
+    const sug = testid("batch-field-suggestions");
+    expect(sug?.querySelectorAll("li").length).toBe(3);
+  });
+
+  it("prev/next buttons and ctrl+]/ctrl+[ move between open questions", async () => {
+    await mount();
+    click(testid("batch-open"));
+    await flush();
+    expect(testid("batch-progress")?.textContent).toBe("open question 1 of 3");
+    click(testid("batch-next"));
+    await flush();
+    expect(testid("batch-progress")?.textContent).toBe("open question 2 of 3");
+    pressCtrl("]");
+    await flush();
+    expect(testid("batch-progress")?.textContent).toBe("open question 3 of 3");
+    pressCtrl("[");
+    await flush();
+    expect(testid("batch-progress")?.textContent).toBe("open question 2 of 3");
+    click(testid("batch-prev"));
+    await flush();
+    expect(testid("batch-progress")?.textContent).toBe("open question 1 of 3");
+  });
+
+  it("'save & mark answered' writes the answer + answered status and advances", async () => {
+    await mount();
+    click(testid("batch-open"));
+    await flush();
+    setValue(testid("batch-answer-input"), "ship it");
+    click(testid("batch-answer-submit"));
+    await flush();
+    const q1 = await fake.fetchItem("questions", "Q1");
+    expect(q1.status).toBe("answered");
+    expect(q1.fields["answer"]).toBe("ship it");
+    // Advanced to the next open question.
+    expect(testid("batch-progress")?.textContent).toBe("open question 2 of 3");
+  });
+
+  it("'as recommended' writes the canned AS_RECOMMENDED_ANSWER", async () => {
+    await mount();
+    click(testid("batch-open"));
+    await flush();
+    click(testid("batch-answer-as-recommended"));
+    await flush();
+    const q1 = await fake.fetchItem("questions", "Q1");
+    expect(q1.status).toBe("answered");
+    expect(q1.fields["answer"]).toBe("as recommended");
+  });
+
+  it("Esc closes the batch modal", async () => {
+    await mount();
+    click(testid("batch-open"));
+    await flush();
+    expect(testid("batch-overlay")).not.toBeNull();
+    press("Escape");
+    await flush();
+    expect(testid("batch-overlay")).toBeNull();
   });
 });
 

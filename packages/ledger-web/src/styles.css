@@ -159,6 +159,38 @@ body {
   padding: 1px 6px;
   white-space: nowrap;
 }
+/* Batch-answer modal (Q33): a wider HelpOverlay-style popup with LARGER font,
+   stepping through open questions one at a time. */
+.lw-batch {
+  width: 720px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow: auto;
+  padding: 18px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-size: 1.2rem;
+  line-height: 1.5;
+}
+.lw-batch-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lw-batch-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+/* Entry button pinned to the BOTTOM of the sidebar flex column. */
+.lw-batch-open {
+  margin-top: auto;
+  text-align: left;
+}
 input,
 select,
 textarea,

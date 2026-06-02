@@ -17,7 +17,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSummary, MilestonePatch } from "./types.js";
+import type { ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSchema, LedgerSummary, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
@@ -34,6 +34,9 @@ import { eligibleColumnFields, defaultColumns } from "@cq/ledger/columns";
 const DEFECTS_LEDGER = "defects";
 const TASKS_LEDGER = "tasks";
 const HYPOTHESIS_LEDGER = "hypothesis";
+// Default ledger the batch-answer modal (Q33) steps through. The modal scope is
+// ANY answerable ledger (via canAnswer), but it opens on the questions ledger.
+const QUESTIONS_LEDGER = "questions";
 import {
   statusBucket,
   isTerminal,
@@ -251,6 +254,15 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   // Latest-callback ref: the live connection lives across ledger changes, so
   // its onChanged must call the freshest refresh closure, not a stale one.
   const refreshRef = useRef<() => void>(() => {});
+  // Batch-answer modal (Q33): steps through all open answerable questions one
+  // at a time in a focused, larger-font layout. `batchRows` is the captured
+  // snapshot of open items taken when the modal opens; `batchIndex` is the
+  // current step; `batchSchema` is the (questions) ledger schema those rows
+  // belong to. Closed when batchOpen is false.
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRows, setBatchRows] = useState<Row[]>([]);
+  const [batchSchema, setBatchSchema] = useState<LedgerSchema | null>(null);
+  const [batchIndex, setBatchIndex] = useState(0);
 
   // Filters are per-ledger; reset them whenever the active ledger changes.
   useEffect(() => {
@@ -475,6 +487,51 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
       }
     },
     [client, isMilestones, ledger, reload, mainView],
+  );
+
+  // Open the batch-answer modal (Q33): fetch the questions ledger (the default
+  // scope) and capture the set of OPEN answerable items — those where
+  // canAnswer(schema, status) holds AND the item is not yet answered. The set
+  // is captured once (a stable snapshot); the modal steps through it.
+  const openBatch = useCallback(async () => {
+    if (client === null) return;
+    try {
+      const v = await client.fetchLedger(QUESTIONS_LEDGER);
+      const open: Row[] = [];
+      for (const g of v.milestones)
+        for (const it of g.items)
+          if (it.status !== ANSWERED_STATUS && canAnswer(v.schema, it.status))
+            open.push({ item: it, milestoneId: g.id });
+      setBatchRows(open);
+      setBatchSchema(v.schema);
+      setBatchIndex(0);
+      setBatchOpen(true);
+    } catch (e) {
+      setFlash(errMsg(e));
+    }
+  }, [client]);
+
+  // Persist one batch answer: write the `answer` field + the `answered` status
+  // for the row at `i`, then advance to the next step. Mirrors the detail
+  // panel's answer path (update_item, UI_AUTHOR provenance) and refreshes the
+  // underlying ledger view so counts/badges stay current.
+  const batchSave = useCallback(
+    async (row: Row, answer: string) => {
+      if (client === null) return;
+      try {
+        await client.updateItem(QUESTIONS_LEDGER, row.item.id, {
+          status: ANSWERED_STATUS,
+          fields: { ...(row.item.fields as Record<string, FieldValue>), [ANSWER_FIELD]: answer },
+          author: UI_AUTHOR,
+        });
+        setFlash(`saved ${row.item.id}`);
+        setBatchIndex((i) => Math.min(batchRows.length - 1, i + 1));
+        if (ledger === QUESTIONS_LEDGER) await reload();
+      } catch (e) {
+        setFlash(errMsg(e));
+      }
+    },
+    [client, batchRows.length, ledger, reload],
   );
 
   const runSearch = useCallback(
@@ -738,6 +795,28 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     const typing =
       t !== null &&
       (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    // While the batch-answer modal is open it captures the keyboard: Esc closes
+    // it, ctrl/cmd+[ steps to the previous open question and ctrl/cmd+] to the
+    // next. The modifier-chord prev/next fire even while a textarea is focused
+    // (the answer box) so the user can navigate without leaving the field.
+    if (batchOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setBatchOpen(false);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "[") {
+        e.preventDefault();
+        setBatchIndex((i) => Math.max(0, i - 1));
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "]") {
+        e.preventDefault();
+        setBatchIndex((i) => Math.min(batchRows.length - 1, i + 1));
+        return;
+      }
+      return;
+    }
     // While the help dialog is open it captures the keyboard: only Esc/? close
     // it; nav keys must not drive the list underneath.
     if (helpOpen) {
@@ -909,6 +988,16 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
         </div>
       </header>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {batchOpen && batchSchema !== null && (
+        <BatchAnswerModal
+          rows={batchRows}
+          index={batchIndex}
+          onPrev={() => setBatchIndex((i) => Math.max(0, i - 1))}
+          onNext={() => setBatchIndex((i) => Math.min(batchRows.length - 1, i + 1))}
+          onSave={batchSave}
+          onClose={() => setBatchOpen(false)}
+        />
+      )}
 
       {conn === "error" && (
         <div className="lw-error" data-testid="conn-error">
@@ -949,6 +1038,16 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
               </button>
             );
           })}
+          {/* Batch-answer entry point (Q33): pinned to the BOTTOM of the
+              sidebar. Opens the modal that steps through all open questions. */}
+          <button
+            type="button"
+            className="lw-batch-open"
+            data-testid="batch-open"
+            onClick={() => void openBatch()}
+          >
+            answer questions…
+          </button>
         </nav>
 
         <div className={`lw-workarea lw-workarea-${panel.orientation}`} ref={workareaRef}>
@@ -1245,6 +1344,139 @@ function HelpOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
             </React.Fragment>
           ))}
         </dl>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Batch-answer modal (Q33): a large, focused, LARGER-FONT popup that steps
+ * through the captured set of open answerable questions one at a time. Reuses
+ * the HelpOverlay backdrop pattern. Each step shows the question's narrative
+ * fields (question, context, suggestions list, highlighted recommendation) and
+ * the same two actions as the detail answerBox — "save & mark answered" and
+ * "as recommended". The answer textarea is UNCONTROLLED (ref) so happy-dom can
+ * drive it; it is remounted per step via the item-id key so each question
+ * starts from its own stored answer. Prev/Next buttons mirror the global
+ * ctrl/cmd+[ and ctrl/cmd+] chords (wired in the App keydown handler).
+ */
+function BatchAnswerModal({
+  rows,
+  index,
+  onPrev,
+  onNext,
+  onSave,
+  onClose,
+}: {
+  rows: Row[];
+  index: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onSave: (row: Row, answer: string) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const row = rows[index];
+  const renderVal = (v: FieldValue): React.ReactNode =>
+    Array.isArray(v) ? renderListField(v) : <Markdown text={v} />;
+  return (
+    <div className="lw-help-backdrop" data-testid="batch-overlay" onClick={onClose}>
+      <div
+        className="lw-batch"
+        role="dialog"
+        aria-label="answer open questions"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="lw-help-head">
+          <strong data-testid="batch-progress">
+            {rows.length === 0 ? "no open questions" : `open question ${index + 1} of ${rows.length}`}
+          </strong>
+          <button type="button" className="lw-close" data-testid="batch-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {row === undefined ? (
+          <p className="lw-empty" data-testid="batch-empty">
+            nothing to answer.
+          </p>
+        ) : (
+          <div className="lw-batch-body" data-testid="batch-question">
+            <dl className="lw-fields">
+              <dt>{QUESTION_FIELD}</dt>
+              <dd data-testid="batch-field-question">{renderVal(row.item.fields[QUESTION_FIELD] ?? "")}</dd>
+              {row.item.fields[CONTEXT_FIELD] !== undefined && (
+                <>
+                  <dt>{CONTEXT_FIELD}</dt>
+                  <dd data-testid="batch-field-context">{renderVal(row.item.fields[CONTEXT_FIELD]!)}</dd>
+                </>
+              )}
+              {row.item.fields[SUGGESTIONS_FIELD] !== undefined && (
+                <>
+                  <dt>{SUGGESTIONS_FIELD}</dt>
+                  <dd data-testid="batch-field-suggestions">{renderVal(row.item.fields[SUGGESTIONS_FIELD]!)}</dd>
+                </>
+              )}
+              {fieldToString(row.item.fields[RECOMMENDATION_FIELD]).trim().length > 0 && (
+                <>
+                  <dt>{RECOMMENDATION_FIELD}</dt>
+                  <dd data-testid="batch-field-recommendation">
+                    <div className="lw-recommendation" data-testid="batch-recommendation">
+                      {renderVal(row.item.fields[RECOMMENDATION_FIELD]!)}
+                    </div>
+                  </dd>
+                </>
+              )}
+            </dl>
+            <div className="lw-answer">
+              <textarea
+                key={row.item.id}
+                data-testid="batch-answer-input"
+                className="lw-answer-input"
+                rows={5}
+                ref={answerRef}
+                defaultValue={fieldToString(row.item.fields[ANSWER_FIELD])}
+                placeholder="type an answer…"
+              />
+              <div className="lw-answer-actions">
+                <button
+                  type="button"
+                  data-testid="batch-answer-submit"
+                  onClick={() => onSave(row, answerRef.current?.value ?? "")}
+                >
+                  save &amp; mark answered
+                </button>
+                {fieldToString(row.item.fields[RECOMMENDATION_FIELD]).trim().length > 0 && (
+                  <button
+                    type="button"
+                    data-testid="batch-answer-as-recommended"
+                    onClick={() => onSave(row, AS_RECOMMENDED_ANSWER)}
+                  >
+                    as recommended
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="lw-batch-nav">
+          <button
+            type="button"
+            data-testid="batch-prev"
+            onClick={onPrev}
+            disabled={index <= 0}
+          >
+            ← prev
+          </button>
+          <span className="lw-dim">ctrl/⌘ + [ / ]</span>
+          <button
+            type="button"
+            data-testid="batch-next"
+            onClick={onNext}
+            disabled={index >= rows.length - 1}
+          >
+            next →
+          </button>
+        </div>
       </div>
     </div>
   );
