@@ -34,10 +34,10 @@ archives:
 
 ## M12
 
-### T50 — planned
+### T50 — done
 
 - createdAt: 2026-06-02T08:46:21.175Z
-- updatedAt: 2026-06-02T08:46:21.175Z
+- updatedAt: 2026-06-02T10:52:16.434Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Add 'warning' status bucket; map `revise` to it (both status.ts)
@@ -45,6 +45,8 @@ archives:
 - acceptance: "Unit test in each package: statusBucket('revise', REVIEWS_SCHEMA) === 'warning' and statusBucket('go-ahead', REVIEWS_SCHEMA) === 'done'; existing bucket tests (planned/wip/blocked/abandoned) unchanged. `bun run typecheck` passes (StatusBucket union updated everywhere it is switched on)."
 - suggestedModel: standard
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 492b38f
+- completion: "Added 'warning' StatusBucket + WARNING={revise} checked before DROPPED in both status.ts (mirror-identical); revise stays terminal→warning, go-ahead→done; BUCKET_COLOR['warning']='yellow' placeholder (T51 sets magenta). Reviewer approve 0/0. Merged 492b38f; integration 505 pass."
 
 ### T51 — planned
 
@@ -59,10 +61,10 @@ archives:
 - dependsOn: ["T50"]
 - ledgerRefs: ["goals:G2"]
 
-### T52 — planned
+### T52 — wip
 
 - createdAt: 2026-06-02T08:46:39.837Z
-- updatedAt: 2026-06-02T08:46:39.837Z
+- updatedAt: 2026-06-02T10:53:12.403Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: canonical bucket→color palette as the single shared source (CSS vars + JS map) incl. `warning`"
@@ -87,10 +89,10 @@ archives:
 
 ## M13
 
-### T54 — planned
+### T54 — done
 
 - createdAt: 2026-06-02T08:47:03.877Z
-- updatedAt: 2026-06-02T08:54:03.115Z
+- updatedAt: 2026-06-02T10:52:19.206Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Array-field editor delimiter: split on semicolons/newlines (both UIs)"
@@ -105,6 +107,8 @@ archives:
 - acceptance: "Unit test (each package): parseFieldValue('a; b; c', 'string[]') === ['a','b','c']; parseFieldValue('a\\nb', 'string[]') === ['a','b']; whitespace trimmed and empties dropped. parseFieldValue('T1, T2', 'id[]') === ['T1','T2'] (comma split for id[] UNCHANGED, no regression). The two parseFieldValue implementations are byte-for-byte equivalent in their split logic. `bun run check` green."
 - suggestedModel: standard
 - ledgerRefs: ["goals:G2"]
+- resultCommit: dd918a7
+- completion: "parseFieldValue splits string[] on /[;\\n]/ (trim, drop empties) in both UIs; id[] keeps comma-split (T1,T2 invariant preserved); web string[] placeholder updated; parseFieldValue exported + 18 unit tests. Reviewer approve 0/0. Merged dd918a7."
 
 ### T55 — planned
 
@@ -124,10 +128,10 @@ archives:
 - dependsOn: []
 - ledgerRefs: ["goals:G2"]
 
-### T56 — planned
+### T56 — wip
 
 - createdAt: 2026-06-02T08:47:22.715Z
-- updatedAt: 2026-06-02T08:47:22.715Z
+- updatedAt: 2026-06-02T10:53:11.212Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: render `suggestions` (string[]) as a bulleted list"
@@ -178,10 +182,10 @@ archives:
 
 ## M14
 
-### T60 — planned
+### T60 — wip
 
 - createdAt: 2026-06-02T08:47:57.646Z
-- updatedAt: 2026-06-02T08:47:57.646Z
+- updatedAt: 2026-06-02T10:53:13.344Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Column model: eligible-fields rule + per-ledger default columns constant"
@@ -308,10 +312,10 @@ archives:
 
 ## M16
 
-### T69 — planned
+### T69 — done
 
 - createdAt: 2026-06-02T10:13:43.585Z
-- updatedAt: 2026-06-02T10:13:43.585Z
+- updatedAt: 2026-06-02T10:52:22.079Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "implement/advance.md: never auto-close the goal at milestone completion"
@@ -329,6 +333,8 @@ archives:
 - acceptance: llm/commands/implement/advance.md no longer contains the 'can advance per the plan-flow once the milestone is archived' phrasing; it contains an explicit 'never auto-transition a goal to done' rule and a 'report goal G ready to close (close via TUI/web)' instruction; the Report section lists the ready-to-close case. `bun run check` passes (markdown-only edit is a no-op for it).
 - suggestedModel: standard
 - ledgerRefs: ["goals:G3"]
+- resultCommit: d18cd8a
+- completion: "implement/advance.md: removed 'can advance per the plan-flow' phrasing; added hard rule 'MUST NEVER auto-transition a goal to done' (user-only close via TUI/web); milestone auto-archive + auto-mark-terminal preserved; ready-to-close Report bullet added. Reviewer approve 0/0. Merged d18cd8a."
 
 ### T70 — planned
 
@@ -368,10 +374,10 @@ archives:
 
 ## M17
 
-### T72 — planned
+### T72 — done
 
 - createdAt: 2026-06-02T10:14:29.203Z
-- updatedAt: 2026-06-02T10:19:41.791Z
+- updatedAt: 2026-06-02T10:44:40.852Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Supersede K8 point 3 only: new locked decision for auto-investigate from plan:* (K8 pts 1,2,4,5 stay in force)"
@@ -388,11 +394,12 @@ archives:
 - acceptance: "A new `decisions` item exists under M15 with status `locked`, ledgerRefs including both goals:G3 and decisions:K8, whose rationale records: (1) cites K8 pt3 + an EXPLICIT one-line statement that 'K8 points 1,2,4,5 remain in force; only point 3's handoff-direction asymmetry is refined' AND that K8 pt3's prohibition on investigate running the plan loop inline still stands (the new direction is the symmetric plan-runs-investigate, legal because a command chains); (2) file-all-defects + orchestrator auto-launch; (3) command-only trigger sites; (4) model-judged-no-hard-cap stop. K8 itself is unchanged (still locked, original fields)."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G3"]
+- completion: "Orchestrator-handled (ledger write; workers can't mutate the ledger). Created locked decision K12 under M15, supersedes:[K8], ledgerRefs goals:G3+decisions:K8 — pins K8 pts 1/2/4/5 in force, refines only pt3's handoff DIRECTION (plan:* commands may auto-launch /investigate:advance inline; investigate-runs-plan still forbidden), file-all-defects + command-only triggers, no hard caps (model-judged stop predicates per T74). T73-T78 cite K12."
 
-### T73 — planned
+### T73 — done
 
 - createdAt: 2026-06-02T10:14:45.473Z
-- updatedAt: 2026-06-02T10:19:56.627Z
+- updatedAt: 2026-06-02T10:52:25.344Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "plan-advance subagent: file defects (drop manual /investigate:start routing); orchestrator re-derives worklist by ledger query, not summary-parsing"
@@ -411,11 +418,13 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T72"]
 - ledgerRefs: ["goals:G3"]
+- resultCommit: 7256dc6
+- completion: "plan-advance.md reviewer-defect path now file-only (open defect linked goals:<G>, discoverable by orchestrator ledger query); dropped 'run /investigate:start' user-question; prose summary demoted to advisory; cites K12; subagent one-step/no-Bash/single-token contract intact. Reviewer approve 0/0. Merged 7256dc6."
 
-### T74 — planned
+### T74 — wip
 
 - createdAt: 2026-06-02T10:15:09.269Z
-- updatedAt: 2026-06-02T10:20:29.865Z
+- updatedAt: 2026-06-02T10:53:09.580Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "plan/advance.md orchestrator: auto-launch /investigate:advance after planning + CONCRETE cross-chain stop predicates (drop 4-iteration cap)"

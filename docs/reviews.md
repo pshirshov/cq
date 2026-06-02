@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 33
+  item: 37
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -125,3 +125,55 @@ archives:
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - new_questions: []
 - criticism: ["VERDICT (go-ahead): the revised plan (T69-T78) resolves all 5 R31 criticisms and the Change A auto-investigate loop is now provably convergent via operationally-checkable stop predicates. Re-verified against the live files: plan/advance.md L27/33/56 carry the 4-iteration cap to remove, plan-advance.md L213-242 is the file-and-defer 'defects[] bucket' block to edit, and L257-263 fixes the single-status-token output contract that grounds the ledger-query-over-summary-parsing fix. (1 HIGHEST-RISK) T74 pt4 now enumerates concrete cross-chain termination predicates (a-f): once-per-defect-per-round; no-relaunch-without-new-confirmed-evidence; stop+report once a confirmed root cause seeded/extended its goal; park on non-converging open->investigated->replanned->open cycle; park after two consecutive no-adjudicable-evidence rounds; per-pass budget governed by (a)-(e). It explicitly states the generic single-worktree signals do NOT satisfy this. Acceptance (d) restates them as required. Resolved. (2) T74 pt3 specifies the awaiting-answers + defects-filed interaction: filed defects are orthogonal and still auto-investigated even when the goal is parked in `clarifying`, but planning does NOT auto-resume on a clarifying-parked goal. Resolved. (3) T73 + T74 pt2 make the LEDGER QUERY (open defects newly linked goals:<G>, no terminal status) the authoritative worklist; prose-summary parsing demoted to advisory; T73 acceptance forbids mandating any summary parse. Resolved. (4) T72 now requires the explicit 'K8 points 1,2,4,5 remain in force; only point 3 handoff-direction refined' line and pins that pt4 (defect-seeded clarify-skip) must stay because T74/T75 auto-resume depends on it; pt3's prohibition on investigate running the plan loop inline still stands. Resolved. (5) T78 pt4 adds a POSITIVE stop-predicate presence grep ('caps removed cannot pass without convergence guaranteed'); conjoined with pt3 (caps GONE) it catches the exact targeted regression of caps-removed-but-stop-condition-missing. Resolved.","CONVERGENCE PROOF (crux confirmed): within a plan:advance pass the worklist is the finite set of open defects at auto-investigate-phase entry; predicate (a) processes each at most once; new defects are only filed by the in-round planner<->reviewer loop which completes before the auto-investigate phase runs; predicate (c) halts relaunch once a defect seeds/extends a goal (planning then resumes on that goal, itself bounded by planner<->reviewer convergence); predicates (b)/(d)/(e) force a park-to-user on no-new-evidence / non-convergence / two-consecutive-no-evidence. Each predicate is a ledger-state comparison, so the stop is operationally checkable. The cap-free loop terminates.","BY-POINTER CHECK (T75/T77 do not silently reintroduce summary-parsing or drop a stop condition): T75 binds plan/start.md + follow-up.md to 'mirror plan/advance.md new phase (T-A3)' by pointer to the WHOLE T74 auto-investigate phase (which carries both the ledger-query worklist and the stop predicates) and its acceptance requires running /investigate:advance inline by pointer to that phase, not by re-deriving a worklist from a summary -- so the ledger-query authority and the stop predicates are inherited, not duplicated or weakened. T77 is wording-only, explicitly defers mechanics to T74/T75/T76, correctly keeps investigate->plan handback as file-and-defer (K8 pt3 stands) and keeps implement:* file-and-defer (Q43 names only plan:* as triggers). NON-BLOCKING NOTE for the executor (does not flip the verdict): T75 pt1 phrase 'if the plan-advance subagent flagged filed defects' should be read as the ledger-query existence check (no-op when none filed), NOT a parse of an advisory summary flag -- the binding acceptance and the by-pointer reference to T74's ledger-query phase govern; keep the trigger ledger-query-authoritative when implementing T75 to avoid re-importing the brittle summary contract R31#3 removed. Plan is fine-grained, correctly sequenced (T72 root; T73/T74 depend on it; T75/T77 depend on T74; T78 depends on all M17 tasks; M16 T69/T70->T71 independent), testable (each carries a grep/fetch/`bun run check` acceptance), grounded, and complete against the goal description. No out-of-scope/pre-existing repo defects surfaced (none to file-and-defer)."]
+
+## M12
+
+### R34 — go-ahead
+
+- createdAt: 2026-06-02T10:52:27.726Z
+- updatedAt: 2026-06-02T10:52:27.726Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T50","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
+## M13
+
+### R35 — go-ahead
+
+- createdAt: 2026-06-02T10:52:29.636Z
+- updatedAt: 2026-06-02T10:52:29.636Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T54","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
+## M16
+
+### R36 — go-ahead
+
+- createdAt: 2026-06-02T10:52:31.487Z
+- updatedAt: 2026-06-02T10:52:31.487Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T69","goals:G3"]
+- tags: ["implement-flow","round-0"]
+
+## M17
+
+### R37 — go-ahead
+
+- createdAt: 2026-06-02T10:52:33.220Z
+- updatedAt: 2026-06-02T10:52:33.220Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T73","goals:G3"]
+- tags: ["implement-flow","round-0"]
