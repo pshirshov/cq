@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 51
+  item: 52
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -655,3 +655,15 @@ archives:
 - recommendation: Archive the completed work milestones, then print an explicit 'all work for goal G is complete and its milestones are archived — goal G is ready to close; close it yourself in the TUI/web (set G to done) when satisfied' line, and make NO goal-status change. Keep auto-marking individual tasks/defects terminal (that is fine); the prohibition is strictly on closing the GOAL. Use TUI/web as the close mechanism unless you want a new /plan command (separate, larger scope).
 - ledgerRefs: ["goals:G3"]
 - answer: as recommended
+
+## M14
+
+### Q52 — open
+
+- createdAt: 2026-06-02T12:19:19.551Z
+- updatedAt: 2026-06-02T12:19:19.551Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- question: "Out-of-scope defects D3 (stale @cq/ledger exports map — major, latent clean-checkout/nix bundle break) and D4 (headline column-eligible — low) surfaced during implement-flow review of T61/T62. They do NOT block G2's tasks (file-and-defer per Q26). Run `/investigate:start D3` and `/investigate:start D4` to triage them when ready."
+- context: "D3: packages/ledger/package.json exports/main point at ./dist/*.js but tsc emits ./dist/src/*.js; masked in-repo by tsconfig paths→source, but breaks published/nix bundling in a clean (dist-less) checkout. D4: columns.ts eligibleColumnFields offers `headline` as an extra column, duplicating the summary cell. Both filed under M14, linked goals:G2."
+- ledgerRefs: ["defects:D3","defects:D4","goals:G2"]

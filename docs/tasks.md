@@ -212,10 +212,10 @@ archives:
 - resultCommit: 48fa2c6
 - completion: "@cq/ledger columns.ts: pure eligibleColumnFields(schema) (field-level, minus long/narrative denylist + always-shown id/status/summary) + defaultColumns(ledgerName) (tasks→['suggestedModel']); index-exported, no Node deps (browser-safe for T61); 6 unit tests. Reviewer approve 0/0 (noted acceptance/planDoc/grounding eligible — T61/T62 may refine). Merged 48fa2c6."
 
-### T61 — planned
+### T61 — done
 
 - createdAt: 2026-06-02T08:48:07.769Z
-- updatedAt: 2026-06-02T08:48:07.769Z
+- updatedAt: 2026-06-02T12:31:07.554Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: column selector (triple-dot menu) + extra columns, per-ledger localStorage"
@@ -224,11 +224,13 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T60"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: "5786674"
+- completion: "Web ⋮ column-selector (eligibleColumnFields checkboxes), extra columns in flat + subsection tables, per-ledger localStorage seeded from defaultColumns (tasks→suggestedModel). Round-0 criticism fixed in round 1: added @cq/ledger/columns→../ledger/src/columns.ts to ledger-web/tsconfig.json paths (mirroring relationships) so the dist-less browser bundle resolves it from source (verified via Bun.build repro); ./columns export points at real dist/src/columns.js. Reviewer approve (round 1). Merged 5786674; integration 555 pass."
 
-### T62 — planned
+### T62 — done
 
 - createdAt: 2026-06-02T08:48:14.367Z
-- updatedAt: 2026-06-02T08:48:14.367Z
+- updatedAt: 2026-06-02T12:18:11.304Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI: column selector overlay + extra columns, per-ledger in-memory"
@@ -237,6 +239,8 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T60"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: a7d66b3
+- completion: TUI column-selector Overlay (pickColumns, key 'c', documented) over eligibleColumnFields; extra columns render after id|status before summary (T31 alignment preserved); per-ledger in-memory (Q29), seeded from defaultColumns (tasks→suggestedModel); 3 ink tests. Reviewer approve 0/0. Merged a7d66b3 (recovered onto main after a stray verify-worker left the checkout on implement/T78); integration 552 pass.
 
 ### T63 — planned
 
@@ -378,10 +382,10 @@ archives:
 - resultCommit: bbd01ef
 - completion: Authoritative 'never auto-close a goal' invariant stated once in plan-advance.md (building→done user-driven only; edge stays legal in the documented state machine); rule-7 + plan/advance.md 'completed' wording de-imply auto-close; cross-refs T69's implement/advance.md; implement/start.md untouched. Reviewer approve 0/0. Merged bbd01ef.
 
-### T71 — planned
+### T71 — done
 
 - createdAt: 2026-06-02T10:14:03.471Z
-- updatedAt: 2026-06-02T10:14:03.471Z
+- updatedAt: 2026-06-02T12:18:14.584Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Verify Change B: gate + no residual auto-close language"
@@ -395,6 +399,7 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T69","T70"]
 - ledgerRefs: ["goals:G3"]
+- completion: "M16 (never-auto-close) verify gate: bun run check green; grep confirms only intentional auto-close refs remain (plan-advance.md invariant L75-83 + implement/advance.md user-driven close instruction); ready-to-close instruction present. Verification-only — no source merge (worker's spurious docs/tasks.md commit not merged). M16 COMPLETE."
 
 ## M17
 
@@ -552,10 +557,10 @@ archives:
 - resultCommit: f697144
 - completion: "Cross-flow wording reconciled to K12: investigate/advance.md distinguishes standalone vs auto-launched-inside-plan handback (K8 pt3 prohibition intact); plan-reviewer.md defects bucket says orchestrator auto-launches investigate (write-nothing contract kept); implement/advance.md step 3 scopes implement:* as NOT auto-launching investigate (Q43). Reviewer approve 0/0. Merged f697144."
 
-### T78 — planned
+### T78 — done
 
 - createdAt: 2026-06-02T10:16:04.064Z
-- updatedAt: 2026-06-02T10:20:44.067Z
+- updatedAt: 2026-06-02T12:18:18.350Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Verify Change A: gate + no residual manual-investigate routing + caps GONE + concrete stop predicates ADDED"
@@ -572,6 +577,7 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T72","T73","T74","T75","T76","T77"]
 - ledgerRefs: ["goals:G3"]
+- completion: "M17 (auto-investigate) verify gate: bun run check green; K12 exists+locked (supersedes K8 pt3, pins pts1,2,4,5; K8 unchanged); no 4-iteration/8-round/safety-ceiling cap survives; concrete stop predicates present in plan/advance.md; reviewer-bucket no longer routes to manual /investigate:start; all 3 plan:* commands have the auto-investigate phase. Verification-only — empty audit commit, not merged. M17 COMPLETE."
 
 ## M18
 

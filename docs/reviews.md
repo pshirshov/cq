@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 53
+  item: 57
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -264,6 +264,17 @@ archives:
 - ledgerRefs: ["tasks:T70","goals:G3"]
 - tags: ["implement-flow","round-0"]
 
+### R55 — go-ahead
+
+- createdAt: 2026-06-02T12:18:22.605Z
+- updatedAt: 2026-06-02T12:18:22.605Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T71","goals:G3"]
+- tags: ["implement-flow","verify-gate"]
+
 ## M17
 
 ### R37 — go-ahead
@@ -321,6 +332,17 @@ archives:
 - ledgerRefs: ["tasks:T77","goals:G3"]
 - tags: ["implement-flow","round-0","post-merge-review"]
 
+### R56 — go-ahead
+
+- createdAt: 2026-06-02T12:18:24.489Z
+- updatedAt: 2026-06-02T12:18:24.489Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T78","goals:G3"]
+- tags: ["implement-flow","verify-gate"]
+
 ## M14
 
 ### R41 — go-ahead
@@ -355,3 +377,25 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T66","goals:G2"]
 - tags: ["implement-flow","round-0"]
+
+### R54 — go-ahead
+
+- createdAt: 2026-06-02T12:18:20.250Z
+- updatedAt: 2026-06-02T12:18:20.250Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T62","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
+### R57 — go-ahead
+
+- createdAt: 2026-06-02T12:31:10.885Z
+- updatedAt: 2026-06-02T12:31:10.885Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] @cq/ledger/columns had no tsconfig paths→source mapping — dist-less browser bundle failed to resolve it (nix ledger-web clean-checkout break). Fixed by adding the paths entry mirroring relationships; verified dist-less bundle resolves."]
+- new_questions: []
+- ledgerRefs: ["tasks:T61","goals:G2"]
+- tags: ["implement-flow","round-1","criticism-resolved"]
