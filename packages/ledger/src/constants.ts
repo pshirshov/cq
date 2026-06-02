@@ -277,6 +277,7 @@ export const REVIEWS_SCHEMA: LedgerSchema = {
     revise: [],
   },
   fields: {
+    summary: { type: "string", required: false },
     new_questions: { type: "string[]", required: false },
     criticism: { type: "string[]", required: false },
     ledgerRefs: { type: "id[]", required: false },

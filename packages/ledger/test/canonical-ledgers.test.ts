@@ -20,6 +20,7 @@ import {
   InMemoryLedgerStore,
   parseLedger,
   serializeRegistry,
+  parseRegistry,
   CANONICAL_LEDGERS,
   DEFECTS_LEDGER,
   TASKS_LEDGER,
@@ -28,6 +29,7 @@ import {
   DECISIONS_LEDGER,
   GOALS_LEDGER,
   REVIEWS_LEDGER,
+  REVIEWS_SCHEMA,
   InvalidStatusError,
   DEFECTS_SCHEMA,
   TASKS_SCHEMA,
@@ -486,6 +488,62 @@ describe("repo docs/ledgers.yaml matches canon (no bootstrap divergence)", () =>
     await store.init();
     try {
       expect(store.enumerate()).toEqual(CANONICAL_LEDGERS.map((c) => c.name).sort());
+    } finally {
+      await store.dispose();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Req5 — REVIEWS_SCHEMA.fields.summary: all three registry copies must
+// declare `summary` with type 'string' and required:false.
+// ---------------------------------------------------------------------------
+
+describe("Req5: reviews summary field — all three registry copies", () => {
+  it("REVIEWS_SCHEMA constant has summary: { type: 'string', required: false }", () => {
+    const f = REVIEWS_SCHEMA.fields["summary"];
+    expect(f).toBeDefined();
+    expect(f!.type).toBe("string");
+    expect(f!.required).toBe(false);
+  });
+
+  it("docs/ledgers.yaml has reviews.fields.summary: { type: string, required: false }", async () => {
+    const yamlPath = path.resolve(import.meta.dir, "../../../docs/ledgers.yaml");
+    const text = await readFile(yamlPath, "utf8");
+    const registry = parseRegistry(text);
+    const reviews = registry.ledgers.find((e) => e.name === REVIEWS_LEDGER);
+    expect(reviews).toBeDefined();
+    const f = reviews!.schema.fields["summary"];
+    expect(f).toBeDefined();
+    expect(f!.type).toBe("string");
+    expect(f!.required).toBe(false);
+  });
+
+  it("examples/sample-ledger/docs/ledgers.yaml has reviews.fields.summary: { type: string, required: false }", async () => {
+    const yamlPath = path.resolve(import.meta.dir, "../../../examples/sample-ledger/docs/ledgers.yaml");
+    const text = await readFile(yamlPath, "utf8");
+    const registry = parseRegistry(text);
+    const reviews = registry.ledgers.find((e) => e.name === REVIEWS_LEDGER);
+    expect(reviews).toBeDefined();
+    const f = reviews!.schema.fields["summary"];
+    expect(f).toBeDefined();
+    expect(f!.type).toBe("string");
+    expect(f!.required).toBe(false);
+  });
+
+  it("existing reviews items with no summary still load/validate", async () => {
+    const store = await inMem.build();
+    try {
+      const m = await store.createMilestone({ title: "backward-compat test" });
+      // Create a review with NO summary field — must succeed (optional).
+      const created = await store.createItem(REVIEWS_LEDGER, m.id, {
+        status: "go-ahead",
+        fields: { criticism: ["looks good; no summary provided"] },
+      });
+      expect(created.status).toBe("go-ahead");
+      expect(created.fields["summary"]).toBeUndefined();
+      const fetched = store.fetchItem(REVIEWS_LEDGER, created.id);
+      expect(fetched.fields["summary"]).toBeUndefined();
     } finally {
       await store.dispose();
     }
