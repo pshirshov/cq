@@ -10,13 +10,14 @@
  * into a single chunk and drop the second key.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import React from "react";
 import { render } from "ink-testing-library";
-import { App } from "../src/app.js";
+import { App, buildItemEntries } from "../src/app.js";
 import { FakeClient } from "./fakeClient.js";
 import type { ArchiveContent, FetchedLedger, Item, LedgerClient, LedgerSummary } from "../src/types.js";
 import type { Milestone } from "@cq/ledger";
+import { MILESTONES_SCHEMA } from "@cq/ledger";
 
 const DOWN = "[B";
 const LEFT = "[D";
@@ -1336,136 +1337,110 @@ describe("ledger-tui column selector (T62)", () => {
 // ---------------------------------------------------------------------------
 // Milestone subsection header: colored status token (T81)
 // ---------------------------------------------------------------------------
+// These are unit tests on buildItemEntries (exported for testability).
+// They inspect the React element props of the returned header node directly,
+// rather than rendering a full frame, which avoids false-positive passes
+// caused by other cyan/green ANSI sources in the frame (selected-row color,
+// item status badges).
 
 /**
- * A client with two milestone groups whose milestones have different statuses
- * so we can assert that each header's status token is rendered in the right
- * statusColor (open→cyan, done→green via the milestones schema).
+ * Shared FetchedLedger fixture: two milestone groups with "open" and "done"
+ * milestone statuses. Item statuses use "wip" / "abandoned" (yellow / gray) so
+ * they never produce cyan or green and cannot contaminate assertions.
  */
-class ColoredHeaderClient implements LedgerClient {
-  displayName(): string { return "cq1"; }
-  async enumerateLedgers(): Promise<LedgerSummary[]> {
-    return [{ name: "tasks", itemCount: 2 }];
-  }
-  async fetchLedger(id: string): Promise<FetchedLedger> {
-    if (id !== "tasks") throw new Error(`Ledger not found: ${id}`);
-    return {
-      id: "tasks",
-      schema: {
-        statusValues: ["planned", "done"],
-        terminalStatuses: ["done"],
-        fields: { headline: { type: "string", required: true } },
-        idPrefix: "T",
-      },
-      counters: { milestone: 2, item: 2 },
-      milestones: [
-        {
-          id: "M1",
-          milestone: { id: "M1", status: "open", title: "Open sprint", description: "" },
-          items: [
-            { id: "T1", milestoneId: "M1", status: "planned", fields: { headline: "alpha" }, createdAt: TS, updatedAt: TS },
-          ],
-        },
-        {
-          id: "M2",
-          milestone: { id: "M2", status: "done", title: "Done sprint", description: "" },
-          items: [
-            { id: "T2", milestoneId: "M2", status: "done", fields: { headline: "beta" }, createdAt: TS, updatedAt: TS },
-          ],
-        },
+const T81_VIEW: FetchedLedger = {
+  id: "tasks",
+  schema: {
+    statusValues: ["wip", "abandoned"],
+    terminalStatuses: ["abandoned"],
+    fields: { headline: { type: "string", required: true } },
+    idPrefix: "T",
+  },
+  counters: { milestone: 2, item: 2 },
+  milestones: [
+    {
+      id: "M1",
+      milestone: { id: "M1", status: "open", title: "Open sprint", description: "" },
+      items: [
+        { id: "T1", milestoneId: "M1", status: "wip", fields: { headline: "alpha" }, createdAt: TS, updatedAt: TS },
       ],
-      archivePointers: [],
-    };
+    },
+    {
+      id: "M2",
+      milestone: { id: "M2", status: "done", title: "Done sprint", description: "" },
+      items: [
+        { id: "T2", milestoneId: "M2", status: "abandoned", fields: { headline: "beta" }, createdAt: TS, updatedAt: TS },
+      ],
+    },
+  ],
+  archivePointers: [],
+};
+
+/**
+ * Walk a React element tree breadth-first and collect all `color` prop values
+ * found on any node.
+ */
+function collectColors(node: React.ReactNode): string[] {
+  if (!React.isValidElement(node)) return [];
+  const colors: string[] = [];
+  const el = node as React.ReactElement<{ color?: string; children?: React.ReactNode }>;
+  if (el.props.color !== undefined) colors.push(el.props.color);
+  const children = el.props.children;
+  if (children !== undefined && children !== null) {
+    const childArray = Array.isArray(children) ? children : [children];
+    for (const child of childArray) {
+      colors.push(...collectColors(child as React.ReactNode));
+    }
   }
-  async fetchLedgerArchive(): Promise<ArchiveContent> { throw new Error("not used"); }
-  async fetchItem(): Promise<Item> { throw new Error("not used"); }
-  async createItem(): Promise<Item> { throw new Error("not used"); }
-  async updateItem(): Promise<Item> { throw new Error("not used"); }
-  async ftsSearch(): Promise<never[]> { return []; }
-  async createMilestone(): Promise<Item> { throw new Error("not used"); }
-  async updateMilestone(): Promise<Item> { throw new Error("not used"); }
-  async close(): Promise<void> { /* no-op */ }
+  return colors;
 }
 
-// Resolve chalk via ink's dependency to force ANSI output in tests.
-// (same approach as status.test.tsx)
-const inkPath = import.meta.resolve("ink");
-const chalkPath = import.meta.resolve("chalk", inkPath);
-const chalkMod = await import(chalkPath);
-const chalk = chalkMod.default ?? chalkMod;
-
-// ANSI color codes (level=1 short-form): cyan=[36m, green=[32m
-const ANSI_CYAN = "[36m";
-const ANSI_GREEN = "[32m";
-
 describe("ledger-tui milestone header colored status token (T81)", () => {
-  let prevLevel: number;
-  beforeAll(() => {
-    prevLevel = (chalk as { level: number }).level;
-    (chalk as { level: number }).level = 1;
-  });
-  afterAll(() => {
-    (chalk as { level: number }).level = prevLevel;
+  // filteredRows for T81_VIEW
+  const rows = T81_VIEW.milestones.flatMap((g) =>
+    g.items.map((item) => ({ item, milestoneId: g.id }))
+  );
+
+  it("open milestone header node carries cyan color on the status token", () => {
+    const entries = buildItemEntries(T81_VIEW, rows, false, MILESTONES_SCHEMA);
+    const m1Header = entries.find((e) => e.t === "header" && e.label.startsWith("M1"));
+    expect(m1Header).toBeDefined();
+    expect(m1Header!.t).toBe("header");
+    const node = (m1Header as { t: "header"; label: string; node?: React.ReactNode }).node;
+    expect(node).toBeDefined();
+    const colors = collectColors(node!);
+    // The status token "open" maps to the "start" bucket → cyan.
+    expect(colors).toContain("cyan");
   });
 
-  it("open milestone header renders its status token in cyan (start bucket)", async () => {
-    const client = new ColoredHeaderClient();
-    const r = render(<App client={client} />);
-    await tick();
-    r.stdin.write(ENTER); // open tasks
-    await tick(40);
-    const f = r.lastFrame() ?? "";
-    r.unmount();
-    // The frame must contain the open status token in cyan (ANSI 36).
-    // The header label contains "open" and the surrounding text; the ANSI code
-    // appears immediately before "open" due to chalk coloring.
-    expect(f).toContain(ANSI_CYAN);
-    // The frame contains both milestone headers with their status tokens.
-    expect(f).toContain("M1");
-    expect(f).toContain("open");
+  it("done milestone header node carries green color on the status token", () => {
+    const entries = buildItemEntries(T81_VIEW, rows, false, MILESTONES_SCHEMA);
+    const m2Header = entries.find((e) => e.t === "header" && e.label.startsWith("M2"));
+    expect(m2Header).toBeDefined();
+    expect(m2Header!.t).toBe("header");
+    const node = (m2Header as { t: "header"; label: string; node?: React.ReactNode }).node;
+    expect(node).toBeDefined();
+    const colors = collectColors(node!);
+    // The status token "done" maps to the "done" bucket → green.
+    expect(colors).toContain("green");
   });
 
-  it("done milestone header renders its status token in green (done bucket)", async () => {
-    const client = new ColoredHeaderClient();
-    const r = render(<App client={client} />);
-    await tick();
-    r.stdin.write(ENTER); // open tasks
-    await tick(40);
-    const f = r.lastFrame() ?? "";
-    r.unmount();
-    // The frame must contain the done status token in green (ANSI 32).
-    expect(f).toContain(ANSI_GREEN);
-    // The frame contains the done milestone header.
-    expect(f).toContain("M2");
-    expect(f).toContain("done");
+  it("open and done milestone headers carry distinct colors", () => {
+    const entries = buildItemEntries(T81_VIEW, rows, false, MILESTONES_SCHEMA);
+    const headers = entries.filter((e) => e.t === "header") as Array<{ t: "header"; label: string; node?: React.ReactNode }>;
+    expect(headers).toHaveLength(2);
+    const allColors = headers.flatMap((h) => collectColors(h.node!));
+    expect(allColors).toContain("cyan");
+    expect(allColors).toContain("green");
   });
 
-  it("open and done milestone headers render in distinct colors", async () => {
-    const client = new ColoredHeaderClient();
-    const r = render(<App client={client} />);
-    await tick();
-    r.stdin.write(ENTER); // open tasks
-    await tick(40);
-    const f = r.lastFrame() ?? "";
-    r.unmount();
-    // Both color codes appear in the same frame: cyan for "open", green for "done".
-    // This confirms distinct coloring rather than uncolored plain text.
-    expect(f).toContain(ANSI_CYAN);
-    expect(f).toContain(ANSI_GREEN);
-  });
-
-  it("non-milestone rows (item entries) are unchanged by the header change", async () => {
-    const client = new ColoredHeaderClient();
-    const r = render(<App client={client} />);
-    await tick();
-    r.stdin.write(ENTER); // open tasks
-    await tick(40);
-    const f = r.lastFrame() ?? "";
-    r.unmount();
-    // Item rows T1 and T2 still appear with their ids and summaries.
-    expect(f).toContain("T1");
-    expect(f).toContain("alpha");
-    expect(f).toContain("T2");
-    expect(f).toContain("beta");
+  it("non-milestone item entries carry no node prop (headers-only change)", () => {
+    const entries = buildItemEntries(T81_VIEW, rows, false, MILESTONES_SCHEMA);
+    const itemEntries = entries.filter((e) => e.t === "item");
+    expect(itemEntries).toHaveLength(2);
+    // Item entries are plain { t, item, itemIdx } — no node field.
+    for (const e of itemEntries) {
+      expect((e as Record<string, unknown>).node).toBeUndefined();
+    }
   });
 });

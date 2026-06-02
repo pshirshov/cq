@@ -116,7 +116,7 @@ function hasRecommendation(item: Item): boolean {
   return fieldToString(item.fields[RECOMMENDATION_FIELD]).trim().length > 0;
 }
 
-interface Row {
+export interface Row {
   item: Item;
   milestoneId: string;
 }
@@ -138,7 +138,7 @@ function answerableRows(view: FetchedLedger): Row[] {
 // The cursor indexes into items only; headers are visual separators only.
 // ---------------------------------------------------------------------------
 
-type ListEntry<T> =
+export type ListEntry<T> =
   | { t: "item"; item: T; itemIdx: number }
   | { t: "header"; label: string; node?: React.ReactNode };
 
@@ -151,7 +151,7 @@ type ListEntry<T> =
  * `milestonesSchema` is used to color the status token in each header via
  * statusColor() so open/done/postponed/blocked render in their semantic color.
  */
-function buildItemEntries(view: FetchedLedger, filteredRows: Row[], isMilestones: boolean, milestonesSchema: LedgerSchema): ListEntry<Row>[] {
+export function buildItemEntries(view: FetchedLedger, filteredRows: Row[], isMilestones: boolean, milestonesSchema: LedgerSchema): ListEntry<Row>[] {
   if (isMilestones) {
     return filteredRows.map((r, i) => ({ t: "item", item: r, itemIdx: i }));
   }
