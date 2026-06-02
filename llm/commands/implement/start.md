@@ -16,6 +16,23 @@ registration, merge-back) lives in `/implement:advance`, so that logic exists in
 exactly ONE place (exactly as `/plan:start` does the goal bootstrap and hands the
 round to `plan-advance`).
 
+## No confirmation checkpoints — just run (hard rule)
+This flow is **fully autonomous by default**. Do NOT pause to ask the user to
+confirm scope, branch, or "should I proceed?". The defaults are fixed and NOT up
+for confirmation:
+- **Scope** = the broadest applicable set. Empty `$ARGUMENTS` → ALL open
+  milestones; an explicit list → exactly that list. Never ask "all or a subset?".
+- **Integration target** = the **current branch** (merge-back lands here, per
+  `/implement:advance`). Never ask "which branch / main or a feature branch?".
+- **Cadence** = run the whole `/implement:advance` loop to completion (everything
+  done, or blocked on a genuine question). Never ask "one pass then pause?".
+
+A confirmation checkpoint is wasted latency and is forbidden. The ONLY legitimate
+way to surface a blocker is a `questions` ledger item that a subagent or the loop
+files for a genuine unknown (answered later in the TUI/web) — never an inline
+"do you want me to…?" prompt. When in doubt, take the broadest sensible default
+and proceed; the user can interrupt if they disagree.
+
 ## Provenance (every ledger write)
 On any `create_item` / `update_item`, pass `author` = your OWN model class
 (derived from runtime identity, never hardcoded — Claude Opus 4.8 (1M) →
