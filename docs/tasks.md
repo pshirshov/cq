@@ -757,10 +757,10 @@ archives:
 - resultCommit: cc4db8c
 - completion: TUI keys 1-9 pick the Nth suggestion as answer via applyAnswer (save + mark answered), gated on canAnswer + non-empty suggestions + N in range, mirrored in both list-focus and content-focus; out-of-range = no-op; '1-9 pick suggestion' hint when answerable+suggestions. No binding collisions (overlays early-return). 8 ink tests. Reviewer approve 0/0.
 
-### T88 — wip
+### T88 — done
 
 - createdAt: 2026-06-02T10:37:26.066Z
-- updatedAt: 2026-06-02T14:35:48.216Z
+- updatedAt: 2026-06-02T14:45:36.429Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #15: disable 'as recommended' + per-suggestion 'pick' once the answer has non-whitespace text"
@@ -774,6 +774,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T86","T63"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 809049b
+- completion: "Web: onInput-driven answerHasText (non-whitespace locks; trim) gates `disabled` on 'as recommended' + all per-suggestion 'pick' buttons in DetailPanel, and 'as recommended' in BatchAnswerModal (no per-suggestion picks there); resets on item switch (key + effect). 12 happy-dom tests (real enable/disable transitions). Reviewer approve 0/0."
 
 ### T89 — done
 

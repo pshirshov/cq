@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 71
+  item: 72
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -557,3 +557,14 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T89","goals:G2"]
 - tags: ["implement-flow","round-0","approve","r + 1-9 + batch Ctrl+R inert when persisted answer non-empty; trim semantics; fail-first verified; check 611"]
+
+### R72 — go-ahead
+
+- createdAt: 2026-06-02T14:45:38.794Z
+- updatedAt: 2026-06-02T14:45:38.794Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T88","goals:G2"]
+- tags: ["implement-flow","round-0","approve","answer-text gating disables as-recommended + picks (detail) + as-recommended (batch); re-enables on clear; resets on switch; check 623"]
