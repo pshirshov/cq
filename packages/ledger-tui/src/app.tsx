@@ -32,6 +32,7 @@ import {
   RECOMMENDATION_FIELD,
   AS_RECOMMENDED_ANSWER,
   QUESTION_FIELD_ORDER,
+  SUGGESTIONS_FIELD,
   isQuestion,
   type StatusFilter,
 } from "./status.js";
@@ -1103,6 +1104,14 @@ function ContentPane({
                   {k}
                 </Text>
                 {Array.isArray(v) ? <Text>{v.join(", ")}</Text> : <Markdown text={v} />}
+              </Box>
+            ) : k === SUGGESTIONS_FIELD && Array.isArray(v) ? (
+              // Suggestions (T57): one bulleted line per element.
+              <Box key={k} flexDirection="column" marginTop={1}>
+                <Text bold color="gray">
+                  {k}
+                </Text>
+                {v.map((s, i) => <Text key={i}>{"• "}{s}</Text>)}
               </Box>
             ) : isShortField(v) ? (
               // Short/fixed-size field: render inline on a single line.

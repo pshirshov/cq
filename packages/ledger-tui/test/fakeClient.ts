@@ -52,6 +52,7 @@ const questionsSchema: LedgerSchema = {
   transitions: { open: ["answered", "withdrawn"], answered: [], withdrawn: [] },
   fields: {
     question: { type: "string", required: true },
+    suggestions: { type: "string[]", required: false },
     recommendation: { type: "string", required: false },
     answer: { type: "string", required: false },
   },
@@ -101,6 +102,7 @@ export class FakeClient implements LedgerClient {
           id: "M1",
           items: [
             { id: "Q1", milestoneId: "M1", status: "open", fields: { question: "Ship on Friday?", recommendation: "yes, ship it" }, createdAt: TS, updatedAt: TS },
+            { id: "Q2", milestoneId: "M1", status: "open", fields: { question: "Which option?", suggestions: ["opt a", "opt b"] }, createdAt: TS, updatedAt: TS },
           ],
         },
       ],

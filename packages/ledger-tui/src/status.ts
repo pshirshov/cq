@@ -73,6 +73,8 @@ export const AS_RECOMMENDED_ANSWER = "as recommended";
 /** A question carries a free-form `question` field (data-driven, not by name). */
 export const QUESTION_FIELD = "question";
 export const CONTEXT_FIELD = "context";
+/** Structured option list for a question; rendered as a bulleted list in the TUI. */
+export const SUGGESTIONS_FIELD = "suggestions";
 /**
  * Fixed render order for a question's narrative fields (T23): question, its
  * context, the (highlighted) recommendation, then the answer last. Other fields

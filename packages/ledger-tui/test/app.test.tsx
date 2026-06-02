@@ -985,6 +985,30 @@ class MultiMilestoneArchiveClient implements LedgerClient {
   async close(): Promise<void> { /* no-op */ }
 }
 
+// ---------------------------------------------------------------------------
+// suggestions field: bulleted list rendering (T57)
+// ---------------------------------------------------------------------------
+
+describe("ledger-tui suggestions bulleted list (T57)", () => {
+  it("renders suggestions string[] as one bulleted line per element in the content pane", async () => {
+    const h = await mount();
+    // Navigate to questions ledger (ledgers sorted: bugs=0, milestones=1, questions=2, reviews=3)
+    await h.key(DOWN); // → milestones
+    await h.key(DOWN); // → questions
+    await h.key(ENTER); // open questions (cursor on Q1)
+    // Move to Q2 which has suggestions ["opt a", "opt b"]
+    await h.key(DOWN);
+    await tick(40);
+    const f = h.frame();
+    // Each suggestion must appear on its own line with the bullet glyph.
+    expect(f).toContain("• opt a");
+    expect(f).toContain("• opt b");
+    // Must NOT be comma-joined on a single line.
+    expect(f).not.toContain("opt a, opt b");
+    h.unmount();
+  });
+});
+
 describe("ledger-tui M6 cross-cutting regression (T34)", () => {
   it("subsection headers + archive toggle + status picker all coexist: active items remain editable", async () => {
     const client = new MultiMilestoneArchiveClient();
