@@ -28,6 +28,21 @@ archives:
   - id: M9
     path: ./archive/milestones/M9.md
     summary: "defect/hypothesis relationship views (G1 #2, Q28 Full) — COMPLETE. Schema-sufficiency spike, no @cq/ledger change (T45); pure shared helpers defectFixTaskIds + hypothesisRelationships (T46); web detail-panel relationship views via ./relationships subpath (T47); TUI content-pane views (T48); cross-UI single-source regression + full-suite gate (T49). Tasks T45-T49; reviews R10/R20/R21/R28. Shipped on main; final check 483 pass."
+  - id: M12
+    path: ./archive/milestones/M12.md
+    summary: G2-W1 shared status→color foundation — COMPLETE. 'warning' StatusBucket + WARNING={revise} (T50, mirror both status.ts); TUI warning=magenta (T51); web canonical BUCKET_HEX single source as --lw-status-* vars, warning=#e0a341 (T52); DagView nodes via shared BUCKET_HEX[statusBucket(status,schema)] (T53). Tasks T50-T53; reviews R34/R40/R43/R44.
+  - id: M13
+    path: ./archive/milestones/M13.md
+    summary: G2-W2 Questions UX — COMPLETE. parseFieldValue string[] on ;/newline, id[] keeps comma (T54); normalizeSuggestions helper+script idempotent (T55, live data-run DEFERRED — run with MCP quiesced + restart); web (T56)+TUI (T57) suggestions bulleted list; web (T58)+TUI (T59) question field order milestone,status,by,question,context,suggestions,recommendation,answer. Tasks T54-T59; reviews R35/R39/R46/R50/R51/R53.
+  - id: M16
+    path: ./archive/milestones/M16.md
+    summary: G3-B never auto-close goals — COMPLETE. implement/advance.md hard rule 'never auto-transition goal building→done' + ready-to-close report, milestone auto-archive preserved (T69); authoritative invariant once in plan-advance.md, building→done stays legal user-driven (T70); verify gate green (T71). Tasks T69-T71; reviews R36/R45/R55.
+  - id: M17
+    path: ./archive/milestones/M17.md
+    summary: G3-A auto-investigate from plan:* — COMPLETE. K12 supersedes K8 pt3 (pins pts1/2/4/5; plan:* commands auto-launch /investigate:advance inline) (T72); plan-advance.md file-only defects (T73); plan/advance.md auto-investigate phase + enumerated convergent stop predicates replacing 4-iter cap (T74); plan/start+follow-up conditional auto-investigate (T75); implement/advance.md 8-round ceiling removed (T76); cross-flow wording reconciled (T77); verify gate (T78). Tasks T72-T78; reviews R37/R38/R48/R49/R52/R56.
+  - id: M19
+    path: ./archive/milestones/M19.md
+    summary: "G2 follow-up #14-#15 — COMPLETE. Web per-suggestion 'pick' button (T86); TUI keys 1-9 pick Nth suggestion (T87); web disable as-recommended+pick on non-whitespace answer, detail+batch (T88); TUI r/1-9 inert + batch Ctrl+R when persisted answer non-empty (T89). Tasks T86-T89; reviews R69-R72. Integration 623 pass."
 ---
 
 # milestones
@@ -61,21 +76,6 @@ archives:
 - title: "Investigate: mcp-fails-uninitialized-ledger"
 - description: "Coordination milestone for investigating defect: @cq/ledger-mcp fails to connect when started in a directory with no initialized ledger; should auto-init the canonical ledger set instead. Holds the defect, its hypothesis tree, and any clarifying questions."
 
-### M12 — open
-
-- createdAt: 2026-06-02T08:45:54.373Z
-- updatedAt: 2026-06-02T08:45:54.373Z
-- title: "G2-W1: Shared status→color foundation (revise bucket + graph colorization)"
-- description: Work milestone for goal G2 items #6 and #8. Introduce a 'warning' status bucket so `revise` stops rendering green, and a single canonical bucket→color source shared by the status badges (TUI ink colors + web CSS) and the web DAG node colorization. Must precede graph work. Tracked under goal G2 (milestone M10).
-
-### M13 — open
-
-- createdAt: 2026-06-02T08:45:56.721Z
-- updatedAt: 2026-06-02T08:46:04.656Z
-- title: "G2-W2: Questions UX (field order + suggestions-as-list)"
-- description: Work milestone for goal G2 items #3 and #4. Restructure the questions detail field order to the literal sequence milestone, status, by, question, context, suggestions, recommendation, answer in BOTH frontends; turn `suggestions` into a true rendered list (semicolon-delimited editor + bulleted render) and one-shot normalize existing on-disk question items. Tracked under goal G2 (milestone M10).
-- dependsOn: ["M12"]
-
 ### M14 — open
 
 - createdAt: 2026-06-02T08:45:57.789Z
@@ -91,20 +91,6 @@ archives:
 - title: "Plan: plan/implement flow-behavior changes (auto-investigate + never auto-close goals)"
 - description: "Coordination milestone for goal G3: prompt-suite behavior changes to the plan:*/implement:*/investigate:* command flows — (A) make plan:* investigate defects automatically (revisit K8 file-and-defer) and (B) forbid the orchestrator from auto-closing a goal. Groups the goal, its clarifying questions, reviews, and the final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones during planning."
 
-### M16 — open
-
-- createdAt: 2026-06-02T10:13:20.053Z
-- updatedAt: 2026-06-02T10:13:20.053Z
-- title: "G3-B: never auto-close goals (prompt edits)"
-- description: "Change B of G3. Forbid ONLY the automatic goal building->done transition (planned->building may remain automatic). When all work milestones complete: archive them + report 'goal G ready to close; close in TUI/web (set G to done)' + make NO goal-status change. Edits to implement/advance.md milestone-completion + report, and any plan-flow text implying auto-closing. Markdown-only; gate bun run check."
-
-### M17 — open
-
-- createdAt: 2026-06-02T10:13:22.193Z
-- updatedAt: 2026-06-02T10:13:22.193Z
-- title: "G3-A: auto-investigate from plan:* (prompt edits + K8 supersession)"
-- description: "Change A of G3. The plan:* COMMAND orchestrators (advance/start/follow-up) auto-launch /investigate:advance on filed defects after their primary planning work; subagents only file. Remove hard caps (plan 4-iteration, implement 8-round) in favor of model-judged ill-loop detection that surfaces a question on a meaningless loop. Supersede K8 point 3 with a new locked decision. Markdown-only + ledger decision; gate bun run check."
-
 ### M18 — open
 
 - createdAt: 2026-06-02T10:35:22.381Z
@@ -112,14 +98,6 @@ archives:
 - title: "G2 follow-up: web milestone-section rendering + column-width + goals flat-list + TUI nav-perf (#9-#13)"
 - description: "Follow-up work milestone for goal G2, items #9-#13 (clarified by Q38-Q41, Q48-Q49). Web: #9 unify archived milestone-groups into the same collapsible subsection renderer + 'archived' badge (lazy-fetch on expand, drop the pointer-button path); #10 render milestone-section status as a badge in BOTH UIs from the shared M12 palette (depends on M12); #11 CSS column proportions (id/status hug content via colgroup width:1%+nowrap, summary flexes) across all web tables; #12 GOALS ledger as a FLAT list (no coordination subsections) showing fields.milestones as a milestones list, in BOTH UIs (user-deviated answer Q48); #13 TUI nav-perf fix (memoize visibleRows/maxIdW/maxStatusW/buildItemEntries). Depends on M12 (shared status palette/badge) and relates to M14 (column work T60-T62, render-path T62)."
 - dependsOn: ["M12","M14"]
-
-### M19 — open
-
-- createdAt: 2026-06-02T10:35:29.212Z
-- updatedAt: 2026-06-02T10:35:29.212Z
-- title: "G2 follow-up: per-suggestion pick-as-answer + disable answer-fill when typing (#14-#15)"
-- description: "Follow-up work milestone for goal G2, items #14-#15 (clarified by Q50-Q51). #14 per-suggestion 'pick as answer' control parity with 'as recommended' (web button after each suggestion <li>; TUI number keys 1-9), questions ledger only, immediate save; depends on the suggestions-list rendering M13 T56 (web) / T57 (TUI). #15 disable both 'as recommended' and the #14 pick controls once the answer field holds any non-whitespace text (web: onInput signal on the uncontrolled textarea gating disabled; TUI: r/pick keys inert when persisted answer non-empty), applied everywhere those controls render INCLUDING the batch-answer modal (M14 T63/T64); depends on #14. Depends on M13 (suggestions list) and M18 is not required; #15's batch-modal coverage relates to M14 T63/T64."
-- dependsOn: ["M13","M14"]
 
 ### M20 — open
 
