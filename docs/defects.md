@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 19
+  item: 20
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -91,10 +91,10 @@ archives:
 
 ## M28
 
-### D14 — open
+### D14 — resolved
 
 - createdAt: 2026-06-02T21:27:23.426Z
-- updatedAt: 2026-06-02T21:27:23.426Z
+- updatedAt: 2026-06-02T23:41:24.665Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: freePort() retains a bind-then-close TOCTOU window (shared test helper, inherited from pty.e2e.test.ts)
@@ -102,11 +102,13 @@ archives:
 - description: "Filed out-of-scope by the T105 reviewer (round 1). test/portHelpers.ts freePort() binds :0 on loopback, reads the OS-assigned port, then close()s the listener before returning it — a classic bind-then-close pattern with a theoretical TOCTOU window (the worker's own docstring acknowledges this). The window is far narrower than the original fixed-port collision (D9) and 3/3 consecutive full-suite runs were deterministically green, so it does NOT reintroduce the observed race. This pattern is pre-existing in pty.e2e.test.ts and was extracted verbatim per T105's explicit 'reuse pty's freePort()' instruction; eliminating it is harness-hardening out of scope for T105's de-flake. Does not block T105 (approved)."
 - suggestedFix: Harden the shared freePort() to avoid the close-then-rebind gap — either retry server spawn on EADDRINUSE, or pass the open listener's fd to the child — and update both pty.e2e and the HTTP tests to the hardened allocator.
 - ledgerRefs: ["tasks:T105","goals:G6"]
+- dependsOn: ["T111"]
+- fix: "T111 (commit 6e223bb): added spawnWithFreePort() that races waitForPort() against proc.exited to detect EADDRINUSE (server crash before bind) and retries up to 5x with a fresh port, closing the bind-then-close TOCTOU window; all 3 call sites (pty.e2e, displayName, mcpClient) updated; freePort() signature preserved."
 
-### D15 — open
+### D15 — resolved
 
 - createdAt: 2026-06-02T21:27:30.297Z
-- updatedAt: 2026-06-02T21:27:30.297Z
+- updatedAt: 2026-06-02T23:41:27.498Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: ledger-tui live-badge test fails/flakes on a pushed WS change (app.test.tsx ~593-612)
@@ -114,11 +116,13 @@ archives:
 - description: Filed out-of-scope independently by BOTH the T106 and T107 reviewers (round 1) — same underlying fault, deduped here. packages/ledger-tui/test/app.test.tsx ('live updates > shows a live badge and refetches the current frame on a pushed change') asserts the frame contains 'pushed-tui' after a FakeWS push + await tick(60), but the new item does not render. The T106 reviewer observed it fail deterministically (3/3) in isolation and reproduce identically on the base commit (9d6da3e / f67e5ee); the T107 reviewer observed it ~1/4 in the full suite. Either way it is PRE-EXISTING (present at base), in a package neither task touches, and makes `bun run check` non-deterministic on this tree. Conservatively rated medium given the T106 reviewer's deterministic-in-isolation finding. Did not block T106 or T107 (both approved); GATES M28 archival until terminal.
 - suggestedFix: "Replace the fixed `await tick(60)` with a bounded poll/wait-for predicate that re-checks r.lastFrame() until it contains 'pushed-tui', so the assertion does not depend on a single fixed delay matching refetch+render latency; or verify FakeWS.instances[0].push still triggers the live-refetch path."
 - ledgerRefs: ["tasks:T106","tasks:T107","goals:G6"]
+- dependsOn: ["T112"]
+- fix: "T112 (commit 40385f6): replaced the fixed `await tick(60)` in the live-badge test with a bounded 50x20ms poll/wait-for re-checking r.lastFrame() until it contains 'pushed-tui' (re-pushing each iteration to cover the pre-passive-effect window); deterministic 12/12. NOTE: the broader remaining ledger-tui full-suite flakiness is tracked separately as D20."
 
-### D16 — open
+### D16 — resolved
 
 - createdAt: 2026-06-02T22:37:29.747Z
-- updatedAt: 2026-06-02T22:37:29.747Z
+- updatedAt: 2026-06-02T23:41:21.840Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: Archived milestone titles missing in NON-milestones ledger views (tasks/defects/etc.) — T109 backfill gated on isMilestones
@@ -127,11 +131,13 @@ archives:
 - rootCause: "CONFIRMED by probe (FsLedgerStore.init() against a copy of live docs, then fetch each ledger's archivePointers): milestones 0/20 empty titles; tasks 19/20 empty; defects 3/4 empty (only M21, whose pointer carries an inline title written at archive time). T109's backfillLegacyArchivePointers is gated `if (isMilestones)` at packages/ledger/src/store/FsLedgerStore.ts:402, so ONLY the milestones ledger's archivePointers are backfilled. Every other ledger's archivePointers keep title:'' → ArchiveSubsections heads (App.tsx ~L1209-1211, label from pointer.title per T91/D8) show no title in tasks/defects/etc. archived views. This is a too-narrow scope in D12's fix task T109."
 - suggestedFix: "Remove the isMilestones gate (or call the backfill for EVERY loaded ledger): the milestone title/status is recoverable from docs/archive/milestones/<id>.md regardless of which ledger the pointer sits in, so backfillLegacyArchivePointers should run for all ledgers' archivePointers at init. Add a regression test asserting fetch('tasks').archivePointers carry non-empty titles after init against a fixture with legacy (no-inline-title) pointers. Confirm parity for both stores (InMemory has no on-disk archive .md — only Fs backfills, consistent with T109)."
 - ledgerRefs: ["tasks:T109","defects:D12","goals:G6"]
+- dependsOn: ["T110"]
+- fix: "T110 (commit 48f4e93): backfillLegacyArchivePointers now runs for ALL ledgers (isMilestones gate dropped) and, for non-milestones pointers, sources the milestone title/status from docs/archive/milestones/<id>.md by id (the single-ITEM archive) rather than the title-less group archive at ptr.path. FS-only/fail-soft; InMemory untouched (T109/D10 parity). Reproduction-first test (fails pre-fix and under the naive parse-ptr.path approach). Non-milestones archived views now show titles."
 
-### D17 — open
+### D17 — resolved
 
 - createdAt: 2026-06-02T22:37:37.789Z
-- updatedAt: 2026-06-02T22:37:37.789Z
+- updatedAt: 2026-06-02T23:41:30.282Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: Milestones-ledger archived ROW shows an 'archived' badge in the id column that wraps the column (T108)
@@ -140,13 +146,15 @@ archives:
 - rootCause: "T108's archived-row rendering places the <span className=\"lw-archived-badge\"> inside the id cell of the archived ItemTable row (packages/ledger-web/src/App.tsx:1862, data-testid `archived-badge-${p.id}`), so the narrow id column must wrap to fit 'M13' + the badge."
 - suggestedFix: Remove the per-row archived badge from the id column of the milestones-ledger archived rows (the show-archived grouping already signals archived state), or relocate it to a non-id cell / give the id column nowrap and the badge its own column. Keep the row's click-to-open-archive behavior. Update the happy-dom test in milestonesArchivedRows.test.tsx accordingly.
 - ledgerRefs: ["tasks:T108","defects:D12","goals:G6"]
+- dependsOn: ["T113"]
+- fix: "T113 (commit 1dec462): removed the lw-archived-badge <span> from the archived-row id <td> in the milestones-ledger ItemTable so the id column renders single-line; archived state remains signaled by the lw-row-terminal row class + the show-archived toggle grouping; click-to-open-archive preserved; happy-dom test updated."
 
 ## M10
 
 ### D18 — open
 
 - createdAt: 2026-06-02T22:37:45.916Z
-- updatedAt: 2026-06-02T22:37:45.916Z
+- updatedAt: 2026-06-02T22:50:55.536Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: Batch answer-questions modal is missing the per-suggestion 'pick' buttons (present only in the detail answer view)
@@ -155,11 +163,12 @@ archives:
 - rootCause: "In packages/ledger-web/src/App.tsx the DETAIL answer view renders per-suggestion pick buttons (renderQuestionFields narrative, App.tsx:2438-2443: <button className=\"lw-pick-suggestion\" data-testid=`answer-pick-suggestion-${i}` onClick={()=>answerWith(item)}>pick</button>). The BatchAnswerModal (App.tsx ~1392-1475) renders suggestions as a plain <dd data-testid=\"batch-field-suggestions\"> (App.tsx:1435) and only offers the 'as recommended' button (App.tsx:1475) — it never renders per-suggestion pick buttons. G2 #14 (web pick = T86) was applied to the detail view; the batch modal got 'as recommended' + the #15 disable-when-typing gate (T88) but not the per-suggestion pick controls."
 - suggestedFix: Add per-suggestion 'pick' buttons to the BatchAnswerModal suggestions rendering, mirroring the detail view (answerWith(suggestionText) on click), and apply the same #15 disable-when-answer-non-empty gate already used for 'as recommended'. Add a happy-dom assertion that the batch modal renders one pick button per suggestion and that picking sets the answer.
 - ledgerRefs: ["tasks:T86","tasks:T88","goals:G2"]
+- dependsOn: ["T114"]
 
 ### D19 — open
 
 - createdAt: 2026-06-02T22:42:03.577Z
-- updatedAt: 2026-06-02T22:42:03.577Z
+- updatedAt: 2026-06-02T22:50:56.680Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: Batch answer-questions modal does not CLOSE after answering the LAST open question ('save & mark answered' / 'as recommended')
@@ -168,3 +177,16 @@ archives:
 - rootCause: "CONFIRMED by reading packages/ledger-web/src/App.tsx. Both buttons call onSave = batchSave (App.tsx:533-550). batchSave persists the answer then advances with `setBatchIndex((i) => Math.min(batchRows.length - 1, i + 1))` (App.tsx:543) and NEVER closes the modal. `batchRows` is a SNAPSHOT captured when the modal opens (setBatchRows(open) at App.tsx:520) and is not recomputed as questions are answered, so on the last row (i === batchRows.length - 1) the Math.min clamps i back to the last index — the modal stays open showing the just-answered question instead of closing. There is no 'all done → close' branch in batchSave (contrast onClose=setBatchOpen(false) wired only to the ✕ button and backdrop at App.tsx:980-984)."
 - suggestedFix: "In batchSave, after a successful save, detect completion and close: if the saved row was the last remaining unanswered row (e.g. i >= batchRows.length - 1, or recompute remaining-open after reload and close when none remain) call setBatchOpen(false) instead of clamping the index. Prefer recomputing the open set post-save so mid-queue answers also shrink the queue correctly. Add a happy-dom test: a 1-question batch + 'save & mark answered' (and a separate 'as recommended') closes the modal (batch-overlay absent) after the last answer."
 - ledgerRefs: ["tasks:T63","tasks:T88","goals:G2"]
+- dependsOn: ["T115"]
+
+### D20 — open
+
+- createdAt: 2026-06-02T23:36:27.070Z
+- updatedAt: 2026-06-02T23:36:27.070Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: ledger-tui ink-testing-library tests flake under full-suite concurrency (beyond the D15 live-badge test)
+- severity: medium
+- description: "Filed out-of-scope by the T110 and T113 reviewers (round 1), deduped. Under a full `bun run check`, several ledger-tui tests fail non-deterministically and pass when packages/ledger-tui is run in isolation; they also reproduce at base commits (c203471 / f0842ee) with none of the G7 fixes applied — i.e. PRE-EXISTING and unrelated to the G7 diffs. Observed flaky tests beyond the live-badge one: 'ledger-tui suggestions bulleted list (T57) > renders suggestions string[] as one bulleted line per element', 'ledger-tui question detail field order (T59) > leaves non-question item leading lines unchanged', and 'ledger-tui archive view (T33) > the s key is inert on an archived item'. These are static-render assertions (not live-update), so the flakiness is a test-ordering / concurrency / un-awaited-render artifact distinct from D15's refetch race. NOTE: D15 (the live-badge refetch race) is a SEPARATE, already-fixed instance (T112, this same G7 batch) — this defect tracks the REMAINING ledger-tui full-suite flakiness that makes the repo gate non-deterministic."
+- suggestedFix: "Stabilize the ledger-tui ink-testing-library tests for full-suite concurrency: wrap state-changing event dispatch in act(...), replace fixed-delay sleeps with poll-until-condition waits, and/or isolate shared module state between tests. Investigate whether bun's concurrent test execution interleaves shared state (e.g. a module-level singleton / fake clock) across these files. Goal: deterministic `bun run check`."
+- ledgerRefs: ["goals:G2"]

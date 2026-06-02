@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 28
+  item: 30
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -116,10 +116,10 @@ archives:
 - updatedAt: 2026-06-01T19:15:33.341Z
 - title: ambient
 
-### M1 — open
+### M1 — done
 
 - createdAt: 2026-06-01T19:24:22.101Z
-- updatedAt: 2026-06-01T19:24:22.101Z
+- updatedAt: 2026-06-02T22:56:35.858Z
 - title: "Plan: /implement:* command family"
 - description: "Coordination milestone for the goal of building the /implement:* command family (start/advance) that executes the planned roadmap: DAG-ordered task pickup, per-task worktree + implementor subagent, reviewer subagent gate, autonomous criticism loop, and user-answered questions. Groups the goal, its clarifying questions, reviews, and final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones."
 
@@ -169,3 +169,17 @@ archives:
 - updatedAt: 2026-06-02T19:52:19.215Z
 - title: "G6 fixes: D9 test flake, D10 store parity, D11 sticky toolbar"
 - description: "Work milestone for defect-seeded goal G6. Three file-disjoint, parallel-safe low-severity fix tasks: D9 (ledger-tui HTTP test-harness flake), D10 (ledger store-abstract dual-store no-partial-mutation assertion), D11 (ledger-web sticky .lw-toolbar). Gate: bun run check."
+
+### M29 — open
+
+- createdAt: 2026-06-02T22:48:12.040Z
+- updatedAt: 2026-06-02T22:48:12.040Z
+- title: "Plan: fix confirmed dogfood UI/store defects (D14-D19)"
+- description: Coordination milestone for the defect-seeded goal G7 — fix the batch of confirmed/grounded defects surfaced during G6 dogfooding (D14 freePort TOCTOU, D15 ledger-tui live-badge flake, D16 non-milestones archived-title backfill gate, D17 archived-badge in id column, D18 batch modal missing pick buttons, D19 batch modal no close-on-last). Holds the goal, its reviews, and approval decision. Work tasks live under a separate work milestone.
+
+### M30 — open
+
+- createdAt: 2026-06-02T22:49:49.864Z
+- updatedAt: 2026-06-02T22:49:49.864Z
+- title: "G7 fixes: confirmed dogfood UI/store defects (D14-D19)"
+- description: "Fix tasks for the six confirmed dogfood defects under goal G7. Scope: packages/ledger (D16), packages/ledger-web/src/App.tsx (D17/D18/D19 — serialize, same file), packages/ledger-tui/test (D14, D15). Repo gate: `bun run check`. Parallel-safety: D16, D14, D15 are disjoint and parallel-safe; D17→D18→D19 are chained (dependsOn) because they all edit App.tsx and are NOT parallel-safe with each other."

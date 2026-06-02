@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 102
+  item: 108
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -372,3 +372,73 @@ archives:
 - criticism: []
 - new_questions: []
 - ledgerRefs: ["tasks:T108","goals:G6"]
+
+## M29
+
+### R103 — revise
+
+- createdAt: 2026-06-02T22:55:46.312Z
+- updatedAt: 2026-06-02T22:55:46.312Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: Plan well-grounded and complete (one task/defect, D13 correctly excluded), but T110's stated fix mechanism would not resolve D16's root cause — revise.
+- new_questions: []
+- criticism: ["T110 (D16) — the stated fix mechanism does NOT resolve the root cause and would make the (correct, reproduction-first) acceptance test FAIL post-fix. The task says 'drop the isMilestones gate so backfillLegacyArchivePointers runs for every loaded ledger' (FsLedgerStore.ts:401-402). But that method (FsLedgerStore.ts:246-272) reads ptr.path and calls parseMilestoneItemArchive(text) at L260 — which parses the milestones-ledger single-ITEM archive grammar (`### M<n> — <status>` with a `title:` field). For a non-milestones ledger, ptr.path resolves to `./archive/<name>/<id>.md`, a GROUP archive (verified: docs/archive/tasks/M12.md begins `## M12` then `### T50 — done`, carries NO milestone title — only item headlines). parseMilestoneItemArchive on a group-archive file does not extract a milestone title (group.items.length !== 1 / structural mismatch) and fails-soft to title:'' — so titles stay empty and the regression test fails post-fix. The correct fix (which the task's own suggestedFix text gestures at) must source the milestone title/status from the milestones-ledger pointer (already backfilled) OR from docs/archive/milestones/<id>.md keyed by the milestone id — NOT from the per-ledger group archive at ptr.path. T110 must specify reading the milestones-archive item, not merely ungating the existing method, and must preserve InMemory parity (no on-disk archive → no backfill) and the milestones-ledger path.","T114 (D18) — acceptance/fix says 'call answerWith(item) (same handler shape as the detail view)', but no answerWith handler exists in BatchAnswerModal scope. The detail view (App.tsx:2424-2451) uses a local answerWith that sets answer-box state; the batch modal (App.tsx:1392-1481) uses an uncontrolled textarea ref (answerRef) + onSave(row, value). Picking a suggestion in the batch modal must instead populate answerRef.current.value and set answerHasText (or call onSave(row, suggestion) directly). Specify the batch-modal binding so the implementer does not chase a nonexistent handler; also iterate individual suggestion entries (Array.isArray(sv) ? sv : [sv]) rather than the single renderVal <dd> at App.tsx:1435.","T111 (D14) — completeness: the task names 'pty.e2e + the HTTP tests' but freePort() has THREE call sites (test/pty.e2e.test.ts:71, test/displayName.test.ts:56, test/mcpClient.test.ts:38). Name all three explicitly (or confirm a signature-preserving hardening of freePort() that leaves call sites untouched) so the 'all freePort call sites updated' acceptance is unambiguous.","T115 (D19) — minor: acceptance covers the 1-question close case and 'multi-question batches still advance', but D19's suggestedFix prefers recomputing the open set post-save so MID-QUEUE answers shrink the queue / close-on-empty handles a residual snapshot correctly. Add an acceptance clause for the recompute-open-set behavior (not just clamp-then-close on the last index) so a stale batchRows snapshot does not keep a fully-answered queue open."]
+- ledgerRefs: ["goals:G7"]
+
+### R104 — go-ahead
+
+- createdAt: 2026-06-02T22:59:22.026Z
+- updatedAt: 2026-06-02T22:59:22.026Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: All four R103 criticisms resolved against live source; T110-T115 fine-grained, sequenced (App.tsx chain T113->T114->T115 via dependsOn), testable, grounded, complete — go-ahead.
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G7"]
+
+## M30
+
+### R105 — go-ahead
+
+- createdAt: 2026-06-02T23:41:42.919Z
+- updatedAt: 2026-06-02T23:41:42.919Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T110 approved: non-milestones archive titles sourced from docs/archive/milestones/<id>.md by id (not the title-less group archive); reproduction-first test discriminates pre-fix AND the naive parse-ptr.path approach; FS-only/fail-soft, InMemory untouched; check green 680/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T110","goals:G7"]
+
+### R106 — go-ahead
+
+- createdAt: 2026-06-02T23:41:46.354Z
+- updatedAt: 2026-06-02T23:41:46.354Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T111 approved: spawnWithFreePort closes the bind-then-close TOCTOU (retry on child-exit/EADDRINUSE, fresh port); all 3 call sites consistent; freePort signature preserved; only check failure was the pre-existing D15 flake (fixed by T112)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T111","goals:G7"]
+
+### R107 — go-ahead
+
+- createdAt: 2026-06-02T23:41:49.571Z
+- updatedAt: 2026-06-02T23:41:49.571Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T112 approved: bounded wait-for de-flakes the live-badge test, real toContain('pushed-tui') assertion preserved, 12/12 deterministic, check green; the re-push covers a test-harness timing artifact (not a product race), so no defect filed."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T112","goals:G7"]
+
+### R108 — go-ahead
+
+- createdAt: 2026-06-02T23:41:52.072Z
+- updatedAt: 2026-06-02T23:41:52.072Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T113 approved: lw-archived-badge removed from archived-row id cell (single-line id column); archived state still signaled by lw-row-terminal + show-archived grouping; click-to-open intact; test meaningfully updated; ledger-web 167/0. Full-suite failures were pre-existing ledger-tui flake (D20)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T113","goals:G7"]

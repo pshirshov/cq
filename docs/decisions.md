@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 18
+  item: 19
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -214,3 +214,15 @@ archives:
 - headline: "plan review: approved (D12 follow-up)"
 - rationale: "Reviewer go-ahead R97 (0 criticisms / 0 new_questions; R95+R96 grounding/locus gaps resolved — T109 relocates the legacy ArchivePointer title/status backfill to async FsLedgerStore.init() (FS-only), forbids touching materialiseFetchedLedger/InMemory to preserve D10/T106 parity, with a reproduction-first FS-fixture acceptance). Extends the locked plan (prior decision K17 locked round-1 fix tasks T105/T106/T107 for D9/D10/D11 under M28) to cover the D12 follow-up: T109 (ledger FsLedgerStore.init() legacy-pointer title/status backfill) sequenced before T108 (web App.tsx archived-milestone rows in the milestones-ledger view). Gate `bun run check`."
 - ledgerRefs: ["goals:G6","defects:D12","tasks:T108","tasks:T109"]
+
+## M29
+
+### K19 — locked
+
+- createdAt: 2026-06-02T23:00:09.765Z
+- updatedAt: 2026-06-02T23:00:09.765Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R104): all R103 criticisms resolved; fix tasks T110-T115 for defects D14-D19 under work milestone M30 are fine-grained, sequenced (App.tsx chain T113->T114->T115), testable, and grounded."
+- ledgerRefs: ["goals:G7"]
