@@ -2344,7 +2344,32 @@ function DetailPanel({
         {valueOf(CONTEXT_FIELD) !== undefined &&
           fieldDtDd(CONTEXT_FIELD, renderVal(valueOf(CONTEXT_FIELD)!))}
         {valueOf(SUGGESTIONS_FIELD) !== undefined &&
-          fieldDtDd(SUGGESTIONS_FIELD, renderVal(valueOf(SUGGESTIONS_FIELD)!))}
+          fieldDtDd(
+            SUGGESTIONS_FIELD,
+            (() => {
+              const sv = valueOf(SUGGESTIONS_FIELD)!;
+              const items = Array.isArray(sv) ? sv : [sv];
+              return (
+                <ul className="lw-field-list">
+                  {items.map((item, i) => (
+                    <li key={i}>
+                      {item}
+                      {answerable && (
+                        <button
+                          type="button"
+                          className="lw-pick-suggestion"
+                          data-testid={`answer-pick-suggestion-${i}`}
+                          onClick={() => answerWith(item)}
+                        >
+                          pick
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              );
+            })(),
+          )}
         {recVal !== undefined && (
           <React.Fragment key={RECOMMENDATION_FIELD}>
             <dt>{RECOMMENDATION_FIELD}</dt>

@@ -279,9 +279,10 @@ describe("ledger-web App", () => {
     expect(dd).not.toBeNull();
     const items = dd?.querySelectorAll("li");
     expect(items?.length).toBe(3);
-    expect(items?.[0]?.textContent).toBe("opt a");
-    expect(items?.[1]?.textContent).toBe("opt b");
-    expect(items?.[2]?.textContent).toBe("opt c");
+    // Each <li> contains the suggestion text (may also include a pick button).
+    expect(items?.[0]?.textContent).toContain("opt a");
+    expect(items?.[1]?.textContent).toContain("opt b");
+    expect(items?.[2]?.textContent).toContain("opt c");
     // Must NOT be a joined comma string.
     expect(dd?.textContent).not.toContain("opt a, opt b");
   });
