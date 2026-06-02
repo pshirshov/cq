@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 69
+  item: 71
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -535,3 +535,25 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T87","goals:G2"]
 - tags: ["implement-flow","round-0","approve","1-9 picker gated + mirrored both focus modes; no collisions; 8 tests; check 596"]
+
+### R70 — go-ahead
+
+- createdAt: 2026-06-02T14:35:44.437Z
+- updatedAt: 2026-06-02T14:35:44.437Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T86","goals:G2"]
+- tags: ["implement-flow","round-0","approve","per-suggestion pick gated on answerable; exact text + answered; parity with as-recommended; check 611"]
+
+### R71 — go-ahead
+
+- createdAt: 2026-06-02T14:35:46.786Z
+- updatedAt: 2026-06-02T14:35:46.786Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T89","goals:G2"]
+- tags: ["implement-flow","round-0","approve","r + 1-9 + batch Ctrl+R inert when persisted answer non-empty; trim semantics; fail-first verified; check 611"]

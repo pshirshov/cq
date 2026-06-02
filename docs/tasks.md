@@ -721,10 +721,10 @@ archives:
 
 ## M19
 
-### T86 — wip
+### T86 — done
 
 - createdAt: 2026-06-02T10:37:05.474Z
-- updatedAt: 2026-06-02T14:22:21.443Z
+- updatedAt: 2026-06-02T14:35:38.797Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #14: per-suggestion 'pick as answer' button after each suggestion <li>"
@@ -736,6 +736,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T56"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 1d2cb88
+- completion: Web per-suggestion 'pick' button inside each suggestion <li> (renderQuestionFields); renders only when answerable (open + canAnswer); answerWith(suggestionText) saves exact text + status=answered (parity with 'as recommended'); data-testid=answer-pick-suggestion-<index>. 6 happy-dom tests. Reviewer approve 0/0.
 
 ### T87 — done
 
@@ -755,12 +757,12 @@ archives:
 - resultCommit: cc4db8c
 - completion: TUI keys 1-9 pick the Nth suggestion as answer via applyAnswer (save + mark answered), gated on canAnswer + non-empty suggestions + N in range, mirrored in both list-focus and content-focus; out-of-range = no-op; '1-9 pick suggestion' hint when answerable+suggestions. No binding collisions (overlays early-return). 8 ink tests. Reviewer approve 0/0.
 
-### T88 — planned
+### T88 — wip
 
 - createdAt: 2026-06-02T10:37:26.066Z
-- updatedAt: 2026-06-02T10:37:26.066Z
+- updatedAt: 2026-06-02T14:35:48.216Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #15: disable 'as recommended' + per-suggestion 'pick' once the answer has non-whitespace text"
 - description: |
     Item #15 (web half; DEPENDS ON T86 (#14 web pick buttons) + the existing 'as recommended' affordance; also covers the batch modal T63 per Q51 (C)). Rationale: those buttons auto-fill/clobber the answer, so once the user is composing their own answer they must not overwrite it.
@@ -773,10 +775,10 @@ archives:
 - dependsOn: ["T86","T63"]
 - ledgerRefs: ["goals:G2"]
 
-### T89 — wip
+### T89 — done
 
 - createdAt: 2026-06-02T10:37:33.607Z
-- updatedAt: 2026-06-02T14:22:22.856Z
+- updatedAt: 2026-06-02T14:35:42.090Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #15: make the `r` and #14 pick keys inert when the persisted answer is non-empty"
@@ -790,3 +792,5 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T87","T64"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: f358f53
+- completion: TUI `r` (as-recommended) + 1-9 (number-pick) keys inert when persisted answer non-empty (hasPersistedAnswer, trim-based) across both list/content focus + batch-overlay Ctrl+R; whitespace-only still acts; hints suppress r/1-9 tokens when answered. 9 ink tests, fail-first verified (revert fails 7/9). Reviewer approve 0/0.
