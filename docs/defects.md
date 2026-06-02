@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 1
+  item: 2
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -10,3 +10,15 @@ archives:
 ---
 
 # defects
+
+## M11
+
+### D2 — open
+
+- createdAt: 2026-06-02T08:37:01.114Z
+- updatedAt: 2026-06-02T08:37:01.114Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: ledger-mcp fails to connect in a directory with no initialized ledger (should auto-init)
+- severity: major
+- description: "MCP connection fails when an agent (Claude Code / Codex) starts in a directory that has NO initialized ledger — i.e. no docs/ ledger state / no docs/ledgers.yaml present. The `@cq/ledger-mcp` server fails to connect/serve instead of degrading gracefully, so the session has no ledger tools. Desired behavior: instead of failing, automatically initialize the canonical ledger set (init the ledgers) on startup so the MCP connection succeeds in a fresh directory. Investigate the root cause — where/why the server errors on missing ledger state, what \"initialized\" means (which files/dirs are required), whether `--cwd` resolution or a missing docs/ledgers.yaml is the trigger, and where an auto-init hook should live (server startup vs store construction) — then seed fix tasks. Severity: major (blocks using the tool in any uninitialized repo; workaround = manually init the ledger files)."

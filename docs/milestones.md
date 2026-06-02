@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 9
+  item: 19
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -46,3 +46,77 @@ archives:
 - updatedAt: 2026-06-01T19:24:22.101Z
 - title: "Plan: /implement:* command family"
 - description: "Coordination milestone for the goal of building the /implement:* command family (start/advance) that executes the planned roadmap: DAG-ordered task pickup, per-task worktree + implementor subagent, reviewer subagent gate, autonomous criticism loop, and user-answered questions. Groups the goal, its clarifying questions, reviews, and final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones."
+
+### M10 — open
+
+- createdAt: 2026-06-02T08:26:54.034Z
+- updatedAt: 2026-06-02T08:26:54.034Z
+- title: "Plan: ledger-suite UI/schema enhancements (columns, batch-answer, colors)"
+- description: "Coordination milestone for goal G2: UI/schema enhancements for the ledger-suite frontends (TUI + web) — a follow-on to the completed G1. Groups the goal, its clarifying questions, reviews, and final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones during planning."
+
+### M11 — open
+
+- createdAt: 2026-06-02T08:36:51.936Z
+- updatedAt: 2026-06-02T08:36:51.936Z
+- title: "Investigate: mcp-fails-uninitialized-ledger"
+- description: "Coordination milestone for investigating defect: @cq/ledger-mcp fails to connect when started in a directory with no initialized ledger; should auto-init the canonical ledger set instead. Holds the defect, its hypothesis tree, and any clarifying questions."
+
+### M12 — open
+
+- createdAt: 2026-06-02T08:45:54.373Z
+- updatedAt: 2026-06-02T08:45:54.373Z
+- title: "G2-W1: Shared status→color foundation (revise bucket + graph colorization)"
+- description: Work milestone for goal G2 items #6 and #8. Introduce a 'warning' status bucket so `revise` stops rendering green, and a single canonical bucket→color source shared by the status badges (TUI ink colors + web CSS) and the web DAG node colorization. Must precede graph work. Tracked under goal G2 (milestone M10).
+
+### M13 — open
+
+- createdAt: 2026-06-02T08:45:56.721Z
+- updatedAt: 2026-06-02T08:46:04.656Z
+- title: "G2-W2: Questions UX (field order + suggestions-as-list)"
+- description: Work milestone for goal G2 items #3 and #4. Restructure the questions detail field order to the literal sequence milestone, status, by, question, context, suggestions, recommendation, answer in BOTH frontends; turn `suggestions` into a true rendered list (semicolon-delimited editor + bulleted render) and one-shot normalize existing on-disk question items. Tracked under goal G2 (milestone M10).
+- dependsOn: ["M12"]
+
+### M14 — open
+
+- createdAt: 2026-06-02T08:45:57.789Z
+- updatedAt: 2026-06-02T08:46:05.126Z
+- title: "G2-W3: Column selector, batch-answer mode, project title"
+- description: Work milestone for goal G2 items #1 (per-ledger column selector), #5 (batch answer mode in both UIs), and #7 (project dir name in title). #5 depends on W2's suggestions-list rendering. Tracked under goal G2 (milestone M10).
+- dependsOn: ["M12","M13"]
+
+### M15 — open
+
+- createdAt: 2026-06-02T09:11:53.285Z
+- updatedAt: 2026-06-02T09:11:53.285Z
+- title: "Plan: plan/implement flow-behavior changes (auto-investigate + never auto-close goals)"
+- description: "Coordination milestone for goal G3: prompt-suite behavior changes to the plan:*/implement:*/investigate:* command flows — (A) make plan:* investigate defects automatically (revisit K8 file-and-defer) and (B) forbid the orchestrator from auto-closing a goal. Groups the goal, its clarifying questions, reviews, and the final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones during planning."
+
+### M16 — open
+
+- createdAt: 2026-06-02T10:13:20.053Z
+- updatedAt: 2026-06-02T10:13:20.053Z
+- title: "G3-B: never auto-close goals (prompt edits)"
+- description: "Change B of G3. Forbid ONLY the automatic goal building->done transition (planned->building may remain automatic). When all work milestones complete: archive them + report 'goal G ready to close; close in TUI/web (set G to done)' + make NO goal-status change. Edits to implement/advance.md milestone-completion + report, and any plan-flow text implying auto-closing. Markdown-only; gate bun run check."
+
+### M17 — open
+
+- createdAt: 2026-06-02T10:13:22.193Z
+- updatedAt: 2026-06-02T10:13:22.193Z
+- title: "G3-A: auto-investigate from plan:* (prompt edits + K8 supersession)"
+- description: "Change A of G3. The plan:* COMMAND orchestrators (advance/start/follow-up) auto-launch /investigate:advance on filed defects after their primary planning work; subagents only file. Remove hard caps (plan 4-iteration, implement 8-round) in favor of model-judged ill-loop detection that surfaces a question on a meaningless loop. Supersede K8 point 3 with a new locked decision. Markdown-only + ledger decision; gate bun run check."
+
+### M18 — open
+
+- createdAt: 2026-06-02T10:35:22.381Z
+- updatedAt: 2026-06-02T10:35:22.381Z
+- title: "G2 follow-up: web milestone-section rendering + column-width + goals flat-list + TUI nav-perf (#9-#13)"
+- description: "Follow-up work milestone for goal G2, items #9-#13 (clarified by Q38-Q41, Q48-Q49). Web: #9 unify archived milestone-groups into the same collapsible subsection renderer + 'archived' badge (lazy-fetch on expand, drop the pointer-button path); #10 render milestone-section status as a badge in BOTH UIs from the shared M12 palette (depends on M12); #11 CSS column proportions (id/status hug content via colgroup width:1%+nowrap, summary flexes) across all web tables; #12 GOALS ledger as a FLAT list (no coordination subsections) showing fields.milestones as a milestones list, in BOTH UIs (user-deviated answer Q48); #13 TUI nav-perf fix (memoize visibleRows/maxIdW/maxStatusW/buildItemEntries). Depends on M12 (shared status palette/badge) and relates to M14 (column work T60-T62, render-path T62)."
+- dependsOn: ["M12","M14"]
+
+### M19 — open
+
+- createdAt: 2026-06-02T10:35:29.212Z
+- updatedAt: 2026-06-02T10:35:29.212Z
+- title: "G2 follow-up: per-suggestion pick-as-answer + disable answer-fill when typing (#14-#15)"
+- description: "Follow-up work milestone for goal G2, items #14-#15 (clarified by Q50-Q51). #14 per-suggestion 'pick as answer' control parity with 'as recommended' (web button after each suggestion <li>; TUI number keys 1-9), questions ledger only, immediate save; depends on the suggestions-list rendering M13 T56 (web) / T57 (TUI). #15 disable both 'as recommended' and the #14 pick controls once the answer field holds any non-whitespace text (web: onInput signal on the uncontrolled textarea gating disabled; TUI: r/pick keys inert when persisted answer non-empty), applied everywhere those controls render INCLUDING the batch-answer modal (M14 T63/T64); depends on #14. Depends on M13 (suggestions list) and M18 is not required; #15's batch-modal coverage relates to M14 T63/T64."
+- dependsOn: ["M13","M14"]

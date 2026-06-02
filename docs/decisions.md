@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 8
+  item: 11
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -71,3 +71,37 @@ archives:
 - alternatives: "Inline plan loop inside /investigate:advance (rejected: a command cannot run another command's loop; duplicates plan-flow; contradicts file-and-defer). Re-clarifying the defect-seeded goal (rejected: root cause already confirmed; wastes a round — R5 #2). A dedicated investigate-reviewer subagent (rejected: the command adjudicates citations itself, mirroring how plan/implement keep the loop in the command)."
 - ledgerRefs: ["goals:G1"]
 - tags: ["investigate-flow","design-lock","follow-up-2"]
+
+## M10
+
+### K9 — locked
+
+- createdAt: 2026-06-02T08:57:27.196Z
+- updatedAt: 2026-06-02T08:57:27.196Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R30): plan T50-T68 across work milestones M12/M13/M14 covers all 8 in-scope items, is fine-grained, correctly sequenced, testable, and grounded against source; all three R29 under-specifications resolved; no new defects."
+- ledgerRefs: ["goals:G2"]
+
+### K11 — locked
+
+- createdAt: 2026-06-02T10:40:40.861Z
+- updatedAt: 2026-06-02T10:40:40.861Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: Reviewer go-ahead on the G2 follow-up plan (M18/M19 tasks T79-T89), 0 criticisms / 0 new questions / no out-of-scope defects; ref review R33 (original M12/M13/M14 scope already approved under R30/K9).
+- ledgerRefs: ["goals:G2"]
+
+## M15
+
+### K10 — locked
+
+- createdAt: 2026-06-02T10:23:13.487Z
+- updatedAt: 2026-06-02T10:23:13.487Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: "Plan-reviewer go-ahead (ref review R32, 0 criticisms beyond confirmation, 0 new_questions, empty defects[] bucket): revised plan T69-T78 across work milestones M16/M17 resolves all 5 R31 criticisms; Change A auto-investigate loop proven convergent via operationally-checkable stop predicates, Change B never-auto-close-goal sound. Approving G3 to planned."
+- ledgerRefs: ["goals:G3"]
