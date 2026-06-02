@@ -7,6 +7,12 @@ archives:
   - id: M2
     path: ./archive/questions/M2.md
     summary: TUI + web UI improvements — complete. Per-ledger counts (T1), answer-and-resolve for questions (T2), view persistence (T3), embedded in-process MCP mode for ledger-tui + ledger-web (T17–T22), question-detail field order + highlighted recommendation (T23). Decision K2 (in-process = co-locate the MCP server, don't bypass MCP). Defect D1 (web counts undefined) resolved. Shipped on main (commits 63df0f3, 5cf4916; merged b510170).
+  - id: M14
+    path: ./archive/questions/M14.md
+    summary: G2-W3 column selector + batch-answer + project title — COMPLETE. T60-T68 (eligibleColumnFields/defaultColumns, web+TUI column selectors, web batch-answer modal + TUI overlay, displayName + web/TUI titles). Out-of-scope defects D3 (exports map) + D4 (column eligibility) RESOLVED via G5; Q52 withdrawn (K13). Reviews R54/R57-R61. Shipped on main.
+  - id: M18
+    path: ./archive/questions/M18.md
+    summary: "G2 follow-up #9-13 — COMPLETE. T79 archived-subsection unification, T80/T81 milestone-status badge (web)/color (TUI), T82 colgroup column proportions, T83/T84 goals flat-list, T85 TUI nav-perf memoization. Out-of-scope D5 (archived-head badge) + D6 (browser-safe constants) RESOLVED via G5; Q53 withdrawn (K13). Reviews R62-R68. Shipped on main."
 ---
 
 # questions
@@ -668,29 +674,3 @@ archives:
 - recommendation: Archive the completed work milestones, then print an explicit 'all work for goal G is complete and its milestones are archived — goal G is ready to close; close it yourself in the TUI/web (set G to done) when satisfied' line, and make NO goal-status change. Keep auto-marking individual tasks/defects terminal (that is fine); the prohibition is strictly on closing the GOAL. Use TUI/web as the close mechanism unless you want a new /plan command (separate, larger scope).
 - ledgerRefs: ["goals:G3"]
 - answer: as recommended
-
-## M14
-
-### Q52 — withdrawn
-
-- createdAt: 2026-06-02T12:19:19.551Z
-- updatedAt: 2026-06-02T16:16:58.610Z
-- author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-a45870023493
-- question: "Out-of-scope defects D3 (stale @cq/ledger exports map — major, latent clean-checkout/nix bundle break) and D4 (headline column-eligible — low) surfaced during implement-flow review of T61/T62. They do NOT block G2's tasks (file-and-defer per Q26). Run `/investigate:start D3` and `/investigate:start D4` to triage them when ready."
-- context: "D3: packages/ledger/package.json exports/main point at ./dist/*.js but tsc emits ./dist/src/*.js; masked in-repo by tsconfig paths→source, but breaks published/nix bundling in a clean (dist-less) checkout. D4: columns.ts eligibleColumnFields offers `headline` as an extra column, duplicating the summary cell. Both filed under M14, linked goals:G2."
-- ledgerRefs: ["defects:D3","defects:D4","goals:G2"]
-- answer: "Withdrawn per locked decision K13 (item 18): routing-questions are retired — the questions ledger is reserved for genuine clarifying/decision questions. D3 (major) and D4 (low) remain open defects linked goals:G2 and carry their full triage notes (severity, root cause, suggestedFix) on their own records; they are discoverable by ledger query and runnable via `/investigate:start D3` / `/investigate:start D4` with a bare defect id (no pointer-question needed). No triage information is lost by this withdrawal."
-
-## M18
-
-### Q53 — withdrawn
-
-- createdAt: 2026-06-02T13:39:37.492Z
-- updatedAt: 2026-06-02T16:17:00.032Z
-- author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-a45870023493
-- question: "Two low-severity out-of-scope defects surfaced while reviewing T80: D5 (archived milestone heads have no reachable status to badge — needs a data-model change to thread status through ArchivePointer/archive payload) and D6 (MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA because @cq/ledger has no browser-safe constants export; related to D3). Run /investigate:start D5 and /investigate:start D6 (or fold D6 into D3's exports-map cleanup) to triage when you choose."
-- context: Both low severity; neither blocks T80/M18 task work, but both gate M18 archival until terminal. D6 overlaps D3 (stale @cq/ledger exports map).
-- ledgerRefs: ["defects:D5","defects:D6","defects:D3","tasks:T80","goals:G2"]
-- answer: "Withdrawn per locked decision K13 (item 18): routing-questions are retired. D5 (low) and D6 (low) remain open defects linked goals:G2 and carry their full triage notes on their own records (D6 notes its overlap with D3's exports-map cleanup); discoverable by ledger query and runnable via `/investigate:start D5` / `/investigate:start D6` with a bare defect id. No triage information is lost by this withdrawal."

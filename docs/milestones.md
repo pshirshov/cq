@@ -43,6 +43,24 @@ archives:
   - id: M19
     path: ./archive/milestones/M19.md
     summary: "G2 follow-up #14-#15 — COMPLETE. Web per-suggestion 'pick' button (T86); TUI keys 1-9 pick Nth suggestion (T87); web disable as-recommended+pick on non-whitespace answer, detail+batch (T88); TUI r/1-9 inert + batch Ctrl+R when persisted answer non-empty (T89). Tasks T86-T89; reviews R69-R72. Integration 623 pass."
+  - id: M14
+    path: ./archive/milestones/M14.md
+    summary: G2-W3 column selector + batch-answer + project title — COMPLETE. T60-T68 (eligibleColumnFields/defaultColumns, web+TUI column selectors, web batch-answer modal + TUI overlay, displayName + web/TUI titles). Out-of-scope defects D3 (exports map) + D4 (column eligibility) RESOLVED via G5; Q52 withdrawn (K13). Reviews R54/R57-R61. Shipped on main.
+  - id: M18
+    path: ./archive/milestones/M18.md
+    summary: "G2 follow-up #9-13 — COMPLETE. T79 archived-subsection unification, T80/T81 milestone-status badge (web)/color (TUI), T82 colgroup column proportions, T83/T84 goals flat-list, T85 TUI nav-perf memoization. Out-of-scope D5 (archived-head badge) + D6 (browser-safe constants) RESOLVED via G5; Q53 withdrawn (K13). Reviews R62-R68. Shipped on main."
+  - id: M22
+    path: ./archive/milestones/M22.md
+    summary: G4-W D2 backup-and-reinit — COMPLETE. T94 backupAndReinit helper (timestamped docs/.backup/, ENOENT-tolerant, fresh canonical + WARNING); T95 init() !schemasEqual branch → backup-and-reinit by default + onSchemaDivergence:'abort' opt-out; T96 tests (divergence/abort/no-divergence/empty-dir) + abort-suite migration; T97 repo gate. Defect D2 RESOLVED. Reviews R80/R85/R89/R91. Shipped on main; check 661.
+  - id: M24
+    path: ./archive/milestones/M24.md
+    summary: G5 Fix Unit A @cq/ledger packaging — COMPLETE. T98 realigned package.json main+exports → ./dist/src/* (consistent w/ ./columns); T99 browser-safe ./constants subpath export + web tsconfig paths; T100 App.tsx consumes @cq/ledger/constants, deletes MILESTONE_STATUS_SCHEMA dup; T101 package-exports.test.ts (asserts all export targets exist post-build). Defects D3 + D6 RESOLVED. Reviews R81/R86/R87/R88. Shipped on main.
+  - id: M25
+    path: ./archive/milestones/M25.md
+    summary: G5 Fix Unit B column eligibility — COMPLETE. T102 added SUMMARY_SOURCE_FIELDS {headline,title,question} excluded from eligibleColumnFields (grounded in summarize() precedence) + first columns.test.ts; suggestedModel still eligible. Defect D4 RESOLVED. Review R82. Shipped on main.
+  - id: M26
+    path: ./archive/milestones/M26.md
+    summary: "G5 Fix Unit C archived-head status badge — COMPLETE. T104 passes archived pointer status as milestoneStatus to the archived MilestoneSubsection (empty-status guarded) → T80 badge renders for archived heads; happy-dom test. T103 withdrawn (R77: no @cq/shared wire mirror — T91's ArchivePointer.status flows over the wire as-is). Defect D5 RESOLVED. Review R92. Shipped on main; check 661."
 ---
 
 # milestones
@@ -76,28 +94,12 @@ archives:
 - title: "Investigate: mcp-fails-uninitialized-ledger"
 - description: "Coordination milestone for investigating defect: @cq/ledger-mcp fails to connect when started in a directory with no initialized ledger; should auto-init the canonical ledger set instead. Holds the defect, its hypothesis tree, and any clarifying questions."
 
-### M14 — open
-
-- createdAt: 2026-06-02T08:45:57.789Z
-- updatedAt: 2026-06-02T08:46:05.126Z
-- title: "G2-W3: Column selector, batch-answer mode, project title"
-- description: Work milestone for goal G2 items #1 (per-ledger column selector), #5 (batch answer mode in both UIs), and #7 (project dir name in title). #5 depends on W2's suggestions-list rendering. Tracked under goal G2 (milestone M10).
-- dependsOn: ["M12","M13"]
-
 ### M15 — open
 
 - createdAt: 2026-06-02T09:11:53.285Z
 - updatedAt: 2026-06-02T09:11:53.285Z
 - title: "Plan: plan/implement flow-behavior changes (auto-investigate + never auto-close goals)"
 - description: "Coordination milestone for goal G3: prompt-suite behavior changes to the plan:*/implement:*/investigate:* command flows — (A) make plan:* investigate defects automatically (revisit K8 file-and-defer) and (B) forbid the orchestrator from auto-closing a goal. Groups the goal, its clarifying questions, reviews, and the final approval decision. Work tasks live under separate work milestones recorded on the goal's fields.milestones during planning."
-
-### M18 — open
-
-- createdAt: 2026-06-02T10:35:22.381Z
-- updatedAt: 2026-06-02T10:35:22.381Z
-- title: "G2 follow-up: web milestone-section rendering + column-width + goals flat-list + TUI nav-perf (#9-#13)"
-- description: "Follow-up work milestone for goal G2, items #9-#13 (clarified by Q38-Q41, Q48-Q49). Web: #9 unify archived milestone-groups into the same collapsible subsection renderer + 'archived' badge (lazy-fetch on expand, drop the pointer-button path); #10 render milestone-section status as a badge in BOTH UIs from the shared M12 palette (depends on M12); #11 CSS column proportions (id/status hug content via colgroup width:1%+nowrap, summary flexes) across all web tables; #12 GOALS ledger as a FLAT list (no coordination subsections) showing fields.milestones as a milestones list, in BOTH UIs (user-deviated answer Q48); #13 TUI nav-perf fix (memoize visibleRows/maxIdW/maxStatusW/buildItemEntries). Depends on M12 (shared status palette/badge) and relates to M14 (column work T60-T62, render-path T62)."
-- dependsOn: ["M12","M14"]
 
 ### M20 — open
 
@@ -114,37 +116,8 @@ archives:
 - description: "Work milestone for G2 follow-up #4 (items 16-19). Items 16/17/19 are web-only (packages/ledger-web: App.tsx + styles.css); item 18 is prompt-suite markdown (llm/commands/*, llm/agents/*) plus a one-shot ledger-data cleanup, governed by locked decision K13. Items 16/17/19 all touch web App.tsx/styles.css (the App.tsx edits serialize); item 18 is disjoint. Repo gate: bun run check; web tests use happy-dom."
 - dependsOn: ["M19"]
 
-### M22 — open
-
-- createdAt: 2026-06-02T16:30:45.859Z
-- updatedAt: 2026-06-02T16:30:45.859Z
-- title: "G4-W: D2 backup-and-reinit on ledger schema divergence"
-- description: "Work milestone for G4 / defect D2. Replace the fatal BootstrapViolationError throw in FsLedgerStore.init() (the !schemasEqual branch at packages/ledger/src/store/FsLedgerStore.ts:283-289) with a graceful backup-and-reinit: back up the divergent on-disk ledger file(s) + docs/ledgers.yaml into docs/.backup/<ISO-timestamp>/, write fresh canonical ledger(s) + registry from CANONICAL_LEDGERS, emit a loud stderr WARNING naming the backup path, and continue startup. Default behavior is backup-and-reinit; an optional opt-out flag preserves the hard abort. Includes dual-tests-style coverage. Repo gate: bun run check."
-
 ### M23 — open
 
 - createdAt: 2026-06-02T17:25:15.494Z
 - updatedAt: 2026-06-02T17:25:15.494Z
 - title: "Plan: @cq/ledger packaging + UI-eligibility defect cleanup (D3-D6)"
-
-### M24 — open
-
-- createdAt: 2026-06-02T17:37:50.791Z
-- updatedAt: 2026-06-02T17:37:50.791Z
-- title: G5 Fix Unit A — @cq/ledger packaging (D3 + D6)
-- description: Realign @cq/ledger package.json main+exports to a consistent real dist layout (D3, major) and add a browser-safe ./constants subpath export removing the App.tsx MILESTONE_STATUS_SCHEMA duplication (D6, low). Single shared package.json edit. Work milestone under goal G5.
-
-### M25 — open
-
-- createdAt: 2026-06-02T17:37:51.781Z
-- updatedAt: 2026-06-02T17:37:51.781Z
-- title: G5 Fix Unit B — column eligibility (D4)
-- description: "Exclude summary-source fields {headline,title,question} from eligibleColumnFields in packages/ledger/src/columns.ts so the column picker never offers a field that duplicates the summary cell (D4, low). Add the first columns unit test. Work milestone under goal G5."
-
-### M26 — open
-
-- createdAt: 2026-06-02T17:37:57.412Z
-- updatedAt: 2026-06-02T17:44:33.890Z
-- title: G5 Fix Unit C — archived-head status badge (D5)
-- description: "G5 Fix Unit C — archived-head status badge (D5, low). SOLE task T104: render the archived MilestoneSubsection status badge (packages/ledger-web/src/App.tsx:2002-2008) by passing the archived pointer's `status` as milestoneStatus, with a happy-dom assertion. R77 corrected the H7 finding: there is NO @cq/shared Zod wire mirror — once T91 (G2/M21) extends the ArchivePointer interface with status, the field already flows over the wire (fetch_ledger uses plain JSON.stringify; the web client JSON.parses with no runtime validation). The former wire task T103 was withdrawn as misgrounded. dependsOn M21 (T91) only. Work milestone under goal G5."
-- dependsOn: ["M21"]
