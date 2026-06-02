@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 90
+  item: 92
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -466,6 +466,17 @@ archives:
 - ledgerRefs: ["tasks:T96","goals:G4"]
 - tags: ["implement-flow","round-1","criticism-resolved","4 scenarios + 6 abort cases; check 659"]
 
+### R91 — go-ahead
+
+- createdAt: 2026-06-02T19:13:23.946Z
+- updatedAt: 2026-06-02T19:13:23.946Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T97","goals:G4"]
+- tags: ["implement-flow","verify-gate","approve","D2 fix repo gate green: bun run check 659 pass / 0 fail with T94+T95+T96 merged; no regressions"]
+
 ## M24
 
 ### R81 — go-ahead
@@ -524,3 +535,16 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T102","goals:G5"]
 - tags: ["implement-flow","round-0","approve","summary-source exclusion grounded in summarize(); suggestedModel intact; fail-first repro verified; check 634"]
+
+## M26
+
+### R92 — go-ahead
+
+- createdAt: 2026-06-02T19:23:49.845Z
+- updatedAt: 2026-06-02T19:23:49.845Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T104","goals:G5"]
+- tags: ["implement-flow","round-0","approve","archived head badge from p.status; empty-status guard; both tests genuine repro; no D7 regression; check 661"]

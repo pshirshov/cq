@@ -13,10 +13,10 @@ archives:
 
 ## M11
 
-### D2 — wip
+### D2 — resolved
 
 - createdAt: 2026-06-02T08:37:01.114Z
-- updatedAt: 2026-06-02T16:31:40.556Z
+- updatedAt: 2026-06-02T19:13:37.020Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: ledger-mcp fails to connect in a directory with no initialized ledger (should auto-init)
@@ -25,6 +25,7 @@ archives:
 - rootCause: "ledger-mcp aborts at startup with BootstrapViolationError ('existing <ledger> ledger has a different schema than its canonical bootstrap schema') thrown by FsLedgerStore.init() (packages/ledger/src/store/FsLedgerStore.ts:283-289) when an EXISTING on-disk ledger's schema diverges from its CANONICAL_LEDGERS bootstrap schema. main() (packages/ledger-mcp/src/main.ts:337-344) awaits store.init() BEFORE serving, so the throw crashes the process before the MCP handshake → client sees 'connection failed'. NOT a missing-init problem (the empty-dir auto-init path works). The divergence is a version-skew artifact (stale built/global binary vs evolved docs/ledgers.yaml, or vice-versa). Confirmed by the user's verbatim runtime error (hypothesis H4, parent H3)."
 - suggestedFix: "Replace the fatal throw with a graceful BACKUP-AND-REINIT: when FsLedgerStore.init() detects a schema divergence for an existing ledger (the schemasEqual==false branch), instead of throwing BootstrapViolationError, (a) move/copy the divergent on-disk ledger file(s) (and docs/ledgers.yaml) into a timestamped backup location (e.g. docs/.backup/<ISO-timestamp>/), then (b) write fresh canonical ledger(s) + registry from CANONICAL_LEDGERS and continue startup. Surface a loud WARNING (stderr) naming the backup path so no data is silently lost. Consider a guard/opt-out flag if a non-destructive abort is ever wanted, but default to backup-and-reinit per the user. Add tests: a seeded divergent on-disk schema → init() backs up + reinitializes + serves (no throw); backup dir contains the prior files."
 - dependsOn: ["T94","T95","T96","T97"]
+- fix: "Backup-and-reinit on schema divergence (replaces the fatal BootstrapViolationError): T94 (0d66e33) backupAndReinit helper (timestamped docs/.backup/, ENOENT-tolerant copy of prior files, fresh canonical + stderr WARNING); T95 (a26104b) rewired FsLedgerStore.init() !schemasEqual branch to backup-and-reinit BY DEFAULT (collects the divergent set, mutates this.registry in place to canonical) + onSchemaDivergence:'abort' opt-out preserving the throw; T96 (844d240) tests (divergence→backup+reinit / abort / no-divergence / empty-dir) + migrated the 6 divergence-guard cases to the abort opt-out; T97 repo-gate green. ledger-mcp no longer crashes the MCP handshake on a stale/divergent on-disk schema — it backs up + reinitializes and serves. NOTE: a stale already-running GLOBAL binary still needs a rebuild (out of scope, captured in G4). Integration check 659 green."
 
 ## M14
 
@@ -60,10 +61,10 @@ archives:
 
 ## M18
 
-### D5 — wip
+### D5 — resolved
 
 - createdAt: 2026-06-02T13:39:23.597Z
-- updatedAt: 2026-06-02T17:44:56.607Z
+- updatedAt: 2026-06-02T19:23:54.579Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Archived milestone subsection heads cannot render a status badge — ArchivePointer/Milestone carry no status
@@ -73,6 +74,7 @@ archives:
 - ledgerRefs: ["tasks:T80","goals:G2"]
 - rootCause: "CONFIRMED (H7). ArchivePointer (types.ts:155-162) = {id,path,summary} and the ArchiveContent group payload carries Milestone (types.ts:97-104, statusless); only ResolvedMilestone (types.ts:116-121) has status. The archived web head (App.tsx:2002-2008) passes NO milestoneStatus, and the T80 badge is gated on milestoneStatus!==undefined (App.tsx:1659) — so archived heads never badge. Planned task T91 (M21) already extends ArchivePointer with title+status at the @cq/ledger types + server-build boundary, which supplies the DATA D5 needs."
 - dependsOn: ["T104"]
+- fix: T91 (98e50c6) landed `status` on the ArchivePointer payload (populated at archive time in both stores; flows over the wire as plain JSON); T104 (b83f70c) passes p.status as milestoneStatus to the archived MilestoneSubsection so the T80 status badge renders for archived heads (empty-status guarded to render no badge). The investigate-flow's 'separate wire-schema half' (H7) was corrected by R77 — no @cq/shared mirror exists, so T91's interface extension sufficed. happy-dom test asserts the archived-head badge. Integration check 661 green.
 
 ### D6 — resolved
 

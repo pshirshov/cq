@@ -464,10 +464,10 @@ archives:
 - resultCommit: 844d240
 - completion: "New backup-reinit-init.test.ts (4 scenarios: divergence→backup+reinit default no-throw + byte-for-byte backup + fresh-canonical + one WARNING; abort opt-out throws untouched; no-divergence + empty-dir regressions); formalized canonical-ledgers.test.ts (6 cases = abort coverage). Round 1: corrected §3 docstring (false 'one item' claim). Reviewer approve round 1. (D2 partial — T97 gate remains.)"
 
-### T97 — planned
+### T97 — done
 
 - createdAt: 2026-06-02T16:31:36.255Z
-- updatedAt: 2026-06-02T16:31:36.255Z
+- updatedAt: 2026-06-02T19:13:21.352Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Repo gate: bun run check green for the D2 fix"
@@ -476,6 +476,7 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T96"]
 - ledgerRefs: ["defects:D2","goals:G4"]
+- completion: "Repo gate for the D2 fix: with T94 (backupAndReinit helper), T95 (init() backup-reinit default + abort opt-out), T96 (divergence tests + abort-suite migration) all merged to main, `bun run check` exits 0 — 659 pass / 0 fail across 57 files (tsc -b + eslint + bun test). No regressions attributable to the D2 fix. Orchestrator verify-gate (no code change)."
 
 ## M24
 
@@ -570,10 +571,10 @@ archives:
 - dependsOn: []
 - ledgerRefs: ["goals:G5"]
 
-### T104 — planned
+### T104 — done
 
 - createdAt: 2026-06-02T17:39:05.288Z
-- updatedAt: 2026-06-02T17:44:25.834Z
+- updatedAt: 2026-06-02T19:23:47.205Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Render archived MilestoneSubsection status badge from archived pointer status + happy-dom assertion (D5)
@@ -583,3 +584,5 @@ archives:
 - dependsOn: ["T91"]
 - blockedBy: ["T91"]
 - ledgerRefs: ["defects:D5","goals:G5"]
+- resultCommit: b83f70c
+- completion: Archived MilestoneSubsection heads render the status badge from p.status (conditional prop spread for exactOptionalPropertyTypes; empty-status omits the prop → no empty badge), mirroring the active path + same gating/statusBucket(MILESTONES_SCHEMA). 2 happy-dom tests (badge appears @ status=done, fails pre-fix; empty-status renders none); D7 !isMilestones gate intact. Reviewer approve 0/0. Resolves D5.
