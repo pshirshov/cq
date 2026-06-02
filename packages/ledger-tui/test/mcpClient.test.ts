@@ -8,13 +8,13 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { spawn, type Subprocess } from "bun";
+import { type Subprocess } from "bun";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { FsLedgerStore } from "@cq/ledger";
 import { McpLedgerClient, LedgerToolError } from "../src/mcpClient.js";
-import { freePort, waitForPort } from "./portHelpers.js";
+import { spawnWithFreePort } from "./portHelpers.js";
 
 const here = new URL(".", import.meta.url).pathname;
 const serverMain = path.resolve(here, "..", "..", "ledger-mcp", "src", "main.ts");
@@ -35,13 +35,10 @@ beforeAll(async () => {
   });
   await seed.dispose();
 
-  port = await freePort();
-  proc = spawn({
-    cmd: [process.execPath, "run", serverMain, "--cwd", tmpRoot, "--http", String(port)],
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  await waitForPort(port);
+  ({ port, proc } = await spawnWithFreePort(
+    (p) => [process.execPath, "run", serverMain, "--cwd", tmpRoot, "--http", String(p)],
+    { stdout: "inherit", stderr: "inherit" },
+  ));
   client = await McpLedgerClient.connect(`http://127.0.0.1:${port}/mcp`);
 });
 

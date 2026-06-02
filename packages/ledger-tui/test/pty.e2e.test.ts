@@ -27,7 +27,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { FsLedgerStore } from "@cq/ledger";
-import { freePort, waitForPort } from "./portHelpers.js";
+import { spawnWithFreePort } from "./portHelpers.js";
 
 // ---- availability guard ---------------------------------------------------
 const nodePath = Bun.which("node");
@@ -68,13 +68,10 @@ beforeAll(async () => {
   });
   await seed.dispose();
 
-  port = await freePort();
-  server = bunSpawn({
-    cmd: [process.execPath, "run", serverMain, "--cwd", tmpRoot, "--http", String(port)],
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  await waitForPort(port);
+  ({ port, proc: server } = await spawnWithFreePort(
+    (p) => [process.execPath, "run", serverMain, "--cwd", tmpRoot, "--http", String(p)],
+    { stdout: "ignore", stderr: "ignore" },
+  ));
 });
 
 afterAll(async () => {
