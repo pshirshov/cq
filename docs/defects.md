@@ -28,10 +28,10 @@ archives:
 
 ## M14
 
-### D3 — wip
+### D3 — resolved
 
 - createdAt: 2026-06-02T12:19:08.216Z
-- updatedAt: 2026-06-02T17:39:10.607Z
+- updatedAt: 2026-06-02T19:12:52.087Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Stale @cq/ledger exports map: '.', './relationships', 'main' point at non-existent ./dist/*.js (real layout is ./dist/src/*.js)"
@@ -41,6 +41,7 @@ archives:
 - ledgerRefs: ["tasks:T61","goals:G2"]
 - rootCause: "CONFIRMED (H5). packages/ledger/package.json declares main + exports['.']=./dist/index.js and ['./relationships']=./dist/relationships.js, but tsc (tsconfig outDir ./dist, include [src,test], NO rootDir → roots at packages/ledger/) emits under ./dist/src/. Validated on disk: dist/index.js + dist/relationships.js are MISSING; dist/src/index.js + dist/src/relationships.js exist. Internal inconsistency: ['./columns'] ALREADY correctly points at ./dist/src/columns.js. Masked in-repo by tsconfig paths→source (ledger-web/tsconfig.json:11-16, ledger-mcp tsconfig); a published / nix clean-checkout consumer relying on the exports map would fail to resolve @cq/ledger or @cq/ledger/relationships."
 - dependsOn: ["T98","T99","T101"]
+- fix: T98 (b1878e7) realigned package.json main+exports to ./dist/src/* (consistent with ./columns); T99 (81a370a) added the ./constants subpath export; T101 (a541c7a) added package-exports.test.ts asserting every declared export/main target exists after tsc -b (repro-verified against the stale layout). Integration check 659 green.
 
 ### D4 — resolved
 
@@ -73,10 +74,10 @@ archives:
 - rootCause: "CONFIRMED (H7). ArchivePointer (types.ts:155-162) = {id,path,summary} and the ArchiveContent group payload carries Milestone (types.ts:97-104, statusless); only ResolvedMilestone (types.ts:116-121) has status. The archived web head (App.tsx:2002-2008) passes NO milestoneStatus, and the T80 badge is gated on milestoneStatus!==undefined (App.tsx:1659) — so archived heads never badge. Planned task T91 (M21) already extends ArchivePointer with title+status at the @cq/ledger types + server-build boundary, which supplies the DATA D5 needs."
 - dependsOn: ["T104"]
 
-### D6 — wip
+### D6 — resolved
 
 - createdAt: 2026-06-02T13:39:28.419Z
-- updatedAt: 2026-06-02T17:39:15.295Z
+- updatedAt: 2026-06-02T19:12:54.681Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA in the web bundle (no browser-safe constants export)
@@ -86,6 +87,7 @@ archives:
 - ledgerRefs: ["tasks:T80","goals:G2","defects:D3"]
 - rootCause: "CONFIRMED (H8). packages/ledger/package.json exports only ., ./relationships, ./columns (no ./constants). The '.' barrel (index.ts:50) re-exports FsLedgerStore, which imports node:fs + node:path (FsLedgerStore.ts:29-30), so importing MILESTONES_SCHEMA via '@cq/ledger' drags Node builtins into the browser bundle. constants.ts (L25-27) has only a type-only import → it is browser-safe in isolation. Hence T80 hand-duplicated MILESTONE_STATUS_SCHEMA in App.tsx:69-82 (comment documents the reason). Same family as D3."
 - dependsOn: ["T99","T100"]
+- fix: T99 (81a370a) added a browser-safe @cq/ledger ./constants subpath export (constants.ts is Node-free) + @cq/ledger/constants tsconfig paths entry; T100 (ba72f06) imports MILESTONES_SCHEMA from @cq/ledger/constants in App.tsx and deleted the hand-duplicated MILESTONE_STATUS_SCHEMA. No more drift-prone duplicate. Integration check 659 green.
 
 ## M21
 

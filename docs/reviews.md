@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 86
+  item: 90
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -420,6 +420,17 @@ archives:
 - ledgerRefs: ["tasks:T92","decisions:K13","goals:G2"]
 - tags: ["implement-flow","round-0","approve","routing-question removed from implement/advance §3; defect-filing + non-blocking preserved; K13 rationale accurate; peers conform; check 635"]
 
+### R90 — go-ahead
+
+- createdAt: 2026-06-02T19:12:48.328Z
+- updatedAt: 2026-06-02T19:12:48.328Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] round-0 DECREASED .lw-batch max-height 88vh→85vh (not 'taller'); test asserted the regressed value + omitted scroll assertion. Fixed: max-height→90vh (taller than prior 88vh), test asserts 90vh + non-vacuous overflow-y:auto scroll clause."]
+- new_questions: []
+- ledgerRefs: ["tasks:T93","goals:G2"]
+- tags: ["implement-flow","round-1","criticism-resolved","batch modal wider/taller/smaller-font/scrolls; check 659"]
+
 ## M22
 
 ### R80 — go-ahead
@@ -444,6 +455,17 @@ archives:
 - ledgerRefs: ["tasks:T95","goals:G4"]
 - tags: ["implement-flow","round-0","approve","init() divergence → backupAndReinit (set, once) default + abort opt-out; registry mutated in place; regressions intact; 6 cases migrated; check 635"]
 
+### R89 — go-ahead
+
+- createdAt: 2026-06-02T19:12:45.031Z
+- updatedAt: 2026-06-02T19:12:45.031Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] §3 docblock in backup-reinit-init.test.ts falsely claimed the no-divergence fixture seeds 'one item in the goals ledger' (seeds none). Fixed: corrected to empty-canonical-store idempotence; test logic unchanged."]
+- new_questions: []
+- ledgerRefs: ["tasks:T96","goals:G4"]
+- tags: ["implement-flow","round-1","criticism-resolved","4 scenarios + 6 abort cases; check 659"]
+
 ## M24
 
 ### R81 — go-ahead
@@ -467,6 +489,28 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T99","goals:G5"]
 - tags: ["implement-flow","round-0","approve","./constants export + web tsconfig paths verified; MILESTONES_SCHEMA type-checks from ledger-web; App.tsx untouched; check 635"]
+
+### R87 — go-ahead
+
+- createdAt: 2026-06-02T19:12:39.399Z
+- updatedAt: 2026-06-02T19:12:39.399Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T100","goals:G5"]
+- tags: ["implement-flow","round-0","approve","dup schema deleted; MILESTONES_SCHEMA from @cq/ledger/constants; terminalStatuses identical; check 659"]
+
+### R88 — go-ahead
+
+- createdAt: 2026-06-02T19:12:41.745Z
+- updatedAt: 2026-06-02T19:12:41.745Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T101","goals:G5"]
+- tags: ["implement-flow","round-0","approve","export-target test builds via tsc -b + asserts all targets exist incl ./constants; repro-verified; check 659"]
 
 ## M25
 

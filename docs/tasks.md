@@ -389,10 +389,10 @@ archives:
 - resultCommit: a858b51
 - completion: "implement/advance.md §3: removed the create_item('questions',...) routing step (K13), kept open-defect filing + embedded bare-defect-id/ledger-query rationale; non-blocking property preserved. plan/advance.md + plan-reviewer.md verified no-op (already conform). Reviewer approve 0/0."
 
-### T93 — planned
+### T93 — done
 
 - createdAt: 2026-06-02T16:18:24.658Z
-- updatedAt: 2026-06-02T16:25:31.317Z
+- updatedAt: 2026-06-02T19:12:36.575Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: make the batch-answer modal wider and taller with a slightly reduced font (item 19)"
@@ -405,6 +405,8 @@ archives:
 - acceptance: "happy-dom assertion on the modal: the `.lw-batch` dialog renders carrying the expected sizing class/dimensions — assert its width/height (or max-width/max-height) and font-size resolve to the new larger-box / smaller-font values (via computed style or the literal newly-added CSS rule the test reads). Modal content scrolls within the body for long questions rather than overflowing. `bun run check` passes."
 - suggestedModel: fast
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 261b48f
+- completion: "styles.css .lw-batch: width min(900px,90vw) (wider), max-height 90vh (taller than prior 88vh), font-size 0.95rem (reduced), overflow-y auto (scrolls). New batchModalSizing.test.tsx asserts the sizing + non-vacuous scroll clause. Round 1: corrected max-height 85vh→90vh (round-0 had decreased it) + test. Reviewer approve round 1."
 
 ## M22
 
@@ -442,10 +444,10 @@ archives:
 - resultCommit: a26104b
 - completion: "init() !schemasEqual branch rewired: collects the divergent set, calls backupAndReinit ONCE by default (helper mutates this.registry in place to canonical → load loop reads fresh); FsLedgerStoreOpts.onSchemaDivergence ('backup-reinit'|'abort', default backup-reinit), 'abort' preserves the throw; no-divergence + empty-dir unchanged. Migrated the 6 canonical-ledgers divergence-guard cases to 'abort'. Reviewer approve 0/0. (D2 partial — T96/T97 remain.)"
 
-### T96 — planned
+### T96 — done
 
 - createdAt: 2026-06-02T16:31:28.465Z
-- updatedAt: 2026-06-02T16:36:11.150Z
+- updatedAt: 2026-06-02T19:12:33.265Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Tests: schema-divergence backup-and-reinit (and abort opt-out) for FsLedgerStore.init() + MIGRATE existing divergence-guard suite"
@@ -459,6 +461,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T95"]
 - ledgerRefs: ["defects:D2","goals:G4"]
+- resultCommit: 844d240
+- completion: "New backup-reinit-init.test.ts (4 scenarios: divergence→backup+reinit default no-throw + byte-for-byte backup + fresh-canonical + one WARNING; abort opt-out throws untouched; no-divergence + empty-dir regressions); formalized canonical-ledgers.test.ts (6 cases = abort coverage). Round 1: corrected §3 docstring (false 'one item' claim). Reviewer approve round 1. (D2 partial — T97 gate remains.)"
 
 ### T97 — planned
 
@@ -504,10 +508,10 @@ archives:
 - resultCommit: 81a370a
 - completion: Added @cq/ledger ./constants subpath export (./dist/src/constants.js + .d.ts) + @cq/ledger/constants paths→source entry in ledger-web/tsconfig.json; MILESTONES_SCHEMA imports + type-checks from ledger-web (browser-safe; constants.ts type-only import). Reviewer approve 0/0. (D6 partial — T100 remains; D3 partial — T101 remains.)
 
-### T100 — planned
+### T100 — done
 
 - createdAt: 2026-06-02T17:38:28.719Z
-- updatedAt: 2026-06-02T17:38:28.719Z
+- updatedAt: 2026-06-02T19:12:25.887Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Consume @cq/ledger/constants in ledger-web App.tsx; delete duplicated MILESTONE_STATUS_SCHEMA (D6)
@@ -516,11 +520,13 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T99"]
 - ledgerRefs: ["defects:D6","goals:G5"]
+- resultCommit: ba72f06
+- completion: "App.tsx: replaced duplicated MILESTONE_STATUS_SCHEMA with import of MILESTONES_SCHEMA from @cq/ledger/constants (browser-safe, type-only-import; terminalStatuses identical → statusBucket behavior unchanged); deleted the literal. Reviewer approve 0/0. Resolves D6 (with T99)."
 
-### T101 — planned
+### T101 — done
 
 - createdAt: 2026-06-02T17:38:36.643Z
-- updatedAt: 2026-06-02T17:38:36.643Z
+- updatedAt: 2026-06-02T19:12:29.035Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Add @cq/ledger test asserting every package.json export/main target exists after build (D3)
@@ -529,6 +535,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T98","T99"]
 - ledgerRefs: ["defects:D3","goals:G5"]
+- resultCommit: a541c7a
+- completion: "New package-exports.test.ts: builds via tsc -b (beforeAll 60s) then asserts every package.json main+types + exports[*].import/.types target (incl ./constants) exists on disk; reproduction-verified (fails on stale ./dist/*.js layout, passes on ./dist/src/*). Reviewer approve 0/0. Resolves D3 (with T98/T99)."
 
 ## M25
 
