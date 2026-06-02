@@ -10,6 +10,24 @@ import type { LedgerSchema } from "./types.js";
 
 export type StatusBucket = "start" | "progress" | "blocked" | "done" | "dropped" | "warning";
 
+/**
+ * Canonical StatusBucket → hex color palette. THE single source of truth for
+ * bucket colors in the web package: the stylesheet mirrors these as
+ * `--lw-status-<bucket>` custom properties on :root (CSS badges read those),
+ * and the SVG graph (T53) reads BUCKET_HEX directly because an SVG `fill` can't
+ * resolve a CSS class. Keep both copies in sync — the values here are the
+ * authority. Exhaustive over the StatusBucket union (asserted in tests).
+ */
+export const BUCKET_HEX: Record<StatusBucket, string> = {
+  start: "#4ea1ff",
+  progress: "#e0b341",
+  blocked: "#ef6a6a",
+  done: "#57d18a",
+  dropped: "#8b93a7",
+  // Amber/orange for "needs changes" terminal statuses (Q34).
+  warning: "#e0a341",
+};
+
 const PROGRESS = new Set(["wip", "building", "planning", "in-progress", "in_progress", "doing"]);
 const BLOCKED = new Set(["blocked"]);
 // Terminal statuses that mean "needs changes" (rendered as a warning, not green).

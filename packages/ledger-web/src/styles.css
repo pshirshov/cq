@@ -8,6 +8,15 @@
   --ok: #57d18a;
   --warn: #e0b341;
   --err: #ef6a6a;
+  /* Canonical StatusBucket → color palette (see src/status.ts BUCKET_HEX).
+     Single source for both the CSS badges below and the SVG graph (which reads
+     BUCKET_HEX in JS). Keep these hex values identical to BUCKET_HEX. */
+  --lw-status-start: #4ea1ff;
+  --lw-status-progress: #e0b341;
+  --lw-status-blocked: #ef6a6a;
+  --lw-status-done: #57d18a;
+  --lw-status-dropped: #8b93a7;
+  --lw-status-warning: #e0a341;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -317,21 +326,26 @@ button:hover {
   padding: 4px 10px;
   border-radius: 4px;
 }
-/* Status badge colors by semantic bucket (see src/status.ts). */
+/* Status badge colors by semantic bucket (see src/status.ts BUCKET_HEX). Each
+   rule sources its color from the canonical --lw-status-<bucket> custom
+   property on :root so the palette lives in exactly one place. */
 .lw-status-start {
-  color: var(--accent);
+  color: var(--lw-status-start);
 }
 .lw-status-progress {
-  color: var(--warn);
+  color: var(--lw-status-progress);
 }
 .lw-status-blocked {
-  color: var(--err);
+  color: var(--lw-status-blocked);
 }
 .lw-status-done {
-  color: var(--ok);
+  color: var(--lw-status-done);
 }
 .lw-status-dropped {
-  color: var(--dim);
+  color: var(--lw-status-dropped);
+}
+.lw-status-warning {
+  color: var(--lw-status-warning);
 }
 /* Guard-aligned quick-transition buttons: one per legal next status, styled
    like the status badge of their target bucket. */

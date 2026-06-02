@@ -5,9 +5,23 @@ import {
   statusMatchesFilter,
   filterToValue,
   valueToFilter,
+  BUCKET_HEX,
+  type StatusBucket,
 } from "../src/status";
 import type { LedgerSchema } from "../src/types";
 import { REVIEWS_SCHEMA } from "@cq/ledger";
+
+// The complete StatusBucket union, spelled out so the test fails to compile if
+// a member is added/removed without updating BUCKET_HEX (the `satisfies` below
+// pins this list to the union).
+const ALL_BUCKETS = [
+  "start",
+  "progress",
+  "blocked",
+  "done",
+  "dropped",
+  "warning",
+] as const satisfies readonly StatusBucket[];
 
 const bugs: LedgerSchema = {
   statusValues: ["open", "wip", "closed"],
@@ -56,5 +70,22 @@ describe("warning bucket (reviews schema)", () => {
 
   it("go-ahead → done", () => {
     expect(statusBucket("go-ahead", REVIEWS_SCHEMA)).toBe("done");
+  });
+});
+
+describe("BUCKET_HEX palette", () => {
+  it("has exactly one entry per StatusBucket union member", () => {
+    expect(new Set(Object.keys(BUCKET_HEX))).toEqual(new Set(ALL_BUCKETS));
+    expect(Object.keys(BUCKET_HEX).length).toBe(ALL_BUCKETS.length);
+  });
+
+  it("has a warning entry (amber/orange per Q34)", () => {
+    expect(BUCKET_HEX.warning).toBe("#e0a341");
+  });
+
+  it("maps every bucket to a hex color", () => {
+    for (const bucket of ALL_BUCKETS) {
+      expect(BUCKET_HEX[bucket]).toMatch(/^#[0-9a-f]{6}$/);
+    }
   });
 });
