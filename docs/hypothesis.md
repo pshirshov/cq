@@ -2,7 +2,7 @@
 ledger: hypothesis
 counters:
   milestone: 0
-  item: 3
+  item: 4
 archives: []
 ---
 
@@ -41,4 +41,16 @@ archives: []
 - headline: "The observed failure is ENVIRONMENTAL, not missing-init: a stale globally-registered (home-manager/Nix) ledger-mcp binary, --cwd, or .mcp.json wiring"
 - description: "ROOT-CAUSE CANDIDATE (needs user's environment data to adjudicate). Source auto-init works (H1/H2 refuted by reproduction), so any real 'connection fails' must come from outside the source init path. Leading suspects: (a) VERSION SKEW — the ledger MCP is plugin-registered globally via home-manager/Nix; if that built binary predates the FsLedgerStore.init() auto-create code, it would fail against a fresh dir even though source works (cf. resolved defect D1, also a version-skew 'connection failed'). (b) --cwd resolution to a non-existent/unwritable path. (c) the target directory has no .mcp.json / no ledger server wired at all (then it's 'not configured', not a connection failure). (d) a non-ENOENT fs/permission error under init's mkdir. CANNOT adjudicate without the user's actual error text + how the server is launched — parked on Q37."
 - parentHypothesis: ""
+- ledgerRefs: ["defects:D2"]
+
+### H4 — confirmed
+
+- createdAt: 2026-06-02T11:26:20.034Z
+- updatedAt: 2026-06-02T11:26:20.034Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "CONFIRMED: startup aborts via BootstrapViolationError on schema divergence (FsLedgerStore.ts:283-289), not missing init"
+- description: "The specific confirmed mechanism under H3 (environmental). FsLedgerStore.init() bootstraps each CANONICAL_LEDGERS entry; for an EXISTING on-disk ledger whose schema differs from the canonical bootstrap schema it THROWS BootstrapViolationError (packages/ledger/src/store/FsLedgerStore.ts:283-289) — which main() lets crash the process before the MCP handshake, so the client reports connection failure. This is the divergence path H1's evidence identified as 'the only startup throw' (which we incorrectly set aside after the empty-dir repro). Divergence arises from version skew: a stale globally-built ledger-mcp binary vs an evolved on-disk docs/ledgers.yaml (or vice-versa)."
+- parentHypothesis: H3
+- evidence: ["[correct] USER-OBSERVED runtime error (decisive): `ledger-mcp: fatal: Bootstrap invariant violated: existing goals ledger has a different schema than its canonical bootstrap schema` — the exact BootstrapViolationError message, naming the goals ledger schema divergence.","[correct] packages/ledger/src/store/FsLedgerStore.ts:283-289 (orchestrator-verified earlier): `else if (!schemasEqual(entry.schema, canonical.schema)) { throw new BootstrapViolationError(...) }` — the only startup throw on a non-ENOENT tree; fires on an existing-but-divergent on-disk schema.","[correct] packages/ledger-mcp/src/main.ts:337-344: main() awaits store.init() before serving, so this throw aborts the connection."]
 - ledgerRefs: ["defects:D2"]

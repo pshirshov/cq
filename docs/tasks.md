@@ -149,10 +149,10 @@ archives:
 - resultCommit: 17aabe5
 - completion: "Web: renderListField emits <ul><li> for string[] fields (both detail render paths); scalar Markdown preserved; happy-dom test asserts 3 <li>. Reviewer approve 0/0. Merged 17aabe5."
 
-### T57 — planned
+### T57 — done
 
 - createdAt: 2026-06-02T08:47:27.144Z
-- updatedAt: 2026-06-02T08:47:27.144Z
+- updatedAt: 2026-06-02T11:32:36.826Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI: render `suggestions` (string[]) as a bulleted list"
@@ -161,6 +161,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T54"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: c3899b0
+- completion: "TUI ContentPane renders questions.suggestions (string[]) as a '• '-prefixed bulleted list, intercepted before the isShortField comma-join; scalar markdown preserved; ink test (repro-verified). Reviewer approve 0/0. Merged c3899b0."
 
 ### T58 — planned
 
@@ -278,10 +280,10 @@ archives:
 - resultCommit: 8b553a8
 - completion: "buildServer(store, displayName) threads basename(--cwd) to serverInfo.title (per-instance; name/version stable) + instructions fallback line; all call sites updated (standalone stdio/HTTP, attachMcpHttp/serveHttp, embedded TUI, embedded web). Test: getServerVersion().title==='cq1'. Reviewer approve 0/0. Merged 8b553a8; integration 522 pass."
 
-### T66 — planned
+### T66 — done
 
 - createdAt: 2026-06-02T08:48:51.917Z
-- updatedAt: 2026-06-02T08:53:54.588Z
+- updatedAt: 2026-06-02T11:32:40.171Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "LedgerClient: expose serverInfo()/displayName accessor (both impls + test fakes)"
@@ -295,6 +297,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T65"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: d30a148
+- completion: "displayName() added to LedgerClient interface (web+TUI) + all impls/fakes; McpLedgerClient reads T65's serverInfo.title (getServerVersion) primary + 'Project:' instructions fallback, cached at connect; fake+real-carrier tests. Reviewer approve 0/0. Merged d30a148 (auto-merged cleanly with T57's TUI test edits); integration 530 pass."
 
 ### T67 — planned
 
@@ -472,10 +476,10 @@ archives:
 - resultCommit: 22169f2
 - completion: "plan/advance.md: broadened allowed-tools for inline investigate; added auto-investigate phase (ledger-query worklist, runs /investigate:advance inline + auto-resume on defect-seeded goal); explicit awaiting-answers+defects orthogonality; removed 4-iteration cap, replaced with enumerated convergent stop predicates (a)-(f); cites K12; Report covers outcomes. Reviewer approve 0/0. Merged 22169f2; integration 516 pass."
 
-### T75 — planned
+### T75 — done
 
 - createdAt: 2026-06-02T10:15:21.142Z
-- updatedAt: 2026-06-02T10:15:21.142Z
+- updatedAt: 2026-06-02T11:32:43.496Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "plan/start.md + plan/follow-up.md: auto-launch /investigate:advance after bootstrap+handoff"
@@ -494,11 +498,13 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T72","T74"]
 - ledgerRefs: ["goals:G3"]
+- resultCommit: fd302c5
+- completion: "plan/start.md + plan/follow-up.md gain a conditional auto-investigate step (ledger-query worklist, no-op when empty) running /investigate:advance inline by pointer (stop predicates inherited from plan/advance.md); allowed-tools +Read/Grep/Glob; K12 cited; Reports updated. Reviewer approve 0/0. Merged fd302c5."
 
-### T76 — planned
+### T76 — done
 
 - createdAt: 2026-06-02T10:15:34.082Z
-- updatedAt: 2026-06-02T10:15:34.082Z
+- updatedAt: 2026-06-02T11:32:46.287Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "implement/advance.md: remove the 8-round hard safety ceiling; keep model-judged ill-loop signals"
@@ -515,6 +521,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T72"]
 - ledgerRefs: ["goals:G3"]
+- resultCommit: 26fe8e1
+- completion: "implement/advance.md §4: removed the 8-round hard ceiling bullet; three model-judged ill-loop signals + §5 questions bailout intact; no numeric cap survives. Reviewer approve 0/0. Merged 26fe8e1."
 
 ### T77 — planned
 

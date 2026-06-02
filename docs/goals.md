@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 3
+  item: 4
 archives: []
 ---
 
@@ -174,3 +174,25 @@ archives: []
     
     Gate: bun run check (markdown-only edits should be no-op for it, but run it). Files in scope: llm/commands/plan/{advance,start,follow-up}.md, llm/commands/implement/advance.md (and possibly start.md), llm/commands/investigate/advance.md (the handback Report wording, optional), llm/agents/{plan-advance,plan-reviewer}.md, + the K8-superseding decision record.
 - milestones: ["M16","M17"]
+
+## M20
+
+### G4 — planning
+
+- createdAt: 2026-06-02T11:27:09.012Z
+- updatedAt: 2026-06-02T11:27:09.012Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- title: "Fix D2: graceful backup-and-reinit on ledger schema divergence (no fatal BootstrapViolationError)"
+- description: |
+    DEFECT-SEEDED goal (linked defects:D2) — the root cause is ALREADY CONFIRMED (hypothesis H4), so this goal enters `planning` directly and SKIPS the clarifying round (per decision K8 point 4 / K12 defect-seeded clarify-skip). plan-advance should produce reviewed FIX TASKS directly.
+    
+    CONFIRMED ROOT CAUSE (from D2/H4, user-reported error verbatim): `ledger-mcp: fatal: Bootstrap invariant violated: existing goals ledger has a different schema than its canonical bootstrap schema`. FsLedgerStore.init() (packages/ledger/src/store/FsLedgerStore.ts:283-289) THROWS BootstrapViolationError when an EXISTING on-disk ledger's schema diverges from its CANONICAL_LEDGERS bootstrap schema; main() (packages/ledger-mcp/src/main.ts:337-344) awaits store.init() before serving, so the throw crashes the process before the MCP handshake → 'connection failed'. This is a version-skew artifact (stale built/global binary vs evolved docs/ledgers.yaml). The empty-dir auto-init path already works — only the divergence path is fatal.
+    
+    CONFIRMED FIX (suggestedFix, user-directed): replace the fatal throw with graceful BACKUP-AND-REINIT. When init() detects a schema divergence for an existing ledger (the `!schemasEqual` branch at FsLedgerStore.ts:283-289), instead of throwing: (a) move/copy the divergent on-disk ledger file(s) AND docs/ledgers.yaml into a timestamped backup dir (e.g. docs/.backup/<ISO-timestamp>/); (b) write fresh canonical ledger(s) + registry from CANONICAL_LEDGERS; (c) continue startup. Emit a loud WARNING to stderr naming the backup path so nothing is silently lost. (Optional: a flag to opt back into the hard abort, but default to backup-and-reinit per the user.)
+    
+    SCOPE: code fix in @cq/ledger (FsLedgerStore.init + a backup helper) + tests. Tests (dual-tests style): seed a divergent on-disk ledger schema → init() backs up the prior files into docs/.backup/<ts>/ + reinitializes canonical + serves (NO throw); assert the backup dir contains the prior file(s) and the live ledger is fresh-canonical; the empty-dir and the no-divergence (normal) paths are unchanged. Repo gate: `bun run check`. The BootstrapViolationError type may stay defined (for the opt-out path) but is no longer thrown by default on divergence.
+    
+    NOTE: implementing this in source does NOT retroactively fix an already-running stale GLOBAL binary — that needs a rebuild; and an immediate manual unblock is to back up/remove the divergent docs/ before launch. This goal is the durable code fix.
+- grounding: "Confirmed root cause + fix verified against source during the D2 investigation (hypotheses H1/H2 refuted; H4 confirmed via the user's verbatim runtime error). Key sites: packages/ledger/src/store/FsLedgerStore.ts:254-340 (init: mkdir/ENOENT-swallow/bootstrap; the throw at 283-289), packages/ledger-mcp/src/main.ts:337-344 (main awaits init before serve), BootstrapViolationError type in packages/ledger/src/types.ts. CANONICAL_LEDGERS + serializeRegistry/writeRegistry/freshLedger already exist in the store for the reinit path; archiveDir/backup-style dir creation patterns exist (the store already mkdir's docs/archive). Tests use the dual-tests pattern (FsLedgerStore over a seeded tmpdir)."
+- tags: ["defect-seeded","defect:D2","ledger-bootstrap","backup-and-reinit"]

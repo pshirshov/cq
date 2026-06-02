@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 19
+  item: 20
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -120,3 +120,10 @@ archives:
 - title: "G2 follow-up: per-suggestion pick-as-answer + disable answer-fill when typing (#14-#15)"
 - description: "Follow-up work milestone for goal G2, items #14-#15 (clarified by Q50-Q51). #14 per-suggestion 'pick as answer' control parity with 'as recommended' (web button after each suggestion <li>; TUI number keys 1-9), questions ledger only, immediate save; depends on the suggestions-list rendering M13 T56 (web) / T57 (TUI). #15 disable both 'as recommended' and the #14 pick controls once the answer field holds any non-whitespace text (web: onInput signal on the uncontrolled textarea gating disabled; TUI: r/pick keys inert when persisted answer non-empty), applied everywhere those controls render INCLUDING the batch-answer modal (M14 T63/T64); depends on #14. Depends on M13 (suggestions list) and M18 is not required; #15's batch-modal coverage relates to M14 T63/T64."
 - dependsOn: ["M13","M14"]
+
+### M20 — open
+
+- createdAt: 2026-06-02T11:26:47.033Z
+- updatedAt: 2026-06-02T11:26:47.033Z
+- title: "Plan: fix D2 — graceful backup-and-reinit on ledger schema divergence"
+- description: "Coordination milestone for the defect-seeded goal G4: fix D2 (ledger-mcp aborts with BootstrapViolationError on schema divergence) by replacing the fatal throw in FsLedgerStore.init() with backup-and-reinit. Holds the goal, its reviews, and approval decision."
