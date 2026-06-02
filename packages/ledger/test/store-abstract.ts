@@ -331,6 +331,54 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       }
     });
 
+    // D10 — Phase-1b path: no partial mutation after rejection.
+    //
+    // Scenario pins the Phase-1b gate (NOT Phase-1): all non-milestones group
+    // items are made TERMINAL so Phase-1 passes, but the milestone-ITEM itself
+    // stays NON-TERMINAL (open), triggering the Phase-1b guard which runs
+    // BEFORE Phase-2 (the actual detach-and-archive mutations). After the
+    // rejection the non-milestones ledger groups must remain ATTACHED.
+    //
+    // NOTE: This assertion FAILS against pre-T91 InMemoryLedgerStore behavior
+    // (where Phase-2 detach mutations ran before the Phase-3 throw), and
+    // PASSES now that T91 moved the Phase-1b terminal check before Phase-2.
+    it("D10 — Phase-1b rejection leaves non-milestones groups ATTACHED (no partial archive)", async () => {
+      const store = await factory.build([
+        { name: WIDGETS, schema: widgetsSchema },
+        { name: NOTES, schema: notesSchema },
+      ]);
+      try {
+        const m = await store.createMilestone({ title: "M-phase1b" });
+        // Create items in both non-milestones ledgers under this milestone.
+        const w1 = await store.createItem(WIDGETS, m.id, {
+          status: "open",
+          fields: { severity: "minor", location: "x.ts", description: "widget item" },
+        });
+        const n1 = await store.createItem(NOTES, m.id, {
+          status: "open",
+          fields: { notes: "note item" },
+        });
+        // Make ALL non-milestones group items terminal so Phase-1 passes.
+        await store.updateItem(WIDGETS, w1.id, { status: "resolved" });
+        await store.updateItem(NOTES, n1.id, { status: "done" });
+        // The milestone-ITEM itself is still NON-TERMINAL (open), so
+        // archiveMilestone must be rejected by the Phase-1b guard.
+        await expect(
+          store.archiveMilestone(m.id, "summary"),
+        ).rejects.toThrow(/terminal status/);
+        // After the Phase-1b rejection, the non-milestones ledger groups must
+        // remain ATTACHED (no partial archive from Phase-2 having run).
+        const widgetsView = store.fetch(WIDGETS);
+        expect(widgetsView.milestones.map((g) => g.id)).toContain(m.id);
+        expect(widgetsView.archivePointers.map((p) => p.id)).not.toContain(m.id);
+        const notesView = store.fetch(NOTES);
+        expect(notesView.milestones.map((g) => g.id)).toContain(m.id);
+        expect(notesView.archivePointers.map((p) => p.id)).not.toContain(m.id);
+      } finally {
+        await factory.teardown?.(store);
+      }
+    });
+
     it("archiveMilestone refuses the bootstrap group M0", async () => {
       const store = await factory.build([]);
       try {
