@@ -48,10 +48,10 @@ archives:
 - resultCommit: 492b38f
 - completion: "Added 'warning' StatusBucket + WARNING={revise} checked before DROPPED in both status.ts (mirror-identical); revise stays terminal→warning, go-ahead→done; BUCKET_COLOR['warning']='yellow' placeholder (T51 sets magenta). Reviewer approve 0/0. Merged 492b38f; integration 505 pass."
 
-### T51 — planned
+### T51 — done
 
 - createdAt: 2026-06-02T08:46:30.482Z
-- updatedAt: 2026-06-02T08:46:30.482Z
+- updatedAt: 2026-06-02T11:14:45.564Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI: give the `warning` bucket a distinct ink color (magenta)"
@@ -60,6 +60,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T50"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 1214c9d
+- completion: "TUI BUCKET_COLOR['warning']='magenta' (was T50 'yellow' placeholder); progress keeps yellow (no Q34 collision); statusColor('revise')='magenta', ('go-ahead')='green'; unit + ink-render ([35m) tests. Reviewer approve 0/0. Merged 1214c9d."
 
 ### T52 — done
 
@@ -76,10 +78,10 @@ archives:
 - resultCommit: 7609b8a
 - completion: "Web: canonical BUCKET_HEX:Record<StatusBucket,string> (single source) mirrored as --lw-status-* CSS vars on :root; .lw-status-warning=#e0a341 (Q34 amber, distinct from progress); badge rules re-sourced from vars (no palette dup); revise→lw-status-warning; tests assert keys===union. Reviewer approve 0/0. Merged 7609b8a."
 
-### T53 — planned
+### T53 — done
 
 - createdAt: 2026-06-02T08:46:50.633Z
-- updatedAt: 2026-06-02T08:46:50.633Z
+- updatedAt: 2026-06-02T11:14:48.893Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web graph: color DAG nodes via statusBucket + shared palette (thread schema)"
@@ -88,6 +90,8 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T52"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: d5137ce
+- completion: "DagView nodes colored via shared BUCKET_HEX[statusBucket(status,schema)] (replaced milestone-only amber-fallback STATUS_COLORS); schema threaded into DagData from view.schema (no extra MCP call); selected-highlight preserved; happy-dom test revise→warning/done→done/planned→start. Reviewer approve 0/0. Merged d5137ce. M12 COMPLETE."
 
 ## M13
 
@@ -252,10 +256,10 @@ archives:
 - dependsOn: ["T57"]
 - ledgerRefs: ["goals:G2"]
 
-### T65 — planned
+### T65 — done
 
 - createdAt: 2026-06-02T08:48:43.847Z
-- updatedAt: 2026-06-02T08:53:47.083Z
+- updatedAt: 2026-06-02T11:14:42.891Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "MCP server: expose project displayName (basename of --cwd) via serverInfo/instructions"
@@ -271,6 +275,8 @@ archives:
 - acceptance: A test (against the in-process/embedded server or the McpServer init result) asserts that when `buildServer` is given a cwd whose basename is e.g. 'cq1', the server's connect-time `serverInfo.title` (the named carrier — title primary, instructions fallback) equals 'cq1', and that `name`/`version` are unchanged. All `buildServer` call sites (standalone, HTTP, embedded TUI, embedded web) compile with the threaded cwd/displayName. `bun run check` green.
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 8b553a8
+- completion: "buildServer(store, displayName) threads basename(--cwd) to serverInfo.title (per-instance; name/version stable) + instructions fallback line; all call sites updated (standalone stdio/HTTP, attachMcpHttp/serveHttp, embedded TUI, embedded web). Test: getServerVersion().title==='cq1'. Reviewer approve 0/0. Merged 8b553a8; integration 522 pass."
 
 ### T66 — planned
 
@@ -342,10 +348,10 @@ archives:
 - resultCommit: d18cd8a
 - completion: "implement/advance.md: removed 'can advance per the plan-flow' phrasing; added hard rule 'MUST NEVER auto-transition a goal to done' (user-only close via TUI/web); milestone auto-archive + auto-mark-terminal preserved; ready-to-close Report bullet added. Reviewer approve 0/0. Merged d18cd8a."
 
-### T70 — planned
+### T70 — done
 
 - createdAt: 2026-06-02T10:13:54.840Z
-- updatedAt: 2026-06-02T10:13:54.840Z
+- updatedAt: 2026-06-02T11:14:52.195Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Audit + scrub residual auto-close-goal language across plan/implement prompts
@@ -359,6 +365,8 @@ archives:
 - acceptance: A grep for auto-close-implying phrasing (e.g. 'advance ... to done', 'close the goal', 'goal ... done automatically') across llm/commands/plan/*.md, llm/commands/implement/*.md, llm/agents/plan-*.md returns only intentional, corrected statements. The 'never auto-close a goal; only the user closes it' invariant appears stated once authoritatively. building->done remains documented as a legal (user-driven) transition. `bun run check` passes.
 - suggestedModel: standard
 - ledgerRefs: ["goals:G3"]
+- resultCommit: bbd01ef
+- completion: Authoritative 'never auto-close a goal' invariant stated once in plan-advance.md (building→done user-driven only; edge stays legal in the documented state machine); rule-7 + plan/advance.md 'completed' wording de-imply auto-close; cross-refs T69's implement/advance.md; implement/start.md untouched. Reviewer approve 0/0. Merged bbd01ef.
 
 ### T71 — planned
 

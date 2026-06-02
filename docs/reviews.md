@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 41
+  item: 45
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -150,6 +150,28 @@ archives:
 - ledgerRefs: ["tasks:T52","goals:G2"]
 - tags: ["implement-flow","round-0"]
 
+### R43 — go-ahead
+
+- createdAt: 2026-06-02T11:14:56.386Z
+- updatedAt: 2026-06-02T11:14:56.386Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T51","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
+### R44 — go-ahead
+
+- createdAt: 2026-06-02T11:14:58.311Z
+- updatedAt: 2026-06-02T11:14:58.311Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T53","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
 ## M13
 
 ### R35 — go-ahead
@@ -187,6 +209,17 @@ archives:
 - ledgerRefs: ["tasks:T69","goals:G3"]
 - tags: ["implement-flow","round-0"]
 
+### R45 — go-ahead
+
+- createdAt: 2026-06-02T11:15:00.079Z
+- updatedAt: 2026-06-02T11:15:00.079Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T70","goals:G3"]
+- tags: ["implement-flow","round-0"]
+
 ## M17
 
 ### R37 — go-ahead
@@ -222,4 +255,15 @@ archives:
 - criticism: []
 - new_questions: []
 - ledgerRefs: ["tasks:T60","goals:G2"]
+- tags: ["implement-flow","round-0"]
+
+### R42 — go-ahead
+
+- createdAt: 2026-06-02T11:14:54.541Z
+- updatedAt: 2026-06-02T11:14:54.541Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T65","goals:G2"]
 - tags: ["implement-flow","round-0"]
