@@ -3,16 +3,16 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
     },
     "./relationships": {
-      "import": "./dist/relationships.js",
-      "types": "./dist/relationships.d.ts"
+      "import": "./dist/src/relationships.js",
+      "types": "./dist/src/relationships.d.ts"
     },
     "./columns": {
       "import": "./dist/src/columns.js",
