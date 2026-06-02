@@ -14,7 +14,7 @@
  * milestone the item belongs to (`@<milestoneId>`).
  */
 
-import type { FieldValue, LedgerClient } from "./types.js";
+import type { FieldValue, LedgerClient, LedgerSchema } from "./types.js";
 import type { DagEdge } from "./dagLayout.js";
 
 const MILESTONES = "milestones";
@@ -29,6 +29,8 @@ export interface DagNode {
 
 export interface DagData {
   ledgerId: string;
+  /** The graphed ledger's schema — drives per-node status→bucket coloring. */
+  schema: LedgerSchema;
   nodes: DagNode[];
   edges: DagEdge[];
 }
@@ -77,5 +79,5 @@ export async function loadDagData(client: LedgerClient, ledgerId: string): Promi
     sublabel: refCounts !== null ? `${refCounts.get(item.id) ?? 0} items` : `@${milestoneId}`,
   }));
 
-  return { ledgerId, nodes, edges };
+  return { ledgerId, schema: view.schema, nodes, edges };
 }

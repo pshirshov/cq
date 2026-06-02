@@ -9,15 +9,12 @@
 import React from "react";
 import { computeDagLayout, DEFAULT_LAYOUT_OPTS } from "./dagLayout.js";
 import type { DagData } from "./dagData.js";
+import { BUCKET_HEX, statusBucket } from "./status.js";
+import type { LedgerSchema } from "./types.js";
 
-const STATUS_COLORS: Record<string, string> = {
-  open: "#4ea1ff",
-  done: "#57d18a",
-  postponed: "#8b93a7",
-  blocked: "#ef6a6a",
-};
-function statusColor(status: string): string {
-  return STATUS_COLORS[status] ?? "#e0b341";
+/** Hex for a node's status, via the shared bucket palette (same as badges). */
+function statusColor(status: string, schema: LedgerSchema): string {
+  return BUCKET_HEX[statusBucket(status, schema)];
 }
 
 function truncate(s: string, n: number): string {
@@ -75,7 +72,7 @@ export function DagView({
       {data.nodes.map((m) => {
         const n = posById.get(m.id);
         if (n === undefined) return null;
-        const color = statusColor(m.status);
+        const color = statusColor(m.status, data.schema);
         const active = m.id === selectedId;
         return (
           <g

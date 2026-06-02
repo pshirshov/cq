@@ -14,7 +14,10 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DagView } from "../src/DagView";
 import { App } from "../src/App";
-import { loadDagData } from "../src/dagData";
+import { loadDagData, type DagData } from "../src/dagData";
+import { BUCKET_HEX } from "../src/status";
+import type { DagEdge } from "../src/dagLayout";
+import type { LedgerSchema } from "../src/types";
 import { DagFakeClient } from "./helpers/dagFake";
 
 let container: HTMLElement;
@@ -65,6 +68,46 @@ describe("DagView", () => {
 
     click(testid("dag-node-M2"));
     expect(selected).toEqual(["M2"]);
+  });
+
+  it("colors non-milestones nodes via statusBucket + the shared palette", async () => {
+    // A reviews-style ledger where `revise` is a terminal "needs changes"
+    // status (→ warning) and `done` is terminal (→ done); `planned` is
+    // non-terminal (→ start). None should fall back to the old amber default.
+    const schema: LedgerSchema = {
+      statusValues: ["planned", "wip", "revise", "done"],
+      terminalStatuses: ["done", "revise"],
+      fields: { headline: { type: "string", required: true } },
+      idPrefix: "R",
+    };
+    const node = (id: string, status: string): DagData["nodes"][number] => ({
+      id,
+      title: id,
+      status,
+      sublabel: "@M1",
+    });
+    const data: DagData = {
+      ledgerId: "reviews",
+      schema,
+      nodes: [node("R1", "revise"), node("R2", "done"), node("R3", "planned")],
+      edges: [] as DagEdge[],
+    };
+    await act(async () => {
+      root.render(createElement(DagView, { data, selectedId: null, onSelect: () => {} }));
+    });
+
+    const strokeOf = (id: string): string | null =>
+      testid(`dag-node-${id}`)?.querySelector("rect")?.getAttribute("stroke") ?? null;
+    // texts in a node: [0]=id, [1]=title, [2]=status (bucket-colored), [3]=sublabel.
+    const statusFillOf = (id: string): string | null =>
+      testid(`dag-node-${id}`)?.querySelectorAll("text")[2]?.getAttribute("fill") ?? null;
+
+    expect(strokeOf("R1")).toBe(BUCKET_HEX.warning);
+    expect(strokeOf("R2")).toBe(BUCKET_HEX.done);
+    expect(strokeOf("R3")).toBe(BUCKET_HEX.start);
+    // status-text fill tracks the same bucket color, not the old amber default.
+    expect(statusFillOf("R1")).toBe(BUCKET_HEX.warning);
+    expect(strokeOf("R1")).not.toBe("#e0b341");
   });
 });
 
