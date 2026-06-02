@@ -87,6 +87,12 @@ export class FakeClient implements LedgerClient {
             { id: "D1", milestoneId: "M1", status: "open", fields: { headline: "warp leak", note: "**intermittent** glitch" }, createdAt: TS, updatedAt: TS },
           ],
         },
+        {
+          id: "M2",
+          items: [
+            { id: "D3", milestoneId: "M2", status: "open", fields: { headline: "ion drive misfire", note: "" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
       ],
     },
     // A non-milestones ledger with NO `transitions` map (sorts last): exercises
@@ -132,7 +138,12 @@ export class FakeClient implements LedgerClient {
       counters: { milestone: this.msCounter + 1, item: this.itemCounter + 1 },
       milestones: d.groups.map((g) => ({
         id: g.id,
-        milestone: { id: g.id, status: "open", title: g.id === "active" ? "" : "Bootstrap", description: "" },
+        milestone: {
+          id: g.id,
+          status: "open",
+          title: g.id === "active" ? "" : g.id === "M2" ? "Phase Two" : "Bootstrap",
+          description: "",
+        },
         items: g.items,
       })),
       archivePointers: [],

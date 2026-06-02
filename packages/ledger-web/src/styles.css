@@ -380,6 +380,40 @@ button:hover {
   color: var(--dim);
 }
 
+/* Per-milestone collapsible subsections (non-milestones ledger view). */
+.lw-subsections {
+  width: 100%;
+}
+.lw-milestone-section {
+  margin-bottom: 4px;
+}
+.lw-ms-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: #161b24;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.lw-ms-header:hover {
+  background: #1c2229;
+}
+.lw-ms-chevron {
+  color: var(--dim);
+  font-size: 0.75em;
+  min-width: 1em;
+}
+.lw-ms-label {
+  flex: 1;
+}
+
 .lw-detail {
   width: 100%;
   height: 100%;

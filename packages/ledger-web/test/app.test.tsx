@@ -92,8 +92,8 @@ describe("ledger-web App", () => {
 
   it("shows each ledger's item count in the sidebar", async () => {
     await mount();
-    // FakeClient: bugs/plain/milestones each hold 1 item.
-    expect(testid("ledger-count-bugs")?.textContent).toBe("1");
+    // FakeClient: bugs has 2 items (M1/D1 + M2/D3); plain/milestones have 1.
+    expect(testid("ledger-count-bugs")?.textContent).toBe("2");
     expect(testid("ledger-count-milestones")?.textContent).toBe("1");
     expect(testid("ledger-count-plain")?.textContent).toBe("1");
   });
@@ -420,6 +420,112 @@ describe("ledger-web App", () => {
     expect(testid("cancel-edit")).not.toBeNull();
     expect(testid("detail-close")).toBeNull(); // close hidden while editing
     expect(testid("edit")).toBeNull();
+  });
+
+  // ---- milestone subsections (Req2) + milestone filter (Req3) ----
+
+  it("renders per-milestone collapsible subsections for non-milestones ledgers", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    // Both milestone groups from FakeClient appear as sections.
+    expect(testid("ms-section-M1")).not.toBeNull();
+    expect(testid("ms-section-M2")).not.toBeNull();
+    // The header text carries id + title + status.
+    expect(testid("ms-toggle-M1")?.textContent).toContain("M1");
+    expect(testid("ms-toggle-M1")?.textContent).toContain("Bootstrap");
+    expect(testid("ms-toggle-M2")?.textContent).toContain("M2");
+    expect(testid("ms-toggle-M2")?.textContent).toContain("Phase Two");
+    // Items from each group are visible by default (expanded).
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).not.toBeNull();
+    // No per-row milestone column (the subsection header carries it): table has
+    // id/status/summary columns only (not milestone).
+    const ths = container.querySelectorAll(".lw-table th");
+    const colNames = Array.from(ths).map((th) => th.textContent?.trim());
+    expect(colNames).not.toContain("milestone");
+  });
+
+  it("milestones ledger keeps the flat milestone-column table (no subsections)", async () => {
+    await mount();
+    click(testid("ledger-milestones"));
+    await flush();
+    // The milestones ledger must NOT render subsection headers.
+    expect(testid("ms-toggle-active")).toBeNull();
+    // But it must still show items and the milestone column.
+    expect(testid("item-M1")).not.toBeNull();
+    const ths = container.querySelectorAll(".lw-table th");
+    const colNames = Array.from(ths).map((th) => th.textContent?.trim());
+    expect(colNames).toContain("milestone");
+  });
+
+  it("collapses and expands a milestone subsection on header click", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    // D1 is in M1 (expanded by default).
+    expect(testid("item-D1")).not.toBeNull();
+    // Click the M1 toggle → collapses; D1 disappears.
+    click(testid("ms-toggle-M1"));
+    await flush();
+    expect(testid("item-D1")).toBeNull();
+    // D3 (M2) is still visible.
+    expect(testid("item-D3")).not.toBeNull();
+    // Click again → expands; D1 returns.
+    click(testid("ms-toggle-M1"));
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+  });
+
+  it("milestone dropdown is present for non-milestones ledgers and absent for milestones", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    expect(testid("milestone-filter")).not.toBeNull();
+    click(testid("ledger-milestones"));
+    await flush();
+    expect(testid("milestone-filter")).toBeNull();
+  });
+
+  it("milestone dropdown narrows to a single milestone and ANDs with the status filter", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    // Both items visible initially.
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).not.toBeNull();
+    // Filter to M1 only: D3 (M2) disappears.
+    setValue(testid("milestone-filter"), "M1");
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).toBeNull();
+    // AND with status=terminal: D1 (open) also drops out → (no items).
+    setValue(testid("status-filter"), "terminal");
+    await flush();
+    expect(testid("item-D1")).toBeNull();
+    expect(text()).toContain("(no items)");
+    // Reset status filter: D1 returns.
+    setValue(testid("status-filter"), "all");
+    await flush();
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).toBeNull(); // M2 still filtered out
+  });
+
+  it("milestone filter resets when switching to a different ledger", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    setValue(testid("milestone-filter"), "M1");
+    await flush();
+    expect(testid("item-D3")).toBeNull(); // M2 hidden
+    // Switch to plain ledger and back: the milestone filter should be reset.
+    click(testid("ledger-plain"));
+    await flush();
+    click(testid("ledger-bugs"));
+    await flush();
+    // Both D1 and D3 visible again (filter cleared).
+    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("item-D3")).not.toBeNull();
   });
 });
 

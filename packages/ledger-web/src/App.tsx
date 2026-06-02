@@ -17,7 +17,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FetchedLedger, FieldValue, FtsHit, Item, LedgerClient, LedgerSummary, MilestonePatch } from "./types.js";
+import type { FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSummary, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
@@ -165,6 +165,8 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [creating, setCreating] = useState<"item" | "milestone" | null>(null);
   const [draftMilestones, setDraftMilestones] = useState<Item[]>([]);
   const [filter, setFilter] = useState<StatusFilter>({ kind: "all" });
+  /** "" means "all milestones"; otherwise the id of the one to show. */
+  const [milestoneFilter, setMilestoneFilter] = useState("");
   // Keyboard navigation: which zone has the cursor, plus per-zone cursors.
   // Items reuse `selected` as their cursor (it live-previews into the detail).
   const [navZone, setNavZone] = useState<"sidebar" | "main">("sidebar");
@@ -181,9 +183,10 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   // its onChanged must call the freshest refresh closure, not a stale one.
   const refreshRef = useRef<() => void>(() => {});
 
-  // A status filter is per-ledger; reset it whenever the active ledger changes.
+  // Filters are per-ledger; reset them whenever the active ledger changes.
   useEffect(() => {
     setFilter({ kind: "all" });
+    setMilestoneFilter("");
   }, [ledger]);
 
   // Persist panel layout.
@@ -468,14 +471,18 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     };
   }, [client, liveUrl, liveWsCtor]);
 
-  // The item rows currently visible (ledger rows after the status filter). The
-  // keyboard handler and the table render from the same list.
+  // The item rows currently visible (ledger rows after status + milestone filter).
+  // The keyboard handler and the table render from the same derived list.
   const visibleRows = useMemo(
     () =>
       view === null
         ? []
-        : ledgerRows(view).filter((r) => statusMatchesFilter(r.item.status, view.schema, filter)),
-    [view, filter],
+        : ledgerRows(view).filter(
+            (r) =>
+              statusMatchesFilter(r.item.status, view.schema, filter) &&
+              (milestoneFilter === "" || r.milestoneId === milestoneFilter),
+          ),
+    [view, filter, milestoneFilter],
   );
 
   // When creating a new item, load the milestones to pick from (the editor
@@ -797,6 +804,22 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                     </option>
                   ))}
                 </select>
+                {!isMilestones && (
+                  <select
+                    className="lw-filter"
+                    data-testid="milestone-filter"
+                    aria-label="filter by milestone"
+                    value={milestoneFilter}
+                    onChange={(e) => setMilestoneFilter(e.target.value)}
+                  >
+                    <option value="">all milestones</option>
+                    {view.milestones.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.id}{g.milestone.title ? `: ${g.milestone.title}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               {creating === "milestone" && client !== null && (
                 <CreateMilestoneForm
@@ -814,8 +837,11 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 />
               )}
               <ItemTable
-                rows={visibleRows}
+                groups={view.milestones}
                 schema={view.schema}
+                isMilestones={isMilestones}
+                statusFilter={filter}
+                milestoneFilter={milestoneFilter}
                 selectedId={selected?.item.id ?? null}
                 onSelect={(r) => {
                   setNavZone("main");
@@ -998,61 +1024,181 @@ function SearchBar({ onSearch, disabled }: { onSearch: (q: string) => void; disa
   );
 }
 
+/**
+ * Renders the item table.
+ *
+ * For non-milestones ledgers the table is broken into per-milestone
+ * SUBSECTIONS (collapsible headers = milestone id + title + status, in
+ * fetch_ledger group order). The per-row milestone column is omitted; the
+ * subsection header carries that information.
+ *
+ * For the milestones ledger itself (isMilestones=true) the table falls back
+ * to the simple flat layout (milestone column included) because sub-grouping
+ * by milestone is not meaningful there.
+ */
 function ItemTable({
-  rows,
+  groups,
   schema,
+  isMilestones,
+  statusFilter,
+  milestoneFilter,
   selectedId,
   onSelect,
 }: {
-  rows: Row[];
+  groups: FetchedMilestoneGroup[];
   schema: FetchedLedger["schema"];
+  isMilestones: boolean;
+  statusFilter: StatusFilter;
+  milestoneFilter: string;
   selectedId: string | null;
   onSelect: (row: Row) => void;
 }): React.ReactElement {
-  if (rows.length === 0) return <p className="lw-empty">(no items)</p>;
+  // Track which milestone subsections are collapsed (default: all expanded).
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleCollapsed = (id: string): void => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  if (isMilestones) {
+    // Flat table for the milestones ledger (original layout).
+    const rows: Row[] = groups.flatMap((g) =>
+      g.items
+        .filter((item) => statusMatchesFilter(item.status, schema, statusFilter))
+        .map((item) => ({ item, milestoneId: g.id })),
+    );
+    if (rows.length === 0) return <p className="lw-empty">(no items)</p>;
+    return (
+      <table className="lw-table" data-testid="item-table">
+        <thead>
+          <tr>
+            <th>milestone</th>
+            <th>id</th>
+            <th>status</th>
+            <th>summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const terminal = isTerminal(r.item.status, schema);
+            const cls = [
+              "lw-row",
+              r.item.id === selectedId ? "lw-row-active" : "",
+              terminal ? "lw-row-terminal" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <tr
+                key={r.item.id}
+                data-testid={`item-${r.item.id}`}
+                className={cls}
+                onClick={() => onSelect(r)}
+              >
+                <td>{r.milestoneId}</td>
+                <td>{r.item.id}</td>
+                <td>
+                  <span
+                    className={`lw-status lw-status-${statusBucket(r.item.status, schema)}`}
+                    data-testid={`status-${r.item.id}`}
+                  >
+                    {r.item.status}
+                  </span>
+                </td>
+                <td>{summarize(r.item)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
+  }
+
+  // Non-milestones: per-milestone collapsible subsections.
+  const visibleGroups = groups.filter(
+    (g) => milestoneFilter === "" || g.id === milestoneFilter,
+  );
+  const totalVisible = visibleGroups.reduce(
+    (n, g) => n + g.items.filter((item) => statusMatchesFilter(item.status, schema, statusFilter)).length,
+    0,
+  );
+  if (totalVisible === 0) return <p className="lw-empty">(no items)</p>;
+
   return (
-    <table className="lw-table" data-testid="item-table">
-      <thead>
-        <tr>
-          <th>milestone</th>
-          <th>id</th>
-          <th>status</th>
-          <th>summary</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => {
-          const terminal = isTerminal(r.item.status, schema);
-          const cls = [
-            "lw-row",
-            r.item.id === selectedId ? "lw-row-active" : "",
-            terminal ? "lw-row-terminal" : "",
-          ]
-            .filter(Boolean)
-            .join(" ");
-          return (
-            <tr
-              key={r.item.id}
-              data-testid={`item-${r.item.id}`}
-              className={cls}
-              onClick={() => onSelect(r)}
+    <div className="lw-subsections" data-testid="item-table">
+      {visibleGroups.map((g) => {
+        const rows: Row[] = g.items
+          .filter((item) => statusMatchesFilter(item.status, schema, statusFilter))
+          .map((item) => ({ item, milestoneId: g.id }));
+        // Omit groups that have no visible items under the current status filter.
+        if (rows.length === 0) return null;
+        const isCollapsed = collapsed.has(g.id);
+        const ms = g.milestone;
+        const headerLabel = ms.title
+          ? `${g.id}: ${ms.title} [${ms.status}]`
+          : `${g.id} [${ms.status}]`;
+        return (
+          <section key={g.id} className="lw-milestone-section" data-testid={`ms-section-${g.id}`}>
+            <button
+              type="button"
+              className="lw-ms-header"
+              data-testid={`ms-toggle-${g.id}`}
+              aria-expanded={!isCollapsed}
+              onClick={() => toggleCollapsed(g.id)}
             >
-              <td>{r.milestoneId}</td>
-              <td>{r.item.id}</td>
-              <td>
-                <span
-                  className={`lw-status lw-status-${statusBucket(r.item.status, schema)}`}
-                  data-testid={`status-${r.item.id}`}
-                >
-                  {r.item.status}
-                </span>
-              </td>
-              <td>{summarize(r.item)}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+              <span className="lw-ms-chevron">{isCollapsed ? "▶" : "▼"}</span>
+              <span className="lw-ms-label">{headerLabel}</span>
+            </button>
+            {!isCollapsed && (
+              <table className="lw-table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>status</th>
+                    <th>summary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const terminal = isTerminal(r.item.status, schema);
+                    const cls = [
+                      "lw-row",
+                      r.item.id === selectedId ? "lw-row-active" : "",
+                      terminal ? "lw-row-terminal" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    return (
+                      <tr
+                        key={r.item.id}
+                        data-testid={`item-${r.item.id}`}
+                        className={cls}
+                        onClick={() => onSelect(r)}
+                      >
+                        <td>{r.item.id}</td>
+                        <td>
+                          <span
+                            className={`lw-status lw-status-${statusBucket(r.item.status, schema)}`}
+                            data-testid={`status-${r.item.id}`}
+                          >
+                            {r.item.status}
+                          </span>
+                        </td>
+                        <td>{summarize(r.item)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
