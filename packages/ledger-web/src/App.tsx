@@ -17,7 +17,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSummary, MilestonePatch } from "./types.js";
+import type { ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSummary, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
@@ -180,6 +180,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [navZone, setNavZone] = useState<"sidebar" | "main">("sidebar");
   const [ledgerCursor, setLedgerCursor] = useState(0);
   const [hitCursor, setHitCursor] = useState(0);
+  const [selectedArchiveRow, setSelectedArchiveRow] = useState<Row | null>(null);
   const [flash, setFlash] = useState("");
   const [mainView, setMainView] = useState<"ledger" | "dag">("ledger");
   const [dag, setDag] = useState<DagData | null>(null);
@@ -187,6 +188,10 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   const [dragging, setDragging] = useState(false);
   const workareaRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState<LiveStats | null>(null);
+  // Archive: show/hide the archive section + selected archive + loaded content.
+  const [showArchive, setShowArchive] = useState(false);
+  const [archiveContent, setArchiveContent] = useState<ArchiveContent | null>(null);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
   // Latest-callback ref: the live connection lives across ledger changes, so
   // its onChanged must call the freshest refresh closure, not a stale one.
   const refreshRef = useRef<() => void>(() => {});
@@ -195,6 +200,9 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   useEffect(() => {
     setFilter({ kind: "all" });
     setMilestoneFilter("");
+    setShowArchive(false);
+    setArchiveContent(null);
+    setArchiveId(null);
   }, [ledger]);
 
   // Persist panel layout.
@@ -390,6 +398,22 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     [client],
   );
 
+  const loadArchive = useCallback(
+    async (pointerId: string) => {
+      if (client === null || ledger === null) return;
+      try {
+        const content = await client.fetchLedgerArchive(ledger, pointerId);
+        setArchiveContent(content);
+        setArchiveId(pointerId);
+        setSelected(null);
+        setSelectedArchiveRow(null);
+      } catch (e) {
+        setFlash(errMsg(e));
+      }
+    },
+    [client, ledger],
+  );
+
   const openHit = useCallback(
     async (hit: FtsHit) => {
       if (client === null) return;
@@ -492,6 +516,19 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
           ),
     [view, filter, milestoneFilter],
   );
+
+  // Rows from the loaded archive content (read-only, detached from the ledger).
+  const archiveRows = useMemo((): Row[] => {
+    if (archiveContent === null || archiveId === null) return [];
+    if (archiveContent.kind === "group") {
+      return archiveContent.milestone.items.map((item) => ({
+        item,
+        milestoneId: archiveContent.milestone.id,
+      }));
+    }
+    // kind === "item" — a single archived milestone-item (milestones ledger).
+    return [{ item: archiveContent.item, milestoneId: archiveId }];
+  }, [archiveContent, archiveId]);
 
   // When creating a new item, load the milestones to pick from (the editor
   // shows a milestone selector in create mode).
@@ -828,6 +865,23 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                     ))}
                   </select>
                 )}
+                {view.archivePointers.length > 0 && (
+                  <button
+                    type="button"
+                    data-testid="toggle-archive"
+                    className={showArchive ? "lw-toggle lw-toggle-active" : "lw-toggle"}
+                    onClick={() => {
+                      setShowArchive((s) => !s);
+                      if (showArchive) {
+                        setArchiveContent(null);
+                        setArchiveId(null);
+                        setSelectedArchiveRow(null);
+                      }
+                    }}
+                  >
+                    {showArchive ? "hide archived" : "show archived"}
+                  </button>
+                )}
               </div>
               {creating === "milestone" && client !== null && (
                 <CreateMilestoneForm
@@ -855,15 +909,30 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                   setNavZone("main");
                   setCreating(null);
                   setSelected(r);
+                  setSelectedArchiveRow(null);
                 }}
               />
+              {showArchive && view.archivePointers.length > 0 && (
+                <ArchiveSection
+                  pointers={view.archivePointers}
+                  activeId={archiveId}
+                  rows={archiveRows}
+                  schema={view.schema}
+                  selectedId={selectedArchiveRow?.item.id ?? null}
+                  onSelectPointer={(id) => void loadArchive(id)}
+                  onSelectRow={(r) => {
+                    setSelectedArchiveRow(r);
+                    setSelected(null);
+                  }}
+                />
+              )}
             </>
           ) : (
             <p className="lw-empty">{conn === "connected" ? "select a ledger" : "…"}</p>
           )}
         </main>
 
-        {(selected !== null || creating === "item") && view !== null && (
+        {(selected !== null || creating === "item" || selectedArchiveRow !== null) && view !== null && (
           <>
             <div
               className={`lw-splitter lw-splitter-${panel.orientation}`}
@@ -891,6 +960,17 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                     void createDraft(milestoneId, status, fields)
                   }
                   onClose={() => setCreating(null)}
+                />
+              ) : selectedArchiveRow !== null ? (
+                <DetailPanel
+                  row={selectedArchiveRow}
+                  ledger={ledger ?? ""}
+                  schema={view.schema}
+                  isMilestones={isMilestones}
+                  orientation={panel.orientation}
+                  onToggleOrientation={toggleOrientation}
+                  isArchived={true}
+                  onClose={() => setSelectedArchiveRow(null)}
                 />
               ) : (
                 selected !== null && (
@@ -1253,6 +1333,92 @@ function SearchResults({
   );
 }
 
+/**
+ * Shows the archive pointers for the current ledger and, once one is selected
+ * (fetched), lists its items in a read-only table.
+ */
+function ArchiveSection({
+  pointers,
+  activeId,
+  rows,
+  schema,
+  selectedId,
+  onSelectPointer,
+  onSelectRow,
+}: {
+  pointers: Array<{ id: string; path: string; summary: string }>;
+  activeId: string | null;
+  rows: Row[];
+  schema: FetchedLedger["schema"];
+  selectedId: string | null;
+  onSelectPointer: (id: string) => void;
+  onSelectRow: (row: Row) => void;
+}): React.ReactElement {
+  return (
+    <section className="lw-archive-section" data-testid="archive-section">
+      <h3 className="lw-archive-heading">Archived milestones</h3>
+      <ul className="lw-archive-pointers" data-testid="archive-pointers">
+        {pointers.map((p) => (
+          <li key={p.id}>
+            <button
+              type="button"
+              data-testid={`archive-pointer-${p.id}`}
+              className={p.id === activeId ? "lw-archive-pointer lw-archive-pointer-active" : "lw-archive-pointer"}
+              onClick={() => onSelectPointer(p.id)}
+            >
+              <span className="lw-archive-pointer-id">{p.id}</span>
+              {p.summary.length > 0 && (
+                <span className="lw-archive-pointer-summary lw-dim">{p.summary}</span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {rows.length > 0 && (
+        <table className="lw-table lw-archive-table" data-testid="archive-items">
+          <thead>
+            <tr>
+              <th>id</th>
+              <th>status</th>
+              <th>summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const terminal = isTerminal(r.item.status, schema);
+              const cls = [
+                "lw-row",
+                r.item.id === selectedId ? "lw-row-active" : "",
+                terminal ? "lw-row-terminal" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <tr
+                  key={r.item.id}
+                  data-testid={`archive-item-${r.item.id}`}
+                  className={cls}
+                  onClick={() => onSelectRow(r)}
+                >
+                  <td>{r.item.id}</td>
+                  <td>
+                    <span
+                      className={`lw-status lw-status-${statusBucket(r.item.status, schema)}`}
+                    >
+                      {r.item.status}
+                    </span>
+                  </td>
+                  <td className="lw-summary-cell">{summarize(r.item)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 function DetailPanel({
   row,
   ledger,
@@ -1263,6 +1429,7 @@ function DetailPanel({
   onSave,
   onCreate,
   draftMilestones,
+  isArchived,
   onClose,
 }: {
   row: Row;
@@ -1275,6 +1442,8 @@ function DetailPanel({
   // Create mode: present `draftMilestones` (the milestone options) + `onCreate`.
   onCreate?: (milestoneId: string, status: string, fields: Record<string, FieldValue>) => void;
   draftMilestones?: Item[];
+  /** When true, suppress ALL edit affordances (archived items are read-only). */
+  isArchived?: boolean;
   onClose: () => void;
 }): React.ReactElement {
   const isDraft = draftMilestones !== undefined;
@@ -1329,6 +1498,7 @@ function DetailPanel({
     <div className="lw-detail-head">
       <strong data-testid="detail-id">{isDraft ? "new item" : row.item.id}</strong>
       <span className="lw-dim"> @ {ledger}</span>
+      {isArchived === true && <span className="lw-archived-badge" data-testid="archived-badge">archived</span>}
       <div className="lw-detail-actions">
         {editing ? (
           <>
@@ -1351,9 +1521,11 @@ function DetailPanel({
             >
               {orientation === "right" ? "▭" : "▯"}
             </button>
-            <button type="button" className="lw-edit-btn" data-testid="edit" onClick={() => setEditing(true)}>
-              edit
-            </button>
+            {!isArchived && (
+              <button type="button" className="lw-edit-btn" data-testid="edit" onClick={() => setEditing(true)}>
+                edit
+              </button>
+            )}
             <button type="button" className="lw-close" onClick={onClose} data-testid="detail-close">
               ✕
             </button>
@@ -1451,7 +1623,8 @@ function DetailPanel({
   // supersedes the bare `answered` quick-transition (still offering the others,
   // e.g. `withdrawn`) and owns the `answer` field (dropped from the read-only
   // field list below to avoid showing it twice).
-  const answerable = !isMilestones && onSave !== undefined && canAnswer(schema, row.item.status);
+  // Suppressed for archived items (read-only).
+  const answerable = !isMilestones && onSave !== undefined && !isArchived && canAnswer(schema, row.item.status);
   const hasRecommendation = fieldToString(row.item.fields[RECOMMENDATION_FIELD]).trim().length > 0;
   // A question item gets a fixed field order with a highlighted recommendation
   // (T23). For non-questions the original top answer box + short-first order is
@@ -1556,7 +1729,7 @@ function DetailPanel({
             <dd>{answerBox}</dd>
           </>
         )}
-        {transitionTargets.length > 0 && !isMilestones && onSave !== undefined && (
+        {transitionTargets.length > 0 && !isMilestones && onSave !== undefined && !isArchived && (
           <>
             <dt>transition to</dt>
             <dd>

@@ -72,10 +72,34 @@ const reviewsSchema: LedgerSchema = {
   },
 };
 
+interface ArchiveEntry {
+  pointer: { id: string; path: string; summary: string };
+  content: ArchiveContent;
+}
+
 export class FakeClient implements LedgerClient {
   closed = false;
   private msCounter = 1;
   private itemCounter = 1;
+  /** Per-ledger archive entries (pointer list + content). */
+  private archives: Record<string, ArchiveEntry[]> = {
+    bugs: [
+      {
+        pointer: { id: "A1", path: "./archive/bugs/A1.md", summary: "initial bootstrap fixes" },
+        content: {
+          kind: "group",
+          milestone: {
+            id: "A1",
+            title: "Bootstrap",
+            description: "",
+            items: [
+              { id: "D99", milestoneId: "A1", status: "closed", fields: { headline: "archived bug", note: "" }, createdAt: "2025-01-01T00:00:00.000Z", updatedAt: "2025-01-01T00:00:00.000Z" },
+            ],
+          },
+        },
+      },
+    ],
+  };
   private data: Record<string, LedgerData> = {
     milestones: {
       schema: milestonesSchema,
@@ -156,6 +180,7 @@ export class FakeClient implements LedgerClient {
   async fetchLedger(ledgerId: string): Promise<FetchedLedger> {
     const d = this.data[ledgerId];
     if (d === undefined) throw new Error(`Ledger not found: ${ledgerId}`);
+    const entries = this.archives[ledgerId] ?? [];
     return {
       id: ledgerId,
       schema: d.schema,
@@ -170,11 +195,14 @@ export class FakeClient implements LedgerClient {
         },
         items: g.items,
       })),
-      archivePointers: [],
+      archivePointers: entries.map((e) => e.pointer),
     };
   }
-  async fetchLedgerArchive(_ledgerId: string, _archiveId: string): Promise<ArchiveContent> {
-    throw new Error("fetchLedgerArchive not implemented in FakeClient");
+  async fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
+    const entries = this.archives[ledgerId] ?? [];
+    const entry = entries.find((e) => e.pointer.id === archiveId);
+    if (entry === undefined) throw new Error(`Archive not found: ${ledgerId}/${archiveId}`);
+    return entry.content;
   }
   private find(ledgerId: string, itemId: string): Item {
     const d = this.data[ledgerId];

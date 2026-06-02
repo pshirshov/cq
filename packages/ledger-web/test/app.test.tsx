@@ -570,6 +570,104 @@ describe("ledger-web App", () => {
     const summaryTd = tds?.[tds.length - 1];
     expect(summaryTd?.className).toContain("lw-summary-cell");
   });
+
+  // ---- archive affordance (Req1 T32) ----
+
+  it("shows the 'show archived' toggle only for ledgers that have archive pointers", async () => {
+    await mount();
+    // bugs ledger has an archive pointer (A1) in FakeClient.
+    click(testid("ledger-bugs"));
+    await flush();
+    expect(testid("toggle-archive")).not.toBeNull();
+
+    // plain ledger has no archive pointers.
+    click(testid("ledger-plain"));
+    await flush();
+    expect(testid("toggle-archive")).toBeNull();
+  });
+
+  it("toggle shows/hides the archive section and resets on ledger change", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    // Not shown by default.
+    expect(testid("archive-section")).toBeNull();
+
+    // Click toggle → archive section appears.
+    click(testid("toggle-archive"));
+    await flush();
+    expect(testid("archive-section")).not.toBeNull();
+    // The pointer A1 is listed.
+    expect(testid("archive-pointer-A1")).not.toBeNull();
+
+    // Switch to another ledger → archive section disappears, toggle resets.
+    click(testid("ledger-plain"));
+    await flush();
+    expect(testid("archive-section")).toBeNull();
+    expect(testid("toggle-archive")).toBeNull();
+
+    // Back to bugs: toggle is off again (was reset).
+    click(testid("ledger-bugs"));
+    await flush();
+    expect(testid("archive-section")).toBeNull();
+    expect(testid("toggle-archive")?.className).not.toContain("lw-toggle-active");
+  });
+
+  it("selecting an archive pointer fetches and lists its archived items", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+    // The pointer is listed; click it to load the archive.
+    click(testid("archive-pointer-A1"));
+    await flush();
+    // The archived item D99 appears in the archive table.
+    expect(testid("archive-items")).not.toBeNull();
+    expect(testid("archive-item-D99")).not.toBeNull();
+    expect(testid("archive-item-D99")?.textContent).toContain("archived bug");
+  });
+
+  it("opening an archived item shows it read-only with NO edit/transition/answer controls", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+    click(testid("archive-pointer-A1"));
+    await flush();
+    // Click the archived item to open it in the detail panel.
+    click(testid("archive-item-D99"));
+    await flush();
+    // Detail panel opens with the archived item.
+    expect(testid("detail-id")?.textContent).toBe("D99");
+    // The "archived" badge is visible.
+    expect(testid("archived-badge")).not.toBeNull();
+    // NO edit button.
+    expect(testid("edit")).toBeNull();
+    // NO transition buttons.
+    expect(testid("transitions")).toBeNull();
+    // NO answer box.
+    expect(testid("answer-box")).toBeNull();
+    // Close button is still present.
+    expect(testid("detail-close")).not.toBeNull();
+  });
+
+  it("active-item editing is unaffected by the archive toggle", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+    // Select a normal (active) item.
+    click(testid("item-D1"));
+    await flush();
+    // The edit button is present for active items even when the archive is shown.
+    expect(testid("edit")).not.toBeNull();
+    expect(testid("transitions")).not.toBeNull();
+    // No archived badge.
+    expect(testid("archived-badge")).toBeNull();
+  });
 });
 
 describe("ledger-web keyboard navigation", () => {
