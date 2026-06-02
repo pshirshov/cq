@@ -1178,6 +1178,33 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                   setSelected(r);
                   setSelectedArchiveRow(null);
                 }}
+                archivePointers={view.archivePointers}
+                showArchive={showArchive}
+                {...(client !== null && ledger !== null
+                  ? {
+                      onSelectArchive: (pointer: { id: string; path: string; summary: string; title: string; status: string }) => {
+                        void (async () => {
+                          try {
+                            const content = await client.fetchLedgerArchive(ledger, pointer.id);
+                            const rows =
+                              content.kind === "group"
+                                ? content.milestone.items.map((item) => ({
+                                    item,
+                                    milestoneId: content.milestone.id,
+                                  }))
+                                : [{ item: content.item, milestoneId: pointer.id }];
+                            const row = rows[0];
+                            if (row !== undefined) {
+                              setSelectedArchiveRow(row);
+                              setSelected(null);
+                            }
+                          } catch (e) {
+                            setFlash(errMsg(e));
+                          }
+                        })();
+                      },
+                    }
+                  : {})}
               />
               {showArchive && !isMilestones && view.archivePointers.length > 0 && client !== null && ledger !== null && (
                 <ArchiveSubsections
@@ -1694,6 +1721,9 @@ function ItemTable({
   extraColumns,
   selectedId,
   onSelect,
+  archivePointers = [],
+  showArchive = false,
+  onSelectArchive,
 }: {
   groups: FetchedMilestoneGroup[];
   schema: FetchedLedger["schema"];
@@ -1706,6 +1736,12 @@ function ItemTable({
   extraColumns: string[];
   selectedId: string | null;
   onSelect: (row: Row) => void;
+  /** Archived milestone pointers — only used when isMilestones=true. */
+  archivePointers?: Array<{ id: string; path: string; summary: string; title: string; status: string }>;
+  /** Whether to show archived rows (from the toggle-archive button). */
+  showArchive?: boolean;
+  /** Called when an archived row is clicked. */
+  onSelectArchive?: (pointer: { id: string; path: string; summary: string; title: string; status: string }) => void;
 }): React.ReactElement {
   // Track which milestone subsections are collapsed (default: all expanded).
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -1751,7 +1787,9 @@ function ItemTable({
         .filter((item) => statusMatchesFilter(item.status, schema, statusFilter))
         .map((item) => ({ item, milestoneId: g.id })),
     );
-    if (rows.length === 0) return <p className="lw-empty">(no items)</p>;
+    const visibleArchived = showArchive ? archivePointers : [];
+    if (rows.length === 0 && visibleArchived.length === 0)
+      return <p className="lw-empty">(no items)</p>;
     return (
       <table className="lw-table" data-testid="item-table">
         <colgroup>
@@ -1810,6 +1848,39 @@ function ItemTable({
               </tr>
             );
           })}
+          {visibleArchived.map((p) => (
+            <tr
+              key={`archive-${p.id}`}
+              data-testid={`item-${p.id}`}
+              className="lw-row lw-row-terminal"
+              onClick={() => onSelectArchive?.(p)}
+            >
+              <td>—</td>
+              <td>
+                {p.id}
+                {" "}
+                <span className="lw-archived-badge" data-testid={`archived-badge-${p.id}`}>
+                  archived
+                </span>
+              </td>
+              <td>
+                {p.status.length > 0 && (
+                  <span
+                    className={`lw-status lw-status-${statusBucket(p.status, MILESTONES_SCHEMA)}`}
+                    data-testid={`status-${p.id}`}
+                  >
+                    {p.status}
+                  </span>
+                )}
+              </td>
+              <td className="lw-summary-cell">
+                {p.title.length > 0 ? p.title : p.id}
+              </td>
+              {extraColumns.map((c) => (
+                <td key={c} data-testid={`cell-${p.id}-${c}`} />
+              ))}
+            </tr>
+          ))}
         </tbody>
       </table>
     );
