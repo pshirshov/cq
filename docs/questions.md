@@ -770,50 +770,54 @@ archives:
 - ledgerRefs: ["goals:G6"]
 - answer: as recommended
 
-### Q62 — open
+### Q62 — answered
 
 - createdAt: 2026-06-02T22:39:33.204Z
-- updatedAt: 2026-06-02T22:39:33.204Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:40:51.945Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "What is the precise OPERATIONAL MEANING of 'archive and reset'? Option A: archive every active milestone (with all its items) into the docs/archive/ tree, then re-init the canonical empty ledger set in place. Option B: back-up-and-reinit — move/copy the whole docs/ tree to a timestamped docs/.backup/<ts>/ and write a fresh canonical empty set (the existing G4/T94 `backupAndReinit` behavior). And is the operation destructive (no recoverable copy) or backup-first?"
 - context: These two readings of 'archive and reset' differ materially. Option A preserves per-milestone archive semantics (archived milestones remain queryable via fetch_ledger_archive, ArchivePointers carry title/status per T91/T109) but requires every active milestone's items to be terminal-or-force-archivable. Option B (the G4/T94 helper) is a coarse whole-tree snapshot + fresh start that does NOT produce per-milestone ArchivePointers — it just sidelines the old docs/ wholesale. The user said 'archive AND reset', which could mean either. This determines whether the command reuses backupAndReinit verbatim or composes archive_milestone over all active milestones first.
 - suggestions: ["A — per-milestone archive of all active milestones, then re-init empty (preserves archive queryability; requires force-archive of non-terminal items)","B — whole-tree backup to timestamped docs/.backup/<ts>/ then fresh canonical set (reuse G4/T94 backupAndReinit as-is; coarse, non-destructive)","B as the default mechanism, with the backup being the 'archive' (safety copy) and a fresh empty canonical set being the 'reset'"]
 - recommendation: B (backup-first via the existing backupAndReinit) — it is non-destructive by construction (timestamped docs/.backup snapshot), already implemented and tested under G4/T94/T95, and matches the colloquial 'archive' = safety copy + 'reset' = fresh start; reserve Option A only if the user specifically wants the reset milestones to remain queryable as per-milestone archives.
 - ledgerRefs: ["goals:G6"]
+- answer: B — whole-tree backup to timestamped docs/.backup/<ts>/ then fresh canonical set (reuse G4/T94 backupAndReinit as-is; coarse, non-destructive)
 
-### Q63 — open
+### Q63 — answered
 
 - createdAt: 2026-06-02T22:39:41.222Z
-- updatedAt: 2026-06-02T22:39:41.222Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:41:06.867Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "What is the SCOPE of the reset: all ledgers at once (the entire canonical set — milestones, tasks, defects, hypothesis, decisions, questions, goals), or selectable per-ledger / per-milestone?"
 - context: "'archive and reset ledgers' reads as the whole canonical set, but the command could accept an optional selector (e.g. `--ledger tasks` or `--milestone M27`) to reset a subset. A subset reset is materially more complex: it must preserve cross-ledger ledgerRefs/dependsOn integrity (e.g. a goal referencing a defect that was reset), which a whole-set reset sidesteps entirely. Bounds whether the command takes a selector argument and integrity-preservation logic, or is an all-or-nothing whole-tree operation."
 - suggestions: ["All ledgers at once — reset the entire canonical set as one atomic operation (no selector; simplest, no cross-ledger integrity concerns)","Selectable per-ledger (e.g. `--ledger tasks,defects`), preserving cross-ledger references","Selectable per-milestone (archive+remove one milestone subtree and its items)"]
 - recommendation: All ledgers at once — the request says 'reset ledgers' (the whole set), a whole-tree backup+reinit sidesteps every cross-ledger reference-integrity problem, and a partial reset is a much larger, separately-justifiable feature; add selectors later only if a concrete need appears.
 - ledgerRefs: ["goals:G6"]
+- answer: All ledgers at once — reset the entire canonical set as one atomic operation (no selector; simplest, no cross-ledger integrity concerns)
 
-### Q64 — open
+### Q64 — answered
 
 - createdAt: 2026-06-02T22:39:50.175Z
-- updatedAt: 2026-06-02T22:39:50.175Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:41:39.244Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: What SAFETY / confirmation behavior should the reset command have to guard against an accidental wipe of a populated ledger tree?
 - context: Reset is a high-blast-radius, irreversible-feeling operation (even backup-first, it empties the live tree). A CLI flag like `ledger-mcp --reset` can be invoked accidentally. Options range from an interactive y/N prompt (problematic in non-TTY / unattended contexts — this repo mandates batch-mode tools), to a required explicit confirmation flag, to a dry-run preview. This determines the command's UX and whether it is safely scriptable.
 - suggestions: ["Require an explicit confirmation flag (e.g. `--reset --yes` or `--reset --confirm`) — refuse to proceed without it; non-interactive and scriptable","Interactive y/N prompt when a TTY is present, plus a `--yes` flag to skip it for unattended use","Print a summary of what will be archived/backed-up (counts per ledger) and require `--yes` to proceed; refuse on a non-empty tree without confirmation","No guard — rely on the backup being recoverable (the docs/.backup snapshot is the safety net)"]
 - recommendation: Require an explicit `--yes`/`--confirm` flag with NO interactive prompt (this repo mandates batch-mode/unattended tools), and print a per-ledger summary of what is being backed up before proceeding; the timestamped backup is the recovery path if invoked in error.
 - ledgerRefs: ["goals:G6"]
+- answer: Interactive y/N prompt when a TTY is present, plus a `--yes` flag to skip it for unattended use
 
-### Q65 — open
+### Q65 — answered
 
 - createdAt: 2026-06-02T22:39:58.579Z
-- updatedAt: 2026-06-02T22:39:58.579Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-02T22:41:56.452Z
+- author: user
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - question: "What is the relationship to the EXISTING FsLedgerStore backup-and-reinit (G4 / T94 / T95 `backupAndReinit`): should the reset command REUSE that helper verbatim, EXTEND it, or implement a distinct code path?"
 - context: G4/T94 already landed a `backupAndReinit` helper in @cq/ledger FsLedgerStore (timestamped docs/.backup/ snapshot + fresh canonical empty set), with tests under T95. If the reset command's operational meaning (Q on operational meaning) matches that helper, reusing it avoids duplicating the snapshot/reinit logic and keeps a single tested path. If a distinct semantic is chosen (e.g. per-milestone archive rather than whole-tree backup), the command needs new helper logic. This also affects whether the reset is exposed only on the FS store (the only persistent backend) and whether InMemory needs a parallel.
 - suggestions: ["Reuse `backupAndReinit` verbatim — the reset command is a thin CLI wrapper that calls it (assumes the backup-first/whole-tree semantic is chosen)","Extend `backupAndReinit` (e.g. add a per-ledger summary return, or a dry-run mode) and wrap it","Implement a distinct path (only if a per-milestone-archive semantic is chosen, which backupAndReinit does not provide)"]
 - recommendation: Reuse `backupAndReinit` verbatim as the single source of truth for the snapshot+reinit, with the reset command as a thin CLI wrapper that adds only arg-parsing, the confirmation guard, and the per-ledger summary; this is contingent on choosing the backup-first/whole-tree operational meaning. Reset is FS-only (the InMemory store is non-persistent; no parallel needed).
 - ledgerRefs: ["goals:G6"]
+- answer: Reuse `backupAndReinit` verbatim — the reset command is a thin CLI wrapper that calls it (assumes the backup-first/whole-tree semantic is chosen)

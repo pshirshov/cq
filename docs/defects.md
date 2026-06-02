@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 18
+  item: 19
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -155,3 +155,16 @@ archives:
 - rootCause: "In packages/ledger-web/src/App.tsx the DETAIL answer view renders per-suggestion pick buttons (renderQuestionFields narrative, App.tsx:2438-2443: <button className=\"lw-pick-suggestion\" data-testid=`answer-pick-suggestion-${i}` onClick={()=>answerWith(item)}>pick</button>). The BatchAnswerModal (App.tsx ~1392-1475) renders suggestions as a plain <dd data-testid=\"batch-field-suggestions\"> (App.tsx:1435) and only offers the 'as recommended' button (App.tsx:1475) — it never renders per-suggestion pick buttons. G2 #14 (web pick = T86) was applied to the detail view; the batch modal got 'as recommended' + the #15 disable-when-typing gate (T88) but not the per-suggestion pick controls."
 - suggestedFix: Add per-suggestion 'pick' buttons to the BatchAnswerModal suggestions rendering, mirroring the detail view (answerWith(suggestionText) on click), and apply the same #15 disable-when-answer-non-empty gate already used for 'as recommended'. Add a happy-dom assertion that the batch modal renders one pick button per suggestion and that picking sets the answer.
 - ledgerRefs: ["tasks:T86","tasks:T88","goals:G2"]
+
+### D19 — open
+
+- createdAt: 2026-06-02T22:42:03.577Z
+- updatedAt: 2026-06-02T22:42:03.577Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Batch answer-questions modal does not CLOSE after answering the LAST open question ('save & mark answered' / 'as recommended')
+- severity: medium
+- description: "User-reported repro: in the web batch 'answer questions' dialog, answering the LAST open question via either 'save & mark answered' OR 'as recommended' DOES persist the answer but does NOT close the dialog — it stays open on the just-answered (now last) question. Non-last questions advance fine. (The dialog can still be dismissed via the ✕ button or backdrop click, so it's not a hard block, but the expected auto-close on completing the queue is broken.)"
+- rootCause: "CONFIRMED by reading packages/ledger-web/src/App.tsx. Both buttons call onSave = batchSave (App.tsx:533-550). batchSave persists the answer then advances with `setBatchIndex((i) => Math.min(batchRows.length - 1, i + 1))` (App.tsx:543) and NEVER closes the modal. `batchRows` is a SNAPSHOT captured when the modal opens (setBatchRows(open) at App.tsx:520) and is not recomputed as questions are answered, so on the last row (i === batchRows.length - 1) the Math.min clamps i back to the last index — the modal stays open showing the just-answered question instead of closing. There is no 'all done → close' branch in batchSave (contrast onClose=setBatchOpen(false) wired only to the ✕ button and backdrop at App.tsx:980-984)."
+- suggestedFix: "In batchSave, after a successful save, detect completion and close: if the saved row was the last remaining unanswered row (e.g. i >= batchRows.length - 1, or recompute remaining-open after reload and close when none remain) call setBatchOpen(false) instead of clamping the index. Prefer recomputing the open set post-save so mid-queue answers also shrink the queue correctly. Add a happy-dom test: a 1-question batch + 'save & mark answered' (and a separate 'as recommended') closes the modal (batch-overlay absent) after the last answer."
+- ledgerRefs: ["tasks:T63","tasks:T88","goals:G2"]
