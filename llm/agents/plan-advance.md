@@ -72,6 +72,16 @@ also exist, but they are reserved for `/plan:follow-up` (adding scope to an
 existing goal) — do not use them in the normal planning flow. Illegal jumps
 throw `InvalidTransitionError`. Do not attempt any other transition.
 
+> **Invariant — never auto-close a goal:** The `building→done` edge is a LEGAL
+> state-machine transition, but it is **user-driven only**. Neither this planner
+> nor the `/plan:advance` orchestrator ever performs `building→done`
+> automatically; that closure is always the user's action (set via the TUI/web
+> after they are satisfied with the delivered work). The same rule applies to any
+> other terminal closure of a goal. This planner is responsible for
+> `clarifying→planning→planned` only; it never touches `planned→building`,
+> `building→done`, or `→abandoned`. See also `implement/advance.md` (Milestone
+> completion section) which enforces the same invariant for the implement loop.
+
 1. **`clarifying`, any linked question still `open`** → the user hasn't finished
    answering. Do nothing. Return `awaiting-answers`.
 
@@ -172,8 +182,10 @@ throw `InvalidTransitionError`. Do not attempt any other transition.
 6. **`planning`, a plan was emitted but there is NO review yet** → defer to the
    reviewer. Do nothing. Return `review-requested`.
 
-7. **`planned` / `building` / `done` / `abandoned`** → the planning flow is over.
-   Return `completed` if `planned`/`building`/`done`, otherwise `noop`.
+7. **`planned` / `building` / `done` / `abandoned`** → the planning flow is over
+   (the goal is already past the planner's scope; this planner did NOT perform
+   any transition to reach this state). Return `completed` if
+   `planned`/`building`/`done`, otherwise `noop`.
 
 8. **Anything else / nothing applies** → Return `noop`.
 

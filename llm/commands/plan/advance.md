@@ -55,7 +55,10 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
      answer them. **Stop the loop.**
    - `review-requested` — it emitted or revised a plan. **Run the reviewer**
      (step 2), then continue the loop.
-   - `completed` — the goal reached `planned` (or a terminal phase). **Stop.**
+   - `completed` — the goal reached `planned` (plan locked), or was already in a
+     post-planning phase (`building`/`done`) when the planner ran (no further
+     planning step possible). **Stop.** The planner never auto-closes a goal to
+     `done`; `building→done` is always the user's action.
    - `noop` — nothing to do in the current state. **Stop.**
 
 2. **Spawn the reviewer** (only on `review-requested`). Use the `Agent` tool
@@ -198,7 +201,10 @@ summary line (when run with no argument, one line for each goal advanced):
   - `awaiting-answers` → "answer the N open questions for goal G in the TUI/web,
     then run `/plan:advance G` again" (list the question ids);
   - `completed` → "plan approved and locked; goal G is now `planned`" (point to
-    the milestones/tasks and the locked decision);
+    the milestones/tasks and the locked decision); if the goal was already
+    `building` or `done` when the planner ran (no planning step needed), report
+    the current phase and note that implementation is in progress or already
+    complete — the user closes `building→done` via the TUI/web;
   - `noop` → why there was nothing to do.
 
 Then, for the **auto-investigate phase**, add a line per defect D in the worklist
