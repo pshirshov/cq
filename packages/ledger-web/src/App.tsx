@@ -37,6 +37,13 @@ const HYPOTHESIS_LEDGER = "hypothesis";
 // Default ledger the batch-answer modal (Q33) steps through. The modal scope is
 // ANY answerable ledger (via canAnswer), but it opens on the questions ledger.
 const QUESTIONS_LEDGER = "questions";
+// Goals (T83 / Q48, user-deviated): the goals ledger renders as a FLAT list
+// with NO per-coordination-milestone subsections, and a goal's detail panel
+// shows its WORK-milestone ids (fields.milestones) instead of the single
+// coordination-milestone row. Mirrors the TUI (T84).
+const GOALS_LEDGER = "goals";
+/** The `id[]` field on a goal holding its work-milestone ids (e.g. M12,M13). */
+const GOAL_MILESTONES_FIELD = "milestones";
 import {
   statusBucket,
   isTerminal,
@@ -1165,6 +1172,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                 groups={view.milestones}
                 schema={view.schema}
                 isMilestones={isMilestones}
+                isGoals={ledger === GOALS_LEDGER}
                 statusFilter={filter}
                 milestoneFilter={milestoneFilter}
                 extraColumns={
@@ -1669,11 +1677,19 @@ function MilestoneSubsection({
  * For the milestones ledger itself (isMilestones=true) the table falls back
  * to the simple flat layout (milestone column included) because sub-grouping
  * by milestone is not meaningful there.
+ *
+ * For the goals ledger (isGoals=true; T83 / Q48, user-deviated) the table is a
+ * FLAT list with NO per-coordination-milestone subsections AND no single
+ * milestone column — a goal's coordination grouping is suppressed; its
+ * work-milestone ids live in fields.milestones and are shown in the detail
+ * panel instead. It reuses SubsectionItemTable (id/status/summary) so the row
+ * structure/classes match the other ledgers.
  */
 function ItemTable({
   groups,
   schema,
   isMilestones,
+  isGoals,
   statusFilter,
   milestoneFilter,
   extraColumns,
@@ -1683,6 +1699,7 @@ function ItemTable({
   groups: FetchedMilestoneGroup[];
   schema: FetchedLedger["schema"];
   isMilestones: boolean;
+  isGoals: boolean;
   statusFilter: StatusFilter;
   milestoneFilter: string;
   /** Extra column field names (after id/status/summary), already filtered to
@@ -1701,6 +1718,32 @@ function ItemTable({
       return next;
     });
   };
+
+  if (isGoals) {
+    // Goals (T83 / Q48): FLAT list, no subsection grouping, no milestone column.
+    // Honour both the status filter and the milestone filter (the milestone-
+    // filter select is still offered for non-milestones ledgers), flattening
+    // across coordination groups while preserving fetch_ledger order.
+    const rows: Row[] = groups
+      .filter((g) => milestoneFilter === "" || g.id === milestoneFilter)
+      .flatMap((g) =>
+        g.items
+          .filter((item) => statusMatchesFilter(item.status, schema, statusFilter))
+          .map((item) => ({ item, milestoneId: g.id })),
+      );
+    if (rows.length === 0) return <p className="lw-empty">(no items)</p>;
+    return (
+      <div className="lw-subsections" data-testid="item-table">
+        <SubsectionItemTable
+          rows={rows}
+          schema={schema}
+          extraColumns={extraColumns}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      </div>
+    );
+  }
 
   if (isMilestones) {
     // Flat table for the milestones ledger (original layout).
@@ -2200,6 +2243,17 @@ function DetailPanel({
   // (T23). For non-questions the original top answer box + short-first order is
   // kept unchanged.
   const isQ = !isMilestones && isQuestion(schema);
+  // Goals (T83 / Q48): the goal's coordination-milestone (row.milestoneId) is
+  // NOT shown; instead its work-milestone ids (fields.milestones) are rendered
+  // as a `milestones` list. The `milestones` field is therefore lifted out of
+  // the generic field list so it is not rendered twice.
+  const isGoal = !isMilestones && ledger === GOALS_LEDGER;
+  const goalMilestonesRaw = isGoal ? row.item.fields[GOAL_MILESTONES_FIELD] : undefined;
+  const goalMilestones = Array.isArray(goalMilestonesRaw)
+    ? goalMilestonesRaw
+    : typeof goalMilestonesRaw === "string" && goalMilestonesRaw.length > 0
+      ? [goalMilestonesRaw]
+      : [];
   const answerWith = (answer: string): void => {
     if (onSave === undefined) return;
     onSave(ANSWERED_STATUS, {
@@ -2375,6 +2429,7 @@ function DetailPanel({
             )}
             {orderItemFields(Object.entries(row.item.fields) as Array<[string, FieldValue]>)
               .filter(([k]) => !(answerable && k === ANSWER_FIELD))
+              .filter(([k]) => !(isGoal && k === GOAL_MILESTONES_FIELD))
               .map(([k, v]) => (
                 <React.Fragment key={k}>
                   <dt>{k}</dt>
@@ -2383,8 +2438,25 @@ function DetailPanel({
                   </dd>
                 </React.Fragment>
               ))}
-            <dt>milestone</dt>
-            <dd>{row.milestoneId}</dd>
+            {isGoal ? (
+              // Goals (T83 / Q48): show the work-milestone ids as a `milestones`
+              // list in place of the single coordination-milestone row.
+              <>
+                <dt>milestones</dt>
+                <dd data-testid="detail-goal-milestones">
+                  {goalMilestones.length > 0 ? (
+                    renderListField(goalMilestones)
+                  ) : (
+                    <span className="lw-dim">(none)</span>
+                  )}
+                </dd>
+              </>
+            ) : (
+              <>
+                <dt>milestone</dt>
+                <dd>{row.milestoneId}</dd>
+              </>
+            )}
             {(row.item.author !== undefined || row.item.session !== undefined) && (
               <>
                 <dt>by</dt>
