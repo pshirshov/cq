@@ -51,27 +51,52 @@ Ask, and answer with evidence:
 - **Complete?** Does the plan, executed, actually achieve the goal's
   `description`?
 
-Then classify each problem you find into exactly one bucket:
+Then classify each problem you find into exactly one of THREE buckets:
 - **`new_questions`** — gaps only the USER can resolve (missing requirement,
   undecided scope, an ambiguity no amount of repo reading settles). Phrase each
   as a direct question.
-- **`criticism`** — defects the PLANNER can fix without the user (mis-sequenced
-  tasks, missing acceptance, a task referencing a nonexistent symbol, an
-  unscoped mega-task to split).
+- **`criticism`** — IN-SCOPE plan defects the PLANNER can fix without the user
+  (mis-sequenced tasks, missing acceptance, a task referencing a nonexistent
+  symbol, an unscoped mega-task to split). These are faults *of the plan* and
+  fixable *within* this planning round — they keep the verdict on `revise`.
+- **`defects`** — OUT-OF-SCOPE or PRE-EXISTING faults: a real defect in the repo
+  that this plan neither caused nor can fix within its scope (e.g. a latent bug
+  in code the plan merely touches, a broken test unrelated to the goal, an
+  existing API-contract violation). These do NOT make the plan defective and do
+  NOT block it — they are filed and deferred (file-and-defer, per Q26). Report
+  each as an object, NOT a bare string, carrying the `defects`-ledger vocabulary:
+  `{ headline, severity, rootCause?, suggestedFix? }`. `severity` is REQUIRED
+  (it is a required field on `defects` items); `rootCause` and `suggestedFix`
+  are optional. You only *report* these in the review — you do NOT write to the
+  `defects` ledger yourself (your single ledger write is the review item). The
+  /plan:advance orchestrator reads this array and files each as an `open`
+  `defects` item, linked `goals:<G>`, then routes it to `/investigate:start` (an
+  `investigate:*` flow) for later triage — separately from, and without
+  blocking, this plan.
+
+The test for `criticism` vs `defects`: ask "is the fault caused by, and fixable
+within, this plan?" Yes → `criticism` (planner fixes it now). No → `defects`
+(file-and-defer to investigate; the plan proceeds regardless).
 
 ## Write the verdict (your only ledger write)
 The review STATUS *is* the verdict (both statuses are terminal — a review is an
 immutable record of one round):
 - **Satisfied** — plan is fine-grained, sequenced, testable, grounded, complete:
   `create_item("reviews", M, status: "go-ahead", fields: { summary: "<one-line
-  verdict>", new_questions: [], criticism: [], ledgerRefs: ["goals:<G>"] })`.
+  verdict>", new_questions: [], criticism: [], defects: [], ledgerRefs:
+  ["goals:<G>"] })`.
 - **Not satisfied** — `create_item("reviews", M, status: "revise", fields: {
   summary: "<one-line verdict>", new_questions: [<user-only gaps>], criticism:
-  [<planner-fixable defects>], ledgerRefs: ["goals:<G>"] })`. At least one of
-  the two arrays must be non-empty.
+  [<planner-fixable defects>], defects: [<out-of-scope faults to file-and-defer>],
+  ledgerRefs: ["goals:<G>"] })`. At least one of `new_questions` / `criticism`
+  must be non-empty (those are what `revise` acts on). `defects` is orthogonal:
+  it may be populated under EITHER verdict — out-of-scope faults are filed and
+  deferred regardless of whether the plan itself needs revision, so a clean plan
+  (`go-ahead`) can still carry `defects` to file.
 
 Substitute the real goal id for `<G>` (e.g. `["goals:G1"]`). `new_questions`
-and `criticism` are `string[]`.
+and `criticism` are `string[]`; `defects` is an array of objects
+`{ headline, severity, rootCause?, suggestedFix? }` (see the bucket above).
 
 ## Provenance
 On the `create_item`, pass `author` = your OWN model class derived from your
@@ -87,7 +112,7 @@ no file yourself; you only emit the section:
 ```
 ### Session summary
 - **Did:** reviewed the emitted plan for goal G
-- **Achieved:** verdict <go-ahead|revise>, review id R…, N criticisms / M new questions
+- **Achieved:** verdict <go-ahead|revise>, review id R…, N criticisms / M new questions / K out-of-scope defects filed
 - **Discovered:** <plan/repo mismatches or gaps you found>
 - **Issues:** <anything that blocked a confident verdict, or "none">
 ```
