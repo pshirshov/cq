@@ -2,17 +2,23 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 17
+  item: 18
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
     summary: TUI + web UI improvements — complete. Per-ledger counts (T1), answer-and-resolve for questions (T2), view persistence (T3), embedded in-process MCP mode for ledger-tui + ledger-web (T17–T22), question-detail field order + highlighted recommendation (T23). Decision K2 (in-process = co-locate the MCP server, don't bypass MCP). Defect D1 (web counts undefined) resolved. Shipped on main (commits 63df0f3, 5cf4916; merged b510170).
+    title: ""
+    status: ""
   - id: M3
     path: ./archive/decisions/M3.md
     summary: Build /implement:* command family (goal G1) — complete. Decision K4 (model tiers + dual worktree strategy); implement-worker/-reviewer/-conflict-resolver agents (T5–T7); /implement:start + /implement:advance (T8/T9); plan-advance sets suggestedModel (T11); cross-flow session-log convention (T15); wiring (T10); end-to-end dogfood (T12, defect D2 resolved). Shipped on main (commit 4f430b3).
+    title: ""
+    status: ""
   - id: M4
     path: ./archive/decisions/M4.md
     summary: Plan-flow maintenance — complete. Subagent MCP tool access made server-name-independent via denylist (T13); /plan:follow-up command + goal re-open transitions, decision K5 (T25); /plan:advance with no argument advances all unlocked goals (T14). Shipped on main (commits 4f430b3, 67727e9).
+    title: ""
+    status: ""
 ---
 
 # decisions
@@ -198,3 +204,13 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead R94 (round 2, 0 criticisms / 0 new_questions; both R93 grounding/acceptance gaps on T106 and T105 resolved). Plan locked: work milestone M28 carries fix tasks T105 (D9 ledger-tui HTTP test de-flake), T106 (D10 dual-store no-partial-mutation assertion), T107 (D11 sticky web .lw-toolbar) — file-disjoint, parallel-safe; gate `bun run check`."
 - ledgerRefs: ["goals:G6","defects:D9","defects:D10","defects:D11"]
+
+### K18 — locked
+
+- createdAt: 2026-06-02T20:53:37.607Z
+- updatedAt: 2026-06-02T20:53:37.607Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "plan review: approved (D12 follow-up)"
+- rationale: "Reviewer go-ahead R97 (0 criticisms / 0 new_questions; R95+R96 grounding/locus gaps resolved — T109 relocates the legacy ArchivePointer title/status backfill to async FsLedgerStore.init() (FS-only), forbids touching materialiseFetchedLedger/InMemory to preserve D10/T106 parity, with a reproduction-first FS-fixture acceptance). Extends the locked plan (prior decision K17 locked round-1 fix tasks T105/T106/T107 for D9/D10/D11 under M28) to cover the D12 follow-up: T109 (ledger FsLedgerStore.init() legacy-pointer title/status backfill) sequenced before T108 (web App.tsx archived-milestone rows in the milestones-ledger view). Gate `bun run check`."
+- ledgerRefs: ["goals:G6","defects:D12","tasks:T108","tasks:T109"]

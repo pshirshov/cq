@@ -2,56 +2,88 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 94
+  item: 102
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
     summary: "Dogfood complete: T24 driven to done through the real implement-flow loop (manual worktree (K4 Codex path) -> implement-worker created+committed the marker -> bun run check green in worktree (379 pass) -> implement-reviewer approved 0/0 -> ff merge-back into throwaway dogfood/base). Throwaway branches deleted; nothing landed on main. Two setup findings recorded as defects under goals:G1."
+    title: ""
+    status: ""
   - id: M6
     path: ./archive/reviews/M6.md
     summary: UI/schema follow-up (G1) — COMPLETE. reviews `summary` field (T26); summarize() legacy fallback + badge/cell nowrap-ellipsis both UIs (T27); summary threaded through reviewer prompts + implement:advance recorder (T28); fetchLedgerArchive client web+TUI (T29); web subsections + milestone dropdown (T30); TUI column table + subsections (T31); web (T32) + TUI (T33) read-only archive views; integration gate + cross-cutting regression (T34). Tasks T26-T34; reviews R7/R8/R11/R12/R14/R15/R16/R17/R22. Shipped on main; final check 483 pass.
+    title: ""
+    status: ""
   - id: M7
     path: ./archive/reviews/M7.md
     summary: "investigate:* flow assets (G1 #2) — COMPLETE. Design lock K8 (T35); investigate-explorer read-only evidence-gatherer (T36); /investigate:advance DFS/adjudication loop with file-and-defer handoff + defect-seeded clarify-skip (T37); /investigate:start intake + inline advance (T38, round-1 fixed phantom-subagent); LINKS wiring (T39). Tasks T35-T39; reviews R9/R13/R18/R19. Shipped on main; all investigate:* symlinks resolve; final check 483 pass."
+    title: ""
+    status: ""
   - id: M8
     path: ./archive/reviews/M8.md
     summary: "defect-awareness in plan:*/implement:* prompts (G1 #2) — COMPLETE. plan-reviewer defects[] bucket (T40); implement-reviewer defects[] JSON (T42); plan-flow defect-aware planning + bidirectional linkage + reviewer-defects file-and-defer + defect-seeded clarify-skip (T41); implement/advance files reviewer defects + orchestrator-owned closure on merge-back (T43); cross-prompt 6-grep-invariant audit (T44). Tasks T40-T44; reviews R23/R24/R25/R26/R27. Shipped on main. Closed loop defect->investigate->plan->implement->resolve confirmed."
+    title: ""
+    status: ""
   - id: M9
     path: ./archive/reviews/M9.md
     summary: "defect/hypothesis relationship views (G1 #2, Q28 Full) — COMPLETE. Schema-sufficiency spike, no @cq/ledger change (T45); pure shared helpers defectFixTaskIds + hypothesisRelationships (T46); web detail-panel relationship views via ./relationships subpath (T47); TUI content-pane views (T48); cross-UI single-source regression + full-suite gate (T49). Tasks T45-T49; reviews R10/R20/R21/R28. Shipped on main; final check 483 pass."
+    title: ""
+    status: ""
   - id: M12
     path: ./archive/reviews/M12.md
     summary: G2-W1 shared status→color foundation — COMPLETE. 'warning' StatusBucket + WARNING={revise} (T50, mirror both status.ts); TUI warning=magenta (T51); web canonical BUCKET_HEX single source as --lw-status-* vars, warning=#e0a341 (T52); DagView nodes via shared BUCKET_HEX[statusBucket(status,schema)] (T53). Tasks T50-T53; reviews R34/R40/R43/R44.
+    title: ""
+    status: ""
   - id: M13
     path: ./archive/reviews/M13.md
     summary: G2-W2 Questions UX — COMPLETE. parseFieldValue string[] on ;/newline, id[] keeps comma (T54); normalizeSuggestions helper+script idempotent (T55, live data-run DEFERRED — run with MCP quiesced + restart); web (T56)+TUI (T57) suggestions bulleted list; web (T58)+TUI (T59) question field order milestone,status,by,question,context,suggestions,recommendation,answer. Tasks T54-T59; reviews R35/R39/R46/R50/R51/R53.
+    title: ""
+    status: ""
   - id: M16
     path: ./archive/reviews/M16.md
     summary: G3-B never auto-close goals — COMPLETE. implement/advance.md hard rule 'never auto-transition goal building→done' + ready-to-close report, milestone auto-archive preserved (T69); authoritative invariant once in plan-advance.md, building→done stays legal user-driven (T70); verify gate green (T71). Tasks T69-T71; reviews R36/R45/R55.
+    title: ""
+    status: ""
   - id: M17
     path: ./archive/reviews/M17.md
     summary: G3-A auto-investigate from plan:* — COMPLETE. K12 supersedes K8 pt3 (pins pts1/2/4/5; plan:* commands auto-launch /investigate:advance inline) (T72); plan-advance.md file-only defects (T73); plan/advance.md auto-investigate phase + enumerated convergent stop predicates replacing 4-iter cap (T74); plan/start+follow-up conditional auto-investigate (T75); implement/advance.md 8-round ceiling removed (T76); cross-flow wording reconciled (T77); verify gate (T78). Tasks T72-T78; reviews R37/R38/R48/R49/R52/R56.
+    title: ""
+    status: ""
   - id: M19
     path: ./archive/reviews/M19.md
     summary: "G2 follow-up #14-#15 — COMPLETE. Web per-suggestion 'pick' button (T86); TUI keys 1-9 pick Nth suggestion (T87); web disable as-recommended+pick on non-whitespace answer, detail+batch (T88); TUI r/1-9 inert + batch Ctrl+R when persisted answer non-empty (T89). Tasks T86-T89; reviews R69-R72. Integration 623 pass."
+    title: ""
+    status: ""
   - id: M14
     path: ./archive/reviews/M14.md
     summary: G2-W3 column selector + batch-answer + project title — COMPLETE. T60-T68 (eligibleColumnFields/defaultColumns, web+TUI column selectors, web batch-answer modal + TUI overlay, displayName + web/TUI titles). Out-of-scope defects D3 (exports map) + D4 (column eligibility) RESOLVED via G5; Q52 withdrawn (K13). Reviews R54/R57-R61. Shipped on main.
+    title: ""
+    status: ""
   - id: M18
     path: ./archive/reviews/M18.md
     summary: "G2 follow-up #9-13 — COMPLETE. T79 archived-subsection unification, T80/T81 milestone-status badge (web)/color (TUI), T82 colgroup column proportions, T83/T84 goals flat-list, T85 TUI nav-perf memoization. Out-of-scope D5 (archived-head badge) + D6 (browser-safe constants) RESOLVED via G5; Q53 withdrawn (K13). Reviews R62-R68. Shipped on main."
+    title: ""
+    status: ""
   - id: M22
     path: ./archive/reviews/M22.md
     summary: G4-W D2 backup-and-reinit — COMPLETE. T94 backupAndReinit helper (timestamped docs/.backup/, ENOENT-tolerant, fresh canonical + WARNING); T95 init() !schemasEqual branch → backup-and-reinit by default + onSchemaDivergence:'abort' opt-out; T96 tests (divergence/abort/no-divergence/empty-dir) + abort-suite migration; T97 repo gate. Defect D2 RESOLVED. Reviews R80/R85/R89/R91. Shipped on main; check 661.
+    title: ""
+    status: ""
   - id: M24
     path: ./archive/reviews/M24.md
     summary: G5 Fix Unit A @cq/ledger packaging — COMPLETE. T98 realigned package.json main+exports → ./dist/src/* (consistent w/ ./columns); T99 browser-safe ./constants subpath export + web tsconfig paths; T100 App.tsx consumes @cq/ledger/constants, deletes MILESTONE_STATUS_SCHEMA dup; T101 package-exports.test.ts (asserts all export targets exist post-build). Defects D3 + D6 RESOLVED. Reviews R81/R86/R87/R88. Shipped on main.
+    title: ""
+    status: ""
   - id: M25
     path: ./archive/reviews/M25.md
     summary: G5 Fix Unit B column eligibility — COMPLETE. T102 added SUMMARY_SOURCE_FIELDS {headline,title,question} excluded from eligibleColumnFields (grounded in summarize() precedence) + first columns.test.ts; suggestedModel still eligible. Defect D4 RESOLVED. Review R82. Shipped on main.
+    title: ""
+    status: ""
   - id: M26
     path: ./archive/reviews/M26.md
     summary: "G5 Fix Unit C archived-head status badge — COMPLETE. T104 passes archived pointer status as milestoneStatus to the archived MilestoneSubsection (empty-status guarded) → T80 badge renders for archived heads; happy-dom test. T103 withdrawn (R77: no @cq/shared wire mirror — T91's ArchivePointer.status flows over the wire as-is). Defect D5 RESOLVED. Review R92. Shipped on main; check 661."
+    title: ""
+    status: ""
 ---
 
 # reviews
@@ -291,3 +323,93 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G6"]
 - tags: ["round-2","go-ahead","both-R93-criticisms-resolved"]
+
+### R95 — revise
+
+- createdAt: 2026-06-02T20:41:16.475Z
+- updatedAt: 2026-06-02T20:41:16.475Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T108 is correctly scoped/sequenced/disjoint, but its grounding premise is false for live data: pre-T91 archive pointers carry EMPTY title/status on disk, so the planned rows won't show titles — T108 as written does not fix D12 issue 1."
+- new_questions: []
+- criticism: ["T108 GROUNDING GAP (blocking): T108 relies on 'the ArchivePointer title + status that T91 landed' to render each archived-milestone row's title + badge. Verified against LIVE data: fetch_ledger('milestones') returns ALL 23 archive pointers (M2..M26) with title:\"\" and status:\"\", and docs/milestones.md persists each `archives:` entry with ONLY id/path/summary — no title/status field. T91 added the fields to the ArchivePointer TYPE and populates them at ARCHIVE TIME going forward, but every PRE-T91 archived milestone on disk lacks them, so fetch_ledger reconstructs empty strings. Consequence: T108's rows would fall back to the bare id (headerLabel logic `p.title.length>0 ? ... : p.id`, App.tsx:1990) and show NO title — which is exactly user-reported D12 issue 1 ('titles never appear'). T108 therefore does NOT achieve D12's stated outcome for the data the user actually sees. The archived .md files DO contain the title (e.g. docs/archive/milestones/M2.md line 5 `title: TUI + web UI improvements`, header `### M2 — done`), so the data is recoverable. FIX the plan: T108 (or a prerequisite task) must backfill / read-side reconstruct ArchivePointer.title+status for legacy pointers (from the archive .md, or a one-shot migration of docs/milestones.md `archives:` entries), so real archived rows show titles. As written this is in the ledger library (FsLedgerStore pointer read / materialiseFetchedLedger), NOT App.tsx — which also breaks T108's 'file is App.tsx only / disjoint from D9/D10/D11' parallel-safety claim, since the real fix touches packages/ledger (the same area as T106's store-abstract.ts).","T108 ACCEPTANCE is a non-reproduction of the user's issue: the happy-dom test as specified ('renders an archived milestone as a single titled row carrying the archived badge') would construct a fake pointer WITH a title and pass, while the real app still shows blank titles for every actual archived milestone. Acceptance must pin the legacy case — assert a row renders the correct title for an archive pointer that, as persisted pre-T91, lacks an inline title (i.e. exercise the backfill/reconstruction path), AND assert the status badge — to genuinely reproduce D12 issue 1.","T108 GROUNDING (minor): the task says 'list each archived milestone as a ROW in the flat ItemTable' but the ItemTable component (App.tsx:1687-1816) receives neither `view.archivePointers` nor `showArchive` nor a lazy-fetch handler — its signature only takes `groups`/`isMilestones`. The task should state that ItemTable's props must be extended (archivePointers + showArchive + an onSelectArchive/fetchArchive callback) and that the archived rows must produce a Row routed to setSelectedArchiveRow (App.tsx:1230-1240, isArchived=true) — the existing flat-milestones <table> renders Items with milestone/id/status/summary columns, which does not map onto an ArchivePointer; specify the row shape."]
+- ledgerRefs: ["goals:G6"]
+
+### R96 — revise
+
+- createdAt: 2026-06-02T20:48:30.565Z
+- updatedAt: 2026-06-02T20:48:30.565Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "R95 criticisms 2+3 resolved (acceptance now exercises the T109 backfill; ItemTable wiring fully specified). Criticism 1's residue: T109 mislocates the backfill against the SYNCHRONOUS fetch()/materialiseFetchedLedger contract — its preferred 'read-side reconstruction per fetch' is not implementable as written."
+- new_questions: []
+- criticism: ["T109 FIX-LOCUS GAP (blocking, grounded): T109 option (a) 'read-side reconstruction in the store's archive-pointer read ... by reading the referenced archive .md at pointer.path ... per fetch' is NOT implementable at the read path that actually produces fetch_ledger('milestones').archivePointers. CONFIRMED against live source: LedgerStore.fetch() is SYNCHRONOUS (LedgerStore.ts:121,130 'reads are sync in-memory unless they touch disk'); FsLedgerStore.fetch() (FsLedgerStore.ts:385-390) returns materialiseFetchedLedger(...) which is a synchronous, FS-free, pure function (InMemoryLedgerStore.ts:570-609) whose archivePointers are just `ledger.archivePointers.map(p=>({...p}))` (line 607). Reading a .md at pointer.path is async I/O and CANNOT happen inside the sync fetch() without either (i) making fetch() async — an interface + ripple change to BOTH adapters and every caller that T109 does NOT scope and that contradicts the documented sync contract — or (ii) backfilling at init() time. FIX the task: name the backfill locus precisely as FsLedgerStore.init() (already async, already reads each archive .md via collectArchivedItems()->fetchArchive(), FsLedgerStore.ts:244-254/432-448), reconstructing title/status from the archive .md (parseArchive already yields the milestone; the `title:` line + `### <id> — <status>` header are available) and CACHING them onto the in-memory ledger.archivePointers so the synchronous fetch() returns them. This is feasible and reuses an existing precedent — but T109 as written points at the wrong boundary (per-fetch read) and is not directly buildable.","T109 MISDIRECTING CANDIDATE LOCUS (planner-fixable): T109 lists 'materialiseFetchedLedger' as a candidate site for the backfill. materialiseFetchedLedger is SHARED with InMemoryLedgerStore (imported by FsLedgerStore from InMemoryLedgerStore.ts) and is synchronous + FS-free; the in-memory adapter has NO pointer.path-on-disk (it stores archive groups in Maps), so a .md read there is impossible and would break the very FsLedgerStore/InMemoryLedgerStore parity that D10/T106 is about. Remove materialiseFetchedLedger from the candidate set and pin the fix to the FS adapter's init-time archive read; state explicitly that the in-memory adapter's archivePointers are populated differently (so the T109 reproduction test must target the FS adapter, or seed an in-memory pointer with title/status directly).","T109 ACCEPTANCE PRECISION (minor, planner-fixable): the reproduction acceptance ('a packages/ledger test ... given an archive pointer persisted WITHOUT inline title/status but WITH an archive .md carrying them, the materialised ArchivePointer carries the reconstructed title+status; FAILS before the fix') is sound ONLY against the FS adapter (which has an on-disk archive .md). Pin the test to FsLedgerStore with a fixture: an `archives:` entry lacking title/status PLUS a docs/archive/milestones/<id>.md carrying `title:` + `### <id> — <status>`, asserting fetch('milestones').archivePointers[i].{title,status} are reconstructed non-empty. Keep the fail-soft assertion (missing/malformed archive .md => empty, no throw)."]
+- ledgerRefs: ["goals:G6"]
+
+### R97 — go-ahead
+
+- createdAt: 2026-06-02T20:52:37.058Z
+- updatedAt: 2026-06-02T20:52:37.058Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "R96 residue resolved: T109 now relocates the legacy ArchivePointer title/status backfill to async FsLedgerStore.init() (FS-only), forbids touching materialiseFetchedLedger/InMemory (preserving D10/T106 parity), with a reproduction-first FS-fixture acceptance — verified buildable against live source. Plan sound; go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G6"]
+
+## M28
+
+### R98 — go-ahead
+
+- createdAt: 2026-06-02T21:31:54.734Z
+- updatedAt: 2026-06-02T21:31:54.734Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T105 approved: HTTP tui tests moved to OS-assigned ports + TCP-connect readiness wait via shared portHelpers.ts; product-clean; 3/3 consecutive check runs green. Residual bind-then-close TOCTOU filed out-of-scope as D14."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T105","goals:G6"]
+
+### R99 — go-ahead
+
+- createdAt: 2026-06-02T21:31:58.032Z
+- updatedAt: 2026-06-02T21:31:58.032Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T106 approved: D10 Phase-1b no-partial-mutation pin is correct, dual-adapter, reproduces pre-T91 for the right reason; only check failure is a pre-existing unrelated ledger-tui live-badge flake (filed out-of-scope as D15)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T106","goals:G6"]
+
+### R100 — go-ahead
+
+- createdAt: 2026-06-02T21:32:00.849Z
+- updatedAt: 2026-06-02T21:32:00.849Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T107 approved: .lw-toolbar sticky/top/z-index/gutter CSS meets all acceptance clauses with a passing CSS-assertion test; sole check failure is the same unrelated pre-existing TUI flake (D15)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T107","goals:G6"]
+
+### R101 — go-ahead
+
+- createdAt: 2026-06-02T21:32:03.453Z
+- updatedAt: 2026-06-02T21:32:03.453Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T109 approved: FS-only init() backfill of legacy ArchivePointer title/status; reproduction-first test fails pre-fix and passes post-fix; materialiseFetchedLedger + InMemory untouched (D10/T106 parity preserved); fetch() stays sync; check green."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T109","goals:G6"]
+
+### R102 — go-ahead
+
+- createdAt: 2026-06-02T22:05:03.693Z
+- updatedAt: 2026-06-02T22:05:03.693Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T108 approved: archived milestones render as single titled rows with status + archived badge in the milestones ItemTable; D7 !isMilestones gate preserved; check green; title-guard test verified by mutation (forcing bare-id fallback fails the test)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T108","goals:G6"]
