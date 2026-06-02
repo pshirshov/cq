@@ -235,6 +235,43 @@ export class FsLedgerStore implements LedgerStore {
   }
 
   /**
+   * For the milestones ledger: populate `title` and `status` on any
+   * ArchivePointer whose persisted entry was written before T91 (and
+   * therefore lacks those fields — they default to ""). Reads each such
+   * pointer's archive .md and extracts the milestone item's title field and
+   * status. Fail-soft: ENOENT or a parse error leaves the pointer unchanged
+   * and never propagates (init must not fail on a legacy/absent archive file).
+   * Called once during init(), before this.initialised is set to true.
+   */
+  private async backfillLegacyArchivePointers(ledger: Ledger): Promise<void> {
+    for (const ptr of ledger.archivePointers) {
+      if (ptr.title !== "" && ptr.status !== "") continue; // already populated
+      const absPath = path.resolve(this.docsDir, ptr.path);
+      // Defense-in-depth: skip paths that escape the docs root.
+      if (absPath === this.docsDir || !absPath.startsWith(this.docsDir + path.sep)) continue;
+      let text: string;
+      try {
+        text = await fs.readFile(absPath, "utf8");
+      } catch {
+        // Missing archive file — leave title/status empty.
+        continue;
+      }
+      try {
+        const item = parseMilestoneItemArchive(text);
+        if (ptr.title === "") {
+          const t = item.fields["title"];
+          if (typeof t === "string" && t.length > 0) ptr.title = t;
+        }
+        if (ptr.status === "") {
+          if (item.status.length > 0) ptr.status = item.status;
+        }
+      } catch {
+        // Malformed archive — leave title/status empty, do not throw.
+      }
+    }
+  }
+
+  /**
    * Read every archived item of `ledgerId` from its archive pointers. For a
    * non-milestones ledger each pointer is a milestone-GROUP archive (its items
    * are the archived items); for the milestones ledger each pointer is a
@@ -355,6 +392,15 @@ export class FsLedgerStore implements LedgerStore {
       }
       if (needsWrite) await this.writeLedgerFile(ledger);
       this.ledgers.set(entry.name, ledger);
+      // Backfill title+status on legacy ArchivePointers (pre-T91) that were
+      // persisted without those fields (D12). The read path (fetch/
+      // materialiseFetchedLedger) is synchronous+FS-free and cannot do async
+      // I/O; init() is the only async locus that can recover the data.
+      // Fail-soft: a missing or malformed archive file leaves the pointer
+      // with empty title/status and never throws.
+      if (isMilestones) {
+        await this.backfillLegacyArchivePointers(ledger);
+      }
     }
     this.initialised = true;
     // Build the FTS index for every loaded ledger (active + archived).
