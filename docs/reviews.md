@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 108
+  item: 109
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -442,3 +442,14 @@ archives:
 - criticism: []
 - new_questions: []
 - ledgerRefs: ["tasks:T113","goals:G7"]
+
+### R109 — go-ahead
+
+- createdAt: 2026-06-02T23:57:23.985Z
+- updatedAt: 2026-06-02T23:57:23.985Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T114 approved: per-suggestion pick buttons on the real batch save path (onSave(row, suggestion)) with answerHasText gating; genuine discriminating test (fails 10/10 on base); diff confined to App.tsx batch region + new test; check green 690/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T114","goals:G7"]

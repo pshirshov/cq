@@ -151,10 +151,10 @@ archives:
 
 ## M10
 
-### D18 — open
+### D18 — resolved
 
 - createdAt: 2026-06-02T22:37:45.916Z
-- updatedAt: 2026-06-02T22:50:55.536Z
+- updatedAt: 2026-06-02T23:57:21.695Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: Batch answer-questions modal is missing the per-suggestion 'pick' buttons (present only in the detail answer view)
@@ -164,6 +164,7 @@ archives:
 - suggestedFix: Add per-suggestion 'pick' buttons to the BatchAnswerModal suggestions rendering, mirroring the detail view (answerWith(suggestionText) on click), and apply the same #15 disable-when-answer-non-empty gate already used for 'as recommended'. Add a happy-dom assertion that the batch modal renders one pick button per suggestion and that picking sets the answer.
 - ledgerRefs: ["tasks:T86","tasks:T88","goals:G2"]
 - dependsOn: ["T114"]
+- fix: "T114 (commit ae0e5f8): BatchAnswerModal renders one per-suggestion 'pick' button (iterating Array.isArray(sv)?sv:[sv]) wired to onSave(row, suggestionText) — the same batch save path as 'as recommended' — each gated by the answerHasText disable rule. New happy-dom test (batchPickSuggestion.test.tsx) verifies count/click-to-save/disable-when-typing; fails 10/10 on base, passes at HEAD."
 
 ### D19 — open
 

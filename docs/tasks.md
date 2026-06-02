@@ -298,10 +298,10 @@ archives:
 - resultCommit: 1dec462
 - completion: Removed lw-archived-badge from the archived-row id <td> (id column now single-line); archived state still signaled by lw-row-terminal + show-archived grouping; click-to-open intact. Test updated.
 
-### T114 — planned
+### T114 — done
 
 - createdAt: 2026-06-02T22:50:35.862Z
-- updatedAt: 2026-06-02T22:57:27.630Z
+- updatedAt: 2026-06-02T23:57:18.363Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: "D18: add per-suggestion 'pick' buttons to BatchAnswerModal (App.tsx)"
@@ -320,6 +320,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T113"]
 - ledgerRefs: ["defects:D18","goals:G7"]
+- resultCommit: ae0e5f8
+- completion: BatchAnswerModal now renders one 'pick' button per suggestion (Array-split), calling onSave(row, suggestion) (the batch save path, same as 'as recommended'), disabled by answerHasText. happy-dom test fails 10/10 on base, passes at HEAD.
 
 ### T115 — planned
 
