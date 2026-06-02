@@ -217,6 +217,42 @@ describe("ledger-web App", () => {
     expect(follows(recommendation, answer)).toBe(true);
   });
 
+  it("renders the question detail in the exact Q31 field order (milestone,status,by,question,context,suggestions,recommendation,answer)", async () => {
+    await mount();
+    click(testid("ledger-questions"));
+    await flush();
+    click(testid("item-Q3"));
+    await flush();
+
+    const detail = testid("detail");
+    expect(detail).not.toBeNull();
+    // <dt> labels in document order, restricted to the eight field rows under
+    // test (the "transition to" control dt is excluded — it is not a field).
+    const expected = [
+      "milestone",
+      "status",
+      "by",
+      "question",
+      "context",
+      "suggestions",
+      "recommendation",
+      "answer",
+    ];
+    const labels = Array.from(detail!.querySelectorAll("dt"))
+      .map((dt) => dt.textContent)
+      .filter((t) => t !== null && expected.includes(t));
+    expect(labels).toEqual(expected);
+
+    // Recommendation keeps its highlighted container.
+    const recDd = testid("detail-field-recommendation");
+    expect(recDd?.querySelector(".lw-recommendation")).not.toBeNull();
+    // Suggestions render as a bulleted list, not a comma-joined string.
+    const sugDd = testid("detail-field-suggestions");
+    expect(sugDd?.querySelectorAll("li").length).toBe(2);
+    // Answer is the editable box (Q3 is open/answerable).
+    expect(testid("answer-box")).not.toBeNull();
+  });
+
   it("renders suggestions string[] as a bulleted list (three <li> entries)", async () => {
     await mount();
     click(testid("ledger-questions"));

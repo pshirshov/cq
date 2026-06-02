@@ -161,6 +161,7 @@ export class FakeClient implements LedgerClient {
           items: [
             { id: "Q1", milestoneId: "M1", status: "open", fields: { question: "Ship on Friday?", context: "release train context", recommendation: "yes, ship it" }, createdAt: TS, updatedAt: TS },
             { id: "Q2", milestoneId: "M1", status: "open", fields: { question: "Which approach?", suggestions: ["opt a", "opt b", "opt c"] }, createdAt: TS, updatedAt: TS },
+            { id: "Q3", milestoneId: "M1", status: "open", author: "opus-4.8[1m]", session: "sess-1", fields: { question: "Full question?", context: "full context", suggestions: ["s1", "s2"], recommendation: "do s1", answer: "" }, createdAt: TS, updatedAt: TS },
           ],
         },
       ],

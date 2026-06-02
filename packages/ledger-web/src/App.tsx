@@ -43,6 +43,7 @@ import {
   AS_RECOMMENDED_ANSWER,
   QUESTION_FIELD,
   CONTEXT_FIELD,
+  SUGGESTIONS_FIELD,
   isQuestion,
   type StatusFilter,
 } from "./status.js";
@@ -1755,14 +1756,17 @@ function DetailPanel({
     </div>
   );
 
-  // Question field rendering (T23): short/metadata fields first, then question,
-  // context, the HIGHLIGHTED recommendation, and the answer last (editable box
-  // when answerable, else the stored answer). Render order in the DOM is
-  // question → context → recommendation → answer.
+  // Question field rendering (Q31 ANSWER): the structural metadata trio
+  // (milestone, status, by) renders FIRST in that exact order, then the
+  // narrative sequence question → context → suggestions → recommendation →
+  // answer. The recommendation keeps its HIGHLIGHTED block; the answer is the
+  // editable box when answerable, else the stored value. Any other metadata
+  // fields render after the trio but before the narrative. Owns the whole
+  // question <dl> body (status/milestone/by are NOT repeated by the outer dl).
   const renderQuestionFields = (): React.ReactElement => {
-    const narrative = new Set([QUESTION_FIELD, CONTEXT_FIELD, RECOMMENDATION_FIELD, ANSWER_FIELD]);
+    const trio = new Set([QUESTION_FIELD, CONTEXT_FIELD, SUGGESTIONS_FIELD, RECOMMENDATION_FIELD, ANSWER_FIELD]);
     const entries = Object.entries(row.item.fields) as Array<[string, FieldValue]>;
-    const metadata = orderItemFields(entries.filter(([k]) => !narrative.has(k)));
+    const extraMetadata = orderItemFields(entries.filter(([k]) => !trio.has(k)));
     const fieldDtDd = (k: string, body: React.ReactNode): React.ReactElement => (
       <React.Fragment key={k}>
         <dt>{k}</dt>
@@ -1774,13 +1778,35 @@ function DetailPanel({
       Array.isArray(v) ? renderListField(v) : <Markdown text={v} />;
     const recVal = valueOf(RECOMMENDATION_FIELD);
     const ansVal = valueOf(ANSWER_FIELD);
+    const hasBy = row.item.author !== undefined || row.item.session !== undefined;
     return (
       <>
-        {metadata.map(([k, v]) => fieldDtDd(k, renderVal(v)))}
+        {/* metadata trio: milestone → status → by */}
+        <dt>milestone</dt>
+        <dd>{row.milestoneId}</dd>
+        <dt>status</dt>
+        <dd data-testid="detail-status">
+          <span className={`lw-status lw-status-${statusBucket(row.item.status, schema)}`}>
+            {row.item.status}
+          </span>
+        </dd>
+        {hasBy && (
+          <>
+            <dt>by</dt>
+            <dd data-testid="detail-provenance">
+              {row.item.author ?? "?"}
+              {row.item.session !== undefined ? ` · session ${row.item.session}` : ""}
+            </dd>
+          </>
+        )}
+        {extraMetadata.map(([k, v]) => fieldDtDd(k, renderVal(v)))}
+        {/* narrative: question → context → suggestions → recommendation → answer */}
         {valueOf(QUESTION_FIELD) !== undefined &&
           fieldDtDd(QUESTION_FIELD, renderVal(valueOf(QUESTION_FIELD)!))}
         {valueOf(CONTEXT_FIELD) !== undefined &&
           fieldDtDd(CONTEXT_FIELD, renderVal(valueOf(CONTEXT_FIELD)!))}
+        {valueOf(SUGGESTIONS_FIELD) !== undefined &&
+          fieldDtDd(SUGGESTIONS_FIELD, renderVal(valueOf(SUGGESTIONS_FIELD)!))}
         {recVal !== undefined && (
           <React.Fragment key={RECOMMENDATION_FIELD}>
             <dt>{RECOMMENDATION_FIELD}</dt>
@@ -1794,26 +1820,6 @@ function DetailPanel({
         {answerable
           ? fieldDtDd(ANSWER_FIELD, answerBox)
           : ansVal !== undefined && fieldDtDd(ANSWER_FIELD, renderVal(ansVal))}
-      </>
-    );
-  };
-
-  return (
-    <aside className="lw-detail" data-testid="detail">
-      {head}
-      <dl className="lw-fields">
-        <dt>status</dt>
-        <dd data-testid="detail-status">
-          <span className={`lw-status lw-status-${statusBucket(row.item.status, schema)}`}>
-            {row.item.status}
-          </span>
-        </dd>
-        {!isQ && answerable && (
-          <>
-            <dt>answer</dt>
-            <dd>{answerBox}</dd>
-          </>
-        )}
         {transitionTargets.length > 0 && !isMilestones && onSave !== undefined && !isArchived && (
           <>
             <dt>transition to</dt>
@@ -1825,9 +1831,7 @@ function DetailPanel({
                     type="button"
                     className={`lw-transition lw-status-${statusBucket(target, schema)}`}
                     data-testid={`transition-${target}`}
-                    onClick={() =>
-                      onSave(target, row.item.fields as Record<string, FieldValue>)
-                    }
+                    onClick={() => onSave(target, row.item.fields as Record<string, FieldValue>)}
                   >
                     {target}
                   </button>
@@ -1836,9 +1840,56 @@ function DetailPanel({
             </dd>
           </>
         )}
-        {isQ
-          ? renderQuestionFields()
-          : orderItemFields(Object.entries(row.item.fields) as Array<[string, FieldValue]>)
+      </>
+    );
+  };
+
+  return (
+    <aside className="lw-detail" data-testid="detail">
+      {head}
+      <dl className="lw-fields">
+        {isQ ? (
+          // Question items own their entire <dl> body (metadata trio +
+          // narrative + transitions) via renderQuestionFields, in the fixed
+          // Q31 order. Non-questions keep the original short-first layout.
+          renderQuestionFields()
+        ) : (
+          <>
+            <dt>status</dt>
+            <dd data-testid="detail-status">
+              <span className={`lw-status lw-status-${statusBucket(row.item.status, schema)}`}>
+                {row.item.status}
+              </span>
+            </dd>
+            {answerable && (
+              <>
+                <dt>answer</dt>
+                <dd>{answerBox}</dd>
+              </>
+            )}
+            {transitionTargets.length > 0 && !isMilestones && onSave !== undefined && !isArchived && (
+              <>
+                <dt>transition to</dt>
+                <dd>
+                  <div className="lw-transitions" data-testid="transitions">
+                    {transitionTargets.map((target) => (
+                      <button
+                        key={target}
+                        type="button"
+                        className={`lw-transition lw-status-${statusBucket(target, schema)}`}
+                        data-testid={`transition-${target}`}
+                        onClick={() =>
+                          onSave(target, row.item.fields as Record<string, FieldValue>)
+                        }
+                      >
+                        {target}
+                      </button>
+                    ))}
+                  </div>
+                </dd>
+              </>
+            )}
+            {orderItemFields(Object.entries(row.item.fields) as Array<[string, FieldValue]>)
               .filter(([k]) => !(answerable && k === ANSWER_FIELD))
               .map(([k, v]) => (
                 <React.Fragment key={k}>
@@ -1848,15 +1899,17 @@ function DetailPanel({
                   </dd>
                 </React.Fragment>
               ))}
-        <dt>milestone</dt>
-        <dd>{row.milestoneId}</dd>
-        {(row.item.author !== undefined || row.item.session !== undefined) && (
-          <>
-            <dt>by</dt>
-            <dd data-testid="detail-provenance">
-              {row.item.author ?? "?"}
-              {row.item.session !== undefined ? ` · session ${row.item.session}` : ""}
-            </dd>
+            <dt>milestone</dt>
+            <dd>{row.milestoneId}</dd>
+            {(row.item.author !== undefined || row.item.session !== undefined) && (
+              <>
+                <dt>by</dt>
+                <dd data-testid="detail-provenance">
+                  {row.item.author ?? "?"}
+                  {row.item.session !== undefined ? ` · session ${row.item.session}` : ""}
+                </dd>
+              </>
+            )}
           </>
         )}
       </dl>
