@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 61
+  item: 63
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -443,3 +443,27 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T68","goals:G2"]
 - tags: ["implement-flow","round-0","approve","TUI header '[<displayName>] LLM ledgers' with graceful fallback; real frame assertion; layout intact; check green 567"]
+
+## M18
+
+### R62 — go-ahead
+
+- createdAt: 2026-06-02T13:26:44.655Z
+- updatedAt: 2026-06-02T13:26:44.655Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] lazy archive-fetch had no .catch — swallowed rejections, stuck on 'loading…'. Fixed: onError→setFlash via errMsg + retryable error placeholder + re-expand retries; reproduced rejection test."]
+- new_questions: []
+- ledgerRefs: ["tasks:T79","goals:G2"]
+- tags: ["implement-flow","round-1","criticism-resolved","T79 archived-milestone unify approved at 573 green"]
+
+### R63 — go-ahead
+
+- createdAt: 2026-06-02T13:26:48.427Z
+- updatedAt: 2026-06-02T13:26:48.427Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] 4 T81 tests asserted whole-frame ANSI; cyan/green leaked from selected-row + item badges (reverting source left tests green). Fixed: buildItemEntries node-prop unit tests; reproduction verified 3/4 fail without source coloring. Production code was correct."]
+- new_questions: []
+- ledgerRefs: ["tasks:T81","goals:G2"]
+- tags: ["implement-flow","round-1","criticism-resolved","T81 milestone-header statusColor approved"]

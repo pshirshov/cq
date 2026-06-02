@@ -589,12 +589,12 @@ archives:
 
 ## M18
 
-### T79 — planned
+### T79 — done
 
 - createdAt: 2026-06-02T10:35:48.260Z
-- updatedAt: 2026-06-02T10:35:48.260Z
+- updatedAt: 2026-06-02T13:26:36.679Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #9: unify archived milestone-groups into the active subsection renderer + 'archived' badge"
 - description: |
     Item #9 (WEB-ONLY per Q38/Q39). Today active non-milestones items render as per-milestone collapsible <section> subsections via ItemTable (packages/ledger-web/src/App.tsx L1283-1353: header button with id+title+[status], then the id/status/summary table), while ARCHIVED milestones render via a SEPARATE component ArchiveSection (App.tsx L1404-1484) as a flat row of lw-archive-pointer <button>s where clicking ONE pointer fetches and shows only that group's items below — exactly the reported 'they look like buttons / only one is visible'.
@@ -605,13 +605,15 @@ archives:
 - acceptance: "happy-dom test: with >=2 archived milestone-groups, ALL of them render as collapsible <section> elements (same structure/class as active subsections), each carrying an 'archived' badge in the head; none renders as an lw-archive-pointer button. An archived section is collapsed by default and fetches its items (via the archive fetch) only on first expand. Active sections are unaffected. `bun run check` green."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 0cddb64
+- completion: "Archived milestone-groups unified into the active collapsible <section> subsection renderer (shared SubsectionItemTable + MilestoneSubsection), each with an 'archived' badge, listed after active sections, all present at once; default collapsed; single lazy-fetch via fetchLedgerArchive on first expand (cached). lw-archive-pointer path + dead state/CSS retired. Round 1: restored error handling (.catch→setFlash, retryable error placeholder, re-expand retries) with a reproduced rejection test. Reviewer approve round 1."
 
-### T80 — planned
+### T80 — wip
 
 - createdAt: 2026-06-02T10:35:55.985Z
-- updatedAt: 2026-06-02T10:35:55.985Z
+- updatedAt: 2026-06-02T13:26:49.362Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #10: render milestone-section status as a badge from the shared M12 palette"
 - description: |
     Item #10 (web half; DEPENDS ON M12 T50/T52 — the 'warning' bucket + canonical bucket->color palette/CSS vars). Today the milestone status in a web subsection header is plain text inside the label: ItemTable builds headerLabel = '<id>: <title> [<status>]' rendered in a single <span class=lw-ms-label> (packages/ledger-web/src/App.tsx L1293-1295).
@@ -622,12 +624,12 @@ archives:
 - dependsOn: ["T52"]
 - ledgerRefs: ["goals:G2"]
 
-### T81 — planned
+### T81 — done
 
 - createdAt: 2026-06-02T10:36:07.803Z
-- updatedAt: 2026-06-02T10:36:07.803Z
+- updatedAt: 2026-06-02T13:26:40.832Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #10: color milestone-section header status via statusColor (shared bucket source)"
 - description: |
     Item #10 (TUI half; DEPENDS ON M12 T50/T51 — the 'warning' bucket + TUI BUCKET_COLOR). Today buildItemEntries builds the milestone subsection header label '<id> <title> [<status>]' as a plain STRING rendered as a non-selectable header line (packages/ledger-tui/src/app.tsx L137-145, L141). Ink has no bordered-badge primitive, so the parity for #10 is a color-coded status token.
@@ -637,6 +639,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T51"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: c00006b
+- completion: "TUI milestone subsection header renders the status token colored via statusColor(status, MILESTONES_SCHEMA) (open→cyan, done→green); ListEntry gained optional node?:ReactNode (label preserved for T85 memo stability), ScrollList renders node||label. Round 1: replaced whole-frame ANSI assertions with buildItemEntries node-prop unit tests (reproduction verified: 3/4 fail without source coloring). Merge resolved a test-file conflict (kept main's T62 block + T81 block). Reviewer approve round 1."
 
 ### T82 — planned
 
@@ -670,12 +674,12 @@ archives:
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
 
-### T84 — planned
+### T84 — wip
 
 - createdAt: 2026-06-02T10:36:35.467Z
-- updatedAt: 2026-06-02T10:36:35.467Z
+- updatedAt: 2026-06-02T13:26:50.781Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #12: GOALS ledger as a flat list (no subsection headers) showing fields.milestones"
 - description: |
     Item #12 (TUI half; USER-DEVIATED answer Q48). Mirror of the web fix for the TUI. Today buildItemEntries groups rows under per-coordination-milestone subsection headers (packages/ledger-tui/src/app.tsx L137-145) and ContentPane shows a single 'milestone <coordinationId>' line (app.tsx L1082); goals.fields.milestones is never shown.
