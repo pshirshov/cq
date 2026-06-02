@@ -31,6 +31,7 @@ import {
   ANSWERED_STATUS,
   RECOMMENDATION_FIELD,
   AS_RECOMMENDED_ANSWER,
+  QUESTION_FIELD,
   QUESTION_FIELD_ORDER,
   SUGGESTIONS_FIELD,
   isQuestion,
@@ -48,6 +49,9 @@ import {
 } from "@cq/ledger";
 
 const MILESTONES = "milestones";
+/** Default ledger the batch-answer stepper (T64) targets when the current
+ * frame isn't itself answerable. */
+const QUESTIONS_LEDGER = "questions";
 /** Provenance author stamped on writes made by a human through this editor. */
 const UI_AUTHOR = "user";
 
@@ -117,6 +121,15 @@ interface Row {
 }
 function ledgerRows(view: FetchedLedger): Row[] {
   return view.milestones.flatMap((g) => g.items.map((item) => ({ item, milestoneId: g.id })));
+}
+
+/**
+ * Rows of `view` that are currently answerable (their status admits the
+ * `answered` transition) — i.e. the still-open items the batch-answer stepper
+ * (T64) walks through. Preserves fetch_ledger group/item order.
+ */
+function answerableRows(view: FetchedLedger): Row[] {
+  return ledgerRows(view).filter((r) => canAnswer(view.schema, r.item.status));
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +202,14 @@ type Overlay =
   | { t: "createMilestone" }
   | { t: "createItem"; milestones: Item[] }
   | { t: "filter" }
-  | { t: "pickColumns"; ledger: string };
+  | { t: "pickColumns"; ledger: string }
+  /**
+   * Batch-answer (T64): a full-screen stepper over the open answerable items of
+   * one ledger. `ledger` identifies the write target (which may differ from the
+   * frame the user is on — defaults to the questions ledger). `rows` is the
+   * snapshot of open answerable rows at entry; `idx` is the current position.
+   */
+  | { t: "batchAnswer"; ledger: string; rows: Row[]; idx: number };
 
 // ---------------------------------------------------------------------------
 // App
@@ -420,6 +440,59 @@ export function App({
     [client, top, reloadItems],
   );
 
+  // Batch-answer (T64): open the full-screen stepper. Use the current frame's
+  // ledger when it carries open answerable items; otherwise fall back to the
+  // questions ledger (fetched on demand). Entering the overlay does not change
+  // the navigation stack — Esc leaves the user where they were.
+  const beginBatchAnswer = useCallback(async () => {
+    if (top.kind !== "items") return;
+    try {
+      let ledger = top.ledger;
+      let view = top.view;
+      if (answerableRows(view).length === 0 && ledger !== QUESTIONS_LEDGER) {
+        ledger = QUESTIONS_LEDGER;
+        view = await client.fetchLedger(ledger);
+      }
+      const rows = answerableRows(view);
+      if (rows.length === 0) {
+        setFlash("no open answerable items");
+        return;
+      }
+      setOverlay({ t: "batchAnswer", ledger, rows, idx: 0 });
+    } catch (e) {
+      setFlash(errMsg(e));
+    }
+  }, [client, top]);
+
+  // Save one batch answer, then re-derive the still-open set and advance. The
+  // answered item drops out of `answerableRows`, so the next open item slides
+  // into the same index; when none remain the overlay closes.
+  const applyBatchAnswer = useCallback(
+    async (overlay: Extract<Overlay, { t: "batchAnswer" }>, row: Row, answer: string) => {
+      try {
+        await client.updateItem(overlay.ledger, row.item.id, {
+          status: ANSWERED_STATUS,
+          fields: { [ANSWER_FIELD]: answer },
+          author: UI_AUTHOR,
+        });
+        setFlash(`${row.item.id} answered`);
+        // Refetch the batch ledger to recompute the open set. Keep the visible
+        // frame in sync when it shows the same ledger.
+        const view = await client.fetchLedger(overlay.ledger);
+        if (top.kind === "items" && top.ledger === overlay.ledger) patchTop({ view });
+        const rows = answerableRows(view);
+        if (rows.length === 0) {
+          setOverlay(null);
+          return;
+        }
+        setOverlay({ ...overlay, rows, idx: Math.min(overlay.idx, rows.length - 1) });
+      } catch (e) {
+        setFlash(errMsg(e));
+      }
+    },
+    [client, top, patchTop],
+  );
+
   const applyField = useCallback(
     async (row: Row, field: string, raw: string) => {
       if (top.kind !== "items") return;
@@ -617,6 +690,7 @@ export function App({
         void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
       else if (input === "e" && cur && !cursorInArchive)
         setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
+      else if (input === "b") void beginBatchAnswer();
       else if (input === "f") setOverlay({ t: "filter" });
       else if (input === "c") setOverlay({ t: "pickColumns", ledger: top.ledger });
       else if (input === "/") setOverlay({ t: "search" });
@@ -703,7 +777,7 @@ export function App({
     hints =
       top.focus === "content"
         ? `↑↓ scroll · s status${answerHint} · e edit · o/[ ] panes · Esc back to list${cursorInArchive ? " [read-only]" : ""}`
-        : `↑↓ move · Enter open · s status${answerHint} · e edit · n new · f filter · c columns · / search · o/[ ] panes${archiveHint} · Esc back`;
+        : `↑↓ move · Enter open · s status${answerHint} · e edit · n new · b batch-answer · f filter · c columns · / search · o/[ ] panes${archiveHint} · Esc back`;
     // Column widths: computed over all displayed rows (active + archive) so
     // columns align consistently across the whole list.
     const maxIdW = allRows.reduce((m, r) => Math.max(m, r.item.id.length), 2);
@@ -811,7 +885,19 @@ export function App({
         )}
       </Box>
 
-      {/* body: list | content — split right (row) or bottom (column) */}
+      {/* body: a full-screen overlay (batch-answer) takes the whole body when
+          active; otherwise the usual list | content split. */}
+      {overlay !== null && overlay.t === "batchAnswer" ? (
+        <Box flexGrow={1} flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
+          <BatchAnswerOverlay
+            overlay={overlay}
+            width={cols - 4}
+            onAnswer={(row, answer) => void applyBatchAnswer(overlay, row, answer)}
+            onNav={(idx) => setOverlay({ ...overlay, idx })}
+            onCancel={() => setOverlay(null)}
+          />
+        </Box>
+      ) : (
       <Box flexGrow={1} flexDirection={horizontal ? "row" : "column"}>
         <Box
           {...(horizontal ? { width: listOuterW } : { height: listOuterH })}
@@ -876,6 +962,7 @@ export function App({
           )}
         </Box>
       </Box>
+      )}
 
       {/* status bar */}
       <Box>
@@ -1605,7 +1692,91 @@ function Overlays({
           onCancel={onCancel}
         />
       );
+    case "batchAnswer":
+      // Rendered full-screen by the App (BatchAnswerOverlay), not here.
+      return <></>;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Batch-answer stepper (T64): full-screen overlay walking the open answerable
+// items of one ledger one at a time. Owns input while mounted — printable keys
+// type the answer; Enter saves (App marks answered + auto-advances); ←/→ move
+// between open items; Ctrl+R accepts the recommendation when present; Esc exits.
+// ---------------------------------------------------------------------------
+
+function BatchAnswerOverlay({
+  overlay,
+  width,
+  onAnswer,
+  onNav,
+  onCancel,
+}: {
+  overlay: Extract<Overlay, { t: "batchAnswer" }>;
+  width: number;
+  onAnswer: (row: Row, answer: string) => void;
+  onNav: (idx: number) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const { rows, idx } = overlay;
+  const row = rows[idx]!;
+  const [value, setValue] = useState("");
+  // Reset the typed answer whenever the position changes (nav or auto-advance).
+  useEffect(() => {
+    setValue(fieldToString(row.item.fields[ANSWER_FIELD]));
+  }, [row.item.id]);
+
+  const recommended = hasRecommendation(row.item);
+
+  useInput((input, key) => {
+    if (key.escape) {
+      onCancel();
+    } else if (key.leftArrow) {
+      onNav(Math.max(0, idx - 1));
+    } else if (key.rightArrow) {
+      onNav(Math.min(rows.length - 1, idx + 1));
+    } else if (key.ctrl && input === "r") {
+      // Ctrl+R: accept the recommendation (only when the item carries one).
+      if (recommended) onAnswer(row, AS_RECOMMENDED_ANSWER);
+    } else if (key.return) {
+      onAnswer(row, value);
+    } else if (key.backspace || key.delete) {
+      setValue((v) => v.slice(0, -1));
+    } else if (input.length > 0 && !key.ctrl && !key.meta) {
+      setValue((v) => v + input);
+    }
+  });
+
+  const question = fieldToString(row.item.fields[QUESTION_FIELD]) || summarize(row.item);
+  const recText = fieldToString(row.item.fields[RECOMMENDATION_FIELD]);
+  return (
+    <Box flexDirection="column">
+      <Text bold color="cyan">
+        batch answer · {row.item.id} · {idx + 1}/{rows.length} open
+      </Text>
+      <Box marginTop={1} width={Math.max(20, width)}>
+        <Markdown text={question} />
+      </Box>
+      {recommended && (
+        <Box marginTop={1}>
+          <Text>
+            <Text bold color="green">recommendation: </Text>
+            <Text>{recText}</Text>
+          </Text>
+        </Box>
+      )}
+      <Box marginTop={1}>
+        <Text>answer (saves + marks answered): </Text>
+        <Text color="cyan">{value}</Text>
+        <Text>▌</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text dimColor>
+          Enter save · ←/→ prev/next{recommended ? " · Ctrl+R as-recommended" : ""} · Esc exit
+        </Text>
+      </Box>
+    </Box>
+  );
 }
 
 function CreateItemForm({

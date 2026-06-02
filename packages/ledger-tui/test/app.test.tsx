@@ -19,8 +19,11 @@ import type { ArchiveContent, FetchedLedger, Item, LedgerClient, LedgerSummary }
 import type { Milestone } from "@cq/ledger";
 
 const DOWN = "[B";
+const LEFT = "[D";
+const RIGHT = "[C";
 const ENTER = "\r";
 const ESC = "\u001b";
+const CTRL_R = "\u0012"; // ctrl+r -> ink key.ctrl + input "r"
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -340,6 +343,83 @@ describe("ledger-tui App", () => {
     const q = await h.client.fetchItem("questions", "Q1");
     expect(q.status).toBe("answered");
     expect(q.fields["answer"]).toBe("as recommended");
+    h.unmount();
+  });
+
+  // --- batch-answer stepper (T64) ----------------------------------------
+  // FakeClient questions ledger: Q1 (open, recommendation), Q2 (open, no
+  // recommendation), Q3 (open). All three are answerable, in that order.
+
+  /** Open questions and enter the batch-answer overlay (key `b`). */
+  async function openBatch(h: Harness): Promise<void> {
+    await h.key(DOWN); // bugs -> milestones
+    await h.key(DOWN); // milestones -> questions
+    await h.key(ENTER); // open questions
+    await h.key("b"); // enter batch-answer overlay
+  }
+
+  it("the keybinding opens the batch overlay on the first open question (T64.1)", async () => {
+    const h = await mount();
+    await openBatch(h);
+    expect(h.frame()).toContain("batch answer");
+    expect(h.frame()).toContain("Q1");
+    expect(h.frame()).toContain("1/3 open");
+    expect(h.frame()).toContain("Ship on Friday?");
+    h.unmount();
+  });
+
+  it("submitting an answer marks it answered and advances to the next open question (T64.2)", async () => {
+    const h = await mount();
+    await openBatch(h);
+    await type(h, "do it");
+    await h.key(ENTER);
+    await tick(40);
+    const q1 = await h.client.fetchItem("questions", "Q1");
+    expect(q1.status).toBe("answered");
+    expect(q1.fields["answer"]).toBe("do it");
+    // Q1 dropped out; the stepper now shows Q2 as the first of the 2 remaining.
+    expect(h.frame()).toContain("Q2");
+    expect(h.frame()).toContain("1/2 open");
+    h.unmount();
+  });
+
+  it("the 'as recommended' shortcut writes AS_RECOMMENDED_ANSWER (T64.3)", async () => {
+    const h = await mount();
+    await openBatch(h); // first open item is Q1 (has a recommendation)
+    await h.key(CTRL_R);
+    await tick(40);
+    const q1 = await h.client.fetchItem("questions", "Q1");
+    expect(q1.status).toBe("answered");
+    expect(q1.fields["answer"]).toBe("as recommended");
+    h.unmount();
+  });
+
+  it("prev/next moves between open questions (T64.4)", async () => {
+    const h = await mount();
+    await openBatch(h);
+    expect(h.frame()).toContain("Q1");
+    await h.key(RIGHT); // -> Q2
+    expect(h.frame()).toContain("Q2");
+    expect(h.frame()).toContain("2/3 open");
+    await h.key(RIGHT); // -> Q3
+    expect(h.frame()).toContain("Q3");
+    await h.key(LEFT); // back to Q2
+    expect(h.frame()).toContain("Q2");
+    await h.key(LEFT); // back to Q1
+    expect(h.frame()).toContain("Q1");
+    expect(h.frame()).toContain("1/3 open");
+    h.unmount();
+  });
+
+  it("Esc exits the batch overlay back to the questions list (T64.5)", async () => {
+    const h = await mount();
+    await openBatch(h);
+    expect(h.frame()).toContain("batch answer");
+    await h.key(ESC);
+    await tick(20);
+    expect(h.frame()).not.toContain("batch answer");
+    // Back on the questions list (its hints advertise batch-answer).
+    expect(h.frame()).toContain("b batch-answer");
     h.unmount();
   });
 
