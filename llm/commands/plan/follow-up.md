@@ -16,6 +16,16 @@ way (`building`) — and the user wants to add MORE scope to the SAME goal. Like
 request and re-open the goal — then hands off to the `plan-advance` planner for a
 fresh clarifying round (clarify-first). It owns NO question or plan logic itself.
 
+> **Follow-up scope vs a defect.** Use this for MORE greenfield scope on an
+> existing goal. If the follow-up is really a **DEFECT report** — an existing
+> fault to fix, not new capability — intake it on the `defects` ledger via
+> **`/investigate:start <defect description>`** instead of folding it into this
+> goal. Investigation confirms the root cause and seeds a *defect-seeded*
+> plan-flow goal (linked `defects:<D>`) that `/plan:advance` turns into reviewed
+> FIX TASKS — tasks remain the only executable unit; the defect stays a problem
+> record. If the request plainly describes a fault to repair, point the user at
+> `/investigate:start` rather than re-opening this goal.
+
 ## Provenance (every ledger write)
 On every `update_item`, pass `author` = your OWN model class (derived from
 runtime identity, never hardcoded — Claude Opus 4.8 (1M) → `"opus-4.8[1m]"`;

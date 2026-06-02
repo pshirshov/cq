@@ -23,6 +23,19 @@ On every `create_item` / `create_milestone`, pass:
 - `session` = the value of the `$CLAUDE_CODE_SESSION_ID` environment variable
   (Claude), or the Codex session-id equivalent. If unavailable, omit it.
 
+## Defect vs goal — intake the right ledger
+Plan-flow goals are for **greenfield work** (build/change something). A
+user-reported **DEFECT** — an existing fault to fix — should NOT be intaked as a
+goal: file it on the `defects` ledger via **`/investigate:start <defect
+description>`** instead. That flow investigates the fault, confirms a root cause,
+and (per the file-and-defer handoff, K8) seeds a *defect-seeded* plan-flow goal —
+linked `defects:<D>` with the confirmed root cause embedded — which
+`/plan:advance` then turns into reviewed FIX TASKS (tasks remain the only
+executable unit; the defect itself stays a problem record). So: fix request →
+`/investigate:start`; new capability → `/plan:start` (here). If `$ARGUMENTS`
+plainly describes a fault to repair, tell the user to use `/investigate:start`
+and stop instead of creating a goal.
+
 ## Before you start
 Search the ledger so you don't duplicate an existing goal: `fts_search` with
 `ledger: "goals"` over the goal's key terms. If a live goal already covers this,
