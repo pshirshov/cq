@@ -158,6 +158,12 @@ type Frame =
       cursor: number;
       focus: "list" | "content";
       scroll: number;
+      /** Whether the archive section is visible below active items. */
+      showArchive: boolean;
+      /** Rows assembled from all fetched archives for this ledger. */
+      archiveRows: Row[];
+      /** True while archive data is being fetched (after toggle). */
+      archiveLoading: boolean;
     };
 
 type Overlay =
@@ -244,7 +250,7 @@ export function App({
     async (name: string) => {
       try {
         const view = await client.fetchLedger(name);
-        setStack((s) => [...s, { kind: "items", ledger: name, view, cursor: 0, focus: "list", scroll: 0 }]);
+        setStack((s) => [...s, { kind: "items", ledger: name, view, cursor: 0, focus: "list", scroll: 0, showArchive: false, archiveRows: [], archiveLoading: false }]);
         setFilter({ kind: "all" });
         setFlash("");
       } catch (e) {
@@ -391,6 +397,52 @@ export function App({
     }
   }, [client, top, isMilestonesLedger]);
 
+  /**
+   * Toggle the archive section for the current ledger. On first activation,
+   * lazily fetches all archive pointers and assembles rows. On deactivation,
+   * clears the rows and resets the cursor to stay within active items.
+   */
+  const toggleArchive = useCallback(async () => {
+    if (top.kind !== "items") return;
+    if (top.showArchive) {
+      // Turn off: hide the archive section and reset cursor to active items.
+      const activeCount = visibleRows(top.view).length;
+      patchTop({
+        showArchive: false,
+        archiveRows: [],
+        archiveLoading: false,
+        cursor: Math.min(top.cursor, Math.max(0, activeCount - 1)),
+      });
+      return;
+    }
+    // Turn on: fetch all archive pointers concurrently.
+    const ptrs = top.view.archivePointers;
+    if (ptrs.length === 0) {
+      patchTop({ showArchive: true, archiveRows: [], archiveLoading: false });
+      setFlash("no archived milestones");
+      return;
+    }
+    patchTop({ showArchive: true, archiveRows: [], archiveLoading: true });
+    try {
+      const archives = await Promise.all(ptrs.map((p) => client.fetchLedgerArchive(top.ledger, p.id)));
+      const rows: Row[] = [];
+      for (const arc of archives) {
+        if (arc.kind === "group") {
+          for (const item of arc.milestone.items) {
+            rows.push({ item, milestoneId: arc.milestone.id });
+          }
+        } else {
+          // kind === "item": milestones ledger archive — the item is the milestone.
+          rows.push({ item: arc.item, milestoneId: "archived" });
+        }
+      }
+      patchTop({ archiveRows: rows, archiveLoading: false });
+    } catch (e) {
+      setFlash(errMsg(e));
+      patchTop({ showArchive: false, archiveRows: [], archiveLoading: false });
+    }
+  }, [client, top, patchTop, visibleRows]);
+
   // The live-search overlay drives this directly as the user types.
   const search = useCallback((query: string) => client.ftsSearch(query), [client]);
 
@@ -403,7 +455,7 @@ export function App({
         // Replace the stack: a fresh ledgers root, then push the hit's ledger.
         setStack([
           { kind: "ledgers", cursor: Math.max(0, ledgers.findIndex((l) => l.name === hit.ledgerId)) },
-          { kind: "items", ledger: hit.ledgerId, view, cursor: idx, focus: "list", scroll: 0 },
+          { kind: "items", ledger: hit.ledgerId, view, cursor: idx, focus: "list", scroll: 0, showArchive: false, archiveRows: [], archiveLoading: false },
         ]);
         // The hit's row index is into the unfiltered list — clear any filter so
         // the cursor lands on the right row.
@@ -445,48 +497,59 @@ export function App({
         return;
       }
       // items frame
-      const rowsArr = visibleRows(top.view);
-      const cur = rowsArr[top.cursor];
+      const activeRowsArr = visibleRows(top.view);
+      const activeCount = activeRowsArr.length;
+      // Combined list: active rows followed by archive rows (when archive shown).
+      const allRows = top.showArchive ? [...activeRowsArr, ...top.archiveRows] : activeRowsArr;
+      const totalRows = allRows.length;
+      const cur = allRows[top.cursor];
+      // Whether the cursor currently points at an archived row (read-only).
+      const cursorInArchive = top.showArchive && top.cursor >= activeCount;
       if (top.focus === "content") {
         if (key.upArrow || input === "k") patchTop({ scroll: Math.max(0, top.scroll - 1) });
         else if (key.downArrow || input === "j") patchTop({ scroll: top.scroll + 1 });
         else if (key.escape) patchTop({ focus: "list", scroll: 0 });
-        else if (input === "s" && cur) setOverlay({ t: "status", row: cur });
-        else if (input === "a" && cur && canAnswer(top.view.schema, cur.item.status))
+        // Edit/transition/answer keys are inert for archived items.
+        else if (input === "s" && cur && !cursorInArchive) setOverlay({ t: "status", row: cur });
+        else if (input === "a" && cur && !cursorInArchive && canAnswer(top.view.schema, cur.item.status))
           setOverlay({ t: "answer", row: cur });
         else if (
           input === "r" &&
           cur &&
+          !cursorInArchive &&
           canAnswer(top.view.schema, cur.item.status) &&
           hasRecommendation(cur.item)
         )
           void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
-        else if (input === "e" && cur)
+        else if (input === "e" && cur && !cursorInArchive)
           setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
         return;
       }
       // focus === list
       if (key.upArrow || input === "k") patchTop({ cursor: Math.max(0, top.cursor - 1) });
       else if (key.downArrow || input === "j")
-        patchTop({ cursor: Math.min(rowsArr.length - 1, top.cursor + 1) });
+        patchTop({ cursor: Math.min(totalRows - 1, top.cursor + 1) });
       else if (key.return) {
         if (cur) patchTop({ focus: "content", scroll: 0 });
       } else if (key.escape) setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
-      else if (input === "n") void beginCreate();
-      else if (input === "s" && cur) setOverlay({ t: "status", row: cur });
-      else if (input === "a" && cur && canAnswer(top.view.schema, cur.item.status))
+      // Edit/transition/answer/create keys are inert for archived items.
+      else if (input === "n" && !cursorInArchive) void beginCreate();
+      else if (input === "s" && cur && !cursorInArchive) setOverlay({ t: "status", row: cur });
+      else if (input === "a" && cur && !cursorInArchive && canAnswer(top.view.schema, cur.item.status))
         setOverlay({ t: "answer", row: cur });
       else if (
         input === "r" &&
         cur &&
+        !cursorInArchive &&
         canAnswer(top.view.schema, cur.item.status) &&
         hasRecommendation(cur.item)
       )
         void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
-      else if (input === "e" && cur)
+      else if (input === "e" && cur && !cursorInArchive)
         setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
       else if (input === "f") setOverlay({ t: "filter" });
       else if (input === "/") setOverlay({ t: "search" });
+      else if (input === "A") void toggleArchive();
     },
     { isActive: true },
   );
@@ -545,31 +608,60 @@ export function App({
     );
   } else {
     const rowsArr = visibleRows(top.view);
-    const cur = rowsArr[top.cursor];
+    const activeCount = rowsArr.length;
+    // Combined row array: active rows then archive rows (when archive is shown).
+    const allRows = top.showArchive ? [...rowsArr, ...top.archiveRows] : rowsArr;
+    const cur = allRows[top.cursor];
+    const cursorInArchive = top.showArchive && top.cursor >= activeCount;
     const schema = top.view.schema;
     const fLabel = filterLabel(filter);
     pathStr =
-      cur !== undefined ? `${top.ledger} → ${cur.milestoneId} → ${cur.item.id}` : top.ledger;
+      cur !== undefined
+        ? cursorInArchive
+          ? `${top.ledger} → [archived] → ${cur.item.id}`
+          : `${top.ledger} → ${cur.milestoneId} → ${cur.item.id}`
+        : top.ledger;
     if (fLabel.length > 0) pathStr += `  [${fLabel}]`;
-    const answerable = cur !== undefined && canAnswer(schema, cur.item.status);
+    const answerable = cur !== undefined && !cursorInArchive && canAnswer(schema, cur.item.status);
     const answerHint = answerable
       ? ` · a answer${hasRecommendation(cur!.item) ? " · r as-recommended" : ""}`
       : "";
+    const archiveHint = top.view.archivePointers.length > 0
+      ? ` · A ${top.showArchive ? "hide" : "show"} archived`
+      : "";
     hints =
       top.focus === "content"
-        ? `↑↓ scroll · s status${answerHint} · e edit · o/[ ] panes · Esc back to list`
-        : `↑↓ move · Enter open · s status${answerHint} · e edit · n new · f filter · / search · o/[ ] panes · Esc back`;
-    // Column widths: id padded to longest id among visible rows; status padded
-    // to the schema's max statusValue length so all rows share the same column.
-    const maxIdW = rowsArr.reduce((m, r) => Math.max(m, r.item.id.length), 2);
+        ? `↑↓ scroll · s status${answerHint} · e edit · o/[ ] panes · Esc back to list${cursorInArchive ? " [read-only]" : ""}`
+        : `↑↓ move · Enter open · s status${answerHint} · e edit · n new · f filter · / search · o/[ ] panes${archiveHint} · Esc back`;
+    // Column widths: computed over all displayed rows (active + archive) so
+    // columns align consistently across the whole list.
+    const maxIdW = allRows.reduce((m, r) => Math.max(m, r.item.id.length), 2);
     const maxStatusW = schema.statusValues.reduce((m, s) => Math.max(m, s.length), 4);
-    const itemEntries = buildItemEntries(top.view, rowsArr, isMilestonesLedger);
+    // Build entries: active section via buildItemEntries, then a header +
+    // flat archive rows appended when archive is shown.
+    const activeEntries = buildItemEntries(top.view, rowsArr, isMilestonesLedger);
+    let itemEntries: ListEntry<Row>[];
+    if (top.showArchive) {
+      const archiveEntries: ListEntry<Row>[] = top.archiveLoading
+        ? [{ t: "header", label: "── archived (loading…) ──" }]
+        : top.archiveRows.length === 0
+          ? [{ t: "header", label: "── archived (none) ──" }]
+          : [
+              { t: "header", label: "── archived ──" },
+              ...top.archiveRows.map(
+                (r, i): ListEntry<Row> => ({ t: "item", item: r, itemIdx: activeCount + i }),
+              ),
+            ];
+      itemEntries = [...activeEntries, ...archiveEntries];
+    } else {
+      itemEntries = activeEntries;
+    }
     listEl = (
       <ScrollList
-        items={rowsArr}
+        items={allRows}
         entries={itemEntries}
         getLabel={(r) => `${r.item.id.padEnd(maxIdW)} ${r.item.status.padEnd(maxStatusW)} ${summarize(r.item)}`}
-        renderLabel={(r) => (
+        renderLabel={(r, idx) => (
           <ItemRowLabel
             id={r.item.id}
             status={r.item.status}
@@ -577,6 +669,7 @@ export function App({
             schema={schema}
             idW={maxIdW}
             statusW={maxStatusW}
+            dimmed={top.showArchive && idx >= activeCount}
           />
         )}
         cursor={top.cursor}
@@ -594,6 +687,7 @@ export function App({
           width={contentInnerW}
           height={contentInnerH}
           scroll={top.scroll}
+          readOnly={cursorInArchive}
         />
       ) : (
         <Text dimColor>(no item selected)</Text>
@@ -725,6 +819,7 @@ function ItemRowLabel({
   schema,
   idW,
   statusW,
+  dimmed = false,
 }: {
   id: string;
   status: string;
@@ -734,13 +829,15 @@ function ItemRowLabel({
   idW: number;
   /** Width of the status column (chars), padded with spaces on the right. */
   statusW: number;
+  /** Extra dimming applied to archived rows. */
+  dimmed?: boolean;
 }): React.ReactElement {
   const terminal = isTerminal(status, schema);
   const color = statusColor(status, schema);
   const idPadded = id.padEnd(idW);
   const statusPadded = status.padEnd(statusW);
   return (
-    <Text dimColor={terminal}>
+    <Text dimColor={terminal || dimmed}>
       {idPadded}{" "}<Text color={color}>{statusPadded}</Text>{" "}{summary}
     </Text>
   );
@@ -865,6 +962,7 @@ function ContentPane({
   width,
   height,
   scroll,
+  readOnly = false,
 }: {
   row: Row;
   ledger: string;
@@ -872,6 +970,8 @@ function ContentPane({
   width: number;
   height: number;
   scroll: number;
+  /** When true, display a read-only badge (archived item). */
+  readOnly?: boolean;
 }): React.ReactElement {
   const f = row.item.fields;
   const allEntries = Object.entries(f) as Array<[string, FieldValue]>;
@@ -905,6 +1005,7 @@ function ContentPane({
           <Text dimColor> @ {ledger}</Text>
           {"  "}
           <Text color={statusColor(row.item.status, schema)}>{row.item.status}</Text>
+          {readOnly ? <Text dimColor>{" "}[archived · read-only]</Text> : null}
         </Text>
         <Text dimColor>
           milestone {row.milestoneId} · created {row.item.createdAt.slice(0, 10)} · updated{" "}

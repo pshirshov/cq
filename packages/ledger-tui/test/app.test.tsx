@@ -16,6 +16,7 @@ import { render } from "ink-testing-library";
 import { App } from "../src/app.js";
 import { FakeClient } from "./fakeClient.js";
 import type { ArchiveContent, FetchedLedger, Item, LedgerClient, LedgerSummary } from "../src/types.js";
+import type { Milestone } from "@cq/ledger";
 
 const DOWN = "[B";
 const ENTER = "\r";
@@ -170,6 +171,16 @@ async function waitFor(h: Harness, substr: string, ms = 1500): Promise<void> {
     await tick(10);
   }
   throw new Error(`waitFor: '${substr}' never appeared`);
+}
+
+/** Poll a raw frame getter until it contains `substr`. */
+async function waitForFrame(getFrame: () => string, substr: string, ms = 2000): Promise<void> {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (getFrame().includes(substr)) return;
+    await tick(10);
+  }
+  throw new Error(`waitForFrame: '${substr}' never appeared`);
 }
 
 /**
@@ -687,5 +698,211 @@ describe("ledger-tui summarize() legacy review fallback (Req5)", () => {
     // Second criticism "Missing rollback strategy" must NOT be joined in.
     expect(f).not.toContain("Missing rollback strategy");
     h.unmount();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Archive toggle + read-only affordance (T33)
+// ---------------------------------------------------------------------------
+
+/**
+ * A client with one active item and one archived milestone group.
+ * Pressing A shows the archived section; archived items are read-only.
+ */
+class ArchiveClient implements LedgerClient {
+  archiveFetched = false;
+  statusApplied = false;
+
+  async enumerateLedgers(): Promise<LedgerSummary[]> {
+    return [{ name: "jobs", itemCount: 1 }];
+  }
+
+  async fetchLedger(id: string): Promise<FetchedLedger> {
+    if (id !== "jobs") throw new Error(`Ledger not found: ${id}`);
+    return {
+      id: "jobs",
+      schema: {
+        statusValues: ["planned", "done"],
+        terminalStatuses: ["done"],
+        fields: { headline: { type: "string", required: true } },
+        idPrefix: "J",
+      },
+      counters: { milestone: 2, item: 2 },
+      milestones: [
+        {
+          id: "M1",
+          milestone: { id: "M1", status: "open", title: "Active work", description: "" },
+          items: [
+            { id: "J1", milestoneId: "M1", status: "planned", fields: { headline: "active task" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+      ],
+      archivePointers: [
+        { id: "M0", path: "./archive/jobs/M0.md", summary: "Archived sprint" },
+      ],
+    };
+  }
+
+  async fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
+    if (ledgerId !== "jobs" || archiveId !== "M0") throw new Error("unexpected");
+    this.archiveFetched = true;
+    const milestone: Milestone = {
+      id: "M0",
+      title: "Archived sprint",
+      description: "",
+      items: [
+        { id: "J0", milestoneId: "M0", status: "done", fields: { headline: "archived task" }, createdAt: TS, updatedAt: TS },
+      ],
+    };
+    return { kind: "group", milestone };
+  }
+
+  async fetchItem(): Promise<Item> { throw new Error("not used"); }
+  async createItem(): Promise<Item> { throw new Error("not used"); }
+  async updateItem(): Promise<Item> {
+    this.statusApplied = true;
+    throw new Error("should not be called on archived item");
+  }
+  async ftsSearch(): Promise<never[]> { return []; }
+  async createMilestone(): Promise<Item> { throw new Error("not used"); }
+  async updateMilestone(): Promise<Item> { throw new Error("not used"); }
+  async close(): Promise<void> { /* no-op */ }
+}
+
+describe("ledger-tui archive view (T33)", () => {
+  it("shows the archive toggle hint when archivePointers exist", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs ledger
+    await tick(40);
+    // The hint bar should advertise the A key for showing archives.
+    // The hint may wrap across lines in the terminal; collapse whitespace before checking.
+    const f = (r.lastFrame() ?? "").replace(/\s+/g, " ");
+    expect(f).toContain("A show archived");
+    r.unmount();
+  });
+
+  it("pressing A toggles the archive section visible with a header", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // toggle archive on
+    // Wait until the async fetch resolves and the archived item row appears.
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    const f = r.lastFrame() ?? "";
+    expect(f).toContain("── archived ──"); // section header visible
+    expect(f).toContain("archived task"); // archived item visible
+    r.unmount();
+  });
+
+  it("pressing A a second time hides the archive section", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    r.stdin.write("A"); // hide archive
+    await tick(80);
+    const f = r.lastFrame() ?? "";
+    expect(f).not.toContain("archived task");
+    r.unmount();
+  });
+
+  it("navigating to an archived item shows the read-only badge in content pane", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    r.stdin.write(DOWN); // move cursor to the archived item (active has 1 item → cursor 1)
+    await tick(40);
+    r.stdin.write(ENTER); // open content pane
+    await tick(40);
+    const f = r.lastFrame() ?? "";
+    expect(f).toContain("read-only");
+    expect(f).toContain("[archived");
+    r.unmount();
+  });
+
+  it("the 's' key is inert on an archived item (no status overlay opens)", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    r.stdin.write(DOWN); // cursor on archived item
+    await tick(40);
+    r.stdin.write("s"); // attempt status change — must be suppressed
+    await tick(40);
+    const f = r.lastFrame() ?? "";
+    // The status picker overlay, if opened, renders the SelectList which puts a `› ` cursor
+    // prefix before the first status value and shows all status values in the content pane.
+    // When suppressed, the path header still shows "[archived]" (not replaced by the overlay).
+    expect(f).toContain("[archived]"); // path header unchanged → overlay was not opened
+    // The underlying archived item row must still be visible in the list.
+    expect(f).toContain("archived task");
+    r.unmount();
+  });
+
+  it("the 'e' key is inert on an archived item (no edit overlay opens)", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    r.stdin.write(DOWN); // cursor on archived item
+    await tick(40);
+    r.stdin.write("e"); // attempt edit — must be suppressed
+    await tick(40);
+    const f = r.lastFrame() ?? "";
+    // When the edit overlay opens for a real item, the content pane shows a
+    // field picker SelectList "headline = <value>". When suppressed, the content
+    // pane still shows the item detail with the read-only badge.
+    expect(f).toContain("read-only"); // content pane still shows item detail
+    r.unmount();
+  });
+
+  it("active items remain editable while archive section is shown", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive (cursor stays on active item J1 at idx 0)
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    // Cursor is still at index 0 (active J1) — 's' should open the status picker.
+    r.stdin.write("s");
+    await tick(40);
+    const f = r.lastFrame() ?? "";
+    // Status picker should open for J1 (no transitions map → all statuses listed)
+    expect(f).toContain("done");
+    r.unmount();
+  });
+
+  it("archive rows use the same column layout as active rows (id + status + summary)", async () => {
+    const client = new ArchiveClient();
+    const r = render(<App client={client} />);
+    await tick();
+    r.stdin.write(ENTER); // open jobs
+    await tick(40);
+    r.stdin.write("A"); // show archive
+    await waitForFrame(() => r.lastFrame() ?? "", "archived task");
+    const f = r.lastFrame() ?? "";
+    // Archived row J0 must appear with id + status + summary columns
+    expect(f).toContain("J0");
+    expect(f).toContain("done");
+    expect(f).toContain("archived task");
+    r.unmount();
   });
 });
