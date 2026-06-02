@@ -1584,3 +1584,113 @@ describe("ledger-tui goals flat list + fields.milestones (T84)", () => {
     r.unmount();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Number keys 1-9 pick the Nth suggestion (T87)
+// FakeClient: Q2 has suggestions ["opt a", "opt b"] and is open/answerable.
+// ---------------------------------------------------------------------------
+
+/** Navigate to questions ledger (sorted: bugs=0, milestones=1, questions=2). */
+async function openQuestions(h: Harness): Promise<void> {
+  await h.key(DOWN); // bugs → milestones
+  await h.key(DOWN); // milestones → questions
+  await h.key(ENTER); // open questions (cursor on Q1)
+}
+
+describe("ledger-tui number-key suggestion picker (T87)", () => {
+  it("pressing '2' on a question with suggestions picks the 2nd suggestion and marks it answered (list focus)", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // Q1 → Q2 (has suggestions ["opt a", "opt b"])
+    await tick(20);
+    await h.key("2"); // pick 2nd suggestion "opt b"
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.status).toBe("answered");
+    expect(q.fields["answer"]).toBe("opt b");
+    h.unmount();
+  });
+
+  it("pressing '1' on a question with suggestions picks the 1st suggestion (list focus)", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2
+    await tick(20);
+    await h.key("1"); // pick 1st suggestion "opt a"
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.status).toBe("answered");
+    expect(q.fields["answer"]).toBe("opt a");
+    h.unmount();
+  });
+
+  it("pressing a number beyond the suggestion count is a no-op (list focus)", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2 (2 suggestions)
+    await tick(20);
+    await h.key("9"); // beyond range — no-op
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.status).toBe("open"); // unchanged
+    h.unmount();
+  });
+
+  it("pressing '2' on a question with suggestions works in content focus too", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2
+    await h.key(ENTER); // open content pane
+    await tick(20);
+    await h.key("2"); // pick 2nd suggestion
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.status).toBe("answered");
+    expect(q.fields["answer"]).toBe("opt b");
+    h.unmount();
+  });
+
+  it("number keys are inert when the item has no suggestions (Q1 has recommendation but no suggestions)", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    // Q1 is at cursor 0: has recommendation "yes, ship it" but no suggestions field
+    await h.key("1"); // no-op
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q1");
+    expect(q.status).toBe("open"); // unchanged
+    h.unmount();
+  });
+
+  it("number keys are inert when the item is not answerable (answered/withdrawn item)", async () => {
+    const h = await mount();
+    // Pre-answer Q2 so it's no longer answerable.
+    await h.client.updateItem("questions", "Q2", { status: "answered", fields: { answer: "pre-answered" } });
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2 (now terminal)
+    await tick(20);
+    await h.key("1"); // no-op — not answerable
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.fields["answer"]).toBe("pre-answered"); // unchanged
+    h.unmount();
+  });
+
+  it("the key hints show '1-9 pick suggestion' when the item has suggestions", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2 (has suggestions)
+    await tick(20);
+    const hints = h.frame();
+    expect(hints).toContain("1-9 pick suggestion");
+    h.unmount();
+  });
+
+  it("the key hints do NOT show '1-9' when the item has no suggestions (Q1)", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    // Q1 has no suggestions
+    const hints = h.frame();
+    expect(hints).not.toContain("1-9 pick suggestion");
+    h.unmount();
+  });
+});

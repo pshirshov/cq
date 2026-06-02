@@ -120,6 +120,16 @@ function hasRecommendation(item: Item): boolean {
   return fieldToString(item.fields[RECOMMENDATION_FIELD]).trim().length > 0;
 }
 
+/**
+ * Extract the suggestions list from an item's `suggestions` field (T87).
+ * Returns a string[] (possibly empty) suitable for number-key picking.
+ */
+function getSuggestions(item: Item): string[] {
+  const v = item.fields[SUGGESTIONS_FIELD];
+  if (!Array.isArray(v)) return [];
+  return v.filter((s) => typeof s === "string" && (s as string).length > 0) as string[];
+}
+
 export interface Row {
   item: Item;
   milestoneId: string;
@@ -796,7 +806,16 @@ export function App({
           hasRecommendation(cur.item)
         )
           void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
-        else if (input === "e" && cur && !cursorInArchive)
+        else if (
+          /^[1-9]$/.test(input) &&
+          cur &&
+          !cursorInArchive &&
+          canAnswer(top.view.schema, cur.item.status)
+        ) {
+          const n = parseInt(input, 10);
+          const sugs = getSuggestions(cur.item);
+          if (n <= sugs.length) void applyAnswer(cur, sugs[n - 1]!);
+        } else if (input === "e" && cur && !cursorInArchive)
           setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
         return;
       }
@@ -820,7 +839,16 @@ export function App({
         hasRecommendation(cur.item)
       )
         void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
-      else if (input === "e" && cur && !cursorInArchive)
+      else if (
+        /^[1-9]$/.test(input) &&
+        cur &&
+        !cursorInArchive &&
+        canAnswer(top.view.schema, cur.item.status)
+      ) {
+        const n = parseInt(input, 10);
+        const sugs = getSuggestions(cur.item);
+        if (n <= sugs.length) void applyAnswer(cur, sugs[n - 1]!);
+      } else if (input === "e" && cur && !cursorInArchive)
         setOverlay(isMilestonesLedger ? { t: "editTitle", row: cur } : { t: "pickField", row: cur });
       else if (input === "b") void beginBatchAnswer();
       else if (input === "f") setOverlay({ t: "filter" });
@@ -902,8 +930,10 @@ export function App({
         : top.ledger;
     if (fLabel.length > 0) pathStr += `  [${fLabel}]`;
     const answerable = cur !== undefined && !cursorInArchive && canAnswer(schema, cur.item.status);
+    const curSuggestions = answerable ? getSuggestions(cur!.item) : [];
+    const suggestionsHint = curSuggestions.length > 0 ? ` · 1-9 pick suggestion` : "";
     const answerHint = answerable
-      ? ` · a answer${hasRecommendation(cur!.item) ? " · r as-recommended" : ""}`
+      ? ` · a answer${hasRecommendation(cur!.item) ? " · r as-recommended" : ""}${suggestionsHint}`
       : "";
     const archiveHint = top.view.archivePointers.length > 0
       ? ` · A ${top.showArchive ? "hide" : "show"} archived`
