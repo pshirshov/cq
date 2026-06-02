@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 6
+  item: 14
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -62,3 +62,97 @@ archives:
 - new_questions: []
 - criticism: []
 - ledgerRefs: ["goals:G1"]
+
+## M6
+
+### R7 — go-ahead
+
+- createdAt: 2026-06-02T06:24:17.022Z
+- updatedAt: 2026-06-02T06:24:17.022Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T26","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+### R8 — go-ahead
+
+- createdAt: 2026-06-02T06:24:19.357Z
+- updatedAt: 2026-06-02T06:24:19.357Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T29","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+### R11 — go-ahead
+
+- createdAt: 2026-06-02T06:39:59.611Z
+- updatedAt: 2026-06-02T06:39:59.611Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T30","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+### R12 — go-ahead
+
+- createdAt: 2026-06-02T06:40:01.495Z
+- updatedAt: 2026-06-02T06:40:01.495Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T31","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+### R14 — go-ahead
+
+- createdAt: 2026-06-02T06:45:47.615Z
+- updatedAt: 2026-06-02T06:45:47.615Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T28","goals:G1"]
+- tags: ["implement-flow","round-1","criticism-resolved"]
+
+## M7
+
+### R9 — go-ahead
+
+- createdAt: 2026-06-02T06:24:21.223Z
+- updatedAt: 2026-06-02T06:24:21.223Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T36","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+### R13 — go-ahead
+
+- createdAt: 2026-06-02T06:40:03.150Z
+- updatedAt: 2026-06-02T06:40:03.150Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T37","goals:G1"]
+- tags: ["implement-flow","round-0"]
+
+## M9
+
+### R10 — go-ahead
+
+- createdAt: 2026-06-02T06:24:22.848Z
+- updatedAt: 2026-06-02T06:24:22.848Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T46","goals:G1"]
+- tags: ["implement-flow","round-0"]

@@ -22,10 +22,10 @@ archives:
 
 ## M6
 
-### T26 — planned
+### T26 — done
 
 - createdAt: 2026-06-01T23:18:10.880Z
-- updatedAt: 2026-06-01T23:22:10.769Z
+- updatedAt: 2026-06-02T06:24:07.110Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Req5: add optional `summary` field to reviews schema (lib + registry + sample + tests)"
@@ -33,6 +33,8 @@ archives:
 - acceptance: "REVIEWS_SCHEMA.fields.summary exists with type 'string' and required:false (assert this EXPLICITLY in a test — do NOT rely on the canonical-ledgers test, which only exercises specific fields plus a schema-divergence guard and does NOT assert an exact reviews field-SET). Add/extend an assertion that all THREE registry copies declare `summary`: the lib constant REVIEWS_SCHEMA, docs/ledgers.yaml, and examples/sample-ledger/docs/ledgers.yaml. The existing canonical-ledgers.test.ts must still pass on divergence-guard parity (its role here is only to confirm the three copies stay in sync, NOT to verify the field's presence/type). Existing reviews items with no summary still load/validate. `bun test packages/ledger` green; `bun run typecheck` green."
 - suggestedModel: standard
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 99fad44
+- completion: Added optional `summary` to REVIEWS_SCHEMA + both YAML registry copies; explicit field test + backward-compat test. Reviewer approve 0/0. Merged to main 99fad44; integration check 422 pass.
 
 ### T27 — planned
 
@@ -47,10 +49,10 @@ archives:
 - dependsOn: ["T26"]
 - ledgerRefs: ["goals:G1"]
 
-### T28 — planned
+### T28 — done
 
 - createdAt: 2026-06-01T23:18:30.286Z
-- updatedAt: 2026-06-01T23:18:30.286Z
+- updatedAt: 2026-06-02T06:45:45.934Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Req5: thread `summary` through both reviewer prompts + the implement:advance recorder"
@@ -59,11 +61,13 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T26"]
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 58eb3af
+- completion: Threaded `summary` through plan-reviewer.md (both create_item examples), implement-reviewer.md JSON contract, and implement/advance.md recorder with a single documented fallback. Round-0 criticism (two divergent fallback formulas) fixed in round 1. Reviewer approve. Merged 58eb3af.
 
-### T29 — planned
+### T29 — done
 
 - createdAt: 2026-06-01T23:18:36.874Z
-- updatedAt: 2026-06-01T23:18:36.874Z
+- updatedAt: 2026-06-02T06:24:12.766Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Req1: implement fetchLedgerArchive in the web MCP client (+ TUI client parity)"
@@ -71,11 +75,13 @@ archives:
 - acceptance: web mcpClient exposes fetchLedgerArchive(ledgerId, archiveId) returning the typed archived group/item; TUI client has the equivalent; a unit/integration test exercises a fetch against a seeded archive (read-only). `bun run check` green.
 - suggestedModel: standard
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 0b025a7
+- completion: fetchLedgerArchive(ledgerId, archiveId) added to web + TUI McpLedgerClient (typed ArchiveContent), 7 fakes updated, integration test seeds archive + reads group/item variants. Reviewer approve 0/0. Merged to main 0b025a7.
 
-### T30 — planned
+### T30 — done
 
 - createdAt: 2026-06-01T23:18:43.575Z
-- updatedAt: 2026-06-01T23:18:43.575Z
+- updatedAt: 2026-06-02T06:39:51.590Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Req2+Req3 (web): per-milestone dropdown filter + collapsible milestone subsections in ItemTable"
@@ -83,11 +89,13 @@ archives:
 - acceptance: Web ItemTable shows collapsible per-milestone subsections in fetch_ledger group order with id+title+status headers; a milestone dropdown narrows to one milestone and ANDs with status; per-row milestone column removed; milestones ledger view unaffected. happy-dom tests for the new controls pass (selects are controlled — fine under happy-dom); `bun run check` green.
 - suggestedModel: standard
 - ledgerRefs: ["goals:G1"]
+- resultCommit: a149b06
+- completion: Web ItemTable → per-milestone collapsible subsections (group order, id+title+status headers) + milestone dropdown ANDing with status; per-row milestone column removed; milestones ledger flat table unaffected; 6 happy-dom tests. Reviewer approve 0/0. Merged a149b06.
 
-### T31 — planned
+### T31 — done
 
 - createdAt: 2026-06-01T23:18:50.534Z
-- updatedAt: 2026-06-01T23:18:50.534Z
+- updatedAt: 2026-06-02T06:39:54.385Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Req4+Req3 (TUI): column-aligned item table (id | status | summary) with per-milestone subsections"
@@ -95,6 +103,8 @@ archives:
 - acceptance: TUI rows align in columns regardless of id width ('T1' vs 'T14'); status column aligned; summary truncates to fit a narrow pane; per-milestone subsection headers render in group order; milestones ledger view unaffected; cursor + scrollbar still work. ink-testing-library tests assert column alignment + subsection headers; `bun run check` green.
 - suggestedModel: standard
 - ledgerRefs: ["goals:G1"]
+- resultCommit: c6e2e80
+- completion: TUI list → column-aligned (id|status|summary, padded) with per-milestone subsection headers (group order); milestones ledger unaffected; cursor+scrollbar preserved (ListEntry<T> union); 5 ink tests. Reviewer approve 0/0. Merged c6e2e80.
 
 ### T32 — planned
 
@@ -137,10 +147,10 @@ archives:
 
 ## M7
 
-### T35 — planned
+### T35 — done
 
 - createdAt: 2026-06-01T23:36:19.863Z
-- updatedAt: 2026-06-01T23:42:52.339Z
+- updatedAt: 2026-06-02T06:06:57.909Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Lock the investigate:* design decision (hypothesis-ledger tree, loop owner, file-and-defer handoff)"
@@ -148,11 +158,12 @@ archives:
 - acceptance: "A `locked` decisions item exists under M1 with ledgerRefs:[goals:G1], stating the five points above — in particular the file-and-defer handoff (no inline plan loop) and the defect-seeded clarify-skip mechanism; subsequent M7 prompt tasks (T37) and the T41 planner edit cite this decision id. No code/prompt change in this task — it is the design lock the reviewer can check the prompts against."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G1"]
+- completion: "Orchestrator-handled meta-task (workers cannot write the ledger): locked decision K8 under M1 (ledgerRefs goals:G1) stating all five investigate:* design points. No code/prompt change; T36-T39 and T41 cite K8. No worktree/review (the design was already adversarially reviewed in R5/R6)."
 
-### T36 — planned
+### T36 — done
 
 - createdAt: 2026-06-01T23:36:30.265Z
-- updatedAt: 2026-06-01T23:36:30.265Z
+- updatedAt: 2026-06-02T06:24:15.090Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Author llm/agents/investigate-explorer.md (read-only evidence-gatherer)
@@ -161,11 +172,13 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T35"]
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 48a98b4
+- completion: Authored llm/agents/investigate-explorer.md (read-only evidence-gatherer; honors K8). Reviewer approve 0/0. Merged to main 48a98b4.
 
-### T37 — planned
+### T37 — done
 
 - createdAt: 2026-06-01T23:36:41.930Z
-- updatedAt: 2026-06-01T23:43:10.302Z
+- updatedAt: 2026-06-02T06:39:57.237Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Author llm/commands/investigate/advance.md (the DFS/adjudication loop owner)
@@ -174,6 +187,8 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T35","T36"]
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 3bfe470
+- completion: "Authored llm/commands/investigate/advance.md (six-step DFS/adjudication loop; file-and-defer handoff, defect-seeded clarify-skip citing K8; [correct]/[incorrect] + parallel-only-when-seeding). Reviewer approve 0/0. Merged 3bfe470."
 
 ### T38 — planned
 
@@ -277,10 +292,10 @@ archives:
 
 ## M9
 
-### T45 — planned
+### T45 — done
 
 - createdAt: 2026-06-01T23:38:12.555Z
-- updatedAt: 2026-06-01T23:38:12.555Z
+- updatedAt: 2026-06-02T06:07:25.151Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Confirm existing dependsOn/ledgerRefs/parentHypothesis suffice for the relationship views (Q28 schema gate)
@@ -288,11 +303,12 @@ archives:
 - acceptance: "A written determination (in completion notes + a decisions item if a schema/MCP change is warranted) stating whether existing dependsOn/ledgerRefs/parentHypothesis + fetch_ledger suffice for the defect-fix-task view and hypothesis-tree view. If sufficient: no schema change, downstream UI tasks proceed. If not: a scoped schema/MCP task is added with the exact field/tool. `bun run check` unaffected (read-only spike)."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G1"]
+- completion: "Read-only spike (orchestrator-handled; no commit to merge). Determination: existing fields SUFFICE — no @cq/ledger schema change and no new MCP tool required. Verified in packages/ledger/src/constants.ts: (a) defect->fix-tasks recoverable from DEFECTS_SCHEMA.dependsOn (id[], via COMMON_REF_FIELDS) UNION reverse scan of TASKS_SCHEMA.ledgerRefs containing defects:<D>; (b) hypothesis tree recoverable from HYPOTHESIS_SCHEMA.parentHypothesis (id) for ancestry + sibling-by-shared-parent scan for children; (c) fetch_ledger already returns grouped items + resolved milestone metadata, so both views build client-side with no new MCP read. No gap found, so no decisions item filed. Downstream M9 UI tasks (T46-T49) proceed unchanged."
 
-### T46 — planned
+### T46 — done
 
 - createdAt: 2026-06-01T23:38:20.964Z
-- updatedAt: 2026-06-01T23:38:20.964Z
+- updatedAt: 2026-06-02T06:24:09.916Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Shared relationship-resolution helper: defect->fix-tasks and hypothesis ancestry/children"
@@ -301,6 +317,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T45"]
 - ledgerRefs: ["goals:G1"]
+- resultCommit: 4274f0f
+- completion: Pure helpers defectFixTaskIds + hypothesisRelationships in @cq/ledger (relationships.ts), exported from index; 10 unit tests. Reviewer approve 0/0. Merged to main 4274f0f.
 
 ### T47 — planned
 
