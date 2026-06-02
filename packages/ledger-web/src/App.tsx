@@ -296,6 +296,12 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
     setColumnMenuOpen(false);
   }, [ledger]);
 
+  // Set document.title and derive the header label from displayName once connected.
+  const appTitle = client !== null ? `[${client.displayName()}] LLM ledgers` : "LLM ledgers";
+  useEffect(() => {
+    document.title = appTitle;
+  }, [appTitle]);
+
   // Effective extra columns for a ledger: the persisted selection if present,
   // otherwise the per-ledger default (seeded lazily — an unsaved ledger shows
   // defaultColumns(ledgerName) without writing it back until the user edits).
@@ -921,7 +927,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
   return (
     <div className="lw-root">
       <header className="lw-header">
-        <span className="lw-title">ledger-web</span>
+        <span className="lw-title" data-testid="app-title">{appTitle}</span>
         <span className={`lw-conn lw-conn-${conn}`} data-testid="conn-status">
           {conn === "connected" ? "● connected" : conn === "connecting" ? "○ connecting…" : "✕ error"}
         </span>
