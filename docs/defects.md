@@ -28,55 +28,59 @@ archives:
 
 ## M14
 
-### D3 — open
+### D3 — wip
 
 - createdAt: 2026-06-02T12:19:08.216Z
-- updatedAt: 2026-06-02T12:19:08.216Z
+- updatedAt: 2026-06-02T17:24:49.052Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Stale @cq/ledger exports map: '.', './relationships', 'main' point at non-existent ./dist/*.js (real layout is ./dist/src/*.js)"
 - severity: major
 - description: "Out-of-scope defect surfaced by the T61 reviewer (pre-existing, not introduced by T61). packages/ledger/package.json declares main=./dist/index.js, exports['.']=./dist/index.js, exports['./relationships']=./dist/relationships.js, but the tsc build (tsconfig include:[src,test] + outDir:./dist) emits everything under dist/src/ — the real files are dist/src/index.js, dist/src/relationships.js. ./dist/index.js etc. do NOT exist. Masked today because all in-repo consumers resolve @cq/ledger* via tsconfig `paths` to SOURCE, so the exports-map dist paths are never exercised in-repo. But a published consumer, or the nix ledger-web/ledger-mcp products that bundle without a prior `tsc` and rely on the exports map (dist gitignored), would fail to resolve @cq/ledger / @cq/ledger/relationships in a clean checkout. suggestedFix: realign every exports/main entry to the real output layout (./dist/src/index.js, ./dist/src/relationships.js, ./dist/src/columns.js, etc.), OR set the ledger tsconfig rootDir:src so the build emits ./dist/*.js matching the declared paths. (T61's own @cq/ledger/columns gap is fixed separately as in-scope criticism via a web-tsconfig paths→source entry.)"
-- suggestedFix: "Realign packages/ledger/package.json main + exports to ./dist/src/* (the real tsc output), or change the ledger package tsconfig to rootDir:'src' so dist emits flat ./dist/*.js matching the existing export paths. Add a test asserting each declared export target file exists after `tsc -b`."
+- suggestedFix: "Realign main + exports['.'] + ['./relationships'] (+ any others) to the real ./dist/src/* layout (matching the already-correct ./columns entry), OR set the ledger tsconfig rootDir:'src' so dist emits flat ./dist/*.js matching the declared paths (then ./columns must drop its src/ prefix). Prefer the rootDir:'src' approach for a flat, conventional layout — but it must be consistent across ALL export entries. Add a test asserting every declared export/main target file exists after `tsc -b`."
 - ledgerRefs: ["tasks:T61","goals:G2"]
+- rootCause: "CONFIRMED (H5). packages/ledger/package.json declares main + exports['.']=./dist/index.js and ['./relationships']=./dist/relationships.js, but tsc (tsconfig outDir ./dist, include [src,test], NO rootDir → roots at packages/ledger/) emits under ./dist/src/. Validated on disk: dist/index.js + dist/relationships.js are MISSING; dist/src/index.js + dist/src/relationships.js exist. Internal inconsistency: ['./columns'] ALREADY correctly points at ./dist/src/columns.js. Masked in-repo by tsconfig paths→source (ledger-web/tsconfig.json:11-16, ledger-mcp tsconfig); a published / nix clean-checkout consumer relying on the exports map would fail to resolve @cq/ledger or @cq/ledger/relationships."
 
-### D4 — open
+### D4 — wip
 
 - createdAt: 2026-06-02T12:19:14.330Z
-- updatedAt: 2026-06-02T12:19:14.330Z
+- updatedAt: 2026-06-02T17:24:54.280Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "`headline` is column-eligible — column picker can show a redundant headline/summary column"
 - severity: low
 - description: "Out-of-scope defect surfaced by the T62 reviewer (property of the T60 helper, not the T62 diff). In packages/ledger/src/columns.ts, eligibleColumnFields excludes only LONG_FIELD_DENYLIST plus id/status/summary; `headline` is in neither set, so the column picker (T61 web / T62 TUI) offers `headline` as a toggleable extra column. Selecting it renders the headline text BOTH as an extra column cell AND as the trailing summary (summarize() picks headline first), duplicating it in each row. Affects no acceptance clause; cosmetic. suggestedFix: add `headline` (and likely `title`/`question`) to the always-shown/denylist set in columns.ts so summary-source fields are never offered as redundant extra columns."
-- suggestedFix: In packages/ledger/src/columns.ts, exclude the summary-source fields (headline, title, question) from eligibleColumnFields (add to ALWAYS_SHOWN or the denylist) so the column picker never offers a field that just duplicates the summary cell. Add a unit test.
+- suggestedFix: "In packages/ledger/src/columns.ts exclude the summary-source fields {headline, title, question} from eligibleColumnFields (add a SUMMARY_SOURCE_FIELDS set to the exclusion, or compute the field summarize() would pick and drop it). Add a unit test (none exists today) asserting eligibleColumnFields(<schema with headline>) omits headline."
 - ledgerRefs: ["tasks:T62","goals:G2"]
+- rootCause: "CONFIRMED (H6). packages/ledger/src/columns.ts: eligibleColumnFields (L55-72) = schema fields minus LONG_FIELD_DENYLIST (L35-47, which lists description/rationale/criticism/context/etc.) minus ALWAYS_SHOWN_COLUMNS {id,status,summary}. headline/title/question are in NEITHER set → returned as eligible. summarize() (tui app.tsx:82-86, web App.tsx:181-185) picks headline ?? title ?? question ?? summary first, so selecting the headline (or title/question) column renders that text BOTH as an extra column cell (app.tsx:1200-1210) AND as the trailing summary cell — duplicated per row. Cosmetic."
 
 ## M18
 
-### D5 — open
+### D5 — wip
 
 - createdAt: 2026-06-02T13:39:23.597Z
-- updatedAt: 2026-06-02T13:39:23.597Z
+- updatedAt: 2026-06-02T17:25:00.916Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Archived milestone subsection heads cannot render a status badge — ArchivePointer/Milestone carry no status
 - description: "ArchiveSubsections (packages/ledger-web/src/App.tsx) renders archived heads from ArchivePointer ({id,path,summary}) and lazily-fetched ArchiveContent whose 'group' variant carries a Milestone (packages/ledger/src/types.ts L97-104) — neither has a `status` field; only ResolvedMilestone (L116-121) does. So an archived head omits the T80 status badge. T80's acceptance only requires an active milestone head; the description gated archived coverage on item #9 (T79), which did not thread status through. Closing this requires adding the milestone's terminal status to ArchivePointer or the archive group payload over MCP, then passing it as milestoneStatus to the archived MilestoneSubsection."
 - severity: low
-- suggestedFix: Add the milestone terminal status to ArchivePointer (or ArchiveContent group payload) over MCP; pass as milestoneStatus to the archived MilestoneSubsection.
+- suggestedFix: "D5 reduces to: (1) ensure T91's ArchivePointer extension ALSO carries `status` across the MCP fetch_ledger WIRE boundary (the @cq/shared Zod mirror of archivePointers[]) — H7 found this wire-schema half is NOT yet covered; (2) a RENDER task: pass the archived pointer's status as milestoneStatus to the archived MilestoneSubsection (App.tsx:2002-2008) so the badge renders, with a happy-dom assertion. DEPENDS ON T91 (the ArchivePointer title+status extension). Coordinate so the wire-schema + types extension lands once."
 - ledgerRefs: ["tasks:T80","goals:G2"]
+- rootCause: "CONFIRMED (H7). ArchivePointer (types.ts:155-162) = {id,path,summary} and the ArchiveContent group payload carries Milestone (types.ts:97-104, statusless); only ResolvedMilestone (types.ts:116-121) has status. The archived web head (App.tsx:2002-2008) passes NO milestoneStatus, and the T80 badge is gated on milestoneStatus!==undefined (App.tsx:1659) — so archived heads never badge. Planned task T91 (M21) already extends ArchivePointer with title+status at the @cq/ledger types + server-build boundary, which supplies the DATA D5 needs."
 
-### D6 — open
+### D6 — wip
 
 - createdAt: 2026-06-02T13:39:28.419Z
-- updatedAt: 2026-06-02T13:39:28.419Z
+- updatedAt: 2026-06-02T17:25:06.408Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: MILESTONE_STATUS_SCHEMA duplicates canonical MILESTONES_SCHEMA in the web bundle (no browser-safe constants export)
 - description: packages/ledger-web/src/App.tsx (T80) adds a hand-maintained MILESTONE_STATUS_SCHEMA const that must stay in sync with MILESTONES_SCHEMA (packages/ledger/src/constants.ts). The duplication exists because @cq/ledger exposes no browser-safe subpath export for its constants — only `.`, `./relationships`, `./columns`, and the `.` index pulls Node-builtin-laden store/parser code into the browser bundle. The copy can drift silently. Related to D3 (stale @cq/ledger exports map).
 - severity: low
-- suggestedFix: Add a browser-safe `@cq/ledger/constants` subpath export (constants.ts has no Node deps) and import MILESTONES_SCHEMA from it, removing the duplicate. Fold into D3's exports-map cleanup.
+- suggestedFix: Add a browser-safe `./constants` subpath export to packages/ledger/package.json (pointing at the real dist layout per D3's resolution) + a `@cq/ledger/constants` tsconfig paths→source entry in ledger-web/tsconfig.json (mirroring ./relationships and ./columns), then import MILESTONES_SCHEMA from @cq/ledger/constants in App.tsx and DELETE the duplicated MILESTONE_STATUS_SCHEMA. Fold into D3's exports-map cleanup (same package.json edit). Add a test that the web bundle does not pull Node builtins.
 - ledgerRefs: ["tasks:T80","goals:G2","defects:D3"]
+- rootCause: "CONFIRMED (H8). packages/ledger/package.json exports only ., ./relationships, ./columns (no ./constants). The '.' barrel (index.ts:50) re-exports FsLedgerStore, which imports node:fs + node:path (FsLedgerStore.ts:29-30), so importing MILESTONES_SCHEMA via '@cq/ledger' drags Node builtins into the browser bundle. constants.ts (L25-27) has only a type-only import → it is browser-safe in isolation. Hence T80 hand-duplicated MILESTONE_STATUS_SCHEMA in App.tsx:69-82 (comment documents the reason). Same family as D3."
 
 ## M21
 

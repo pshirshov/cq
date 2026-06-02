@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 22
+  item: 23
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -120,3 +120,9 @@ archives:
 - updatedAt: 2026-06-02T16:30:45.859Z
 - title: "G4-W: D2 backup-and-reinit on ledger schema divergence"
 - description: "Work milestone for G4 / defect D2. Replace the fatal BootstrapViolationError throw in FsLedgerStore.init() (the !schemasEqual branch at packages/ledger/src/store/FsLedgerStore.ts:283-289) with a graceful backup-and-reinit: back up the divergent on-disk ledger file(s) + docs/ledgers.yaml into docs/.backup/<ISO-timestamp>/, write fresh canonical ledger(s) + registry from CANONICAL_LEDGERS, emit a loud stderr WARNING naming the backup path, and continue startup. Default behavior is backup-and-reinit; an optional opt-out flag preserves the hard abort. Includes dual-tests-style coverage. Repo gate: bun run check."
+
+### M23 — open
+
+- createdAt: 2026-06-02T17:25:15.494Z
+- updatedAt: 2026-06-02T17:25:15.494Z
+- title: "Plan: @cq/ledger packaging + UI-eligibility defect cleanup (D3-D6)"
