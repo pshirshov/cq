@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 49
+  item: 53
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -207,6 +207,39 @@ archives:
 - ledgerRefs: ["tasks:T57","goals:G2"]
 - tags: ["implement-flow","round-0"]
 
+### R50 — go-ahead
+
+- createdAt: 2026-06-02T11:51:51.905Z
+- updatedAt: 2026-06-02T11:51:51.905Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T58","goals:G2"]
+- tags: ["implement-flow","round-0","post-merge-review"]
+
+### R51 — go-ahead
+
+- createdAt: 2026-06-02T11:51:54.278Z
+- updatedAt: 2026-06-02T11:51:54.278Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T59","goals:G2"]
+- tags: ["implement-flow","round-0","post-merge-review"]
+
+### R53 — go-ahead
+
+- createdAt: 2026-06-02T11:51:58.149Z
+- updatedAt: 2026-06-02T11:51:58.149Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T55","goals:G2"]
+- tags: ["implement-flow","round-0","post-merge-review","data-run-deferred"]
+
 ## M16
 
 ### R36 — go-ahead
@@ -276,6 +309,17 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T76","goals:G3"]
 - tags: ["implement-flow","round-0"]
+
+### R52 — go-ahead
+
+- createdAt: 2026-06-02T11:51:56.145Z
+- updatedAt: 2026-06-02T11:51:56.145Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T77","goals:G3"]
+- tags: ["implement-flow","round-0","post-merge-review"]
 
 ## M14
 

@@ -116,10 +116,10 @@ archives:
 - resultCommit: dd918a7
 - completion: "parseFieldValue splits string[] on /[;\\n]/ (trim, drop empties) in both UIs; id[] keeps comma-split (T1,T2 invariant preserved); web string[] placeholder updated; parseFieldValue exported + 18 unit tests. Reviewer approve 0/0. Merged dd918a7."
 
-### T55 — planned
+### T55 — done
 
 - createdAt: 2026-06-02T08:47:11.876Z
-- updatedAt: 2026-06-02T08:54:15.814Z
+- updatedAt: 2026-06-02T11:51:50.029Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: One-shot normalize existing question `suggestions` (split semicolon-joined elements)
@@ -133,6 +133,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: []
 - ledgerRefs: ["goals:G2"]
+- resultCommit: f1102ab
+- completion: "Delivered: packages/ledger/src/normalizeSuggestions.ts (pure split-on-;/newline helper, no parseFieldValue) + scripts/normalize-suggestions.ts (FsLedgerStore one-shot) + idempotent unit test (16 cases). Reviewer approve 0/0. Merged f1102ab. NOTE: the one-shot DATA run against the live repo ledger is DEFERRED — running it mid-session would be clobbered by this session's MCP server rewriting docs/questions.md from stale in-memory state; run `bun scripts/normalize-suggestions.ts` with the ledger server quiesced, then restart it. M13 COMPLETE."
 
 ### T56 — done
 
@@ -164,10 +166,10 @@ archives:
 - resultCommit: c3899b0
 - completion: "TUI ContentPane renders questions.suggestions (string[]) as a '• '-prefixed bulleted list, intercepted before the isShortField comma-join; scalar markdown preserved; ink test (repro-verified). Reviewer approve 0/0. Merged c3899b0."
 
-### T58 — planned
+### T58 — done
 
 - createdAt: 2026-06-02T08:47:39.484Z
-- updatedAt: 2026-06-02T08:47:39.484Z
+- updatedAt: 2026-06-02T11:51:39.667Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: question detail literal field order milestone,status,by,question,context,suggestions,recommendation,answer"
@@ -176,11 +178,13 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T56"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: af8e825
+- completion: Web question DetailPanel renders exact order milestone,status,by,question,context,suggestions,recommendation,answer (renderQuestionFields owns the <dl>); recommendation highlight + bulleted suggestions; non-question unchanged; SUGGESTIONS_FIELD added to web QUESTION_FIELD_ORDER. Reviewer approve 0/0. Merged af8e825; integration 549 pass.
 
-### T59 — planned
+### T59 — done
 
 - createdAt: 2026-06-02T08:47:46.131Z
-- updatedAt: 2026-06-02T08:47:46.131Z
+- updatedAt: 2026-06-02T11:51:42.935Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI: question detail literal field order milestone,status,by,question,context,suggestions,recommendation,answer"
@@ -189,6 +193,8 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T57"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 5710c72
+- completion: "TUI ContentPane question order milestone→status→by→question→context→suggestions→recommendation→answer; QUESTION_FIELD_ORDER=[question,context,suggestions,recommendation,answer] byte-identical in both status.ts (orchestrator resolved a dup-add conflict on web status.ts comment); non-question unchanged; ink test. Reviewer approve 0/0. Merged 5710c72."
 
 ## M14
 
@@ -524,10 +530,10 @@ archives:
 - resultCommit: 26fe8e1
 - completion: "implement/advance.md §4: removed the 8-round hard ceiling bullet; three model-judged ill-loop signals + §5 questions bailout intact; no numeric cap survives. Reviewer approve 0/0. Merged 26fe8e1."
 
-### T77 — planned
+### T77 — done
 
 - createdAt: 2026-06-02T10:15:50.974Z
-- updatedAt: 2026-06-02T10:15:50.974Z
+- updatedAt: 2026-06-02T11:51:45.778Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Reconcile cross-flow defect-routing wording with auto-investigate (investigate handback, plan-reviewer, implement defect-routing)
@@ -543,6 +549,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T72","T73","T74"]
 - ledgerRefs: ["goals:G3"]
+- resultCommit: f697144
+- completion: "Cross-flow wording reconciled to K12: investigate/advance.md distinguishes standalone vs auto-launched-inside-plan handback (K8 pt3 prohibition intact); plan-reviewer.md defects bucket says orchestrator auto-launches investigate (write-nothing contract kept); implement/advance.md step 3 scopes implement:* as NOT auto-launching investigate (Q43). Reviewer approve 0/0. Merged f697144."
 
 ### T78 — planned
 
