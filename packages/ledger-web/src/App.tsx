@@ -1856,13 +1856,7 @@ function ItemTable({
               onClick={() => onSelectArchive?.(p)}
             >
               <td>—</td>
-              <td>
-                {p.id}
-                {" "}
-                <span className="lw-archived-badge" data-testid={`archived-badge-${p.id}`}>
-                  archived
-                </span>
-              </td>
+              <td>{p.id}</td>
               <td>
                 {p.status.length > 0 && (
                   <span

@@ -97,16 +97,20 @@ describe("D12: archived milestones as rows in milestones-ledger ItemTable", () =
     expect(badge?.textContent).toBe("done");
   });
 
-  it("archived milestone row carries the lw-archived-badge class", async () => {
+  it("archived milestone row id cell contains only the id (no inline archived badge)", async () => {
     await mount();
     click(testid("ledger-milestones"));
     await flush();
     click(testid("toggle-archive"));
     await flush();
 
-    const archivedBadge = testid("archived-badge-MA1");
-    expect(archivedBadge).not.toBeNull();
-    expect(archivedBadge?.className).toContain("lw-archived-badge");
+    // The lw-archived-badge was removed from the id cell (D17 fix).
+    expect(testid("archived-badge-MA1")).toBeNull();
+
+    // The id cell (2nd td) must contain only the id text, no badge wrapping it.
+    const archivedRow = testid("item-MA1");
+    const idCell = archivedRow?.querySelectorAll("td")[1];
+    expect(idCell?.textContent?.trim()).toBe("MA1");
   });
 
   it("milestones ledger does NOT render ArchiveSubsections (no archive-section or ms-section-MA1 duplicate)", async () => {
@@ -134,7 +138,6 @@ describe("D12: archived milestones as rows in milestones-ledger ItemTable", () =
 
     // Without enabling the toggle, no archived row.
     expect(testid("item-MA1")).toBeNull();
-    expect(testid("archived-badge-MA1")).toBeNull();
   });
 
   it("title fallback: row shows bare id only when pointer.title is empty (backward compat)", async () => {
