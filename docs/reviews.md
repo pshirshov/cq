@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 65
+  item: 69
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -489,3 +489,49 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T84","goals:G2"]
 - tags: ["implement-flow","round-0","approve","goals flat list + fields.milestones in content pane; other ledgers + T81 coloring unchanged; check 578"]
+
+### R66 — go-ahead
+
+- createdAt: 2026-06-02T14:09:59.698Z
+- updatedAt: 2026-06-02T14:09:59.698Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T82","goals:G2"]
+- tags: ["implement-flow","round-0","approve","single .lw-col-narrow rule + colgroup all 3 variants; col/cell counts consistent; check green"]
+
+### R67 — go-ahead
+
+- createdAt: 2026-06-02T14:10:03.840Z
+- updatedAt: 2026-06-02T14:10:03.840Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["[resolved round 1] embedded NUL byte (0x00) at app.tsx:727 columnsKey join separator — corrupted source (flagged binary). Fixed: replaced with '|'.","[resolved by orchestrator integration fix] navMemo determinism guard read module-global counters without resetting — cross-file pollution failed the mount-cap (<=8) assertion in the full tui suite. Fixed: reset before measure + waitQuiescent poll; 116/0 ×3, full 584/0."]
+- new_questions: []
+- ledgerRefs: ["tasks:T85","goals:G2"]
+- tags: ["implement-flow","round-1","criticism-resolved","memoization correct + reproduction verified"]
+
+### R68 — go-ahead
+
+- createdAt: 2026-06-02T14:22:17.688Z
+- updatedAt: 2026-06-02T14:22:17.688Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T83","goals:G2"]
+- tags: ["implement-flow","round-0","approve","goals flat + fields.milestones list; non-goal unchanged; reproduction confirmed; check 596"]
+
+## M19
+
+### R69 — go-ahead
+
+- createdAt: 2026-06-02T14:22:20.046Z
+- updatedAt: 2026-06-02T14:22:20.046Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T87","goals:G2"]
+- tags: ["implement-flow","round-0","approve","1-9 picker gated + mirrored both focus modes; no collisions; 8 tests; check 596"]

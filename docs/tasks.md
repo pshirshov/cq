@@ -644,10 +644,10 @@ archives:
 - resultCommit: c00006b
 - completion: "TUI milestone subsection header renders the status token colored via statusColor(status, MILESTONES_SCHEMA) (open→cyan, done→green); ListEntry gained optional node?:ReactNode (label preserved for T85 memo stability), ScrollList renders node||label. Round 1: replaced whole-frame ANSI assertions with buildItemEntries node-prop unit tests (reproduction verified: 3/4 fail without source coloring). Merge resolved a test-file conflict (kept main's T62 block + T81 block). Reviewer approve round 1."
 
-### T82 — wip
+### T82 — done
 
 - createdAt: 2026-06-02T10:36:15.468Z
-- updatedAt: 2026-06-02T13:39:38.906Z
+- updatedAt: 2026-06-02T14:09:55.680Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #11: CSS column proportions — id/status hug content, summary takes remainder (all web tables)"
@@ -658,13 +658,15 @@ archives:
 - acceptance: "happy-dom test (or computed-style assertion) on each web table variant: the id and status columns are sized to content (colgroup width:1% + white-space:nowrap applied) and the summary column receives the remaining width; the over-allocation is gone. The sizing rule is expressed once and reused across the three table variants. `bun run check` green."
 - suggestedModel: standard
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 4b2eb9e
+- completion: "Web .lw-col-narrow rule (width:1% + white-space:nowrap) defined once + <colgroup> in all 3 table variants (SubsectionItemTable active+archive, ItemTable flat milestones, dynamic extra columns); summary <col> unsized takes remainder. col/cell counts derive from same extraColumns array (can't drift). 4 happy-dom tests per variant. Reviewer approve 0/0."
 
-### T83 — planned
+### T83 — done
 
 - createdAt: 2026-06-02T10:36:28.534Z
-- updatedAt: 2026-06-02T10:36:28.534Z
+- updatedAt: 2026-06-02T14:22:12.026Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #12: GOALS ledger as a flat list (no coordination subsections) showing fields.milestones"
 - description: |
     Item #12 (web half; USER-DEVIATED answer Q48 — follow the user's literal instruction, NOT the planner's recommendation). User answer: 'Do not show milestones in Goals ledger items view - it should be a FLAT LIST without subsections - as milestones list.'
@@ -675,6 +677,8 @@ archives:
 - acceptance: "happy-dom test on the GOALS ledger: the list renders as a single flat table with NO per-coordination-milestone <section> subsections; the detail panel for a goal shows a `milestones` list containing the work-milestone ids from fields.milestones (e.g. M12, M13, M14) and does NOT show a single coordination 'milestone' row/column. Non-goal ledgers still render their per-milestone subsections and single milestone row unchanged. `bun run check` green."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G2"]
+- resultCommit: c272f78
+- completion: Web goals ledger renders flat (ItemTable isGoals branch — no coordination-milestone subsections, no milestone column); goal DetailPanel renders fields.milestones (M12/M13/M14) as a `milestones` list replacing the single coordination `milestone` row; milestones lifted from generic field map (no double-render). Non-goal ledgers unchanged. Mirrors TUI T84; composes with T79/T80. Reviewer approve 0/0 (reproduction confirmed).
 
 ### T84 — done
 
@@ -693,10 +697,10 @@ archives:
 - resultCommit: 999af06
 - completion: TUI goals ledger renders flat (buildItemEntries isMilestones→generalized `flat`; call site flat for milestones+goals); goal ContentPane lifts fields.milestones into a leading `milestones` list and suppresses the single 'milestone <coordinationId>' line; milestones field filtered from generic iteration (no double-render); T81 coloring + other ledgers unchanged. 3 ink tests. Reviewer approve 0/0.
 
-### T85 — wip
+### T85 — done
 
 - createdAt: 2026-06-02T10:36:52.987Z
-- updatedAt: 2026-06-02T13:39:40.314Z
+- updatedAt: 2026-06-02T14:09:57.469Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #13: memoize the per-keystroke O(N) list derivations (nav latency fix)"
@@ -712,15 +716,17 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T62","T81","T84"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: 84a9196
+- completion: "TUI nav-perf: 3 O(N) derivations (filterVisibleRows, computeColumnLayout, buildItemEntries) hoisted to module scope + one useMemo (ItemsDerived) keyed on view/ledger/filter/showArchive/archiveRows/columnsKey — NOT cursor; input handler + render body both read the bundle. Pure cursor move = zero O(N) work; reproduction verified (top.cursor in deps → 40 builds). Round 1: replaced NUL memo-key separator with '|'. Orchestrator integration fix: navMemo test reset counters before measure + waitQuiescent (module-global counters cross-file polluted). full check 584/0."
 
 ## M19
 
-### T86 — planned
+### T86 — wip
 
 - createdAt: 2026-06-02T10:37:05.474Z
-- updatedAt: 2026-06-02T10:37:05.474Z
+- updatedAt: 2026-06-02T14:22:21.443Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web #14: per-suggestion 'pick as answer' button after each suggestion <li>"
 - description: |
     Item #14 (web half; DEPENDS ON M13 T56 — the web suggestions bulleted list. Questions ledger only per Q50). Once suggestions render as a <ul><li> list (T56) inside renderQuestionFields() (packages/ledger-web/src/App.tsx; `answerable` and `answerWith` are in scope there), add a small 'pick' button AFTER each suggestion <li>, analogous to the existing 'as recommended' button (answerBox L1733-1741, which calls answerWith(AS_RECOMMENDED_ANSWER) -> onSave(ANSWERED_STATUS, {...fields, [ANSWER_FIELD]: answer})).
@@ -731,12 +737,12 @@ archives:
 - dependsOn: ["T56"]
 - ledgerRefs: ["goals:G2"]
 
-### T87 — planned
+### T87 — done
 
 - createdAt: 2026-06-02T10:37:12.068Z
-- updatedAt: 2026-06-02T10:37:12.068Z
+- updatedAt: 2026-06-02T14:22:15.324Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #14: number keys 1-9 pick the Nth suggestion as the answer"
 - description: |
     Item #14 (TUI half; DEPENDS ON M13 T57 — the TUI suggestions bulleted list. Questions ledger only per Q50). The TUI has no buttons; the existing 'as recommended' is the `r` keybinding (packages/ledger-tui/src/app.tsx L548-557 content-focus, L572-581 list-focus), gated on canAnswer + hasRecommendation, calling applyAnswer(cur, AS_RECOMMENDED_ANSWER).
@@ -746,6 +752,8 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T57"]
 - ledgerRefs: ["goals:G2"]
+- resultCommit: cc4db8c
+- completion: TUI keys 1-9 pick the Nth suggestion as answer via applyAnswer (save + mark answered), gated on canAnswer + non-empty suggestions + N in range, mirrored in both list-focus and content-focus; out-of-range = no-op; '1-9 pick suggestion' hint when answerable+suggestions. No binding collisions (overlays early-return). 8 ink tests. Reviewer approve 0/0.
 
 ### T88 — planned
 
@@ -765,12 +773,12 @@ archives:
 - dependsOn: ["T86","T63"]
 - ledgerRefs: ["goals:G2"]
 
-### T89 — planned
+### T89 — wip
 
 - createdAt: 2026-06-02T10:37:33.607Z
-- updatedAt: 2026-06-02T10:37:33.607Z
+- updatedAt: 2026-06-02T14:22:22.856Z
 - author: "opus-4.8[1m]"
-- session: 0a4a7acf-25b6-4783-83a1-83a1-session
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "TUI #15: make the `r` and #14 pick keys inert when the persisted answer is non-empty"
 - description: |
     Item #15 (TUI half; DEPENDS ON T87 (#14 TUI pick keys) + the existing `r` as-recommended key; also covers the batch overlay T64 per Q51 (C)). Rationale: parity with the web disable-when-typing rule.
