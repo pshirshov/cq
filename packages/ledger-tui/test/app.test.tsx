@@ -831,7 +831,7 @@ class ArchiveClient implements LedgerClient {
         },
       ],
       archivePointers: [
-        { id: "M0", path: "./archive/jobs/M0.md", summary: "Archived sprint" },
+        { id: "M0", path: "./archive/jobs/M0.md", summary: "Archived sprint", title: "Archived Sprint", status: "done" },
       ],
     };
   }
@@ -1049,7 +1049,7 @@ class MultiMilestoneArchiveClient implements LedgerClient {
         },
       ],
       archivePointers: [
-        { id: "M0", path: "./archive/tasks/M0.md", summary: "Archived sprint" },
+        { id: "M0", path: "./archive/tasks/M0.md", summary: "Archived sprint", title: "Archived Sprint", status: "done" },
       ],
     };
   }

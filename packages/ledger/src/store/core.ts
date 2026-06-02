@@ -483,6 +483,8 @@ export function applyDetachMilestoneGroup(
   milestoneId: string,
   summary: string,
   archiveRelPath: string,
+  title: string,
+  status: string,
 ): { milestone: Milestone; pointer: ArchivePointer } {
   const idx = ledger.milestones.findIndex((m) => m.id === milestoneId);
   if (idx < 0) throw new MilestoneNotFoundError(ledger.id, milestoneId);
@@ -494,7 +496,7 @@ export function applyDetachMilestoneGroup(
     throw new NonTerminalItemsError(milestoneId, offending);
   }
   ledger.milestones.splice(idx, 1);
-  const pointer: ArchivePointer = { id: milestoneId, path: archiveRelPath, summary };
+  const pointer: ArchivePointer = { id: milestoneId, path: archiveRelPath, summary, title, status };
   ledger.archivePointers.push(pointer);
   return { milestone, pointer };
 }
@@ -513,6 +515,8 @@ export function applyDetachMilestoneItem(
   milestoneItemId: string,
   summary: string,
   archiveRelPath: string,
+  title: string,
+  status: string,
 ): { item: Item; pointer: ArchivePointer } {
   if (ledger.id !== MILESTONES_LEDGER) {
     throw new BootstrapViolationError(
@@ -552,6 +556,8 @@ export function applyDetachMilestoneItem(
     id: milestoneItemId,
     path: archiveRelPath,
     summary,
+    title,
+    status,
   };
   ledger.archivePointers.push(pointer);
   return { item, pointer };

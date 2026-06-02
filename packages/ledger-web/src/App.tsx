@@ -1637,7 +1637,7 @@ function MilestoneSubsection({
   /**
    * When provided (active milestone groups), renders a status badge using the
    * shared `lw-status lw-status-<bucket>` class derived from MILESTONE_STATUS_SCHEMA.
-   * Absent for archived groups (status not available in ArchivePointer/Milestone).
+   * Absent for archived groups (status badge rendering is a separate task — T104).
    */
   milestoneStatus?: string;
   archived: boolean;
@@ -1929,7 +1929,7 @@ function ArchiveSubsections({
   onSelectRow,
   onError,
 }: {
-  pointers: Array<{ id: string; path: string; summary: string }>;
+  pointers: Array<{ id: string; path: string; summary: string; title: string; status: string }>;
   fetchArchive: (archiveId: string) => Promise<ArchiveContent>;
   schema: FetchedLedger["schema"];
   selectedId: string | null;
@@ -1997,7 +1997,7 @@ function ArchiveSubsections({
           const c = content[p.id];
           const didFail = failed.has(p.id);
           const rows = rowsOf(c, p.id);
-          const headerLabel = p.summary.length > 0 ? `${p.id}: ${p.summary}` : p.id;
+          const headerLabel = p.title.length > 0 ? `${p.id}: ${p.title}` : p.id;
           return (
             <MilestoneSubsection
               key={p.id}

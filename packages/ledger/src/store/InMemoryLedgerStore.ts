@@ -456,9 +456,47 @@ export class InMemoryLedgerStore implements LedgerStore {
           milestoneId,
           summary,
           `./archive/${name}/${milestoneId}.md`,
+          "",
+          "",
         );
       }
     }
+    // Phase 1b — verify the milestone-item itself is terminal. Must run before
+    // any Phase 2 mutations so a non-terminal item causes a clean throw with no
+    // partial state. Mirror the FsLedgerStore path: surface via
+    // applyDetachMilestoneItem so the error type matches; the function throws
+    // before any mutation when the item is absent or non-terminal.
+    const milestonesLedger = this.getLedger(MILESTONES_LEDGER);
+    const activeGroup = milestonesLedger.milestones.find(
+      (m) => m.id === MILESTONES_ACTIVE_GROUP_ID,
+    );
+    const milestoneItem = activeGroup?.items.find((it) => it.id === milestoneId);
+    if (milestoneItem === undefined) {
+      // Throws MilestoneItemNotFoundError before any mutation.
+      applyDetachMilestoneItem(
+        milestonesLedger,
+        milestoneId,
+        summary,
+        `./archive/${MILESTONES_LEDGER}/${milestoneId}.md`,
+        "",
+        "",
+      );
+    } else {
+      const terminal = new Set(milestonesLedger.schema.terminalStatuses);
+      if (!terminal.has(milestoneItem.status)) {
+        // Throws NonTerminalItemsError before any mutation.
+        applyDetachMilestoneItem(
+          milestonesLedger,
+          milestoneId,
+          summary,
+          `./archive/${MILESTONES_LEDGER}/${milestoneId}.md`,
+          "",
+          "",
+        );
+      }
+    }
+    const msTitle = typeof milestoneItem?.fields["title"] === "string" ? milestoneItem.fields["title"] : "";
+    const msStatus = milestoneItem?.status ?? "";
     // Phase 2: archive each non-milestones ledger that has a group.
     for (const [name, ledger] of this.ledgers) {
       if (name === MILESTONES_LEDGER) continue;
@@ -470,17 +508,20 @@ export class InMemoryLedgerStore implements LedgerStore {
         milestoneId,
         summary,
         relPath,
+        msTitle,
+        msStatus,
       );
       this.archives.set(`${name}/${milestoneId}`, milestone);
     }
     // Phase 3: archive the milestone-item itself.
-    const milestonesLedger = this.getLedger(MILESTONES_LEDGER);
     const relPath = `./archive/${MILESTONES_LEDGER}/${milestoneId}.md`;
     const { item, pointer } = applyDetachMilestoneItem(
       milestonesLedger,
       milestoneId,
       summary,
       relPath,
+      msTitle,
+      msStatus,
     );
     this.itemArchives.set(`${MILESTONES_LEDGER}/${milestoneId}`, item);
     return { ...pointer };

@@ -10,6 +10,8 @@
  *     - id: <string>
  *       path: <string>
  *       summary: <string>
+ *       title: <string>       # milestone title (added in v2; empty for legacy entries)
+ *       status: <string>      # milestone status at archive time (added in v2; empty for legacy)
  */
 
 import YAML from "yaml";
@@ -66,7 +68,11 @@ export function parseFrontmatter(yamlText: string): ParsedFrontmatter {
           "frontmatter.archives entry must have string {id, path, summary}",
         );
       }
-      archives.push({ id, path, summary });
+      // title and status were added in v2; default to "" for backward compat with
+      // existing ledger files that do not carry these fields.
+      const title = typeof e["title"] === "string" ? e["title"] : "";
+      const status = typeof e["status"] === "string" ? e["status"] : "";
+      archives.push({ id, path, summary, title, status });
     }
   }
   return { ledger, counters, archives };
@@ -83,6 +89,8 @@ export function serializeFrontmatter(fm: ParsedFrontmatter): string {
       id: a.id,
       path: a.path,
       summary: a.summary,
+      title: a.title,
+      status: a.status,
     }));
   } else {
     obj["archives"] = [];

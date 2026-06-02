@@ -289,10 +289,17 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         expect(ptr.id).toBe(m.id);
         expect(ptr.path).toBe(`./archive/${MILESTONES_LEDGER}/${m.id}.md`);
         expect(ptr.summary).toBe("summary one");
+        // D8/T91 — pointer carries the milestone title and terminal status.
+        expect(ptr.title).toBe("M-one");
+        expect(ptr.status).toBe("done");
         // Defects ledger: depth-2 group gone, archive pointer recorded.
         const defects = store.fetch(WIDGETS);
         expect(defects.milestones.map((g) => g.id)).toEqual([]);
         expect(defects.archivePointers.map((p) => p.id)).toEqual([m.id]);
+        // D8/T91 — pointer in the fetched per-ledger list also carries title+status.
+        const widgetPtr = defects.archivePointers.find((p) => p.id === m.id);
+        expect(widgetPtr?.title).toBe("M-one");
+        expect(widgetPtr?.status).toBe("done");
         // Milestones ledger: milestone-item gone, archive pointer recorded.
         const ms = store.fetch(MILESTONES_LEDGER);
         const activeGroup = ms.milestones.find(
@@ -302,6 +309,10 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         // the archived m.id is gone.
         expect(activeGroup?.items.map((i) => i.id)).toEqual([MILESTONES_AMBIENT_ID]);
         expect(ms.archivePointers.map((p) => p.id)).toEqual([m.id]);
+        // D8/T91 — milestones-ledger pointer also carries title+status.
+        const msPtr = ms.archivePointers.find((p) => p.id === m.id);
+        expect(msPtr?.title).toBe("M-one");
+        expect(msPtr?.status).toBe("done");
         // Group archive in defects is readable.
         const defectsArchive = await store.fetchArchive(WIDGETS, m.id);
         expect(defectsArchive.kind).toBe("group");

@@ -89,7 +89,7 @@ const reviewsSchema: LedgerSchema = {
 };
 
 interface ArchiveEntry {
-  pointer: { id: string; path: string; summary: string };
+  pointer: { id: string; path: string; summary: string; title: string; status: string };
   content: ArchiveContent;
 }
 
@@ -115,7 +115,7 @@ export class FakeClient implements LedgerClient {
   private archives: Record<string, ArchiveEntry[]> = {
     milestones: [
       {
-        pointer: { id: "MA1", path: "./archive/milestones/MA1.md", summary: "archived milestone group" },
+        pointer: { id: "MA1", path: "./archive/milestones/MA1.md", summary: "archived milestone group", title: "Old Phase", status: "done" },
         content: {
           kind: "group",
           milestone: {
@@ -131,7 +131,7 @@ export class FakeClient implements LedgerClient {
     ],
     bugs: [
       {
-        pointer: { id: "A1", path: "./archive/bugs/A1.md", summary: "initial bootstrap fixes" },
+        pointer: { id: "A1", path: "./archive/bugs/A1.md", summary: "initial bootstrap fixes", title: "Bootstrap Fixes", status: "done" },
         content: {
           kind: "group",
           milestone: {
@@ -145,7 +145,7 @@ export class FakeClient implements LedgerClient {
         },
       },
       {
-        pointer: { id: "A2", path: "./archive/bugs/A2.md", summary: "second pass fixes" },
+        pointer: { id: "A2", path: "./archive/bugs/A2.md", summary: "second pass fixes", title: "Phase Two Fixes", status: "done" },
         content: {
           kind: "group",
           milestone: {

@@ -159,6 +159,10 @@ export interface ArchivePointer {
   path: string;
   /** One-line human-readable summary. */
   summary: string;
+  /** Milestone title (from the milestones-ledger item's `title` field). */
+  title: string;
+  /** Milestone status at the time of archiving (e.g. `"done"`, `"postponed"`). */
+  status: string;
 }
 
 export interface LedgerCounters {

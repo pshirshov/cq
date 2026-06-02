@@ -810,6 +810,32 @@ describe("ledger-web App", () => {
     expect(testid("detail-close")).not.toBeNull();
   });
 
+  // D8/T91 — archived section head displays the milestone TITLE (not description/summary).
+  it("collapsed archived section head shows the milestone title from the ArchivePointer (D8 fix)", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+
+    // Sections are collapsed by default — no fetch has occurred yet.
+    expect(fake.archiveFetches["bugs/A1"]).toBeUndefined();
+    expect(testid("ms-toggle-A1")?.getAttribute("aria-expanded")).toBe("false");
+
+    // The label must derive from ArchivePointer.title ("Bootstrap Fixes"),
+    // NOT from ArchivePointer.summary ("initial bootstrap fixes").
+    const toggleA1 = testid("ms-toggle-A1");
+    const labelA1 = toggleA1?.querySelector(".lw-ms-label");
+    expect(labelA1?.textContent).toContain("Bootstrap Fixes");
+    expect(labelA1?.textContent).not.toContain("initial bootstrap fixes");
+
+    // Same for the second pointer.
+    const toggleA2 = testid("ms-toggle-A2");
+    const labelA2 = toggleA2?.querySelector(".lw-ms-label");
+    expect(labelA2?.textContent).toContain("Phase Two Fixes");
+    expect(labelA2?.textContent).not.toContain("second pass fixes");
+  });
+
   it("active-item editing is unaffected by the archive toggle", async () => {
     await mount();
     click(testid("ledger-bugs"));

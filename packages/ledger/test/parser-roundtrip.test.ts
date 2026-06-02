@@ -97,8 +97,8 @@ function buildDefectsFixture(): Ledger {
       },
     ],
     archivePointers: [
-      { id: "M1", path: "./archive/defects/M1.md", summary: "M1 archive" },
-      { id: "M2", path: "./archive/defects/M2.md", summary: "M2 archive" },
+      { id: "M1", path: "./archive/defects/M1.md", summary: "M1 archive", title: "Milestone One", status: "done" },
+      { id: "M2", path: "./archive/defects/M2.md", summary: "M2 archive", title: "Milestone Two", status: "done" },
     ],
   };
 }
@@ -141,7 +141,7 @@ function buildMilestonesFixture(): Ledger {
       },
     ],
     archivePointers: [
-      { id: "M0-archived", path: "./archive/milestones/M0-archived.md", summary: "n/a" },
+      { id: "M0-archived", path: "./archive/milestones/M0-archived.md", summary: "n/a", title: "Archived Phase", status: "done" },
     ],
   };
 }

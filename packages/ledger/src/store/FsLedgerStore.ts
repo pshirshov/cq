@@ -789,6 +789,8 @@ export class FsLedgerStore implements LedgerStore {
           milestoneId,
           summary,
           `./archive/${name}/${milestoneId}.md`,
+          "",
+          "",
         );
       }
     }
@@ -812,6 +814,8 @@ export class FsLedgerStore implements LedgerStore {
         milestoneId,
         summary,
         `./archive/${MILESTONES_LEDGER}/${milestoneId}.md`,
+        "",
+        "",
       );
     } else {
       // Item exists; refuse if non-terminal. (applyDetachMilestoneItem
@@ -825,9 +829,15 @@ export class FsLedgerStore implements LedgerStore {
           milestoneId,
           summary,
           `./archive/${MILESTONES_LEDGER}/${milestoneId}.md`,
+          "",
+          "",
         );
       }
     }
+    // Extract title and status from the milestoneItem (guaranteed non-null and
+    // terminal after Phase 1b; used to populate the ArchivePointer fields).
+    const msTitle = typeof milestoneItem?.fields["title"] === "string" ? milestoneItem.fields["title"] : "";
+    const msStatus = milestoneItem?.status ?? "";
     // Phase 2 — for each non-milestones ledger with a matching group:
     // detach in-memory, write the archive file, write the ledger file.
     // Failures here leave the system in a partially-archived state but
@@ -843,6 +853,8 @@ export class FsLedgerStore implements LedgerStore {
         milestoneId,
         summary,
         relPath,
+        msTitle,
+        msStatus,
       );
       const archivePath = path.resolve(this.archiveDir, name, `${milestoneId}.md`);
       this.assertWithinDocsRoot(archivePath);
@@ -858,6 +870,8 @@ export class FsLedgerStore implements LedgerStore {
       milestoneId,
       summary,
       relPath,
+      msTitle,
+      msStatus,
     );
     const archivePath = path.resolve(this.archiveDir, MILESTONES_LEDGER, `${milestoneId}.md`);
     this.assertWithinDocsRoot(archivePath);

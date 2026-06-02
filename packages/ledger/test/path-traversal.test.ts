@@ -167,6 +167,8 @@ describe("D-LED-01 — FsLedgerStore defense-in-depth", () => {
       id: "leak",
       path: "../secret.md",
       summary: "forged",
+      title: "",
+      status: "",
     });
 
     await expect(store.fetchArchive("xenos", "leak")).rejects.toThrow(LedgerError);
