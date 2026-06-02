@@ -120,6 +120,11 @@ function hasRecommendation(item: Item): boolean {
   return fieldToString(item.fields[RECOMMENDATION_FIELD]).trim().length > 0;
 }
 
+/** True when the item carries a non-empty persisted `answer` field. */
+function hasPersistedAnswer(item: Item): boolean {
+  return fieldToString(item.fields[ANSWER_FIELD]).trim().length > 0;
+}
+
 /**
  * Extract the suggestions list from an item's `suggestions` field (T87).
  * Returns a string[] (possibly empty) suitable for number-key picking.
@@ -803,6 +808,7 @@ export function App({
           cur &&
           !cursorInArchive &&
           canAnswer(top.view.schema, cur.item.status) &&
+          !hasPersistedAnswer(cur.item) &&
           hasRecommendation(cur.item)
         )
           void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
@@ -810,7 +816,8 @@ export function App({
           /^[1-9]$/.test(input) &&
           cur &&
           !cursorInArchive &&
-          canAnswer(top.view.schema, cur.item.status)
+          canAnswer(top.view.schema, cur.item.status) &&
+          !hasPersistedAnswer(cur.item)
         ) {
           const n = parseInt(input, 10);
           const sugs = getSuggestions(cur.item);
@@ -836,6 +843,7 @@ export function App({
         cur &&
         !cursorInArchive &&
         canAnswer(top.view.schema, cur.item.status) &&
+        !hasPersistedAnswer(cur.item) &&
         hasRecommendation(cur.item)
       )
         void applyAnswer(cur, AS_RECOMMENDED_ANSWER);
@@ -843,7 +851,8 @@ export function App({
         /^[1-9]$/.test(input) &&
         cur &&
         !cursorInArchive &&
-        canAnswer(top.view.schema, cur.item.status)
+        canAnswer(top.view.schema, cur.item.status) &&
+        !hasPersistedAnswer(cur.item)
       ) {
         const n = parseInt(input, 10);
         const sugs = getSuggestions(cur.item);
@@ -930,10 +939,11 @@ export function App({
         : top.ledger;
     if (fLabel.length > 0) pathStr += `  [${fLabel}]`;
     const answerable = cur !== undefined && !cursorInArchive && canAnswer(schema, cur.item.status);
-    const curSuggestions = answerable ? getSuggestions(cur!.item) : [];
+    const answered = answerable && hasPersistedAnswer(cur!.item);
+    const curSuggestions = answerable && !answered ? getSuggestions(cur!.item) : [];
     const suggestionsHint = curSuggestions.length > 0 ? ` · 1-9 pick suggestion` : "";
     const answerHint = answerable
-      ? ` · a answer${hasRecommendation(cur!.item) ? " · r as-recommended" : ""}${suggestionsHint}`
+      ? ` · a answer${!answered && hasRecommendation(cur!.item) ? " · r as-recommended" : ""}${suggestionsHint}`
       : "";
     const archiveHint = top.view.archivePointers.length > 0
       ? ` · A ${top.showArchive ? "hide" : "show"} archived`
@@ -1909,6 +1919,7 @@ function BatchAnswerOverlay({
   }, [row.item.id]);
 
   const recommended = hasRecommendation(row.item);
+  const persistedAnswerNonEmpty = hasPersistedAnswer(row.item);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -1918,8 +1929,9 @@ function BatchAnswerOverlay({
     } else if (key.rightArrow) {
       onNav(Math.min(rows.length - 1, idx + 1));
     } else if (key.ctrl && input === "r") {
-      // Ctrl+R: accept the recommendation (only when the item carries one).
-      if (recommended) onAnswer(row, AS_RECOMMENDED_ANSWER);
+      // Ctrl+R: accept the recommendation (only when the item carries one and
+      // the persisted answer is empty — symmetric with the list/content key gate).
+      if (recommended && !persistedAnswerNonEmpty) onAnswer(row, AS_RECOMMENDED_ANSWER);
     } else if (key.return) {
       onAnswer(row, value);
     } else if (key.backspace || key.delete) {

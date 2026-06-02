@@ -1694,3 +1694,133 @@ describe("ledger-tui number-key suggestion picker (T87)", () => {
     h.unmount();
   });
 });
+
+// ---------------------------------------------------------------------------
+// T89: r and number-pick keys are inert when persisted answer is non-empty
+// Q3 in FakeClient: open, has recommendation "do s1", suggestions ["s1","s2"],
+// AND a non-empty persisted answer "picked s1" — answerable but already answered.
+// ---------------------------------------------------------------------------
+
+describe("ledger-tui inert r/1-9 when persisted answer non-empty (T89)", () => {
+  // Navigate to Q3 (index 2 in questions list: Q1=0, Q2=1, Q3=2).
+  async function openQ3(h: Harness): Promise<void> {
+    await openQuestions(h); // lands on Q1
+    await h.key(DOWN); // Q1 → Q2
+    await h.key(DOWN); // Q2 → Q3
+    await tick(20);
+  }
+
+  it("'r' is a no-op (list focus) when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h);
+    await h.key("r"); // Q3 has recommendation AND non-empty answer → inert
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q3");
+    // status must remain open; answer must remain the original "picked s1"
+    expect(q.status).toBe("open");
+    expect(q.fields["answer"]).toBe("picked s1");
+    h.unmount();
+  });
+
+  it("'r' is a no-op (content focus) when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h);
+    await h.key(ENTER); // open content pane
+    await tick(20);
+    await h.key("r"); // inert
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q3");
+    expect(q.status).toBe("open");
+    expect(q.fields["answer"]).toBe("picked s1");
+    h.unmount();
+  });
+
+  it("number key '1' is a no-op (list focus) when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h);
+    await h.key("1"); // Q3 has suggestions AND non-empty answer → inert
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q3");
+    expect(q.status).toBe("open");
+    expect(q.fields["answer"]).toBe("picked s1");
+    h.unmount();
+  });
+
+  it("number key '1' is a no-op (content focus) when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h);
+    await h.key(ENTER); // open content pane
+    await tick(20);
+    await h.key("1"); // inert
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q3");
+    expect(q.status).toBe("open");
+    expect(q.fields["answer"]).toBe("picked s1");
+    h.unmount();
+  });
+
+  it("'r' still works (list focus) when persisted answer is empty/whitespace", async () => {
+    const h = await mount();
+    await openQuestions(h); // lands on Q1: has recommendation, no persisted answer
+    await h.key("r");
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q1");
+    expect(q.status).toBe("answered");
+    expect(q.fields["answer"]).toBe("as recommended");
+    h.unmount();
+  });
+
+  it("number key '1' still works (list focus) when persisted answer is empty", async () => {
+    const h = await mount();
+    await openQuestions(h);
+    await h.key(DOWN); // → Q2 (has suggestions, no persisted answer)
+    await tick(20);
+    await h.key("1");
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q2");
+    expect(q.status).toBe("answered");
+    expect(q.fields["answer"]).toBe("opt a");
+    h.unmount();
+  });
+
+  it("key hints hide 'r as-recommended' when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h); // Q3 has recommendation but non-empty answer
+    const f = h.frame();
+    // The hint for 'r' must not appear (answer already filled).
+    expect(f).not.toContain("r as-recommended");
+    h.unmount();
+  });
+
+  it("key hints hide '1-9 pick suggestion' when persisted answer is non-empty", async () => {
+    const h = await mount();
+    await openQ3(h); // Q3 has suggestions but non-empty answer
+    const f = h.frame();
+    expect(f).not.toContain("1-9 pick suggestion");
+    h.unmount();
+  });
+
+  it("Ctrl+R in batch overlay is a no-op when persisted answer is non-empty", async () => {
+    const h = await mount();
+    // Enter batch-answer overlay from questions (Q1 is first open item).
+    await h.key(DOWN); // bugs → milestones
+    await h.key(DOWN); // milestones → questions
+    await h.key(ENTER); // open questions
+    await h.key("b"); // enter batch-answer overlay (Q1, idx 0)
+    await tick(20);
+    expect(h.frame()).toContain("batch answer");
+    expect(h.frame()).toContain("Q1");
+    // Navigate to Q3 (idx 2) using RIGHT twice.
+    await h.key(RIGHT); // Q1 → Q2
+    await h.key(RIGHT); // Q2 → Q3
+    await tick(20);
+    expect(h.frame()).toContain("Q3");
+    await h.key(CTRL_R); // Q3 has recommendation + persisted answer → inert
+    await tick(40);
+    const q = await h.client.fetchItem("questions", "Q3");
+    // Q3's answer must remain "picked s1" (not overwritten with "as recommended")
+    expect(q.fields["answer"]).toBe("picked s1");
+    expect(q.status).toBe("open");
+    h.unmount();
+  });
+});
