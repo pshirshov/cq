@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 15
+  item: 16
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -174,3 +174,15 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead (ref review R76, round 2): both R75 criticisms resolved against source (T96 mandatory migration of canonical-ledgers.test.ts:332-356 to onSchemaDivergence:'abort'; T95 pinned in-place this.registry reinit). D2-fix plan under work milestone M22 (tasks T94-T97) approved as fine-grained, sequenced, testable, grounded, and complete."
 - ledgerRefs: ["goals:G4","defects:D2"]
+
+## M23
+
+### K16 — locked
+
+- createdAt: 2026-06-02T17:48:00.702Z
+- updatedAt: 2026-06-02T17:48:00.702Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead R78 (round-2, all R77 criticisms resolved: T103 withdrawn, T104 re-pointed to T91, T98 fixed on the ./dist/src/* realign primary). D3-D6 fix plan approved across work milestones M24/M25/M26 (tasks T98-T102, T104). Locking the plan; G5 planning -> planned."
+- ledgerRefs: ["goals:G5","defects:D3","defects:D4","defects:D5","defects:D6"]

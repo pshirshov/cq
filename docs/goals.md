@@ -207,10 +207,10 @@ archives: []
 
 ## M23
 
-### G5 — planning
+### G5 — planned
 
 - createdAt: 2026-06-02T17:25:47.978Z
-- updatedAt: 2026-06-02T17:25:47.978Z
+- updatedAt: 2026-06-02T17:48:04.264Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - title: Fix out-of-scope defects D3-D6 (@cq/ledger packaging + column eligibility + archived-head badge)
@@ -240,4 +240,4 @@ archives: []
     - D6/H8: package.json:8-21 (no ./constants); index.ts:50 re-exports FsLedgerStore; FsLedgerStore.ts:29-30 node:fs/node:path; constants.ts:25-27 type-only import (browser-safe), :47 MILESTONES_SCHEMA; web App.tsx:69-82 duplicate; App.tsx:25/29 already use @cq/ledger/relationships + /columns leaf subpaths; serve.ts:55-59 Bun.build target browser.
     Fix A (D3+D6) share the package.json exports edit. Fix C (D5) sequences after T91 (M21). Tests: bun:test (ledger), happy-dom (web). Repo gate bun run check.
 - tags: ["defect-seeded","defect:D3","defect:D4","defect:D5","defect:D6","packaging","out-of-scope-cleanup"]
-- milestones: []
+- milestones: ["M24","M25","M26"]

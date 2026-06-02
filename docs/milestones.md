@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 23
+  item: 26
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -126,3 +126,25 @@ archives:
 - createdAt: 2026-06-02T17:25:15.494Z
 - updatedAt: 2026-06-02T17:25:15.494Z
 - title: "Plan: @cq/ledger packaging + UI-eligibility defect cleanup (D3-D6)"
+
+### M24 — open
+
+- createdAt: 2026-06-02T17:37:50.791Z
+- updatedAt: 2026-06-02T17:37:50.791Z
+- title: G5 Fix Unit A — @cq/ledger packaging (D3 + D6)
+- description: Realign @cq/ledger package.json main+exports to a consistent real dist layout (D3, major) and add a browser-safe ./constants subpath export removing the App.tsx MILESTONE_STATUS_SCHEMA duplication (D6, low). Single shared package.json edit. Work milestone under goal G5.
+
+### M25 — open
+
+- createdAt: 2026-06-02T17:37:51.781Z
+- updatedAt: 2026-06-02T17:37:51.781Z
+- title: G5 Fix Unit B — column eligibility (D4)
+- description: "Exclude summary-source fields {headline,title,question} from eligibleColumnFields in packages/ledger/src/columns.ts so the column picker never offers a field that duplicates the summary cell (D4, low). Add the first columns unit test. Work milestone under goal G5."
+
+### M26 — open
+
+- createdAt: 2026-06-02T17:37:57.412Z
+- updatedAt: 2026-06-02T17:44:33.890Z
+- title: G5 Fix Unit C — archived-head status badge (D5)
+- description: "G5 Fix Unit C — archived-head status badge (D5, low). SOLE task T104: render the archived MilestoneSubsection status badge (packages/ledger-web/src/App.tsx:2002-2008) by passing the archived pointer's `status` as milestoneStatus, with a happy-dom assertion. R77 corrected the H7 finding: there is NO @cq/shared Zod wire mirror — once T91 (G2/M21) extends the ArchivePointer interface with status, the field already flows over the wire (fetch_ledger uses plain JSON.stringify; the web client JSON.parses with no runtime validation). The former wire task T103 was withdrawn as misgrounded. dependsOn M21 (T91) only. Work milestone under goal G5."
+- dependsOn: ["M21"]

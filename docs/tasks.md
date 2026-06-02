@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 97
+  item: 104
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -462,3 +462,100 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T96"]
 - ledgerRefs: ["defects:D2","goals:G4"]
+
+## M24
+
+### T98 — planned
+
+- createdAt: 2026-06-02T17:38:11.599Z
+- updatedAt: 2026-06-02T17:44:42.403Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Realign @cq/ledger package.json exports/main to ./dist/src/* (D3)
+- description: "packages/ledger/package.json declares main=./dist/index.js, exports['.']=./dist/index.js, exports['./relationships']=./dist/relationships.js, but tsc (tsconfig outDir ./dist, include [src,test], NO rootDir) emits under ./dist/src/ — those targets do not exist on disk. exports['./columns']=./dist/src/columns.js is the only correct entry (internal inconsistency). COMMITTED FIX (R77): realign main and EVERY exports entry to ./dist/src/* — main + exports['.'] → ./dist/src/index.js, exports['./relationships'] → ./dist/src/relationships.js, and leave exports['./columns'] = ./dist/src/columns.js as-is (already correct). Update each entry's .d.ts target to the matching ./dist/src/*.d.ts. This matches the already-correct ./columns entry, requires NO tsconfig change and NO test-layout restructuring. DO NOT set rootDir:'src': R77 verified that branch trips TS6059 ('File is not under rootDir') for every test/ file because tsconfig include is ['src','test'] (packages/ledger/tsconfig.json:10) and tsconfig.base sets no rootDir — so the flat-layout alternative is rejected. The web/mcp tsconfig paths→source entries mask this in-repo, so verification is on-disk after tsc, not via in-repo import."
+- acceptance: "After `bun run build`/`tsc -b` of @cq/ledger, every file referenced by package.json main and each exports['.'|'./relationships'|'./columns'|'./constants'] target EXISTS on disk under ./dist/src/; all entries use the consistent ./dist/src/*.js layout; tsconfig.json is unchanged (no rootDir added); `bun run check` passes."
+- suggestedModel: standard
+- ledgerRefs: ["defects:D3","goals:G5"]
+
+### T99 — planned
+
+- createdAt: 2026-06-02T17:38:20.429Z
+- updatedAt: 2026-06-02T17:44:48.117Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Add browser-safe @cq/ledger ./constants subpath export + web tsconfig paths entry (D6)
+- description: "Add a `./constants` entry to packages/ledger/package.json exports, pointing at ./dist/src/constants.js (with its matching ./dist/src/constants.d.ts) — the ./dist/src/* layout pinned by T98 — mirroring the existing ./relationships and ./columns entries. constants.ts (L25-27) has only a type-only import, so it is browser-safe in isolation (does NOT pull in FsLedgerStore / node:fs/node:path the way the '.' barrel does via index.ts:50). Add a `@cq/ledger/constants` paths→source entry to packages/ledger-web/tsconfig.json mirroring the existing ./relationships and ./columns paths entries. This task is sequenced AFTER T98 because it edits the same package.json exports block and must use the same (./dist/src/*) dist layout T98 settled."
+- acceptance: "package.json exports['./constants'] resolves to ./dist/src/constants.js (existing after tsc); ledger-web/tsconfig.json has a @cq/ledger/constants paths→source entry; importing MILESTONES_SCHEMA from @cq/ledger/constants type-checks in ledger-web; `bun run check` passes."
+- suggestedModel: standard
+- dependsOn: ["T98"]
+- ledgerRefs: ["defects:D6","defects:D3","goals:G5"]
+
+### T100 — planned
+
+- createdAt: 2026-06-02T17:38:28.719Z
+- updatedAt: 2026-06-02T17:38:28.719Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Consume @cq/ledger/constants in ledger-web App.tsx; delete duplicated MILESTONE_STATUS_SCHEMA (D6)
+- description: "In packages/ledger-web/src/App.tsx, replace the hand-maintained MILESTONE_STATUS_SCHEMA const (App.tsx:69-82, whose comment documents the duplication reason) with an import of MILESTONES_SCHEMA from @cq/ledger/constants (the subpath added in T99), and delete the duplicated literal. Update all references that used MILESTONE_STATUS_SCHEMA to use the imported MILESTONES_SCHEMA. Preserve the pure-MCP-client invariant — @cq/ledger/constants is data-only (schema constants), not a ledger-file reader, so this does not violate it. Sequenced after T99 (needs the export to exist)."
+- acceptance: App.tsx no longer declares MILESTONE_STATUS_SCHEMA; it imports MILESTONES_SCHEMA from @cq/ledger/constants; status-badge / milestone-status rendering behaves identically; existing web happy-dom tests still pass; `bun run check` passes.
+- suggestedModel: standard
+- dependsOn: ["T99"]
+- ledgerRefs: ["defects:D6","goals:G5"]
+
+### T101 — planned
+
+- createdAt: 2026-06-02T17:38:36.643Z
+- updatedAt: 2026-06-02T17:38:36.643Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Add @cq/ledger test asserting every package.json export/main target exists after build (D3)
+- description: "Add a bun:test in packages/ledger (e.g. packages/ledger/test/package-exports.test.ts) that reads packages/ledger/package.json, collects main + every exports['<subpath>'] target path (including the new ./constants), and asserts each referenced file EXISTS on disk after `tsc -b`. This guards against the D3 regression where declared export targets drift from the real tsc output layout. The test must run after a build (or build within the test setup) so dist exists. Sequenced after T98+T99 (the exports must be in their final corrected form, including ./constants)."
+- acceptance: "New bun:test exists, fails against the pre-fix package.json (stale ./dist/index.js etc.), and passes against the corrected layout; `bun test` (ledger) and `bun run check` pass."
+- suggestedModel: standard
+- dependsOn: ["T98","T99"]
+- ledgerRefs: ["defects:D3","goals:G5"]
+
+## M25
+
+### T102 — planned
+
+- createdAt: 2026-06-02T17:38:46.836Z
+- updatedAt: 2026-06-02T17:38:46.836Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "Exclude summary-source fields {headline,title,question} from eligibleColumnFields + add columns unit test (D4)"
+- description: "In packages/ledger/src/columns.ts, eligibleColumnFields (L55-72) currently excludes only LONG_FIELD_DENYLIST (L35-47) plus ALWAYS_SHOWN_COLUMNS {id,status,summary}; headline/title/question fall through and are offered as toggleable columns. Because summarize() (tui app.tsx:82-86, web App.tsx:181-185) picks headline ?? title ?? question ?? summary, selecting one of those columns renders the same text twice per row (extra column cell + summary cell). FIX: add a SUMMARY_SOURCE_FIELDS exclusion set {headline,title,question} to eligibleColumnFields so summary-source fields are never offered as redundant columns. (Dropping only the single field summarize() would pick per-schema is also acceptable, but a static {headline,title,question} exclusion is simpler and matches the suggestedFix.) Add packages/ledger/test/columns.test.ts (none exists today) asserting eligibleColumnFields on a schema containing headline OMITS headline (and title/question)."
+- acceptance: eligibleColumnFields no longer returns headline/title/question; new packages/ledger/test/columns.test.ts asserts this and fails pre-fix, passes post-fix; the column picker no longer offers a redundant summary-duplicating column; `bun test` (ledger) and `bun run check` pass.
+- suggestedModel: fast
+- ledgerRefs: ["defects:D4","goals:G5"]
+
+## M26
+
+### T103 — done
+
+- createdAt: 2026-06-02T17:38:57.670Z
+- updatedAt: 2026-06-02T17:44:19.190Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: "WITHDRAWN (R77): no @cq/shared wire mirror exists — no wire half to extend (D5)"
+- description: "WITHDRAWN by plan review R77 as misgrounded — NO WORK TO DO. R77 verified against source that there is NO @cq/shared package and NO Zod wire mirror of fetch_ledger's archivePointers[]. The server tool serialises store.fetch() via plain JSON.stringify with NO output schema (packages/ledger/src/mcp/ledgerTools.ts:158-163); the web client does `JSON.parse(text) as FetchedLedger` with NO runtime validation, and its ArchivePointer is a type-only re-export from @cq/ledger (packages/ledger-web/src/mcpClient.ts:116-119, types.ts:7-18). Therefore once T91 (G2/M21) adds `status` to the ArchivePointer interface (packages/ledger/src/types.ts:155-162) the field ALREADY flows over the wire into the web client — there is no separate 'wire half'. This corrects the H7 investigate finding (the goal's 'un-covered wire half' was factually wrong). D5 reduces to the single render task T104, which now dependsOn T91 directly. No code change associated with this task."
+- acceptance: N/A — task withdrawn as redundant per R77; no deliverable. D5 is satisfied by T104 (render after T91) alone.
+- suggestedModel: frontier
+- blockedBy: []
+- dependsOn: []
+- ledgerRefs: ["goals:G5"]
+
+### T104 — planned
+
+- createdAt: 2026-06-02T17:39:05.288Z
+- updatedAt: 2026-06-02T17:44:25.834Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Render archived MilestoneSubsection status badge from archived pointer status + happy-dom assertion (D5)
+- description: "With T91 (G2/M21) extending ArchivePointer with title+status at the @cq/ledger types + server-build boundary, the archived pointer's `status` ALREADY flows over the wire to the web client (R77 confirmed there is NO separate wire schema — fetch_ledger serialises via plain JSON.stringify and the web client JSON.parses with no runtime validation; ArchivePointer is a type-only re-export). So this is the SOLE remaining D5 fix: pass the archived pointer's `status` as `milestoneStatus` to the archived MilestoneSubsection render (packages/ledger-web/src/App.tsx:2002-2008), mirroring the active head path (App.tsx:1853). The T80 badge is gated on milestoneStatus!==undefined (App.tsx:1659); once the archived path passes status, the badge renders for archived heads too. Add a happy-dom test asserting an archived milestone head renders its status badge (uncontrolled inputs / refs per the repo testing convention; selects may be controlled). dependsOn T91 directly (its true and only prerequisite — the ArchivePointer types extension). T103 was withdrawn by R77 as misgrounded."
+- acceptance: Archived MilestoneSubsection heads render the status badge when status is present; new/extended happy-dom test asserts the archived-head badge appears and fails pre-fix; existing web tests still pass; `bun run check` passes.
+- suggestedModel: standard
+- dependsOn: ["T91"]
+- blockedBy: ["T91"]
+- ledgerRefs: ["defects:D5","goals:G5"]

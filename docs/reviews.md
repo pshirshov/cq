@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 76
+  item: 78
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -362,3 +362,25 @@ archives:
 - new_questions: []
 - criticism: ["VERDICT (go-ahead, round 2): both R75 criticisms genuinely resolved against source. (1) TEST MIGRATION: T96 now carries a 'MANDATORY MIGRATION (do not skip)' section naming packages/ledger/test/canonical-ledgers.test.ts:332-356 — the six-ledger parameterized 'divergence guard fires for a hand-edited <name> schema' suite (verified in source: schemas[] = DEFECTS/TASKS/HYPOTHESIS/QUESTIONS/DECISIONS/GOALS, constructs new FsLedgerStore({root:dir}), asserts rejects.toThrow(/different schema/)) — mandating re-target to new FsLedgerStore({root:dir, onSchemaDivergence:'abort'}) preserving the /different schema/ assertion; T96 acceptance explicitly states NO test asserts a DEFAULT init() throw on divergence. Resolved. (2) RE-LOAD MECHANISM: T95 now has a 'PINNED (no executor choice)' section — helper mutates this.registry in place to canonical, writeRegistry() (verified @878: serializes this.registry) writes it, load loop @294-334 (verified) iterates the fresh canonical registry; T95 acceptance asserts post-reinit this.registry.ledgers schemas == CANONICAL_LEDGERS and the in-memory loaded ledger is fresh-canonical. Resolved; mechanism is internally consistent since writeRegistry cannot persist canonical unless this.registry is canonical first.","COVERAGE (no regression): T96 asserts all four paths — default divergence->backup+reinit (no throw, backup dir holds prior ledgers.yaml + prior .md byte-for-byte, live ledger fresh-canonical, one stderr WARNING), abort opt-out (throws BootstrapViolationError, files untouched, no backup dir), no-divergence regression (unchanged, no backup), empty-dir regression (unchanged, no backup) — plus the migrated six-ledger abort suite. ENOENT-tolerance in T94 stays load-bearing and consistent with the migrated suite (which seeds only ledgers.yaml, no .md). SEQUENCING T94->T95->T96->T97 via dependsOn is coherent (helper -> rewire init() -> tests needing both behaviors -> bun run check gate). GROUNDING: all cited symbols verified — FsLedgerStoreOpts @106 (option to be added), init throw @283-289, load loop @294-334, writeRegistry @878, ledgerPath/writeLedgerFile @870-876, freshLedger @921, seedBootstrapGroup @938, BootstrapViolationError @types.ts:384; FsLedgerStore-only scope correct (InMemoryLedgerStore has no on-disk registry; the migrated suite is FsLedgerStore-specific, not dual). Plan is fine-grained, sequenced, testable, grounded, and complete. Approve."]
 - ledgerRefs: ["goals:G4"]
+
+## M23
+
+### R77 — revise
+
+- createdAt: 2026-06-02T17:42:46.221Z
+- updatedAt: 2026-06-02T17:42:46.221Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: ["VERDICT: revise. Coverage (D3->T98/T101, D6->T99/T100, D4->T102, D5->T103/T104) is complete and defect ledgerRefs are bidirectional; Fix A and Fix B are sound; Fix C (T103) is grounded on a nonexistent @cq/shared Zod wire mirror. Details below.","T103 is built on a symbol that does not exist: there is NO @cq/shared package and NO Zod wire mirror of fetch_ledger's archivePointers[]. The server tool (packages/ledger/src/mcp/ledgerTools.ts:158-163) serialises store.fetch() via plain JSON.stringify with no output schema; the web client (packages/ledger-web/src/mcpClient.ts:116-119) does `JSON.parse(text) as FetchedLedger` with no runtime validation, and its ArchivePointer is a type-only re-export from @cq/ledger (packages/ledger-web/src/types.ts:7-18). Consequently, once T91 adds `status` to the ArchivePointer interface in packages/ledger/src/types.ts:155-162, the field already flows over the wire into the web client — there is NO separate 'wire half' to extend. The goal's own grounding ('the @cq/shared Zod mirror of archivePointers[] is the un-covered half') is factually wrong against the repo. Fix: DROP T103 as redundant, OR re-scope it to the real verifiable gap — an end-to-end round-trip assertion (e.g. extend packages/ledger-web/test/serve.test.ts or a store test) that an archived milestone's `status` survives fetch_ledger from server to client. Either way M26 loses its dependency on a fictitious wire schema.","T104 dependsOn/blockedBy T103, but T104's only real prerequisite is T91 (the ArchivePointer types+server-build data). Since T103 rests on a nonexistent package, T104's dependency chain is contaminated: re-point T104 to dependsOn T91 directly (M26 already dependsOn M21 for T91). T104's render fix itself is correct — passing p.status as milestoneStatus to the archived MilestoneSubsection (packages/ledger-web/src/App.tsx:2002-2008), mirroring the active head (App.tsx:1853, badge gated App.tsx:1659).","T98 leaves a risky either/or (set rootDir:'src' for a flat ./dist/*.js layout, OR realign all entries to ./dist/src/*) for the implementer to resolve at build time. The rootDir:'src' branch carries a concrete, known failure: the ledger tsconfig has include:['src','test'] (packages/ledger/tsconfig.json:10) and tsconfig.base.json sets no rootDir, so setting rootDir:'src' makes tsc emit TS6059 ('File is not under rootDir') for every test/ file unless test inclusion is restructured. Pick the FALLBACK (realign all exports/main to ./dist/src/*) as the PRIMARY approach: it matches the already-correct ./columns entry (package.json:18), requires no tsconfig or test-layout change, and avoids the TS6059 conflict. Reserve rootDir:'src' only if a flat layout is independently desired."]
+- ledgerRefs: ["goals:G5"]
+
+### R78 — go-ahead
+
+- createdAt: 2026-06-02T17:47:09.723Z
+- updatedAt: 2026-06-02T17:47:09.723Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G5"]
+- tags: ["round-2","go-ahead","all-R77-criticisms-resolved"]
