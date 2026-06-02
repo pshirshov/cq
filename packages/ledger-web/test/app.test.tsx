@@ -962,6 +962,37 @@ describe("ledger-web App", () => {
     expect(label!.textContent).not.toContain("[done]");
     expect(label!.textContent).not.toContain("[");
   });
+
+  // ---- D7: milestones ledger must NOT render ArchiveSubsections ----
+
+  it("D7: milestones ledger with showArchive enabled does NOT render archive-section or ms-section-* duplicates (D7)", async () => {
+    await mount();
+    // FakeClient now has archive pointers for the milestones ledger (MA1).
+    click(testid("ledger-milestones"));
+    await flush();
+    // The toggle-archive appears (milestones ledger has an archive pointer).
+    expect(testid("toggle-archive")).not.toBeNull();
+    // Enable show-archive.
+    click(testid("toggle-archive"));
+    await flush();
+    // MUST NOT render any archive-section on the milestones ledger.
+    expect(testid("archive-section")).toBeNull();
+    // MUST NOT render any ms-section-MA1 (which would duplicate the milestone row).
+    expect(testid("ms-section-MA1")).toBeNull();
+    // The active milestone M1 row is still present in the flat table.
+    expect(testid("item-M1")).not.toBeNull();
+  });
+
+  it("D7: non-milestones ledger with showArchive enabled DOES render archive-section (regression guard)", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+    // archive-section must still be present for non-milestones ledgers.
+    expect(testid("archive-section")).not.toBeNull();
+    expect(testid("ms-section-A1")).not.toBeNull();
+  });
 });
 
 describe("ledger-web keyboard navigation", () => {

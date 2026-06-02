@@ -1190,7 +1190,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor }: AppProp
                   setSelectedArchiveRow(null);
                 }}
               />
-              {showArchive && view.archivePointers.length > 0 && client !== null && ledger !== null && (
+              {showArchive && !isMilestones && view.archivePointers.length > 0 && client !== null && ledger !== null && (
                 <ArchiveSubsections
                   pointers={view.archivePointers}
                   fetchArchive={(archiveId) => client.fetchLedgerArchive(ledger, archiveId)}

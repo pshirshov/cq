@@ -113,6 +113,22 @@ export class FakeClient implements LedgerClient {
 
   /** Per-ledger archive entries (pointer list + content). */
   private archives: Record<string, ArchiveEntry[]> = {
+    milestones: [
+      {
+        pointer: { id: "MA1", path: "./archive/milestones/MA1.md", summary: "archived milestone group" },
+        content: {
+          kind: "group",
+          milestone: {
+            id: "MA1",
+            title: "Old Phase",
+            description: "",
+            items: [
+              { id: "MA1-item", milestoneId: "MA1", status: "done", fields: { title: "Archived Milestone" }, createdAt: "2025-01-01T00:00:00.000Z", updatedAt: "2025-01-01T00:00:00.000Z" },
+            ],
+          },
+        },
+      },
+    ],
     bugs: [
       {
         pointer: { id: "A1", path: "./archive/bugs/A1.md", summary: "initial bootstrap fixes" },
