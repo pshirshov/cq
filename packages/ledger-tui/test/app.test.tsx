@@ -607,8 +607,17 @@ describe("ledger-tui live updates", () => {
     expect(r.lastFrame() ?? "").not.toContain("pushed-tui");
 
     await client.createItem("bugs", "M1", { status: "open", fields: { headline: "pushed-tui" } });
-    FakeWS.instances[0]!.push({ type: "changed", ledger: "bugs" });
-    await tick(60);
+    // Bounded wait-for: push and poll until the re-fetched frame contains the
+    // pushed item (up to 50 iterations × 20 ms = 1 s max). Re-pushing on each
+    // iteration covers the race where React's passive effects (updating
+    // refreshRef.current with the current reloadItems closure) hadn't fired yet
+    // when the first push arrived — eventually they fire, and the next push
+    // triggers the correct async refetch+render.
+    for (let i = 0; i < 50; i++) {
+      if ((r.lastFrame() ?? "").includes("pushed-tui")) break;
+      FakeWS.instances[0]!.push({ type: "changed", ledger: "bugs" });
+      await tick(20);
+    }
     expect(r.lastFrame() ?? "").toContain("pushed-tui");
     r.unmount();
   });
