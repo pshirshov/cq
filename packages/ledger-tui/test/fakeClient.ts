@@ -5,6 +5,7 @@
  */
 
 import type {
+  ArchiveContent,
   FetchedLedger,
   FieldValue,
   FtsHit,
@@ -119,6 +120,10 @@ export class FakeClient implements LedgerClient {
       })),
       archivePointers: [],
     };
+  }
+
+  async fetchLedgerArchive(_ledgerId: string, _archiveId: string): Promise<ArchiveContent> {
+    throw new Error("fetchLedgerArchive not implemented in FakeClient");
   }
 
   private find(ledgerId: string, itemId: string): Item {

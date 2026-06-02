@@ -109,6 +109,9 @@ export class DagFakeClient implements LedgerClient {
     return { ...it, status: patch.status ?? it.status };
   }
 
+  async fetchLedgerArchive(): Promise<never> {
+    throw new Error("not used in DAG tests");
+  }
   async fetchItem(): Promise<Item> {
     throw new Error("not used in DAG tests");
   }

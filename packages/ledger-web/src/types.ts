@@ -13,8 +13,9 @@ import type {
   ResolvedMilestone,
   LedgerSchema,
 } from "@cq/ledger";
+import type { ArchiveContent } from "@cq/ledger";
 
-export type { Item, FieldValue, FetchedLedger, FetchedMilestoneGroup, LedgerSummary, ResolvedMilestone, LedgerSchema };
+export type { Item, FieldValue, FetchedLedger, FetchedMilestoneGroup, LedgerSummary, ResolvedMilestone, LedgerSchema, ArchiveContent };
 
 export interface FtsHit {
   ledgerId: string;
@@ -58,6 +59,7 @@ export interface MilestonePatch {
 export interface LedgerClient {
   enumerateLedgers(): Promise<LedgerSummary[]>;
   fetchLedger(ledgerId: string): Promise<FetchedLedger>;
+  fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent>;
   fetchItem(ledgerId: string, itemId: string): Promise<Item>;
   createItem(ledgerId: string, milestoneId: string, init: ItemInit): Promise<Item>;
   updateItem(ledgerId: string, itemId: string, patch: ItemPatch): Promise<Item>;

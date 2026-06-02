@@ -15,6 +15,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { buildServer, createEmbeddedStore } from "@cq/ledger-mcp";
 import type { FsLedgerStore } from "@cq/ledger";
 import type {
+  ArchiveContent,
   FetchedLedger,
   FieldValue,
   FtsHit,
@@ -123,6 +124,15 @@ export class McpLedgerClient implements LedgerClient {
   async fetchLedger(ledgerId: string): Promise<FetchedLedger> {
     return (await this.call<{ ledger: FetchedLedger }>("fetch_ledger", { ledger_id: ledgerId }))
       .ledger;
+  }
+
+  async fetchLedgerArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
+    return (
+      await this.call<{ archive: ArchiveContent }>("fetch_ledger_archive", {
+        ledger_id: ledgerId,
+        archive_id: archiveId,
+      })
+    ).archive;
   }
 
   async fetchItem(ledgerId: string, itemId: string): Promise<Item> {

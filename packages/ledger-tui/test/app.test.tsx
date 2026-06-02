@@ -15,7 +15,7 @@ import React from "react";
 import { render } from "ink-testing-library";
 import { App } from "../src/app.js";
 import { FakeClient } from "./fakeClient.js";
-import type { FetchedLedger, Item, LedgerClient, LedgerSummary } from "../src/types.js";
+import type { ArchiveContent, FetchedLedger, Item, LedgerClient, LedgerSummary } from "../src/types.js";
 
 const DOWN = "[B";
 const ENTER = "\r";
@@ -52,6 +52,9 @@ class ManyItemsClient implements LedgerClient {
       ],
       archivePointers: [],
     };
+  }
+  async fetchLedgerArchive(): Promise<ArchiveContent> {
+    throw new Error("not used");
   }
   async fetchItem(): Promise<Item> {
     throw new Error("not used");
@@ -103,6 +106,9 @@ class NoTransitionsClient implements LedgerClient {
       ],
       archivePointers: [],
     };
+  }
+  async fetchLedgerArchive(): Promise<ArchiveContent> {
+    throw new Error("not used");
   }
   async fetchItem(): Promise<Item> {
     throw new Error("not used");
