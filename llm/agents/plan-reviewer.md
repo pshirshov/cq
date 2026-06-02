@@ -63,11 +63,12 @@ Then classify each problem you find into exactly one bucket:
 The review STATUS *is* the verdict (both statuses are terminal — a review is an
 immutable record of one round):
 - **Satisfied** — plan is fine-grained, sequenced, testable, grounded, complete:
-  `create_item("reviews", M, status: "go-ahead", fields: { new_questions: [],
-  criticism: [], ledgerRefs: ["goals:<G>"] })`.
+  `create_item("reviews", M, status: "go-ahead", fields: { summary: "<one-line
+  verdict>", new_questions: [], criticism: [], ledgerRefs: ["goals:<G>"] })`.
 - **Not satisfied** — `create_item("reviews", M, status: "revise", fields: {
-  new_questions: [<user-only gaps>], criticism: [<planner-fixable defects>],
-  ledgerRefs: ["goals:<G>"] })`. At least one of the two arrays must be non-empty.
+  summary: "<one-line verdict>", new_questions: [<user-only gaps>], criticism:
+  [<planner-fixable defects>], ledgerRefs: ["goals:<G>"] })`. At least one of
+  the two arrays must be non-empty.
 
 Substitute the real goal id for `<G>` (e.g. `["goals:G1"]`). `new_questions`
 and `criticism` are `string[]`.

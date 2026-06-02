@@ -155,9 +155,12 @@ just-merged ones become ready. Continue passes until the ready-set is empty.
 The reviewer writes NOTHING to the ledger. YOU record exactly ONE terminal
 `reviews` item per task once it reaches a terminal review outcome (approved, or
 blocked-on-question): `create_item("reviews", <taskMilestone>, status:
-"go-ahead" | "revise", fields: { criticism: [...], new_questions: [...],
-ledgerRefs: ["tasks:<id>", "goals:<G>"] })`. This keeps the ledger to one review
-per task instead of one per criticism round.
+"go-ahead" | "revise", fields: { summary: "<reviewer's summary field, or
+'<verdict>: <first line of rationale, truncated to ~80 chars>' if omitted>",
+criticism: [...], new_questions: [...], ledgerRefs: ["tasks:<id>",
+"goals:<G>"] })`. Use the reviewer's `summary` when present; otherwise
+synthesize `'<verdict>: <first line of rationale, truncated to ~80 chars>'`.
+This keeps the ledger to one review per task instead of one per criticism round.
 
 ## Milestone completion
 When every task under a target milestone is terminal (`done`/abandoned),

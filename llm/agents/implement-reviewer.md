@@ -59,7 +59,8 @@ the terminal review:
   "verdict": "approve | disapprove",
   "criticism": ["<autonomously-fixable defect>", "..."],
   "questions": ["<user-only ambiguity, phrased as a question>", "..."],
-  "rationale": "<1-3 lines: the decisive evidence for the verdict>"
+  "rationale": "<1-3 lines: the decisive evidence for the verdict>",
+  "summary": "<optional one-line summary of the verdict for the reviews ledger item>"
 }
 ```
 
