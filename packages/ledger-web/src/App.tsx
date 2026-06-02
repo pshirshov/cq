@@ -115,6 +115,15 @@ function fieldToString(v: FieldValue | undefined): string {
   if (v === undefined) return "";
   return Array.isArray(v) ? v.join(", ") : v;
 }
+function renderListField(items: string[]): React.ReactElement {
+  return (
+    <ul className="lw-field-list">
+      {items.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  );
+}
 const SUMMARIZE_MAX = 80;
 function summarize(item: Item): string {
   const f = item.fields;
@@ -1762,7 +1771,7 @@ function DetailPanel({
     );
     const valueOf = (k: string): FieldValue | undefined => row.item.fields[k];
     const renderVal = (v: FieldValue): React.ReactNode =>
-      Array.isArray(v) ? v.join(", ") : <Markdown text={v} />;
+      Array.isArray(v) ? renderListField(v) : <Markdown text={v} />;
     const recVal = valueOf(RECOMMENDATION_FIELD);
     const ansVal = valueOf(ANSWER_FIELD);
     return (
@@ -1835,7 +1844,7 @@ function DetailPanel({
                 <React.Fragment key={k}>
                   <dt>{k}</dt>
                   <dd data-testid={`detail-field-${k}`}>
-                    {Array.isArray(v) ? v.join(", ") : <Markdown text={v} />}
+                    {Array.isArray(v) ? renderListField(v) : <Markdown text={v} />}
                   </dd>
                 </React.Fragment>
               ))}

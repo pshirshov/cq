@@ -217,6 +217,23 @@ describe("ledger-web App", () => {
     expect(follows(recommendation, answer)).toBe(true);
   });
 
+  it("renders suggestions string[] as a bulleted list (three <li> entries)", async () => {
+    await mount();
+    click(testid("ledger-questions"));
+    await flush();
+    click(testid("item-Q2"));
+    await flush();
+    const dd = testid("detail-field-suggestions");
+    expect(dd).not.toBeNull();
+    const items = dd?.querySelectorAll("li");
+    expect(items?.length).toBe(3);
+    expect(items?.[0]?.textContent).toBe("opt a");
+    expect(items?.[1]?.textContent).toBe("opt b");
+    expect(items?.[2]?.textContent).toBe("opt c");
+    // Must NOT be a joined comma string.
+    expect(dd?.textContent).not.toContain("opt a, opt b");
+  });
+
   it("opens item detail when a row is clicked", async () => {
     await mount();
     click(testid("ledger-bugs"));
