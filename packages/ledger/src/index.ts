@@ -60,3 +60,8 @@ export { createLedgerMcpTools, LEDGER_TOOL_NAMES } from "./mcp/ledgerTools.js";
 export { registerLedgerStdioTools } from "./mcp/stdioLedgerTools.js";
 export { LedgerSearchIndex } from "./search/LedgerSearchIndex.js";
 export type { FtsSearchOpts, FtsSearchHit } from "./search/LedgerSearchIndex.js";
+export {
+  defectFixTaskIds,
+  hypothesisRelationships,
+} from "./relationships.js";
+export type { HypothesisRelationships } from "./relationships.js";
