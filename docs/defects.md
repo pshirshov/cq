@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 8
+  item: 9
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -42,10 +42,10 @@ archives:
 - rootCause: "CONFIRMED (H5). packages/ledger/package.json declares main + exports['.']=./dist/index.js and ['./relationships']=./dist/relationships.js, but tsc (tsconfig outDir ./dist, include [src,test], NO rootDir → roots at packages/ledger/) emits under ./dist/src/. Validated on disk: dist/index.js + dist/relationships.js are MISSING; dist/src/index.js + dist/src/relationships.js exist. Internal inconsistency: ['./columns'] ALREADY correctly points at ./dist/src/columns.js. Masked in-repo by tsconfig paths→source (ledger-web/tsconfig.json:11-16, ledger-mcp tsconfig); a published / nix clean-checkout consumer relying on the exports map would fail to resolve @cq/ledger or @cq/ledger/relationships."
 - dependsOn: ["T98","T99","T101"]
 
-### D4 — wip
+### D4 — resolved
 
 - createdAt: 2026-06-02T12:19:14.330Z
-- updatedAt: 2026-06-02T17:39:12.022Z
+- updatedAt: 2026-06-02T18:25:37.852Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "`headline` is column-eligible — column picker can show a redundant headline/summary column"
@@ -55,6 +55,7 @@ archives:
 - ledgerRefs: ["tasks:T62","goals:G2"]
 - rootCause: "CONFIRMED (H6). packages/ledger/src/columns.ts: eligibleColumnFields (L55-72) = schema fields minus LONG_FIELD_DENYLIST (L35-47, which lists description/rationale/criticism/context/etc.) minus ALWAYS_SHOWN_COLUMNS {id,status,summary}. headline/title/question are in NEITHER set → returned as eligible. summarize() (tui app.tsx:82-86, web App.tsx:181-185) picks headline ?? title ?? question ?? summary first, so selecting the headline (or title/question) column renders that text BOTH as an extra column cell (app.tsx:1200-1210) AND as the trailing summary cell — duplicated per row. Cosmetic."
 - dependsOn: ["T102"]
+- fix: "T102 (5cf4883): added SUMMARY_SOURCE_FIELDS {headline,title,question} excluded from eligibleColumnFields so the column picker never offers a field that duplicates the summary cell; suggestedModel and other genuine fields still eligible. New ledger columns.test.ts (fails pre-fix); integration check 634 green."
 
 ## M18
 
@@ -88,10 +89,10 @@ archives:
 
 ## M21
 
-### D7 — open
+### D7 — resolved
 
 - createdAt: 2026-06-02T16:17:17.745Z
-- updatedAt: 2026-06-02T16:18:29.349Z
+- updatedAt: 2026-06-02T18:25:35.516Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "MILESTONES ledger renders archived milestones twice: once as their own row, again as an archived per-milestone subsection (ArchiveSubsections not scoped to exclude the milestones ledger)"
@@ -101,6 +102,7 @@ archives:
 - suggestedFix: Gate the ArchiveSubsections render on `!isMilestones` (the flag is already in scope at App.tsx ~L1232/L1246/L1258). Add a happy-dom assertion that the milestones ledger view, with showArchive on, renders NO archive-section subsections (data-testid `archive-section` absent / no `ms-section-*` duplicate for an already-listed milestone row), while a non-milestones ledger still renders them.
 - ledgerRefs: ["goals:G2"]
 - dependsOn: ["T90"]
+- fix: "T90 (208b446): gated the ArchiveSubsections render on `!isMilestones` so the MILESTONES ledger no longer duplicates an archived milestone as both a flat row and an archived subsection. happy-dom repro + non-milestones regression guard; integration check 634 green."
 
 ### D8 — open
 
@@ -115,3 +117,15 @@ archives:
 - suggestedFix: Thread the milestone `title` to the archived MilestoneSubsection head and render it (parity with active sections). Prefer adding `title` to the ArchivePointer payload at the MCP/server boundary so the head shows the title on first paint without waiting for lazy content. Add a happy-dom assertion that an archived section head shows the milestone title, not its description.
 - ledgerRefs: ["goals:G2"]
 - dependsOn: ["T91"]
+
+### D9 — open
+
+- createdAt: 2026-06-02T18:25:44.398Z
+- updatedAt: 2026-06-02T18:25:44.398Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- headline: Flaky ledger-tui HTTP-client tests under full-suite concurrency (ConnectionRefused / 'Unable to connect')
+- severity: low
+- description: "Surfaced (out-of-scope) during T90 review. Under one `bun run check` invocation, ~3-4 tests in packages/ledger-tui/test/{mcpClient,displayName}.test.ts failed with 'Unable to connect. Is the computer able to access the url?' (McpLedgerClient over HTTP — update status / surface validation errors; displayName HTTP — serverInfo.title). They PASS on isolated re-run (6/0) and in the full suite on re-run, indicating a connection-setup / port-binding race under concurrent test execution — NOT a product defect, a test-harness flakiness. Independent of any G2/G4/G5 task diff."
+- suggestedFix: "In the HTTP McpLedgerClient test harness, allocate an ephemeral port and WAIT for the server to confirm listening (readiness probe) before the client connects, so concurrent test execution cannot race the bind. Or serialize those HTTP tests. Triage via /investigate:start D9 when chosen."
+- ledgerRefs: ["tasks:T90","goals:G2"]

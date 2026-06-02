@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 78
+  item: 82
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -384,3 +384,55 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G5"]
 - tags: ["round-2","go-ahead","all-R77-criticisms-resolved"]
+
+## M21
+
+### R79 — go-ahead
+
+- createdAt: 2026-06-02T18:25:25.168Z
+- updatedAt: 2026-06-02T18:25:25.168Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T90","goals:G2"]
+- tags: ["implement-flow","round-0","approve","!isMilestones gate; valid fail-first repro + regression guard; check 634; out-of-scope ledger-tui HTTP flake filed D9"]
+
+## M22
+
+### R80 — go-ahead
+
+- createdAt: 2026-06-02T18:25:27.511Z
+- updatedAt: 2026-06-02T18:25:27.511Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T94","goals:G4"]
+- tags: ["implement-flow","round-0","approve","4-step backup+reinit helper, ENOENT-tolerant, backup-before-reinit, init() untouched; 7 tests; check 634"]
+
+## M24
+
+### R81 — go-ahead
+
+- createdAt: 2026-06-02T18:25:30.328Z
+- updatedAt: 2026-06-02T18:25:30.328Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T98","goals:G5"]
+- tags: ["implement-flow","round-0","approve","all exports realigned ./dist/src/*; targets exist after build; tsconfig untouched; no ./constants yet (T99); check 634"]
+
+## M25
+
+### R82 — go-ahead
+
+- createdAt: 2026-06-02T18:25:32.680Z
+- updatedAt: 2026-06-02T18:25:32.680Z
+- author: "opus-4.8[1m]"
+- session: 0a4a7acf-25b6-4783-83a1-a45870023493
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T102","goals:G5"]
+- tags: ["implement-flow","round-0","approve","summary-source exclusion grounded in summarize(); suggestedModel intact; fail-first repro verified; check 634"]

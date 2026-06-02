@@ -329,10 +329,10 @@ archives:
 
 ## M21
 
-### T90 — planned
+### T90 — done
 
 - createdAt: 2026-06-02T16:17:46.146Z
-- updatedAt: 2026-06-02T16:17:46.146Z
+- updatedAt: 2026-06-02T18:25:13.017Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Web: do not render archived subsections for the MILESTONES ledger (fix D7 / item 16)"
@@ -340,6 +340,8 @@ archives:
 - acceptance: "happy-dom test: with the MILESTONES ledger selected and showArchive enabled, no `data-testid=archive-section` (and no archived `ms-section-*` duplicating an already-listed milestone row) is rendered; with a NON-milestones ledger selected and showArchive enabled, the archive subsections still render. `bun run check` (bun test + tsc -b + eslint) passes."
 - suggestedModel: standard
 - ledgerRefs: ["defects:D7","goals:G2"]
+- resultCommit: 208b446
+- completion: Added `&& !isMilestones` to the ArchiveSubsections JSX gate (App.tsx ~L1193) so the MILESTONES ledger no longer renders archived per-milestone subsections (already shown as flat rows); non-milestones unchanged. fakeClient milestones-archive entry + 2 happy-dom tests (repro fails pre-fix). Reviewer approve 0/0.
 
 ### T91 — planned
 
@@ -402,10 +404,10 @@ archives:
 
 ## M22
 
-### T94 — planned
+### T94 — done
 
 - createdAt: 2026-06-02T16:31:03.192Z
-- updatedAt: 2026-06-02T16:31:03.192Z
+- updatedAt: 2026-06-02T18:25:16.651Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Add backupAndReinit helper to FsLedgerStore
@@ -413,6 +415,8 @@ archives:
 - acceptance: A private backup-and-reinit helper exists on FsLedgerStore that, given the set of divergent canonical ledgers, (1) creates docs/.backup/<sanitized-ISO-ts>/, (2) copies the prior ledger file(s) + docs/ledgers.yaml into it (ENOENT-tolerant), (3) rewrites fresh canonical registry + ledger files (milestones seeded), and (4) writes one stderr WARNING with the backup path. Verified by the tests in the dual-tests task. tsc clean (bun run typecheck).
 - suggestedModel: standard
 - ledgerRefs: ["defects:D2","goals:G4"]
+- resultCommit: 0d66e33
+- completion: "Private async backupAndReinit() on FsLedgerStore: docs/.backup/<sanitized-ISO-ts>/, copies CANONICAL_LEDGERS files + ledgers.yaml (ENOENT-tolerant, backup-before-reinit), rewrites fresh canonical (milestones+M-AMBIENT seeded), one stderr WARNING. 7 unit tests. init() NOT yet rewired (T95). Reviewer approve 0/0."
 
 ### T95 — planned
 
@@ -465,10 +469,10 @@ archives:
 
 ## M24
 
-### T98 — planned
+### T98 — done
 
 - createdAt: 2026-06-02T17:38:11.599Z
-- updatedAt: 2026-06-02T17:44:42.403Z
+- updatedAt: 2026-06-02T18:25:19.503Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: Realign @cq/ledger package.json exports/main to ./dist/src/* (D3)
@@ -476,6 +480,8 @@ archives:
 - acceptance: "After `bun run build`/`tsc -b` of @cq/ledger, every file referenced by package.json main and each exports['.'|'./relationships'|'./columns'|'./constants'] target EXISTS on disk under ./dist/src/; all entries use the consistent ./dist/src/*.js layout; tsconfig.json is unchanged (no rootDir added); `bun run check` passes."
 - suggestedModel: standard
 - ledgerRefs: ["defects:D3","goals:G5"]
+- resultCommit: b1878e7
+- completion: "package.json main+types+exports['.']+['./relationships'] realigned ./dist/*.js → ./dist/src/*.js (./columns already correct); all targets confirmed present after tsc -b; tsconfig unchanged (no rootDir). Reviewer approve 0/0. (D3 partial — T99/T101 remain.)"
 
 ### T99 — planned
 
@@ -518,10 +524,10 @@ archives:
 
 ## M25
 
-### T102 — planned
+### T102 — done
 
 - createdAt: 2026-06-02T17:38:46.836Z
-- updatedAt: 2026-06-02T17:38:46.836Z
+- updatedAt: 2026-06-02T18:25:22.326Z
 - author: "opus-4.8[1m]"
 - session: 0a4a7acf-25b6-4783-83a1-a45870023493
 - headline: "Exclude summary-source fields {headline,title,question} from eligibleColumnFields + add columns unit test (D4)"
@@ -529,6 +535,8 @@ archives:
 - acceptance: eligibleColumnFields no longer returns headline/title/question; new packages/ledger/test/columns.test.ts asserts this and fails pre-fix, passes post-fix; the column picker no longer offers a redundant summary-duplicating column; `bun test` (ledger) and `bun run check` pass.
 - suggestedModel: fast
 - ledgerRefs: ["defects:D4","goals:G5"]
+- resultCommit: 5cf4883
+- completion: "Added SUMMARY_SOURCE_FIELDS {headline,title,question} excluded from eligibleColumnFields (grounded in summarize() precedence); suggestedModel still eligible. New ledger columns.test.ts (fails pre-fix) + tightened web columns.test.tsx. Reviewer approve 0/0."
 
 ## M26
 
