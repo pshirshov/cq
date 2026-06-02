@@ -301,6 +301,13 @@ button:hover {
   border-radius: 4px;
   border: 1px solid currentColor;
   font-size: 11px;
+  white-space: nowrap;
+}
+.lw-summary-cell {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Highlighted recommendation block on a question (T23): accent border + tint
    so the recommended answer stands out as the call-to-action. */

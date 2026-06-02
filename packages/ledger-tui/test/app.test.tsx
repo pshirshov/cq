@@ -651,3 +651,41 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     r.unmount();
   });
 });
+
+// ---------------------------------------------------------------------------
+// summarize() — legacy review fallback (Req5)
+// ---------------------------------------------------------------------------
+
+describe("ledger-tui summarize() legacy review fallback (Req5)", () => {
+  it("shows the summary field for a modern review (has summary)", async () => {
+    const h = await mount();
+    // Navigate to the reviews ledger (sorted: bugs=0, milestones=1, questions=2, reviews=3)
+    await h.key(DOWN); // → milestones
+    await h.key(DOWN); // → questions
+    await h.key(DOWN); // → reviews
+    await h.key(ENTER); // open reviews
+    await tick(40);
+    const f = h.frame();
+    // R2 has summary "Looks good overall" — must appear.
+    expect(f).toContain("Looks good overall");
+    // R2's criticism "Minor nit only" must NOT be shown as the summary.
+    expect(f).not.toContain("Minor nit only");
+    h.unmount();
+  });
+
+  it("shows the first criticism line (truncated) for a legacy review with no summary", async () => {
+    const h = await mount();
+    // Navigate to reviews ledger.
+    await h.key(DOWN); // → milestones
+    await h.key(DOWN); // → questions
+    await h.key(DOWN); // → reviews
+    await h.key(ENTER); // open reviews
+    await tick(40);
+    const f = h.frame();
+    // R1 has no summary — first criticism line must appear.
+    expect(f).toContain("The plan lacks detail on error handling");
+    // Second criticism "Missing rollback strategy" must NOT be joined in.
+    expect(f).not.toContain("Missing rollback strategy");
+    h.unmount();
+  });
+});

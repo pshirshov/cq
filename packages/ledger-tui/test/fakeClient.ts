@@ -56,6 +56,16 @@ const questionsSchema: LedgerSchema = {
     answer: { type: "string", required: false },
   },
 };
+const reviewsSchema: LedgerSchema = {
+  statusValues: ["go-ahead", "revise"],
+  terminalStatuses: ["go-ahead", "revise"],
+  idPrefix: "R",
+  transitions: { "go-ahead": [], revise: [] },
+  fields: {
+    summary: { type: "string", required: false },
+    criticism: { type: "string[]", required: false },
+  },
+};
 
 export class FakeClient implements LedgerClient {
   closed = false;
@@ -91,6 +101,20 @@ export class FakeClient implements LedgerClient {
           id: "M1",
           items: [
             { id: "Q1", milestoneId: "M1", status: "open", fields: { question: "Ship on Friday?", recommendation: "yes, ship it" }, createdAt: TS, updatedAt: TS },
+          ],
+        },
+      ],
+    },
+    reviews: {
+      schema: reviewsSchema,
+      groups: [
+        {
+          id: "M1",
+          items: [
+            // Legacy review: no summary field, only criticism (string[]).
+            { id: "R1", milestoneId: "M1", status: "revise", fields: { criticism: ["The plan lacks detail on error handling", "Missing rollback strategy"] }, createdAt: TS, updatedAt: TS },
+            // Modern review: has a summary field.
+            { id: "R2", milestoneId: "M1", status: "go-ahead", fields: { summary: "Looks good overall", criticism: ["Minor nit only"] }, createdAt: TS, updatedAt: TS },
           ],
         },
       ],

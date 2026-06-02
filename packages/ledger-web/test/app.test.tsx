@@ -527,6 +527,49 @@ describe("ledger-web App", () => {
     expect(testid("item-D1")).not.toBeNull();
     expect(testid("item-D3")).not.toBeNull();
   });
+
+  // ---- summarize() + badge/summary-cell styling (Req5) ----
+
+  it("shows the summary field for modern reviews (has summary)", async () => {
+    await mount();
+    click(testid("ledger-reviews"));
+    await flush();
+    // R2 has a summary field — it should appear as the cell text.
+    const row = testid("item-R2");
+    expect(row).not.toBeNull();
+    // The text of the row should contain the summary, not a joined criticism string.
+    expect(row?.textContent).toContain("Looks good overall");
+    expect(row?.textContent).not.toContain("Minor nit only");
+  });
+
+  it("shows a truncated single-line fallback for legacy reviews with no summary", async () => {
+    await mount();
+    click(testid("ledger-reviews"));
+    await flush();
+    // R1 has no summary field — should show the first criticism line, truncated.
+    const row = testid("item-R1");
+    expect(row).not.toBeNull();
+    // First criticism: "The plan lacks detail on error handling"
+    expect(row?.textContent).toContain("The plan lacks detail on error handling");
+    // The second criticism "Missing rollback strategy" must NOT be joined in.
+    expect(row?.textContent).not.toContain("Missing rollback strategy");
+  });
+
+  it("status badge has nowrap class and summary cell has ellipsis class", async () => {
+    await mount();
+    click(testid("ledger-reviews"));
+    await flush();
+    // lw-status badge must not wrap: white-space:nowrap is on the element.
+    const badge = testid("status-R1");
+    expect(badge).not.toBeNull();
+    expect(badge?.className).toContain("lw-status");
+    // Summary cell must carry lw-summary-cell for overflow:hidden + ellipsis.
+    // The summary <td> is the last td in the row.
+    const row = testid("item-R1");
+    const tds = row?.querySelectorAll("td");
+    const summaryTd = tds?.[tds.length - 1];
+    expect(summaryTd?.className).toContain("lw-summary-cell");
+  });
 });
 
 describe("ledger-web keyboard navigation", () => {

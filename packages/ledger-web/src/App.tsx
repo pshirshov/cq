@@ -107,10 +107,18 @@ function fieldToString(v: FieldValue | undefined): string {
   if (v === undefined) return "";
   return Array.isArray(v) ? v.join(", ") : v;
 }
+const SUMMARIZE_MAX = 80;
 function summarize(item: Item): string {
   const f = item.fields;
-  const pick = f["headline"] ?? f["title"] ?? f["question"] ?? f["summary"] ?? Object.values(f)[0];
-  return fieldToString(pick as FieldValue | undefined);
+  const pick = f["headline"] ?? f["title"] ?? f["question"] ?? f["summary"];
+  if (pick !== undefined) return fieldToString(pick as FieldValue | undefined);
+  // Legacy fallback for reviews with no summary: truncate the first criticism line.
+  const crit = f["criticism"];
+  if (Array.isArray(crit) && crit.length > 0) {
+    const line = String(crit[0]).split("\n")[0] ?? "";
+    return line.length > SUMMARIZE_MAX ? line.slice(0, SUMMARIZE_MAX) + "…" : line;
+  }
+  return fieldToString(Object.values(f)[0] as FieldValue | undefined);
 }
 /** A field is "short" (fixed-size) when its value is single-line and compact. */
 const SHORT_FIELD_MAX = 48;
@@ -1109,7 +1117,7 @@ function ItemTable({
                     {r.item.status}
                   </span>
                 </td>
-                <td>{summarize(r.item)}</td>
+                <td className="lw-summary-cell">{summarize(r.item)}</td>
               </tr>
             );
           })}
@@ -1188,7 +1196,7 @@ function ItemTable({
                             {r.item.status}
                           </span>
                         </td>
-                        <td>{summarize(r.item)}</td>
+                        <td className="lw-summary-cell">{summarize(r.item)}</td>
                       </tr>
                     );
                   })}
