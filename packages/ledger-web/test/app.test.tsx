@@ -1019,6 +1019,66 @@ describe("ledger-web App", () => {
     expect(testid("archive-section")).not.toBeNull();
     expect(testid("ms-section-A1")).not.toBeNull();
   });
+
+  // ---- D5 / T104: archived milestone-section head renders a status badge ----
+  // The archived ArchivePointer carries a `status` field (added by T91). The
+  // archived MilestoneSubsection must pass that status as `milestoneStatus` so
+  // the T80 badge renders for archived heads too. An empty-status pointer (legacy
+  // backward-compat `""` default) must NOT render an empty badge.
+
+  it("T104: archived section head renders a status badge when status is present", async () => {
+    await mount();
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+
+    // FakeClient has status: "done" on both A1 and A2 pointers.
+    // The badge must appear for each archived section head.
+    const badgeA1 = testid("ms-status-badge-A1");
+    expect(badgeA1).not.toBeNull();
+    // "done" is terminal in the milestones schema → done bucket.
+    expect(badgeA1!.className).toContain("lw-status");
+    expect(badgeA1!.className).toContain("lw-status-done");
+    expect(badgeA1!.textContent).toBe("done");
+
+    const badgeA2 = testid("ms-status-badge-A2");
+    expect(badgeA2).not.toBeNull();
+    expect(badgeA2!.className).toContain("lw-status-done");
+    expect(badgeA2!.textContent).toBe("done");
+  });
+
+  it("T104: archived section head does NOT render a badge for an empty-status pointer (legacy backward-compat)", async () => {
+    await mount();
+
+    // Inject an archive pointer with an empty status string to simulate a legacy
+    // pointer (T91 added `""` as the backward-compat default for pre-T91 files).
+    const origFetch = fake.fetchLedger.bind(fake);
+    fake.fetchLedger = async (id: string) => {
+      const v = await origFetch(id);
+      if (id === "bugs") {
+        return {
+          ...v,
+          archivePointers: v.archivePointers.map((p) =>
+            p.id === "A1" ? { ...p, status: "" } : p,
+          ),
+        };
+      }
+      return v;
+    };
+
+    click(testid("ledger-bugs"));
+    await flush();
+    click(testid("toggle-archive"));
+    await flush();
+
+    // A1 has empty status → badge must NOT render.
+    expect(testid("ms-status-badge-A1")).toBeNull();
+    // A2 still has "done" → badge IS present.
+    const badgeA2 = testid("ms-status-badge-A2");
+    expect(badgeA2).not.toBeNull();
+    expect(badgeA2!.className).toContain("lw-status-done");
+  });
 });
 
 describe("ledger-web keyboard navigation", () => {

@@ -1624,9 +1624,10 @@ function MilestoneSubsection({
   id: string;
   headerLabel: string;
   /**
-   * When provided (active milestone groups), renders a status badge using the
-   * shared `lw-status lw-status-<bucket>` class derived from MILESTONES_SCHEMA.
-   * Absent for archived groups (status badge rendering is a separate task — T104).
+   * When provided (non-empty), renders a status badge using the shared
+   * `lw-status lw-status-<bucket>` class derived from MILESTONES_SCHEMA.
+   * Passed for both active and archived milestone groups; absent or empty means
+   * no badge renders.
    */
   milestoneStatus?: string;
   archived: boolean;
@@ -1992,6 +1993,7 @@ function ArchiveSubsections({
               key={p.id}
               id={p.id}
               headerLabel={headerLabel}
+              {...(p.status.length > 0 ? { milestoneStatus: p.status } : {})}
               archived={true}
               collapsed={collapsed}
               onToggle={() => toggle(p.id)}
