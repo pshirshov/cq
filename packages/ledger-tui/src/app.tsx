@@ -724,7 +724,7 @@ export function App({
   const itemsArchiveRows = top.kind === "items" ? top.archiveRows : EMPTY_ROWS;
   // The effective extra-column selection, restricted to schema-eligible fields.
   const itemsColumnsKey =
-    itemsLedger !== null ? columnsFor(itemsLedger).join(" ") : "";
+    itemsLedger !== null ? columnsFor(itemsLedger).join("|") : "";
   const itemsDerived = useMemo<ItemsDerived | null>(() => {
     if (itemsView === null || itemsLedger === null) return null;
     const schema = itemsView.schema;
