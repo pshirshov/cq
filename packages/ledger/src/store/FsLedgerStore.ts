@@ -235,18 +235,34 @@ export class FsLedgerStore implements LedgerStore {
   }
 
   /**
-   * For the milestones ledger: populate `title` and `status` on any
-   * ArchivePointer whose persisted entry was written before T91 (and
-   * therefore lacks those fields — they default to ""). Reads each such
-   * pointer's archive .md and extracts the milestone item's title field and
-   * status. Fail-soft: ENOENT or a parse error leaves the pointer unchanged
-   * and never propagates (init must not fail on a legacy/absent archive file).
+   * Populate `title` and `status` on any ArchivePointer whose persisted entry
+   * was written before T91 (and therefore lacks those fields — they default to
+   * ""). Fail-soft: ENOENT or a parse error leaves the pointer unchanged and
+   * never propagates (init must not fail on a legacy/absent archive file).
    * Called once during init(), before this.initialised is set to true.
+   *
+   * Source selection:
+   * - milestones ledger: reads `ptr.path` (the single-ITEM archive at
+   *   docs/archive/milestones/<id>.md) and parses with parseMilestoneItemArchive.
+   * - non-milestones ledger: `ptr.path` resolves to a milestone-GROUP archive
+   *   (docs/archive/<ledger>/<id>.md) that carries items but NO milestone title.
+   *   For these we read the milestones-ledger single-ITEM archive at
+   *   docs/archive/milestones/<ptr.id>.md instead (D16 / T110).
    */
   private async backfillLegacyArchivePointers(ledger: Ledger): Promise<void> {
+    const isMilestones = ledger.id === MILESTONES_LEDGER;
     for (const ptr of ledger.archivePointers) {
       if (ptr.title !== "" && ptr.status !== "") continue; // already populated
-      const absPath = path.resolve(this.docsDir, ptr.path);
+      // Determine the source path:
+      // - milestones ledger: the pointer's own path (single-ITEM archive).
+      // - non-milestones ledger: the milestones-ledger single-ITEM archive
+      //   keyed by ptr.id, which is where the milestone title lives.
+      let absPath: string;
+      if (isMilestones) {
+        absPath = path.resolve(this.docsDir, ptr.path);
+      } else {
+        absPath = path.join(this.archiveDir, MILESTONES_LEDGER, `${ptr.id}.md`);
+      }
       // Defense-in-depth: skip paths that escape the docs root.
       if (absPath === this.docsDir || !absPath.startsWith(this.docsDir + path.sep)) continue;
       let text: string;
@@ -393,14 +409,18 @@ export class FsLedgerStore implements LedgerStore {
       if (needsWrite) await this.writeLedgerFile(ledger);
       this.ledgers.set(entry.name, ledger);
       // Backfill title+status on legacy ArchivePointers (pre-T91) that were
-      // persisted without those fields (D12). The read path (fetch/
+      // persisted without those fields (D12/D16). The read path (fetch/
       // materialiseFetchedLedger) is synchronous+FS-free and cannot do async
       // I/O; init() is the only async locus that can recover the data.
       // Fail-soft: a missing or malformed archive file leaves the pointer
       // with empty title/status and never throws.
-      if (isMilestones) {
-        await this.backfillLegacyArchivePointers(ledger);
-      }
+      // NOTE: milestones ledger must be processed FIRST (it appears first in
+      // CANONICAL_LEDGERS) so its in-memory archivePointers are populated
+      // before the non-milestones ledgers' backfill runs. Non-milestones
+      // pointers source their title from docs/archive/milestones/<id>.md
+      // (the same single-ITEM file); they do NOT depend on the in-memory
+      // milestones state, but the file is the same source used by milestones.
+      await this.backfillLegacyArchivePointers(ledger);
     }
     this.initialised = true;
     // Build the FTS index for every loaded ledger (active + archived).
