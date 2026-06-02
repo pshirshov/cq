@@ -350,9 +350,10 @@ describe("bootstrap idempotence + divergence guard", () => {
         serializeRegistry({ version: 1, ledgers: divergent }),
         "utf8",
       );
-      // T95: with the opt-out policy, init() still throws on divergence.
-      // (T96 will formalize this migration + add the default backup-reinit
-      // coverage; this minimal edit keeps the worktree's `bun run check` green.)
+      // Abort opt-out coverage (T95/T96): these 6 cases exercise the
+      // `onSchemaDivergence:'abort'` policy — init() rejects loudly on
+      // divergence so the operator must handle it.  The DEFAULT policy
+      // (backup-reinit) is covered by backup-reinit-init.test.ts §1.
       const store = new FsLedgerStore({ root: dir, onSchemaDivergence: "abort" });
       await expect(store.init()).rejects.toThrow(/different schema/);
     });
