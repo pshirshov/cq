@@ -88,14 +88,18 @@ auto-launch **always when possible**.
 
 Derive the worklist from the **ledger**, not from the plan-advance subagent's
 prose summary. The subagent emits a single advisory status token; its prose is
-ADVISORY ONLY and MUST NOT be the source of truth. Query the ledger for:
+ADVISORY ONLY and MUST NOT be the source of truth. Query the ledger by defect
+**STATUS** (T116's queryable lifecycle, not a prose marker):
 
-> every `open` **defect** whose `ledgerRefs` link the just-advanced goal
-> (`goals:<G>`) and that has **no terminal status** (not `resolved`/`wontfix`)
+> every **defect** whose `ledgerRefs` link the just-advanced goal (`goals:<G>`)
+> and whose `status` is still **ACTIONABLE** — `open`, `wip`, or `inconclusive`.
+> (`root-caused` is READY-TO-SEED, handled by the seed gate below — NOT a fresh
+> investigate target; `resolved`/`wontfix` are terminal and EXCLUDED.)
 
-(`fts_search`/`search_items` on the `defects` ledger filtered to `status:open`
-with a `goals:<G>` ledgerRef; cross-check `fetch_item` as needed). This set —
-NOT the subagent's summary — is the auto-investigate worklist for G.
+(`fts_search`/`search_items` on the `defects` ledger filtered to
+`(status:open OR status:wip OR status:inconclusive)` with a `goals:<G>`
+ledgerRef; cross-check `fetch_item` as needed). This set — NOT the subagent's
+summary — is the auto-investigate worklist for G.
 
 ### For each defect D in the worklist
 
@@ -108,10 +112,13 @@ ONLY this orchestrator (a command) does the chaining — the `plan-advance` /
 `plan-reviewer` subagents only FILE defects (T73), they never run
 `/investigate:advance`.
 
-**On a confirmed root cause**, the inline `/investigate:advance` pass performs
-its own file-and-defer handoff: it writes `defects.rootCause`/`suggestedFix` and
-**seeds or extends a defect-seeded goal** G′ (`ledgerRefs: ["defects:<D>"]`,
-created `planning`, never `clarifying` — K8 pt4). The orchestrator MAY then
+**When the defect reaches `status == root-caused`** (the READY-TO-SEED gate —
+the inline `/investigate:advance` pass sets that status when it adjudicates the
+defect's root cause, superseding the former rootCause-marker prose gate), that
+pass performs its own file-and-defer handoff: it writes
+`defects.rootCause`/`suggestedFix` and **seeds or extends a defect-seeded goal**
+G′ (`ledgerRefs: ["defects:<D>"]`, created `planning`, never `clarifying` — K8
+pt4). The orchestrator MAY then
 **auto-resume planning on that defect-seeded goal G′ in the same session** — run
 the per-goal round on G′ (it skips clarification, K8 pt4 — Q42 "always when
 possible"). This is convergence (a confirmed cause flowing into reviewed fix
@@ -209,9 +216,10 @@ summary line (when run with no argument, one line for each goal advanced):
 
 Then, for the **auto-investigate phase**, add a line per defect D in the worklist
 covering its outcome and the next action:
-- **confirmed → seeded goal** — root cause confirmed; defect-seeded goal G′
-  created/extended (ledgerRef `defects:<D>`). If G′ was auto-resumed and reached
-  `planned`, say so (point to the fix tasks); else: "run `/plan:advance G′`".
+- **root-caused → seeded goal** — defect reached `status == root-caused`;
+  defect-seeded goal G′ created/extended (ledgerRef `defects:<D>`). If G′ was
+  auto-resumed and reached `planned`, say so (point to the fix tasks); else:
+  "run `/plan:advance G′`".
 - **parked on a question** — a stop predicate (d)/(e) or step-6 block fired; an
   `open` question was filed. "Answer question Qn in the TUI/web, then re-run."
 - **no-new-evidence-stopped** — predicate (b): the tree gained no new

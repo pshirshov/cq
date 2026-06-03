@@ -244,22 +244,24 @@ EACH entry:
    "<entry.severity>", rootCause?: "<entry.rootCause>", suggestedFix?:
    "<entry.suggestedFix>", description: "<filed from plan review R… as
    out-of-scope/pre-existing>", ledgerRefs: ["goals:<G>"] })`. Capture the new id
-   as **D**. (`severity` is REQUIRED — the reviewer always supplies it.) The
-   `open` status + the `goals:<G>` link are what the orchestrator's ledger query
-   will key on to discover this defect for auto-investigation (see below).
+   as **D**. (`severity` is REQUIRED — the reviewer always supplies it.) A freshly
+   filed defect starts at the ACTIONABLE status `open`; that status + the
+   `goals:<G>` link are what the orchestrator's ledger query will key on to
+   discover this defect for auto-investigation (see below).
 
 That is the WHOLE step — **file only**. Per **K12** (which supersedes K8 point
 3's handoff *direction*), you do NOT file a `run /investigate:start <D>` user
 question for these defects. The `/plan:*` COMMAND orchestrator (T74), after its
 primary planning work, **re-derives the auto-investigate worklist by QUERYING
-THE LEDGER** — `open` defects newly linked `goals:<G>` with no terminal status —
-and launches `/investigate:advance` itself. You are a SUBAGENT: you only FILE
+THE LEDGER** — defects linked `goals:<G>` whose `status` is still ACTIONABLE
+(`open`/`wip`/`inconclusive`; `root-caused` is ready-to-seed, `resolved`/`wontfix`
+terminal) — and launches `/investigate:advance` itself. You are a SUBAGENT: you only FILE
 the defect; you never spawn subagents and you never run `/investigate:advance`
 (K12 point 3 keeps subagents-cannot-spawn-subagents in force).
 
 This is **file-and-defer**: the defect is recorded for separate triage, while
-THIS plan proceeds unchanged. The defect record itself (its `open` status +
-`goals:<G>` link) is the AUTHORITATIVE signal the orchestrator queries — your
+THIS plan proceeds unchanged. The defect record itself (its actionable `open`
+status + `goals:<G>` link) is the AUTHORITATIVE signal the orchestrator queries — your
 prose summary is NOT a contract. You MAY note the filed `defects:<D>` id in your
 Session summary as **advisory context only**; the orchestrator does NOT parse the
 summary text to build its worklist (it re-derives that from the ledger query).
