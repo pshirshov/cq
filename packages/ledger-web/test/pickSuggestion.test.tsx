@@ -15,7 +15,39 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import { FakeClient } from "./fakeClient";
+import type { HoldClock } from "../src/HoldButton";
+import { HOLD_MS } from "../src/HoldButton";
 
+class FakeClock implements HoldClock {
+  private current = 0;
+  private nextHandle = 1;
+  private scheduled = new Map<number, { due: number; cb: () => void }>();
+  now(): number { return this.current; }
+  setTimeout(cb: () => void, ms: number): number {
+    const handle = this.nextHandle++;
+    this.scheduled.set(handle, { due: this.current + ms, cb });
+    return handle;
+  }
+  clearTimeout(handle: number): void { this.scheduled.delete(handle); }
+  advance(ms: number): void {
+    const target = this.current + ms;
+    for (;;) {
+      let nextHandle: number | null = null;
+      let nextDue = Infinity;
+      for (const [handle, entry] of this.scheduled) {
+        if (entry.due <= target && entry.due < nextDue) { nextDue = entry.due; nextHandle = handle; }
+      }
+      if (nextHandle === null) break;
+      const entry = this.scheduled.get(nextHandle)!;
+      this.scheduled.delete(nextHandle);
+      this.current = entry.due;
+      entry.cb();
+    }
+    this.current = target;
+  }
+}
+
+let holdClock: FakeClock;
 let container: HTMLElement;
 let root: Root;
 let fake: FakeClient;
@@ -37,10 +69,20 @@ function click(el: Element | null): void {
   });
 }
 
+async function holdFull(el: Element | null): Promise<void> {
+  if (el === null) throw new Error("holdFull: element not found");
+  act(() => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+  });
+  act(() => { holdClock.advance(HOLD_MS); });
+  await flush();
+}
+
 async function mount(): Promise<void> {
+  holdClock = new FakeClock();
   fake = new FakeClient();
   await act(async () => {
-    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp" }));
+    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp", holdClock }));
   });
   await flush();
 }
@@ -86,9 +128,8 @@ describe("per-suggestion pick button (T86)", () => {
     click(testid("item-Q2"));
     await flush();
 
-    // Click the pick button for the second suggestion ("opt b", index 1).
-    click(testid("answer-pick-suggestion-1"));
-    await flush();
+    // Perform a completed hold on the pick button for the second suggestion ("opt b", index 1).
+    await holdFull(testid("answer-pick-suggestion-1"));
 
     const q2 = await fake.fetchItem("questions", "Q2");
     expect(q2.status).toBe("answered");
@@ -102,8 +143,7 @@ describe("per-suggestion pick button (T86)", () => {
     click(testid("item-Q2"));
     await flush();
 
-    click(testid("answer-pick-suggestion-0"));
-    await flush();
+    await holdFull(testid("answer-pick-suggestion-0"));
 
     const q2 = await fake.fetchItem("questions", "Q2");
     expect(q2.status).toBe("answered");

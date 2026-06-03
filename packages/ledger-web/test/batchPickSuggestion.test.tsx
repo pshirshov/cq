@@ -21,7 +21,39 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import { FakeClient } from "./fakeClient";
+import type { HoldClock } from "../src/HoldButton";
+import { HOLD_MS } from "../src/HoldButton";
 
+class FakeClock implements HoldClock {
+  private current = 0;
+  private nextHandle = 1;
+  private scheduled = new Map<number, { due: number; cb: () => void }>();
+  now(): number { return this.current; }
+  setTimeout(cb: () => void, ms: number): number {
+    const handle = this.nextHandle++;
+    this.scheduled.set(handle, { due: this.current + ms, cb });
+    return handle;
+  }
+  clearTimeout(handle: number): void { this.scheduled.delete(handle); }
+  advance(ms: number): void {
+    const target = this.current + ms;
+    for (;;) {
+      let nextHandle: number | null = null;
+      let nextDue = Infinity;
+      for (const [handle, entry] of this.scheduled) {
+        if (entry.due <= target && entry.due < nextDue) { nextDue = entry.due; nextHandle = handle; }
+      }
+      if (nextHandle === null) break;
+      const entry = this.scheduled.get(nextHandle)!;
+      this.scheduled.delete(nextHandle);
+      this.current = entry.due;
+      entry.cb();
+    }
+    this.current = target;
+  }
+}
+
+let holdClock: FakeClock;
 let container: HTMLElement;
 let root: Root;
 let fake: FakeClient;
@@ -43,6 +75,15 @@ function click(el: Element | null): void {
   });
 }
 
+async function holdFull(el: Element | null): Promise<void> {
+  if (el === null) throw new Error("holdFull: element not found");
+  act(() => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+  });
+  act(() => { holdClock.advance(HOLD_MS); });
+  await flush();
+}
+
 /**
  * Fire onInput on an uncontrolled textarea by setting its value via the native
  * property descriptor and dispatching a synthetic input event (happy-dom safe).
@@ -58,9 +99,10 @@ function fireInput(el: Element | null, value: string): void {
 }
 
 async function mount(): Promise<void> {
+  holdClock = new FakeClock();
   fake = new FakeClient();
   await act(async () => {
-    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp" }));
+    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp", holdClock }));
   });
   await flush();
 }
@@ -102,8 +144,7 @@ describe("batch modal per-suggestion pick buttons (D18 / T114)", () => {
     await mount();
     await openBatchAtQ2();
 
-    click(testid("batch-pick-suggestion-1"));
-    await flush();
+    await holdFull(testid("batch-pick-suggestion-1"));
 
     // batchSave calls updateItem with ANSWERED_STATUS and the suggestion as the answer.
     const q2 = await fake.fetchItem("questions", "Q2");
@@ -115,8 +156,7 @@ describe("batch modal per-suggestion pick buttons (D18 / T114)", () => {
     await mount();
     await openBatchAtQ2();
 
-    click(testid("batch-pick-suggestion-0"));
-    await flush();
+    await holdFull(testid("batch-pick-suggestion-0"));
 
     const q2 = await fake.fetchItem("questions", "Q2");
     expect(q2.status).toBe("answered");
@@ -209,8 +249,7 @@ describe("batch modal per-suggestion pick buttons (D18 / T114)", () => {
     await openBatchAtQ2();
 
     // Pick suggestion at index 2 ('opt c').
-    click(testid("batch-pick-suggestion-2"));
-    await flush();
+    await holdFull(testid("batch-pick-suggestion-2"));
 
     const q2 = await fake.fetchItem("questions", "Q2");
     // batchSave sets status to answered (ANSWERED_STATUS) — confirms the batch save path was used.

@@ -25,7 +25,39 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import { FakeClient } from "./fakeClient";
+import type { HoldClock } from "../src/HoldButton";
+import { HOLD_MS } from "../src/HoldButton";
 
+class FakeClock implements HoldClock {
+  private current = 0;
+  private nextHandle = 1;
+  private scheduled = new Map<number, { due: number; cb: () => void }>();
+  now(): number { return this.current; }
+  setTimeout(cb: () => void, ms: number): number {
+    const handle = this.nextHandle++;
+    this.scheduled.set(handle, { due: this.current + ms, cb });
+    return handle;
+  }
+  clearTimeout(handle: number): void { this.scheduled.delete(handle); }
+  advance(ms: number): void {
+    const target = this.current + ms;
+    for (;;) {
+      let nextHandle: number | null = null;
+      let nextDue = Infinity;
+      for (const [handle, entry] of this.scheduled) {
+        if (entry.due <= target && entry.due < nextDue) { nextDue = entry.due; nextHandle = handle; }
+      }
+      if (nextHandle === null) break;
+      const entry = this.scheduled.get(nextHandle)!;
+      this.scheduled.delete(nextHandle);
+      this.current = entry.due;
+      entry.cb();
+    }
+    this.current = target;
+  }
+}
+
+let holdClock: FakeClock;
 let container: HTMLElement;
 let root: Root;
 let fake: FakeClient;
@@ -47,10 +79,20 @@ function click(el: Element | null): void {
   });
 }
 
+async function holdFull(el: Element | null): Promise<void> {
+  if (el === null) throw new Error("holdFull: element not found");
+  act(() => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+  });
+  act(() => { holdClock.advance(HOLD_MS); });
+  await flush();
+}
+
 async function mount(): Promise<void> {
+  holdClock = new FakeClock();
   fake = new FakeClient();
   await act(async () => {
-    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp" }));
+    root.render(createElement(App, { connect: async () => fake, initialUrl: "http://x/mcp", holdClock }));
   });
   await flush();
 }
@@ -94,8 +136,7 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     expect(testid("batch-overlay")).not.toBeNull();
 
     // Answer Q1.
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
 
     // Modal must close.
     expect(testid("batch-overlay")).toBeNull();
@@ -112,8 +153,7 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     expect(testid("batch-overlay")).not.toBeNull();
 
     // Q1 has a recommendation so the button is visible.
-    click(testid("batch-answer-as-recommended"));
-    await flush();
+    await holdFull(testid("batch-answer-as-recommended"));
 
     expect(testid("batch-overlay")).toBeNull();
   });
@@ -129,20 +169,17 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     expect(testid("batch-overlay")).not.toBeNull();
 
     // Answer Q1 (index 0).
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
     // Modal must still be open (Q2 and Q3 remain).
     expect(testid("batch-overlay")).not.toBeNull();
 
     // Answer Q2 (now at current index).
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
     // Modal must still be open (Q3 remains).
     expect(testid("batch-overlay")).not.toBeNull();
 
     // Answer Q3.
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
 
     // All answered — modal must close.
     expect(testid("batch-overlay")).toBeNull();
@@ -158,8 +195,7 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     expect(progressBefore).toContain("1 of 3");
 
     // Answer Q1.
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
 
     // Must advance — progress must NOT still show "1 of 3".
     // (The remaining set now has Q2 + Q3, still shown as 3 total but current changes.)
@@ -183,8 +219,7 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     expect(testid("batch-progress")?.textContent).toContain("2 of 3");
 
     // Answer Q2.
-    click(testid("batch-answer-submit"));
-    await flush();
+    await holdFull(testid("batch-answer-submit"));
 
     // Modal must remain open (Q1 and Q3 are still unanswered).
     expect(testid("batch-overlay")).not.toBeNull();
@@ -207,8 +242,7 @@ describe("BatchAnswerModal close on queue drain (D19 / T115)", () => {
     // Only Q3 is in the queue.
     expect(testid("batch-progress")?.textContent).toContain("1 of 1");
 
-    click(testid("batch-answer-as-recommended"));
-    await flush();
+    await holdFull(testid("batch-answer-as-recommended"));
 
     expect(testid("batch-overlay")).toBeNull();
   });
