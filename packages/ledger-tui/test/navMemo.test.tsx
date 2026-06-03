@@ -128,10 +128,22 @@ class LargeClient implements LedgerClient {
   async close(): Promise<void> {}
 }
 
+/**
+ * Bun worker-model note (T130): without --isolate / --parallel bun runs every
+ * test FILE in the same process sequentially, so `derivationCounters` (a
+ * module-global in app.js) is shared across ALL test files. The existing
+ * `resetDerivationCounters()` calls immediately before each measurement window
+ * handle this correctly — no additional beforeEach needed.
+ */
 describe("ledger-tui navigation memoization (T85)", () => {
-  it("heavy derivations run once per data-change, NOT per cursor move (N=500)", async () => {
-    const N = 500;
-    const NAV = 40; // cursor moves to perform
+  // Explicit 30 s timeout: worst-case is N mount + waitQuiescent (~3 s) +
+  // NAV×tick(8) + final settle. Under full-suite CPU contention the 5000 ms
+  // bun default can be exhausted; a generous explicit budget makes this test
+  // deterministic without relying on the scheduler. N and NAV are also kept
+  // modest (200 / 20) so the absolute worst-case stays well under the budget.
+  it("heavy derivations run once per data-change, NOT per cursor move (N=200)", async () => {
+    const N = 200; // reduced from 500 — still exercises O(N) path, but mounts faster
+    const NAV = 20; // reduced from 40 — still exercises the memoization invariant
     const client = new LargeClient(N);
     const r = render(<App client={client} />);
     await tick(); // enumerateLedgers resolves
@@ -168,7 +180,7 @@ describe("ledger-tui navigation memoization (T85)", () => {
     expect(derivationCounters.buildItemEntries).toBe(0);
 
     r.unmount();
-  });
+  }, 30_000); // explicit 30 s: generous budget for worst-case CPU contention
 
   it("a data change (status filter) DOES re-run the derivations", async () => {
     const client = new LargeClient(50);

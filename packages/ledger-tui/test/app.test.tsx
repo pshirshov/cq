@@ -299,7 +299,7 @@ describe("ledger-tui App", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open the only ledger
-    await tick(30);
+    await waitForFrame(() => r.lastFrame() ?? "", "T1"); // ledger loaded
     r.stdin.write(ENTER); // detail of the first item (status "todo")
     await tick(30);
     r.stdin.write("s"); // status picker
@@ -480,6 +480,7 @@ describe("ledger-tui App", () => {
   it("shows the path (ledger → milestone → item) in the header", async () => {
     const h = await mount();
     await h.key(ENTER); // open bugs (cursor 0)
+    await waitFor(h, "bugs → M1 → D1"); // poll until path header renders
     expect(h.frame()).toContain("bugs → M1 → D1");
     h.unmount();
   });
@@ -487,7 +488,8 @@ describe("ledger-tui App", () => {
   it("shows the highlighted item's detail in the content pane (two-pane)", async () => {
     const h = await mount();
     await h.key(ENTER); // open bugs; D1 auto-highlighted → content pane shows it
-    await tick(60);
+    // Poll until the content pane renders (replaces fixed tick(60) settle).
+    await waitFor(h, "headline: warp leak");
     const f = h.frame();
     // short fields render inline (key: value on one line), no second Enter needed
     expect(f).toContain("headline: warp leak");
@@ -498,6 +500,7 @@ describe("ledger-tui App", () => {
   it("filters the item list by status type (active/terminal)", async () => {
     const h = await mount();
     await h.key(ENTER); // open bugs — D1 [open] visible (open is non-terminal)
+    await waitFor(h, "D1"); // poll until the ledger items load after ENTER
     expect(h.frame()).toContain("D1");
     expect(h.frame()).toContain("[open]");
 
@@ -505,14 +508,16 @@ describe("ledger-tui App", () => {
     await h.key(DOWN); // → active
     await h.key(DOWN); // → terminal
     await h.key(ENTER);
-    await tick(30);
-    expect(h.frame()).toContain("[terminal]"); // header chip
+    // Poll until the stable positive co-indicator appears, THEN assert the negative.
+    // This prevents a race where the filter hasn't yet committed when we check.
+    await waitFor(h, "[terminal]"); // header chip (positive settle signal)
+    expect(h.frame()).toContain("[terminal]"); // confirmed stable
     expect(h.frame()).not.toContain("D1"); // the only item is non-terminal → hidden
 
     await h.key("f");
     await h.key(DOWN); // → active
     await h.key(ENTER);
-    await tick(30);
+    await waitFor(h, "D1"); // poll until active filter re-shows the open item
     expect(h.frame()).toContain("D1"); // active filter shows the open item again
     h.unmount();
   });
@@ -520,15 +525,17 @@ describe("ledger-tui App", () => {
   it("toggles pane orientation and resizes without losing content", async () => {
     const h = await mount();
     await h.key(ENTER); // open bugs → two panes (list + detail)
+    await waitFor(h, "headline"); // poll until the ledger loads and detail pane renders
     expect(h.frame()).toContain("D1");
     expect(h.frame()).toContain("headline"); // detail pane visible
     await h.key("o"); // right → bottom orientation
-    await tick(20);
+    // Poll until the layout re-renders with 'headline' present after the toggle.
+    await waitFor(h, "headline");
     expect(h.frame()).toContain("D1");
     expect(h.frame()).toContain("headline"); // both panes still render stacked
     await h.key("]"); // grow the list pane
     await h.key("["); // shrink it back
-    await tick(20);
+    await waitFor(h, "D1");
     expect(h.frame()).toContain("D1");
     h.unmount();
   });
@@ -545,25 +552,30 @@ describe("ledger-tui App", () => {
 });
 
 describe("ledger-tui scrolling", () => {
+  // Explicit 20 s timeout: the loop sends 59 DOWN presses × tick(4) = ~236 ms
+  // minimum plus per-keystroke render time. Under CPU contention the 5000 ms
+  // bun default is routinely exhausted; a generous budget makes this deterministic.
   it("scrolls a long list and shows a scrollbar", async () => {
     const client = new ManyItemsClient(60);
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open the only ledger
-    await tick(40);
+    // Poll until T0 is rendered (replaces fixed tick(40) settle)
+    await waitForFrame(() => r.lastFrame() ?? "", "T0 ", 5000);
     const first = r.lastFrame() ?? "";
     expect(first).toContain("T0 "); // top item visible
     expect(first).toContain("█"); // scrollbar thumb present (list overflows)
     expect(first).not.toContain("T59 "); // last item not in the initial window
-    // page down to the bottom
+    // page down to the bottom; use a tick between each key to avoid coalescing
     for (let i = 0; i < 59; i++) {
       r.stdin.write(DOWN);
       await tick(4);
     }
-    await tick(40);
+    // Poll until T59 scrolls into view (replaces fixed tick(40) settle)
+    await waitForFrame(() => r.lastFrame() ?? "", "T59 ", 5000);
     expect(r.lastFrame() ?? "").toContain("T59 "); // scrolled into view
     r.unmount();
-  });
+  }, 20_000); // explicit 20 s: generous budget for worst-case CPU contention
 });
 
 class FakeWS {
@@ -683,7 +695,7 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open tasks
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "T14 ");
     const f = r.lastFrame() ?? "";
     // T1 must be padded to match T14's width (3 chars): "T1 " appears before status
     // T14 appears at width 3 with no extra space before the status separator
@@ -697,7 +709,7 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open tasks
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "Phase Two");
     const f = r.lastFrame() ?? "";
     // Both milestone headers should be visible
     expect(f).toContain("M1");
@@ -714,7 +726,7 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open tasks
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "Phase Two");
     const f = r.lastFrame() ?? "";
     // T1 and T2 appear after M1 header, T14 appears after M2 header
     const m1Pos = f.indexOf("Bootstrap");
@@ -732,7 +744,7 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     const h = await mount();
     await h.key(DOWN); // bugs → milestones
     await h.key(ENTER); // open milestones
-    await tick(20);
+    await waitFor(h, "M1"); // poll until milestones ledger loads
     const f = h.frame();
     // The milestones ledger should show the milestone item (M1) in the list
     expect(f).toContain("M1");
@@ -751,7 +763,7 @@ describe("ledger-tui column alignment and subsection headers (Req3+Req4)", () =>
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open tasks
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "planned");
     const f = r.lastFrame() ?? "";
     // Schema status values: planned(7), wip(3), done(4). Max = 7 ("planned").
     // So "wip" row should show "wip    " (padded to 7 chars) before the summary.
@@ -776,7 +788,7 @@ describe("ledger-tui summarize() legacy review fallback (Req5)", () => {
     await h.key(DOWN); // → questions
     await h.key(DOWN); // → reviews
     await h.key(ENTER); // open reviews
-    await tick(40);
+    await waitFor(h, "Looks good overall"); // poll until reviews ledger loads
     const f = h.frame();
     // R2 has summary "Looks good overall" — must appear.
     expect(f).toContain("Looks good overall");
@@ -792,7 +804,7 @@ describe("ledger-tui summarize() legacy review fallback (Req5)", () => {
     await h.key(DOWN); // → questions
     await h.key(DOWN); // → reviews
     await h.key(ENTER); // open reviews
-    await tick(40);
+    await waitFor(h, "The plan lacks detail"); // poll until reviews ledger loads
     const f = h.frame();
     // R1 has no summary — first criticism line must appear.
     expect(f).toContain("The plan lacks detail on error handling");
@@ -877,7 +889,8 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs ledger
-    await tick(40);
+    // Poll until the active item appears (ledger has loaded before asserting the hint).
+    await waitForFrame(() => r.lastFrame() ?? "", "active task");
     // The hint bar should advertise the A key for showing archives.
     // The hint may wrap across lines in the terminal; collapse whitespace before checking.
     const f = (r.lastFrame() ?? "").replace(/\s+/g, " ");
@@ -890,7 +903,8 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    // Poll until the active item appears before pressing A.
+    await waitForFrame(() => r.lastFrame() ?? "", "active task");
     r.stdin.write("A"); // toggle archive on
     // Wait until the async fetch resolves and the archived item row appears.
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
@@ -905,7 +919,8 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    // Poll until the active item appears before pressing A.
+    await waitForFrame(() => r.lastFrame() ?? "", "active task");
     r.stdin.write("A"); // show archive
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     r.stdin.write("A"); // hide archive
@@ -920,7 +935,8 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    // Poll until the active item appears before pressing A.
+    await waitForFrame(() => r.lastFrame() ?? "", "active task");
     r.stdin.write("A"); // show archive
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     r.stdin.write(DOWN); // move cursor to the archived item (active has 1 item → cursor 1)
@@ -938,13 +954,20 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "active task"); // ledger loaded
     r.stdin.write("A"); // show archive
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     r.stdin.write(DOWN); // cursor on archived item
-    await tick(40);
+    // Poll until the archived item's read-only view is rendered in the content pane
+    // ('[archived]' in path header) — this is the stable positive that must still
+    // hold after pressing 's'. Using waitForFrame here also acts as the settle for
+    // the DOWN keypress, replacing the fixed tick(40).
+    await waitForFrame(() => r.lastFrame() ?? "", "[archived]");
     r.stdin.write("s"); // attempt status change — must be suppressed
-    await tick(40);
+    // Negative assertion: we can't poll-until-absent. Settle deterministically:
+    // re-poll until the stable positive invariant ('[archived]') is confirmed still
+    // present, then assert that no overlay marker appeared.
+    await waitForFrame(() => r.lastFrame() ?? "", "[archived]");
     const f = r.lastFrame() ?? "";
     // The status picker overlay, if opened, renders the SelectList which puts a `› ` cursor
     // prefix before the first status value and shows all status values in the content pane.
@@ -960,13 +983,17 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "active task"); // ledger loaded
     r.stdin.write("A"); // show archive
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     r.stdin.write(DOWN); // cursor on archived item
-    await tick(40);
+    // Poll until '[archived]' appears in the path header — the stable positive
+    // invariant that must hold after 'e'. Also acts as settle for the DOWN keypress.
+    await waitForFrame(() => r.lastFrame() ?? "", "[archived]");
     r.stdin.write("e"); // attempt edit — must be suppressed
-    await tick(40);
+    // Negative assertion: settle via re-polling the stable positive ('[archived]'),
+    // then assert the field-picker overlay did NOT open and read-only badge persists.
+    await waitForFrame(() => r.lastFrame() ?? "", "[archived]");
     const f = r.lastFrame() ?? "";
     // When the edit overlay opens for a real item, the content pane shows a
     // field picker SelectList "headline = <value>". When suppressed, the content
@@ -980,7 +1007,7 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "active task"); // ledger loaded
     r.stdin.write("A"); // show archive (cursor stays on active item J1 at idx 0)
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     // Cursor is still at index 0 (active J1) — 's' should open the status picker.
@@ -997,7 +1024,7 @@ describe("ledger-tui archive view (T33)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open jobs
-    await tick(40);
+    await waitForFrame(() => r.lastFrame() ?? "", "active task"); // ledger loaded
     r.stdin.write("A"); // show archive
     await waitForFrame(() => r.lastFrame() ?? "", "archived task");
     const f = r.lastFrame() ?? "";
@@ -1101,13 +1128,13 @@ describe("ledger-tui suggestions bulleted list (T57)", () => {
     await h.key(ENTER); // open questions (cursor on Q1)
     // Move to Q2 which has suggestions ["opt a", "opt b"]
     await h.key(DOWN);
-    await tick(40);
-    const f = h.frame();
+    // Poll until the bulleted suggestion appears (replaces fixed tick(40) settle).
+    await waitFor(h, "• opt a");
     // Each suggestion must appear on its own line with the bullet glyph.
-    expect(f).toContain("• opt a");
-    expect(f).toContain("• opt b");
+    expect(h.frame()).toContain("• opt a");
+    expect(h.frame()).toContain("• opt b");
     // Must NOT be comma-joined on a single line.
-    expect(f).not.toContain("opt a, opt b");
+    expect(h.frame()).not.toContain("opt a, opt b");
     h.unmount();
   });
 });
@@ -1168,7 +1195,8 @@ describe("ledger-tui M6 cross-cutting regression (T34)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open tasks ledger
-    await tick(40);
+    // Poll until the ledger items load (replaces fixed tick(40)).
+    await waitForFrame(() => r.lastFrame() ?? "", "Sprint One");
     const afterOpen = r.lastFrame() ?? "";
 
     // (1) Subsection headers for both milestone groups are rendered (T31 follow-up).
@@ -1545,7 +1573,8 @@ describe("ledger-tui goals flat list + fields.milestones (T84)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open goals (cursor 0)
-    await tick(40);
+    // Poll until G1 appears (replaces fixed tick(40) settle).
+    await waitForFrame(() => r.lastFrame() ?? "", "G1");
     const f = listSide(r.lastFrame() ?? "");
     // Both goals visible.
     expect(f).toContain("G1");
@@ -1563,9 +1592,11 @@ describe("ledger-tui goals flat list + fields.milestones (T84)", () => {
     const r = render(<App client={client} />);
     await tick();
     r.stdin.write(ENTER); // open goals
-    await tick(40);
+    // Poll until G1 appears before moving cursor.
+    await waitForFrame(() => r.lastFrame() ?? "", "G1");
     r.stdin.write(DOWN); // move to G2 (has fields.milestones = [M12, M13, M14])
-    await tick(40);
+    // Poll until G2's content pane shows the milestones list.
+    await waitForFrame(() => r.lastFrame() ?? "", "G2 @ goals");
     const f = r.lastFrame() ?? "";
     expect(f).toContain("G2 @ goals");
     // Work-milestone ids appear as a `milestones` list.
@@ -1585,7 +1616,8 @@ describe("ledger-tui goals flat list + fields.milestones (T84)", () => {
     r.stdin.write(DOWN); // goals -> tasks
     await tick(20);
     r.stdin.write(ENTER); // open tasks
-    await tick(40);
+    // Poll until the tasks ledger loads (replaces fixed tick(40) settle).
+    await waitForFrame(() => r.lastFrame() ?? "", "Sprint One");
     const f = listSide(r.lastFrame() ?? "");
     // The tasks ledger keeps its per-milestone subsection header.
     expect(f).toContain("Sprint One");
