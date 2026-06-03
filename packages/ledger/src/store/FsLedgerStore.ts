@@ -693,7 +693,10 @@ export class FsLedgerStore implements LedgerStore {
    * (b) Copy each affected canonical ledger file (this.ledgerPath(name) for
    *     every CANONICAL_LEDGERS entry) AND docs/ledgers.yaml into that backup
    *     dir, preserving basenames. ENOENT is silently tolerated on any source
-   *     file (a registry or ledger file may legitimately be absent).
+   *     file (a registry or ledger file may legitimately be absent). Also
+   *     copies any non-canonical ledger files present in the registry, then
+   *     removes them from disk so no orphan docs/<name>.md files survive the
+   *     reinit.
    * (c) Write a fresh canonical registry + ledger files from CANONICAL_LEDGERS
    *     via the existing writeRegistry / writeLedgerFile primitives; seeds the
    *     milestones bootstrap group and M-AMBIENT exactly as the empty-dir init()
@@ -712,15 +715,33 @@ export class FsLedgerStore implements LedgerStore {
     const backupDir = path.join(this.docsDir, ".backup", ts);
     await fs.mkdir(backupDir, { recursive: true });
 
+    // Identify non-canonical ledgers present in the registry so their files
+    // can be backed up and removed (preventing orphan docs/<name>.md files).
+    const canonicalNames = new Set(CANONICAL_LEDGERS.map((c) => c.name));
+    const nonCanonicalNames = this.registry.ledgers
+      .map((e) => e.name)
+      .filter((n) => !canonicalNames.has(n));
+
     // (b) Copy ledger files + registry into the backup dir; tolerate ENOENT.
     const filesToBackup: string[] = [
       this.registryPath,
       ...CANONICAL_LEDGERS.map((c) => this.ledgerPath(c.name)),
+      ...nonCanonicalNames.map((n) => this.ledgerPath(n)),
     ];
     for (const src of filesToBackup) {
       const dest = path.join(backupDir, path.basename(src));
       try {
         await fs.copyFile(src, dest);
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      }
+    }
+
+    // Remove non-canonical ledger files from disk so they don't survive as
+    // orphans after the reinit. ENOENT is tolerated (file may not exist yet).
+    for (const name of nonCanonicalNames) {
+      try {
+        await fs.unlink(this.ledgerPath(name));
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
       }
@@ -759,6 +780,11 @@ export class FsLedgerStore implements LedgerStore {
    * `docs/.backup/<ts>/` dir and rewrites the canonical empty set, exactly as
    * the init()-divergence path does (reuses backupAndReinit verbatim).
    *
+   * reset() handles non-canonical ledgers (created via createLedger()) fully:
+   * their files are backed up and deleted from disk by backupAndReinit(), and
+   * their FTS docs are removed here before the ledger map is cleared, so no
+   * orphan docs/<name>.md files and no stale FTS hits survive the reset.
+   *
    * reset() adds only the pre-wipe per-ledger item count and the returned
    * summary; it then reloads the fresh canonical state into memory + the FTS
    * index (via init()) so subsequent reads observe the empty ledgers.
@@ -770,16 +796,26 @@ export class FsLedgerStore implements LedgerStore {
       .map(([name, ledger]) => ({ name, itemCount: activeItemsOf(ledger).length }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Drop FTS docs for non-canonical ledgers now, before backupAndReinit()
+    // clears the registry. init() only indexes CANONICAL_LEDGERS, so without
+    // this call those ledger's FTS docs would survive as stale hits.
+    const canonicalNames = new Set(CANONICAL_LEDGERS.map((c) => c.name));
+    for (const name of this.ledgers.keys()) {
+      if (!canonicalNames.has(name)) {
+        this.searchIndex.removeLedger(name);
+      }
+    }
+
     const backupDir = await this.backupAndReinit();
 
     // backupAndReinit rewrote files + this.registry but left the in-memory
-    // ledger map and FTS index pointing at the pre-wipe state. Drop the ledger
-    // map and re-run init() to load the fresh canonical empty set. init()
-    // re-indexes every loaded ledger (rebuildLedgerActive + setLedgerArchived
-    // are replace-semantics), and the canonical ledger set is unchanged by the
-    // reinit, so no stale FTS docs survive. init() early-returns unless
-    // `initialised` is false, so reset it first; the on-disk registry is now
-    // canonical, so init() will not re-detect divergence.
+    // ledger map and FTS index pointing at the pre-wipe canonical state. Drop
+    // the ledger map and re-run init() to load the fresh canonical empty set.
+    // init() re-indexes every loaded ledger (rebuildLedgerActive +
+    // setLedgerArchived are replace-semantics), so no stale canonical FTS docs
+    // survive. init() early-returns unless `initialised` is false, so reset it
+    // first; the on-disk registry is now canonical, so init() will not
+    // re-detect divergence.
     this.ledgers.clear();
     this.initialised = false;
     await this.init();
