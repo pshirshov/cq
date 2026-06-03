@@ -197,8 +197,12 @@ async function waitForFrame(getFrame: () => string, substr: string, ms = 2000): 
  * not yet appeared. Because every step here advances on Enter against its
  * default selection, a re-press is idempotent (re-picks the same option), so
  * this can never overshoot past `done`.
+ *
+ * Uses a poll-until-condition loop with a generous budget (default 4000 ms,
+ * matching waitForFrame) instead of a fixed 1500 ms wall-clock deadline that
+ * was prone to spurious failures under CPU contention (D23).
  */
-async function advance(h: Harness, still: string, done: string, ms = 1500): Promise<void> {
+async function advance(h: Harness, still: string, done: string, ms = 4000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
     if (h.frame().includes(done)) return;
@@ -447,6 +451,9 @@ describe("ledger-tui App", () => {
     h.unmount();
   });
 
+  // Explicit 20 s timeout: chains four advance() calls each with a 4000 ms
+  // poll budget; under CPU contention the 5000 ms bun default is exhausted.
+  // Mirrors the scroll test's 20_000 ms precedent (D23).
   it("creates an item via the multi-step form", async () => {
     const h = await mount();
     await h.key(ENTER); // bugs
@@ -464,7 +471,7 @@ describe("ledger-tui App", () => {
     const headlines = ledger.milestones.flatMap((g) => g.items.map((i) => i.fields["headline"]));
     expect(headlines).toContain("ion drive misalignment");
     h.unmount();
-  });
+  }, 20_000); // explicit 20 s: generous budget for worst-case CPU contention
 
   it("searches across ledgers as you type and opens a hit", async () => {
     const h = await mount();
