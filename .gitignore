@@ -44,3 +44,4 @@ docs/.ledger-backup/
 
 # CodeGraph local index (per-machine)
 .codegraph/
+docs/.backup/
