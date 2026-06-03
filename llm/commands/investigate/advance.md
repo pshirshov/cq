@@ -279,11 +279,15 @@ command in the SAME inline session, so you already KNOW which context you are in
   the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
   once at the stop, never updated.
 
-- **Run CHAINED INLINE by a parent flow command** (`/advance`, or `/plan:advance`
-  auto-launching this investigate round): **SUPPRESS this handoff write.** The
-  parent owns the single authoritative run-level handoff and writes it once at
-  end-of-run — `/advance` per its §Provenance (it is the sole `handoffs` writer
-  for the whole run). You can tell you are in this context because the parent
-  command explicitly chains you and its prompt instructs this suppression; a
-  standalone invocation has no such wrapper. Suppressing here is what guarantees
-  exactly ONE handoff per run — never a duplicate.
+- **Run CHAINED INLINE by any wrapping flow command** (`/advance`,
+  `/plan:advance`, or a `/<flow>:start` / `/<flow>:follow-up` that runs this
+  pass inline): **SUPPRESS this handoff write.** The outermost wrapper owns the
+  single authoritative run-level handoff and writes it once at its stop —
+  `/advance` per its §Provenance (it is the sole `handoffs` writer for the whole
+  run); `/plan:advance` writes its own standalone record covering the whole pass
+  including the chained investigate sub-round; a `/<flow>:start` or
+  `/<flow>:follow-up` writes it directly in its own §Handoff record step. You
+  can tell you are in this context because the wrapping command explicitly chains
+  you and its prompt instructs this suppression; a standalone invocation has no
+  such wrapper. Suppressing here is what guarantees exactly ONE handoff per run —
+  never a duplicate.

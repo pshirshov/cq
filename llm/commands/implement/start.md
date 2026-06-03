@@ -69,12 +69,12 @@ On any `create_item` / `update_item`, pass `author` = your OWN model class
    writing and provenance rules). Do NOT restate or duplicate that logic here;
    run it. Then produce `/implement:advance`'s end-of-pass report.
 
-This is a STANDALONE flow invocation (the user ran `/implement:start`, not a
-`/advance`-chained pass), so the advance pass's §Handoff record rule applies in
-its STANDALONE branch: at the stop, write the ONE `handoffs` record per
-implement/advance.md's §Handoff record (do not restate the mapping here). The
-suppression branch never applies to `/implement:start` — it is never chained
-inline by `/advance` (which chains `/implement:advance` directly).
+This command is the outermost wrapper for this invocation (the user ran
+`/implement:start`), so the inline `/implement:advance` pass **SUPPRESSES its
+own handoff write** (per implement/advance.md's CHAINED section — `/<flow>:start`
+is listed as a suppress-context), and **this command** writes the ONE `handoffs`
+record at the stop. Use the field schema from implement/advance.md's §Handoff
+record, STANDALONE branch (do not restate the mapping here).
 
 The run is resumable: after the user answers any registered questions, they
 re-run **`/implement:advance`** (no need to re-run `/implement:start`).

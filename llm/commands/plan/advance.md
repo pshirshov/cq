@@ -280,10 +280,13 @@ context you are in.
   chains do NOT each write a handoff — investigate/advance.md suppresses its own
   handoff whenever chained, so this one record covers the whole pass.)
 
-- **Run CHAINED INLINE by `/advance`**: **SUPPRESS this handoff write.**
-  `/advance` owns the single authoritative run-level handoff and writes it once
-  at end-of-run (see advance.md §Provenance — it is the sole `handoffs` writer
-  for the whole run). You can tell you are in this context because `/advance`
-  explicitly chains you and its prompt instructs this suppression; a standalone
-  invocation has no `/advance` wrapper. Suppressing here is what guarantees
-  exactly ONE handoff per `/advance` run — never a duplicate.
+- **Run CHAINED INLINE by any wrapping flow command** (`/advance`, or a
+  `/<flow>:start` / `/<flow>:follow-up` that runs this pass inline):
+  **SUPPRESS this handoff write.** The outermost wrapper owns the single
+  authoritative run-level handoff and writes it once at its stop — `/advance`
+  per its §Provenance (it is the sole `handoffs` writer for the whole run);
+  a `/<flow>:start` or `/<flow>:follow-up` writes it directly in its own
+  §Handoff record step. You can tell you are in this context because the
+  wrapping command explicitly chains you and its prompt instructs this
+  suppression; a standalone invocation has no such wrapper. Suppressing here is
+  what guarantees exactly ONE handoff per run — never a duplicate.

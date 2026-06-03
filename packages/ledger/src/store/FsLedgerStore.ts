@@ -1264,6 +1264,35 @@ export class FsLedgerStore implements LedgerStore {
       );
     }
 
+    // Re-assert containment after symlink resolution (D26): a symlink whose
+    // lexical path is inside logsDir may point outside the confinement root.
+    // We resolve BOTH sides so a symlinked parent component of the store root
+    // (e.g. macOS /var -> /private/var) does not cause false escape rejections
+    // for legitimate in-root paths (D26 round-1 fix).
+    // We catch ENOENT on the target so a genuinely missing file surfaces as-is,
+    // not as a false escape error. The logsDir realpath is computed each time
+    // (the root must exist when a read is attempted; if it can ENOENT, let the
+    // subsequent readFile surface the right error).
+    try {
+      const real = await fs.realpath(resolved);
+      let realLogsDir: string;
+      try {
+        realLogsDir = await fs.realpath(this.logsDir);
+      } catch {
+        // logsDir doesn't exist yet — a missing file read will ENOENT below.
+        realLogsDir = this.logsDir;
+      }
+      if (real !== realLogsDir && !real.startsWith(realLogsDir + path.sep)) {
+        throw new LedgerError(
+          `read_log: path escapes docs/logs root: ${relPath}`,
+        );
+      }
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") throw err;
+      // ENOENT: file doesn't exist — fall through so readFile surfaces it.
+    }
+
     const buf = await fs.readFile(resolved);
     if (buf.byteLength > MAX_READ_LOG_BYTES) {
       const content = buf.subarray(0, MAX_READ_LOG_BYTES).toString("utf8");

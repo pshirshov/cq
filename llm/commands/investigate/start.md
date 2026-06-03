@@ -105,12 +105,13 @@ explorers → VALIDATE citations → adjudicate → CONFIRMED handoff or NEEDS-U
 park, plus its session-log writing and provenance rules). Do NOT restate or duplicate
 that logic here; run it. Then produce `/investigate:advance`'s end-of-round report.
 
-This is a STANDALONE flow invocation (the user ran `/investigate:start`, not a
-`/advance`-chained pass), so the advance pass's §Handoff record rule applies in
-its STANDALONE branch: at the stop, write the ONE `handoffs` record per
-investigate/advance.md's §Handoff record (do not restate the mapping here). The
-suppression branch never applies to `/investigate:start` — it is never chained
-inline by `/advance` (which chains `/investigate:advance` directly).
+This command is the outermost wrapper for this invocation (the user ran
+`/investigate:start`), so the inline `/investigate:advance` pass **SUPPRESSES
+its own handoff write** (per investigate/advance.md's CHAINED section —
+`/<flow>:start` is listed as a suppress-context), and **this command** writes
+the ONE `handoffs` record at the stop. Use the field schema from
+investigate/advance.md's §Handoff record, STANDALONE branch (do not restate the
+mapping here).
 
 The run is resumable: after the user answers any registered questions, they re-run
 **`/investigate:advance D`** (no need to re-run `/investigate:start`).

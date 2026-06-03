@@ -288,7 +288,6 @@ describe("ledger-tui D13 regression guard — per-move stdout bytes (T133)", () 
       // for context only (visible on test failure).
       const reductionPct = 100 * (1 - perMoveIncremental / perMoveStandard);
       const context = `standard=${perMoveStandard.toFixed(0)} B/move, incremental=${perMoveIncremental.toFixed(0)} B/move, reduction=${reductionPct.toFixed(1)}%`;
-      // eslint-disable-next-line no-console
       console.log(`[T133 D13 guard] ${context}`);
 
       // Negative control (R129): the full-frame baseline must be substantial —

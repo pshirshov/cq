@@ -116,18 +116,18 @@ the Codex equivalent; omit if unavailable).
    stopped by a K12 predicate) — same format as plan/advance.md's §Report
    auto-investigate lines.
 
-9. **Handoff record (STANDALONE).** This is a STANDALONE flow invocation (the
-   user ran `/plan:follow-up`, never a `/advance`-chained pass), so write the
-   ONE `handoffs` record per plan/advance.md's §Handoff record, STANDALONE
-   branch — the re-opened goal lands in `clarifying` with new questions filed,
-   so the stop classification is `answers-required` (`flow` = `plan`;
-   `ledgerRefs` `goals:<G>`; `blockingQuestions` the filed question ids;
-   `sessionLogs` the round's log path). Do not restate the field mapping here.
-   The conditional step-7 auto-investigate sub-round writes NO handoff of its
-   own — investigate/advance.md suppresses its handoff whenever chained — so
-   this one record covers the whole invocation. The suppression branch never
-   applies to `/plan:follow-up`: it is never chained inline by `/advance`
-   (which chains `/plan:advance` directly).
+9. **Handoff record.** This command is the outermost wrapper for this
+   invocation (the user ran `/plan:follow-up`), so **this command** writes the
+   ONE `handoffs` record at this step. Use the field schema from
+   plan/advance.md's §Handoff record, STANDALONE branch — the re-opened goal
+   lands in `clarifying` with new questions filed, so the stop classification is
+   `answers-required` (`flow` = `plan`; `ledgerRefs` `goals:<G>`;
+   `blockingQuestions` the filed question ids; `sessionLogs` the round's log
+   path). Do not restate the field mapping here. The conditional step-7
+   auto-investigate sub-round writes NO handoff of its own — investigate/advance.md
+   suppresses its handoff when chained by this command (per its CHAINED section:
+   `/<flow>:follow-up` is listed as a suppress-context; this command owns the
+   single authoritative write).
 
 Do not file questions, emit a plan, or lock decisions yourself — the
 `plan-advance` planner and `/plan:advance` own everything after the re-open.

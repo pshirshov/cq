@@ -1,11 +1,13 @@
 /**
- * read_log tests (T147 / Q87).
+ * read_log tests (T147 / Q87 / D26).
  *
  * Exercises the FS-store-backed `read_log` capability via the SDK tool factory:
  *  - happy path: reads a file under <root>/docs/logs/
  *  - rejects `..` traversal escaping docs/logs/
  *  - rejects absolute paths resolving outside docs/logs/
  *  - truncates an oversized file and sets `truncated: true`
+ *  - rejects a symlink inside docs/logs/ whose target escapes the root (D26)
+ *  - surfaces ENOENT for a genuinely missing file (not masked as escape) (D26)
  *
  * The confinement root is the EXPLICIT FsLedgerStore root, not the generic
  * LedgerStore interface (R137 #6); the in-memory not-implemented behaviour is
@@ -13,7 +15,7 @@
  */
 
 import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import {
@@ -107,5 +109,73 @@ describe("read_log (FS-backed)", () => {
     );
     expect(res.truncated).toBe(true);
     expect(res.content.length).toBe(MAX_READ_LOG_BYTES);
+  });
+
+  // D26 regression: symlink escape via realpath
+  it("rejects a symlink inside docs/logs/ whose target escapes the root (D26)", async () => {
+    const { store, root } = await buildFsStore();
+    const logsDir = path.join(root, "docs", "logs");
+    await mkdir(logsDir, { recursive: true });
+    // Write a "secret" file outside the confinement root (one level above root).
+    const outsideFile = path.join(root, "..", "outside-secret.txt");
+    await writeFile(outsideFile, "SECRET CONTENT", "utf8");
+    // Place a symlink inside docs/logs/ pointing to the outside file.
+    await symlink(outsideFile, path.join(logsDir, "escape-link.log"));
+
+    await expect(
+      store.readLog("escape-link.log"),
+    ).rejects.toThrow(/escapes docs\/logs/);
+  });
+
+  // D26 regression: a genuinely missing file must NOT be masked as an escape
+  it("surfaces ENOENT for a genuinely missing file (not masked as escape)", async () => {
+    const { store, root } = await buildFsStore();
+    await mkdir(path.join(root, "docs", "logs"), { recursive: true });
+
+    let threw = false;
+    try {
+      await store.readLog("nonexistent.log");
+    } catch (e: unknown) {
+      threw = true;
+      // Must NOT be a false "escape" error — it should be an ENOENT from the FS.
+      expect(e instanceof Error && e.message.includes("escapes docs/logs")).toBe(false);
+      // The error should carry ENOENT in some form.
+      const msg = e instanceof Error ? e.message : String(e);
+      const code = (e as NodeJS.ErrnoException).code;
+      const isEnoent = code === "ENOENT" || msg.includes("ENOENT") || msg.includes("no such file");
+      expect(isEnoent).toBe(true);
+    }
+    expect(threw).toBe(true);
+  });
+
+  // D26 round-1 regression: readLog must succeed when the store root sits under
+  // a symlinked parent directory (e.g. macOS /var -> /private/var, container
+  // bind-mounts, /home symlinks). In round-0 the realpath of the target was
+  // compared against the lexical this.logsDir; if any parent of the root was
+  // itself a symlink, realpath(target) would resolve the symlink in the path
+  // while this.logsDir remained lexical, causing a false escape rejection.
+  it("succeeds when the store root is accessed via a symlinked parent (D26 round-1)", async () => {
+    // Create the real directory.
+    const realRoot = await mkdtemp(path.join(tmpdir(), "ledger-readlog-real-"));
+    dirs.push(realRoot);
+    // Create a symlink that points at realRoot (simulates a symlinked parent).
+    const symlinkRoot = path.join(tmpdir(), `ledger-readlog-sym-${process.pid}-${Date.now()}`);
+    await symlink(realRoot, symlinkRoot);
+    dirs.push(symlinkRoot);
+
+    // Build the store rooted through the SYMLINK path, not the real path.
+    const store = new FsLedgerStore({ root: symlinkRoot });
+    await store.init();
+
+    // Write a legitimate log file under docs/logs/ (inside the real root).
+    const logsDir = path.join(realRoot, "docs", "logs");
+    await mkdir(logsDir, { recursive: true });
+    await writeFile(path.join(logsDir, "legit.log"), "legitimate content", "utf8");
+
+    // readLog must SUCCEED — it must NOT falsely reject the read as an escape.
+    const result = await store.readLog("legit.log");
+    expect(result.content).toBe("legitimate content");
+    expect(result.path).toBe("legit.log");
+    expect(result.truncated).toBeUndefined();
   });
 });
