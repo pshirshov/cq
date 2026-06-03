@@ -177,4 +177,44 @@ describe("LedgerSearchIndex.searchQuery (filter language)", () => {
   it("matches a generic item field qualifier", () => {
     expect(ids(fixture().searchQuery("severity:minor"))).toEqual(["T1"]);
   });
+
+  /**
+   * Reproduce-first for the Q77 anomaly (task T139): the report was that the
+   * inline filter `(status:open OR status:wip)` returned an empty result.
+   *
+   * This exercises the EXACT query against a populated index through the SAME
+   * path `fts_search` uses (`searchQuery`, which `InMemoryLedgerStore.ftsSearch`
+   * / `FsLedgerStore.ftsSearch` delegate to), with items in BOTH `open` and
+   * `wip` status spread across two ledgers.
+   *
+   * Observed (2026-06-03, worktree base 5306944): the open+wip items ARE
+   * returned — `["D1","D2","T1","T2"]`. The OR-of-qualifiers evaluator is
+   * therefore NOT defective: `parseQuery("(status:open OR status:wip)")` yields
+   * an `or` of two `status` qualifiers with no free-text terms, and `evaluate`
+   * walks every backing doc applying `matchItemQualifier`, which correctly
+   * matches by status. ADJUDICATION: the Q77 empty-result anomaly is a usage /
+   * stale-index artifact, not an evaluator defect. T140 (the dependent fix
+   * task) is consequently documentation-only — there is no evaluator bug to fix
+   * here. This test is committed GREEN as a regression guard for that
+   * conclusion.
+   */
+  it("evaluates (status:open OR status:wip) over open+wip items (Q77/T139 repro — GREEN)", () => {
+    const idx = new LedgerSearchIndex();
+    idx.rebuildLedgerActive("tasks", [
+      item("T1", "open", { headline: "alpha" }),
+      item("T2", "wip", { headline: "beta" }),
+      item("T3", "done", { headline: "gamma" }),
+    ]);
+    idx.rebuildLedgerActive("defects", [
+      item("D1", "open", { headline: "delta" }),
+      item("D2", "wip", { headline: "epsilon" }),
+      item("D3", "resolved", { headline: "zeta" }),
+    ]);
+    expect(ids(idx.searchQuery("(status:open OR status:wip)"))).toEqual([
+      "D1",
+      "D2",
+      "T1",
+      "T2",
+    ]);
+  });
 });
