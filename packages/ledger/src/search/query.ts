@@ -36,6 +36,18 @@ export const QUERY_LANGUAGE_HELP =
   "<field>:<v> matching an item field (e.g. severity:major); values are case-insensitive, " +
   'quote values with spaces (status:"in progress"). Booleans: UPPERCASE OR, implicit AND ' +
   "(juxtaposition), NOT or a leading - to negate, and parentheses to group. " +
+  "Two paths for status filtering: (a) the dedicated `status` param (a single exact value " +
+  "applied as a server-side pre-filter before text ranking) and (b) inline status: qualifiers " +
+  "inside the query string — these two can combine freely, e.g. status param='wip' with query " +
+  "'ledger:tasks auth' to find wip tasks about auth. " +
+  "OR-of-qualifiers: qualifier-only OR queries work and match per-item via the structured " +
+  "evaluator (not the MiniSearch fast path) — e.g. '(status:open OR status:wip)' returns " +
+  "all open+wip items; the result is empty only when no item carries those statuses. " +
+  "Active vs archived: by default fts_search covers only active (non-archived) items; " +
+  "pass include_archived:true to also search items swept into milestone-group archives. " +
+  "Terminal vs active statuses: each ledger's schema lists terminalStatuses (e.g. done, " +
+  "resolved, abandoned) — items in those statuses are still active (not archived) until " +
+  "archive_milestone is called; use -status:done style negation to exclude them from results. " +
   "Examples: status:done | (status:done OR status:wip) | ledger:goals platform | " +
   "author:user -status:abandoned.";
 

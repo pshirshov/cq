@@ -319,15 +319,34 @@ When no params are provided the response is the unchanged full ledger (backward-
 
   const ftsSearch = tool(
     "fts_search",
-    `Ranked full-text search across ledger items, with a filter query language. Cross-ledger by default (pass \`ledger\` to restrict to one). Results are ranked by relevance (descending); field boosts favour headline/title/question over description/rationale over status. Each result carries the full item, its score, and the fields that matched. Use this for discovery; use search_items for precise single-ledger substring matching. ${QUERY_LANGUAGE_HELP}`,
+    `Ranked full-text search across ledger items, with a filter query language. Cross-ledger by default (pass \`ledger\` to restrict to one). Results are ranked by relevance (descending); field boosts favour headline/title/question over description/rationale over status. Each result carries the full item, its score, and the fields that matched. Use this for discovery; use search_items for precise single-ledger substring matching.
+
+Params:
+- status (string): dedicated pre-filter — applied before text ranking, accepts a single exact status value. Combine with inline status: qualifiers in query for multi-status OR: use query='(status:open OR status:wip)' (qualifier-only OR uses the structured evaluator, works correctly).
+- include_archived (boolean): when false (default) covers only active (non-archived) items; set true to also search items in milestone-group archives.
+- fuzzy / prefix (boolean): enable fuzzy matching or prefix matching on free-text terms.
+
+Status semantics: terminalStatuses (e.g. done, resolved, abandoned per the ledger schema) are still active — searchable and editable — until archive_milestone is called. Use -status:done style negation to exclude them.
+
+${QUERY_LANGUAGE_HELP}`,
     {
       query: z.string(),
       ledger: z.string().optional(),
       limit: z.number().int().positive().optional(),
       fuzzy: z.boolean().optional(),
       prefix: z.boolean().optional(),
-      status: z.string().optional(),
-      include_archived: z.boolean().optional(),
+      status: z
+        .string()
+        .optional()
+        .describe(
+          "exact status pre-filter (server-side, before ranking); for multi-status OR use inline query qualifier: '(status:open OR status:wip)'",
+        ),
+      include_archived: z
+        .boolean()
+        .optional()
+        .describe(
+          "when true, also searches items in milestone-group archives (default: false = active items only)",
+        ),
     } as const,
     async (args) => {
       const opts: {

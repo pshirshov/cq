@@ -190,6 +190,23 @@ const SERVER_INSTRUCTIONS = [
   "the ledger records who wrote each item. Human edits via the TUI/web editor",
   'set author to "user". These are optional intrinsic fields — not schema',
   "fields — so they apply to every ledger and never need a schema change.",
+  "",
+  "fts_search query notes:",
+  "- Two paths for status filtering: (a) dedicated `status` param — a single",
+  "  exact value pre-filtered before ranking; (b) inline status: qualifier in",
+  "  the query string. Combine freely: status='wip' + query='ledger:tasks auth'.",
+  "- OR-of-qualifiers work: '(status:open OR status:wip)' uses the structured",
+  "  evaluator (not the MiniSearch fast path) and returns all matching items.",
+  "- Active vs archived: fts_search covers active items by default; pass",
+  "  include_archived:true to also search milestone-group archives.",
+  "- Terminal vs active: terminalStatuses (done/resolved/abandoned etc.) are",
+  "  still active (searchable, editable) until archive_milestone is called.",
+  "  Use -status:done to exclude terminal items from results.",
+  "",
+  "Quick overview tools:",
+  "- snapshot() — compact {id,status,summary} cross-ledger state in one call.",
+  "- fetch_ledger with compact:true — strips long narrative fields to avoid",
+  "  token-overflow on large ledgers. Combine with offset/limit for pagination.",
 ].join("\n");
 
 /**
