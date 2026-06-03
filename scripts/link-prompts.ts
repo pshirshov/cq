@@ -40,6 +40,7 @@ const LINKS: readonly PromptLink[] = [
   { link: ".claude/commands/investigate/start.md", source: "llm/commands/investigate/start.md" },
   { link: ".claude/commands/investigate/advance.md", source: "llm/commands/investigate/advance.md" },
   { link: ".claude/agents/investigate-explorer.md", source: "llm/agents/investigate-explorer.md" },
+  { link: ".claude/commands/advance.md", source: "llm/commands/advance.md" },
 ];
 
 async function linkExists(absLink: string): Promise<boolean> {
