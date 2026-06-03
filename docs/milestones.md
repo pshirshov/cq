@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 34
+  item: 36
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -134,6 +134,11 @@ archives:
     summary: "G6 #2/#4B — COMPLETE. T125 (authored llm/commands/advance.md universal sequencer), T126 (wired into link-prompts.ts + committed .codex/prompts/advance.md symlink), T127 (implement worker cap N=4→8), T128 (factored milestone auto-close+archive sweep predicate in advance.md + implement/advance.md), T129 (one-shot backlog sweep: archived M15/M20/M23/M28; guard-skipped M10/M11/M29/M27/M32/M33). Reviews R119/R122/R123/R124. Integration green."
     title: "G6 #2/#4B — universal /advance command, parallelism bump (N=4→8), milestone auto-close+archive sweep"
     status: done
+  - id: M36
+    path: ./archive/milestones/M36.md
+    summary: "G8 fix — COMPLETE. T130 (bfa70ed): de-flaked the ledger-tui ink-testing-library suite (fixed-tick→poll-until-condition across all flaky sites; navMemo T85 explicit timeout + reduced N; settle-then-assert for negative inert-key tests) → deterministic full-suite `bun run check` (725/0). T131 (8c33435): reset()/backupAndReinit now back up + unlink non-canonical ledger .md files and remove their FTS docs (no orphans/stale index). Reviews R127/R128. Decision K21. Defects D20+D21 resolved; residuals D22 (s-test vacuity, low) + D23 (advance()-helper flake, medium) filed."
+    title: "G8 fix: D20 ledger-tui test flakiness + D21 reset non-canonical ledgers"
+    status: done
 ---
 
 # milestones
@@ -193,3 +198,10 @@ archives:
 - updatedAt: 2026-06-03T00:40:36.997Z
 - title: G6 #3 — ledger-mcp --reset command (backup-first whole-tree reset)
 - description: "New `ledger-mcp --reset` flag (Q61: flag only, no standalone bin). Operational meaning = whole-tree backup to docs/.backup/<ts>/ then fresh canonical set, reusing FsLedgerStore.backupAndReinit verbatim (Q62/Q65); all ledgers at once (Q63). Safety: interactive y/N prompt when TTY present + --yes to skip for unattended (Q64). FS-only. Independent of M31/M33. Gate: bun run check."
+
+### M35 — open
+
+- createdAt: 2026-06-03T05:04:14.900Z
+- updatedAt: 2026-06-03T05:04:14.900Z
+- title: "Plan: fix remaining buildable defects (D20 tui-test flakiness, D21 reset non-canonical)"
+- description: "Coordination milestone for defect-seeded goal G8 — the two remaining BUILDABLE open defects after the G6 build: D20 (ledger-tui ink-testing-library tests flake under full-suite/concurrent load — poll-until-condition fix) and D21 (FsLedgerStore.reset()/backupAndReinit ignore non-canonical ledgers — orphan .md + stale FTS). D13 (TUI nav perf) is NOT included — its root cause is unknown and needs a dedicated runtime-profiling investigation. Holds the goal, its reviews, approval decision; work tasks under a separate work milestone."

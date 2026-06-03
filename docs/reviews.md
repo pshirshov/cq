@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 124
+  item: 128
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -118,6 +118,11 @@ archives:
     path: ./archive/reviews/M31.md
     summary: "G6 #2/#4B — COMPLETE. T125 (authored llm/commands/advance.md universal sequencer), T126 (wired into link-prompts.ts + committed .codex/prompts/advance.md symlink), T127 (implement worker cap N=4→8), T128 (factored milestone auto-close+archive sweep predicate in advance.md + implement/advance.md), T129 (one-shot backlog sweep: archived M15/M20/M23/M28; guard-skipped M10/M11/M29/M27/M32/M33). Reviews R119/R122/R123/R124. Integration green."
     title: "G6 #2/#4B — universal /advance command, parallelism bump (N=4→8), milestone auto-close+archive sweep"
+    status: done
+  - id: M36
+    path: ./archive/reviews/M36.md
+    summary: "G8 fix — COMPLETE. T130 (bfa70ed): de-flaked the ledger-tui ink-testing-library suite (fixed-tick→poll-until-condition across all flaky sites; navMemo T85 explicit timeout + reduced N; settle-then-assert for negative inert-key tests) → deterministic full-suite `bun run check` (725/0). T131 (8c33435): reset()/backupAndReinit now back up + unlink non-canonical ledger .md files and remove their FTS docs (no orphans/stale index). Reviews R127/R128. Decision K21. Defects D20+D21 resolved; residuals D22 (s-test vacuity, low) + D23 (advance()-helper flake, medium) filed."
+    title: "G8 fix: D20 ledger-tui test flakiness + D21 reset non-canonical ledgers"
     status: done
 ---
 
@@ -419,3 +424,27 @@ archives:
 - criticism: []
 - new_questions: []
 - ledgerRefs: ["tasks:T124","goals:G6"]
+
+## M35
+
+### R125 — revise
+
+- createdAt: 2026-06-03T05:10:16.140Z
+- updatedAt: 2026-06-03T05:10:16.140Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: Plan is well-grounded on D21 (T131 sound) but T130 carries stale/inaccurate navMemo guidance, wrong test-file paths, and an acceptance that can't apply to negative-assertion tests — revise T130.
+- new_questions: []
+- criticism: ["T130 (navMemo T85): the prescription 'assert derivation counters not wall-clock / drop the wall-clock timeout assertion entirely' is stale. packages/ledger-tui/test/navMemo.test.tsx ALREADY asserts only the derivationCounters (lines 153-168) and ALREADY uses a waitQuiescent() poll-until-condition (lines 51-62); there is NO in-body wall-clock assertion to drop. The real residual flake is the bun DEFAULT per-test timeout (~5000ms) being exhausted by waitQuiescent (up to 200x15ms=3s) plus the 40-step nav loop (each await tick(8)) under concurrent CPU contention. Re-scope the navMemo fix to bound that wall-clock cost — e.g. tighten/cap the poll budget, lower NAV/N, or set an explicit generous it(..., timeout) — because the current acceptance ('no fixed-deadline/wall-clock assertion remains') is ALREADY satisfied for navMemo and therefore pins nothing.","T130 names flaky-test sites by FILE that do not exist: there is no packages/ledger-tui/test/scrolling.test.tsx (the 'scrolls a long list' test lives in app.test.tsx, describe 'ledger-tui scrolling', ~lines 547-567), and no suggestions.test.tsx or questionDetail.test.tsx for the 'suggestions bulleted list (T57)' / 'question detail field order (T59)' tests. Pin the actual file locations so the implementer targets the right files; the present site list misdescribes the test layout.","T130 acceptance ('all [fixed-deadline assertions] replaced by poll-until-condition over r.lastFrame()') cannot be satisfied verbatim for the NEGATIVE-assertion tests \"the 's' key is inert on an archived item\" and \"the 'e' key is inert\" (app.test.tsx ~lines 936-976): these assert the ABSENCE of an overlay after a fixed tick(40), and you cannot poll-until a frame does NOT contain something. Carve out a settle-then-assert or positive-invariant strategy for the inert-key tests and reword the acceptance so it does not mandate poll-until-condition where a negative is being checked.","T130: the navMemo derivationCounters object is module-global and shared across every test file in the bun process (the test's own comment at lines 139-142 notes this). The task's step (3) 'isolate shared module/fake-clock state between concurrently-executed files' should state concretely how — the current per-test resetDerivationCounters() guards within navMemo but cross-file pollution of that global from OTHER files' App renders is the documented hazard; specify the isolation mechanism (e.g. reset-in-beforeEach in every file that mounts App, or scope the counters) rather than leaving it as a vague directive."]
+- ledgerRefs: ["goals:G8"]
+
+### R126 — go-ahead
+
+- createdAt: 2026-06-03T05:15:58.190Z
+- updatedAt: 2026-06-03T05:15:58.190Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: Revised T130 resolves all 3 R125 accuracy faults (navMemo timeout-bound not assertion-drop; real app.test.tsx+navMemo.test.tsx sites only; settle-then-assert for negative-assertion tests) verified against live source; T131 unchanged and sound; plan file-disjoint, parallel-safe, complete.
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G8"]

@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 20
+  item: 21
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -193,3 +193,15 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead (ref review R104): all R103 criticisms resolved; fix tasks T110-T115 for defects D14-D19 under work milestone M30 are fine-grained, sequenced (App.tsx chain T113->T114->T115), testable, and grounded."
 - ledgerRefs: ["goals:G7"]
+
+## M35
+
+### K21 — locked
+
+- createdAt: 2026-06-03T05:17:25.209Z
+- updatedAt: 2026-06-03T05:17:25.209Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R126): revised T130 + T131 fix tasks under work milestone M36 (defects D20/D21) verified file-disjoint, parallel-safe, complete — 0 criticisms, 0 new questions."
+- ledgerRefs: ["goals:G8"]

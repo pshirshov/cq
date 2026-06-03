@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 21
+  item: 23
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -126,10 +126,10 @@ archives:
 - dependsOn: ["T115"]
 - fix: "T115 (commit 051fb27): batchSave now tracks answered ids in a useRef<Set<string>> and after each save recomputes the remaining-open set over the batchRows snapshot; if empty it calls setBatchOpen(false) (closes regardless of current index — covers last-question, out-of-order, and fully-drained), else advances to the next still-open question via forward-scan-with-wrap (mid-queue answers no longer strand the modal). Reload-timing-independent. New happy-dom test (batchModalClose.test.tsx) fails on base (modal stays open) and passes at HEAD."
 
-### D20 — open
+### D20 — resolved
 
 - createdAt: 2026-06-02T23:36:27.070Z
-- updatedAt: 2026-06-03T02:41:18.059Z
+- updatedAt: 2026-06-03T06:13:46.636Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: ledger-tui ink-testing-library tests flake under full-suite / concurrent-load (live-badge, navMemo T85, multi-step-form, scrolling, status-filter, etc.)
@@ -137,13 +137,15 @@ archives:
 - description: "Filed by the T106/T107 reviewers and CORROBORATED + broadened by the T110/T113/T117/T119/T120 reviewers across the G6/G7 implement runs. Under a full `bun run check` — ESPECIALLY when multiple implement worktrees run `bun run check` concurrently (observed ~10-21 simultaneous runs saturating CPU) — a rotating, DISJOINT set of ledger-tui tests fail non-deterministically and pass in isolation; several also reproduce at base commits with none of the diffs applied. Observed: 'live updates > shows a live badge' (hardened by T112 but the broader pattern persists), 'navigation memoization (T85) navMemo.test.tsx:132' (N=500 with a hard 5000ms wall-clock budget — times out ~5008ms under load), 'creates an item via the multi-step form' (Bootstrap), 'scrolls a long list' (5s timeout), 'filters the item list by status type', 'toggles pane orientation' (D1), 'suggestions bulleted list (T57)', 'question detail field order (T59)', \"the 's' key is inert on an archived item\". Pattern: ink-testing-library/happy-dom timing assertions with fixed tick()/sleep budgets that starve under concurrent CPU load + possible shared module/clock state across concurrently-executed files. Makes the repo gate non-deterministic. NOT caused by the G6/G7 diffs (markdown/schema/color changes can't affect TUI render-timing; byte-identical ledger-tui source on several)."
 - suggestedFix: "Stabilize the ledger-tui suite for concurrent execution: (1) replace fixed tick()/sleep budgets with poll-until-condition waits over r.lastFrame() (the pattern T112 used); (2) make the navMemo T85 N=500 budget deadline-independent (assert derivation counters, not wall-clock); (3) isolate shared module/fake-clock state between files; (4) and/or serialize the implement-flow `bun run check` runs so parallel worktrees don't saturate CPU. Goal: deterministic `bun run check`."
 - ledgerRefs: ["goals:G2","goals:G6"]
+- dependsOn: ["T130"]
+- fix: "T130 (commit bfa70ed): replaced fixed tick()/sleep settle budgets with poll-until-condition (waitFor/waitForFrame) across the flaky ledger-tui sites (scroll, status-filter, pane-orientation, suggestions T57, + adjacent MultiMilestone/Goals/Archive/summarize/NoTransitions blocks); navMemo T85 given an explicit 30s per-test timeout + N=500→200/NAV=40→20 (counter invariant is N-independent); negative inert-key ('s'/'e') tests use settle-then-assert keyed on stable positives. Test-harness only; full `bun run check` deterministic 723/0 on two consecutive runs. NOTE: a residual flake in the UNTOUCHED advance()-helper multi-step-form test + a pre-existing 's'-test vacuity were surfaced and filed as D23/D22 (out of scope for T130)."
 
 ## M32
 
-### D21 — open
+### D21 — resolved
 
 - createdAt: 2026-06-03T04:26:19.593Z
-- updatedAt: 2026-06-03T04:26:19.593Z
+- updatedAt: 2026-06-03T06:13:49.913Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - headline: "FsLedgerStore.reset()/backupAndReinit ignore NON-canonical ledgers: orphan .md file + stale FTS docs survive the wipe"
@@ -151,3 +153,31 @@ archives:
 - description: "Filed out-of-scope by the T123 reviewer. backupAndReinit (reused by the new public reset()) enumerates only CANONICAL_LEDGERS for the backup and rewrites the registry to canonical-only. A ledger created via the public createLedger() is therefore (a) NOT backed up, (b) its docs/<name>.md orphaned on disk, and (c) its FTS docs SURVIVE the reset — reset() clears only this.ledgers and init() re-indexes only registry ledgers without calling searchIndex.removeLedger / clearing the shared index. A subsequent ftsSearch would return hits for a wiped non-canonical ledger, contradicting reset()'s doc-comment 'no stale FTS docs survive'. PRE-EXISTING property of the reused backupAndReinit (G4/T94/T95 init-divergence path), not introduced by T123; out of scope for T123 whose acceptance concerns canonical ledgers only. The canonical set is the norm here (CLAUDE.md: don't create_ledger unless asked), so impact is low."
 - suggestedFix: Either (a) document reset()/backupAndReinit as canonical-only by contract, or (b) have the reset path snapshot+drop EVERY registry ledger and call searchIndex.removeLedger for ledgers absent from CANONICAL_LEDGERS before re-init, so no orphan .md or stale FTS docs survive.
 - ledgerRefs: ["tasks:T123","goals:G6","goals:G4"]
+- dependsOn: ["T131"]
+- fix: "T131 (commit 8c33435): the reset path now handles non-canonical ledgers — backupAndReinit enumerates registry ledgers absent from CANONICAL_LEDGERS, backs them up, then unlinks their docs/<name>.md; reset() calls searchIndex.removeLedger() for each before clearing this.ledgers. No orphan .md, no stale registry entry, no surviving FTS docs. Reproduction-first test (createLedger('ops')+item+reset() — fails pre-fix); D2/G4 init-divergence path preserved (empty non-canonical set is a no-op)."
+
+## M35
+
+### D22 — open
+
+- createdAt: 2026-06-03T06:13:59.266Z
+- updatedAt: 2026-06-03T06:13:59.266Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "'s'-key-inert archived-item test is vacuous against an overlay-open regression (app.test.tsx)"
+- severity: low
+- description: "Filed out-of-scope by the T130 reviewer. packages/ledger-tui/test/app.test.tsx (\"the 's' key is inert on an archived item\") asserts only frame.toContain('[archived]') + frame.toContain('archived task'). Per src/app.tsx, the path-header '[archived]' (cursorInArchive ~L937) and the list-pane row persist regardless of overlay state — the status overlay replaces only the right-hand content pane. So if 's' WERE wrongly handled on an archived row and opened the status picker, BOTH assertions would still pass — the test would not catch the regression. PRE-EXISTING (byte-identical to base), out of scope for T130 (which only had to avoid weakening the negative settle into a poll-until-a-negative); the sibling 'e'-inert test IS regression-sensitive (asserts 'read-only' which the overlay would replace)."
+- suggestedFix: Add a content-pane assertion that the status-picker SelectList marker is absent (e.g. expect(contentPane(f)).not.toContain('› ')), or assert the read-only badge still present in the content pane mirroring the 'e' test.
+- ledgerRefs: ["tasks:T130","goals:G8","goals:G2"]
+
+### D23 — open
+
+- createdAt: 2026-06-03T06:14:08.517Z
+- updatedAt: 2026-06-03T06:14:08.517Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: ledger-tui multi-step-form test flakes under CPU contention via the advance() helper's internal 1500ms timeout
+- severity: medium
+- description: "Filed out-of-scope by the T130 reviewer (residual of the D20 class, in a site T130 did NOT touch). packages/ledger-tui/test/app.test.tsx ('creates an item via the multi-step form' ~L450) failed ~1/5 under combined/full-suite load (0/2 in isolation). Origin: the advance() helper (~L201) uses an internal ms=1500 Enter-replay settle budget; under contention (notably when navMemo's N=200 mount runs first in the same bun process) the overlay doesn't advance within 1500ms. advance() + this test are byte-identical between base and T130's commit — T130 fixed the explicitly-targeted sites but not the advance()-helper path. This is the same systemic ink-testing-library timing-budget class as D20; it remains a residual after T130."
+- suggestedFix: Give advance() an explicit generous per-test timeout (mirroring T130's scroll/navMemo budgets) and/or raise its internal ms default and convert its Enter-replay settle to a poll-until-condition on the expected next-step frame, so the contention-sensitive helper no longer starves under load.
+- ledgerRefs: ["tasks:T130","goals:G8","goals:G2"]
