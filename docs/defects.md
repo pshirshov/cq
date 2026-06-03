@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 20
+  item: 21
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -184,11 +184,25 @@ archives:
 ### D20 — open
 
 - createdAt: 2026-06-02T23:36:27.070Z
-- updatedAt: 2026-06-02T23:36:27.070Z
+- updatedAt: 2026-06-03T02:41:18.059Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
-- headline: ledger-tui ink-testing-library tests flake under full-suite concurrency (beyond the D15 live-badge test)
+- headline: ledger-tui ink-testing-library tests flake under full-suite / concurrent-load (live-badge, navMemo T85, multi-step-form, scrolling, status-filter, etc.)
 - severity: medium
-- description: "Filed out-of-scope by the T110 and T113 reviewers (round 1), deduped. Under a full `bun run check`, several ledger-tui tests fail non-deterministically and pass when packages/ledger-tui is run in isolation; they also reproduce at base commits (c203471 / f0842ee) with none of the G7 fixes applied — i.e. PRE-EXISTING and unrelated to the G7 diffs. Observed flaky tests beyond the live-badge one: 'ledger-tui suggestions bulleted list (T57) > renders suggestions string[] as one bulleted line per element', 'ledger-tui question detail field order (T59) > leaves non-question item leading lines unchanged', and 'ledger-tui archive view (T33) > the s key is inert on an archived item'. These are static-render assertions (not live-update), so the flakiness is a test-ordering / concurrency / un-awaited-render artifact distinct from D15's refetch race. NOTE: D15 (the live-badge refetch race) is a SEPARATE, already-fixed instance (T112, this same G7 batch) — this defect tracks the REMAINING ledger-tui full-suite flakiness that makes the repo gate non-deterministic."
-- suggestedFix: "Stabilize the ledger-tui ink-testing-library tests for full-suite concurrency: wrap state-changing event dispatch in act(...), replace fixed-delay sleeps with poll-until-condition waits, and/or isolate shared module state between tests. Investigate whether bun's concurrent test execution interleaves shared state (e.g. a module-level singleton / fake clock) across these files. Goal: deterministic `bun run check`."
-- ledgerRefs: ["goals:G2"]
+- description: "Filed by the T106/T107 reviewers and CORROBORATED + broadened by the T110/T113/T117/T119/T120 reviewers across the G6/G7 implement runs. Under a full `bun run check` — ESPECIALLY when multiple implement worktrees run `bun run check` concurrently (observed ~10-21 simultaneous runs saturating CPU) — a rotating, DISJOINT set of ledger-tui tests fail non-deterministically and pass in isolation; several also reproduce at base commits with none of the diffs applied. Observed: 'live updates > shows a live badge' (hardened by T112 but the broader pattern persists), 'navigation memoization (T85) navMemo.test.tsx:132' (N=500 with a hard 5000ms wall-clock budget — times out ~5008ms under load), 'creates an item via the multi-step form' (Bootstrap), 'scrolls a long list' (5s timeout), 'filters the item list by status type', 'toggles pane orientation' (D1), 'suggestions bulleted list (T57)', 'question detail field order (T59)', \"the 's' key is inert on an archived item\". Pattern: ink-testing-library/happy-dom timing assertions with fixed tick()/sleep budgets that starve under concurrent CPU load + possible shared module/clock state across concurrently-executed files. Makes the repo gate non-deterministic. NOT caused by the G6/G7 diffs (markdown/schema/color changes can't affect TUI render-timing; byte-identical ledger-tui source on several)."
+- suggestedFix: "Stabilize the ledger-tui suite for concurrent execution: (1) replace fixed tick()/sleep budgets with poll-until-condition waits over r.lastFrame() (the pattern T112 used); (2) make the navMemo T85 N=500 budget deadline-independent (assert derivation counters, not wall-clock); (3) isolate shared module/fake-clock state between files; (4) and/or serialize the implement-flow `bun run check` runs so parallel worktrees don't saturate CPU. Goal: deterministic `bun run check`."
+- ledgerRefs: ["goals:G2","goals:G6"]
+
+## M32
+
+### D21 — open
+
+- createdAt: 2026-06-03T04:26:19.593Z
+- updatedAt: 2026-06-03T04:26:19.593Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "FsLedgerStore.reset()/backupAndReinit ignore NON-canonical ledgers: orphan .md file + stale FTS docs survive the wipe"
+- severity: low
+- description: "Filed out-of-scope by the T123 reviewer. backupAndReinit (reused by the new public reset()) enumerates only CANONICAL_LEDGERS for the backup and rewrites the registry to canonical-only. A ledger created via the public createLedger() is therefore (a) NOT backed up, (b) its docs/<name>.md orphaned on disk, and (c) its FTS docs SURVIVE the reset — reset() clears only this.ledgers and init() re-indexes only registry ledgers without calling searchIndex.removeLedger / clearing the shared index. A subsequent ftsSearch would return hits for a wiped non-canonical ledger, contradicting reset()'s doc-comment 'no stale FTS docs survive'. PRE-EXISTING property of the reused backupAndReinit (G4/T94/T95 init-divergence path), not introduced by T123; out of scope for T123 whose acceptance concerns canonical ledgers only. The canonical set is the norm here (CLAUDE.md: don't create_ledger unless asked), so impact is low."
+- suggestedFix: Either (a) document reset()/backupAndReinit as canonical-only by contract, or (b) have the reset path snapshot+drop EVERY registry ledger and call searchIndex.removeLedger for ledgers absent from CANONICAL_LEDGERS before re-init, so no orphan .md or stale FTS docs survive.
+- ledgerRefs: ["tasks:T123","goals:G6","goals:G4"]

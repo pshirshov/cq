@@ -244,10 +244,10 @@ archives: []
 
 ## M27
 
-### G6 — clarifying
+### G6 — planned
 
 - createdAt: 2026-06-02T19:51:45.748Z
-- updatedAt: 2026-06-03T00:20:27.529Z
+- updatedAt: 2026-06-03T00:56:21.226Z
 - author: "opus-4.8[1m]"
 - session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
 - title: "Low-severity cleanup: D9 test flake, D10 store parity, D11 sticky filter bar"
@@ -270,14 +270,20 @@ archives: []
     B) AUTO-CLOSE + ARCHIVE COMPLETED MILESTONES (verbatim): 'some of the milestones remained open (e.g. M10, M11, M15) - only M1 is done (I did it manually). Unlike goals, it's fine to close and archive completed milestones automatically! Probably we might need to harden the prompts?'
     OBSERVED GAP: COORDINATION milestones (M10/M11/M15/M20/M23, and the just-finished M27/M29) stay `open` after all their items reach terminal, because the flows only archive WORK milestones at the end of an implement run — nothing sweeps the coordination milestones (which hold the goal + questions + reviews + decisions) once their goal is done / their items terminal. Per the never-auto-close-GOALS invariant (G3-B / M16), milestones are EXEMPT and SHOULD auto-close (set status done) + archive when all their items are terminal. CLARIFY: where the sweep lives (a step in implement/advance milestone-completion that ALSO closes+archives the goal's coordination milestone once the goal is terminal? a dedicated sweep in the new /advance? every flow's completion?); the predicate (ALL items under the milestone terminal → set milestone status done → archive_milestone); make the goal-vs-milestone asymmetry EXPLICIT in the prompts (goals NEVER auto-close; milestones ALWAYS may once their items are terminal); the guard that a coordination milestone whose GOAL is still non-terminal must NOT be archived even if its current items are terminal (new follow-up scope may add items — cf. THIS goal G6, whose M27 must stay open while G6 is active); and a one-shot cleanup of the already-open completed milestones (M10/M11/M15/M20/M23/M27?/M29 ...) once the rule lands. Harden the relevant prompt(s). Repo gate bun run check.
 - grounding: |
-    Follow-up #2/#3 grounding retained (N=4 cap at implement/advance.md:36; /advance wires into scripts/link-prompts.ts LINKS + .codex/prompts; ledger-reset relates to G4/T94 backupAndReinit). 
+    Follow-up #2/#3 grounding retained (N=4 cap at implement/advance.md:36; /advance wires into scripts/link-prompts.ts LINKS + .codex/prompts; ledger-reset relates to G4/T94 backupAndReinit).
     
     Follow-up #4 grounding:
-    A) defect-status-as-text smell observed directly this session — rootCause carried 'UNKNOWN'/'CONFIRMED'/'GROUNDED' prose; the plan auto-investigate worklist + stop predicates (K12 a–f) and investigate file-and-defer currently reason over that prose / a 'confirmed root cause' check rather than a queryable status. The defects ledger schema lives in @cq/ledger CANONICAL_LEDGERS (statusValues currently ~open/wip/resolved/wontfix + severity field); investigate/advance.md adjudication, plan/advance.md + plan-advance.md worklist/file-and-defer, implement/advance.md reviewer-defects all read/write defect status/rootCause. TUI+web carry status→bucket color maps that a new state set must extend (cf. the G2 'warning' bucket work). 
-    B) milestone-completion is handled in implement/advance.md (archive_milestone once all items terminal) but ONLY for work milestones at end-of-run; coordination milestones (the ones holding goals/questions/reviews/decisions) are never swept — hence M10/M11/M15/M20/M23 remain open. The never-auto-close-GOALS rule is G3-B (milestone M16, archived) — the new rule must state milestones are exempt. archive_milestone refuses unless the milestone-item itself is terminal (observed: M21/M30 needed update_milestone status=done BEFORE archive), so the sweep must set milestone status=done then archive. Guard: never archive a coordination milestone whose goal is non-terminal.
-    Tests/gate: bun run check; schema change may touch @cq/shared wire + TUI/web.
+    A) defect-status-as-text smell observed directly this session — rootCause carried 'UNKNOWN'/'CONFIRMED'/'GROUNDED' prose; the plan auto-investigate worklist + stop predicates (K12 a-f) and investigate file-and-defer currently reason over that prose / a 'confirmed root cause' check rather than a queryable status. The defects ledger schema lives in @cq/ledger CANONICAL_LEDGERS (statusValues/terminalStatuses/transitions) + investigate/plan/implement prompts; TUI+web status->bucket color maps must extend.
+    B) milestone-completion is handled in implement/advance.md (archive_milestone once all items terminal) but ONLY for work milestones at end-of-run; coordination milestones never swept.
+    
+    VERIFIED THIS SESSION (planner ground pass, 2026-06-03):
+    - @cq/ledger DEFECTS_SCHEMA (packages/ledger/src/constants.ts:102-126) CURRENTLY = statusValues [open, wip, blocked, resolved, abandoned], terminalStatuses [resolved, abandoned], transitions open->{wip,blocked,resolved,abandoned} / wip->{blocked,resolved,abandoned} / blocked->{open,wip,resolved,abandoned}. This DIFFERS from Q66's preamble ('open/wip/resolved/wontfix'). The LOCKED target (Q66/Q67) = statusValues [open, wip, root-caused, inconclusive, resolved, wontfix], terminal [resolved, wontfix]. So the schema edit must: ADD root-caused+inconclusive, RENAME/REPLACE abandoned->wontfix, DROP blocked, and install Q67's transition map. Implementer MUST grep live docs/defects.md for any defect currently in status 'blocked' or 'abandoned' and migrate it (no live ones expected; D13/D20 are open). Field rootCause STAYS (free-text narrative, markers removed) per Q68.
+    - backupAndReinit is a PRIVATE method on FsLedgerStore (packages/ledger/src/store/FsLedgerStore.ts:694) currently only called from init()'s schema-divergence branch BEFORE the in-memory load. It does (a) timestamped docs/.backup/<sanitized-ISO>/ mkdir, (b) copy registry + each CANONICAL_LEDGERS file, (c) rewrite fresh canonical registry+files, (d) stderr WARNING. The --reset wrapper must EXPOSE it (make public or add a thin public reset()) and call it on a freshly-constructed store before serving, then exit. It reuses CANONICAL_LEDGERS so the new defect-status set lands automatically post-reset.
+    - ledger-mcp entrypoint: packages/ledger-mcp/src/main.ts — parseArgs(argv) (line 109) parses --cwd/--http; main(argv) (line 361) constructs FsLedgerStore + init + serve. --reset is a new parseArgs branch + a short-circuit in main() that runs reset then returns (no server). Confirmation: TTY y/N prompt via process.stdin.isTTY + --yes skip (Q64).
+    - /advance is a NEW top-level command at llm/commands/advance.md (NO namespace); wire into scripts/link-prompts.ts LINKS (.claude/commands/advance.md) + .codex/prompts mirror (link-prompts.ts only materialises .claude links; .codex/prompts/*.md symlinks are committed separately — implementer must add the committed .codex/prompts/advance.md symlink too). Verified link-prompts.ts LINKS array at scripts/link-prompts.ts:29-43.
+    - Only explicit 'N = 4' concurrency cap confirmed at implement/advance.md (Concurrency rule). Implementer must grep implement/start.md + investigate/* + plan/* for any other numeric cap and bump only those that exist (Q60).
 - tags: ["defect-seeded","defect:D9","defect:D10","defect:D11","defect:D12","low-severity-cleanup"]
-- milestones: ["M28"]
+- milestones: ["M28","M33","M31","M32"]
 
 ## M29
 

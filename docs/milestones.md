@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 30
+  item: 34
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -181,3 +181,25 @@ archives:
 - updatedAt: 2026-06-02T22:48:12.040Z
 - title: "Plan: fix confirmed dogfood UI/store defects (D14-D19)"
 - description: Coordination milestone for the defect-seeded goal G7 — fix the batch of confirmed/grounded defects surfaced during G6 dogfooding (D14 freePort TOCTOU, D15 ledger-tui live-badge flake, D16 non-milestones archived-title backfill gate, D17 archived-badge in id column, D18 batch modal missing pick buttons, D19 batch modal no close-on-last). Holds the goal, its reviews, and approval decision. Work tasks live under a separate work milestone.
+
+### M33 — open
+
+- createdAt: 2026-06-03T00:40:21.784Z
+- updatedAt: 2026-06-03T00:40:21.784Z
+- title: G6 #4A — formal defect-lifecycle states (root-caused/inconclusive) across schema + flow prompts
+- description: "Replace the free-text rootCause UNKNOWN/CONFIRMED/GROUNDED markers with explicit defects-ledger lifecycle STATUS values. LOCKED (Q66/Q67/Q68/Q69): statusValues [open, wip, root-caused, inconclusive, resolved, wontfix]; terminal [resolved, wontfix]; root-caused+inconclusive non-terminal. status==root-caused becomes the queryable gate replacing every 'confirmed root cause'/'confirmed node' prose check (investigate file-and-defer; plan K12 a-f worklist + stop-predicates). rootCause field survives as free-text narrative (markers removed). No baboon — direct CANONICAL_LEDGERS edit; one-shot update_item migration of live open defects (Q69). Gate: bun run check."
+
+### M31 — open
+
+- createdAt: 2026-06-03T00:40:30.478Z
+- updatedAt: 2026-06-03T00:40:30.478Z
+- title: G6 #2/#4B — universal /advance command, parallelism bump (N=4→8), milestone auto-close+archive sweep
+- description: "New top-level /advance command (llm/commands/advance.md, no namespace) sequencing investigate:advance→plan:advance→implement:advance, looping to quiescence with NO max-iter cap (Q55-Q59); wired into link-prompts.ts + committed .codex/prompts. Bump implement worker cap N=4→8 (Q60). Auto-close+archive completed milestones: authoritative sweep in /advance, predicate also stated in implement/advance.md, factored once (Q70/Q71); one-shot backlog cleanup of M10/M11/M15/M20/M23/M29 with per-milestone eligibility re-verification (Q72). Gate: bun run check."
+- dependsOn: ["M33"]
+
+### M32 — open
+
+- createdAt: 2026-06-03T00:40:36.997Z
+- updatedAt: 2026-06-03T00:40:36.997Z
+- title: G6 #3 — ledger-mcp --reset command (backup-first whole-tree reset)
+- description: "New `ledger-mcp --reset` flag (Q61: flag only, no standalone bin). Operational meaning = whole-tree backup to docs/.backup/<ts>/ then fresh canonical set, reusing FsLedgerStore.backupAndReinit verbatim (Q62/Q65); all ledgers at once (Q63). Safety: interactive y/N prompt when TTY present + --yes to skip for unattended (Q64). FS-only. Independent of M31/M33. Gate: bun run check."

@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 115
+  item: 129
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -213,3 +213,238 @@ archives:
 - ledgerRefs: ["defects:D12","goals:G6"]
 - resultCommit: 8dfc415f536b7accde97a15085e3931919a3907d
 - completion: FsLedgerStore.init() backfills legacy ArchivePointer title/status from archive .md, fail-soft, non-overwrite; fetch() stays synchronous.
+
+## M33
+
+### T116 — done
+
+- createdAt: 2026-06-03T00:41:04.646Z
+- updatedAt: 2026-06-03T01:11:08.634Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "Defects schema: install locked lifecycle statusValues/terminalStatuses/transitions in CANONICAL_LEDGERS"
+- description: |
+    Edit DEFECTS_SCHEMA in packages/ledger/src/constants.ts. The LIVE schema (verified constants.ts:102-126) = statusValues [open, wip, blocked, resolved, abandoned], terminalStatuses [resolved, abandoned], transitions open->{wip,blocked,resolved,abandoned} / wip->{blocked,resolved,abandoned} / blocked->{open,wip,resolved,abandoned}. Replace with the LOCKED target (Q66/Q67):
+    
+    statusValues = [open, wip, root-caused, inconclusive, resolved, wontfix]
+    terminalStatuses = [resolved, wontfix]
+    transitions = {
+      open:        [wip, resolved, wontfix],        // Q67 VERBATIM: open->{wip, resolved, wontfix}. NO open->root-caused and NO open->inconclusive edge — root-caused/inconclusive are reachable ONLY from wip.
+      wip:         [root-caused, inconclusive, resolved, wontfix],
+      root-caused: [resolved, wontfix, wip],
+      inconclusive:[wip, wontfix],
+      resolved:    [],
+      wontfix:     []
+    }
+    
+    NET DELTA vs the live schema: ADD root-caused + inconclusive; DROP blocked entirely; RENAME the terminal abandoned->wontfix (abandoned is removed everywhere). Keep the rootCause field (free-text narrative, Q68; markers removed) and severity (required).
+    
+    Update the doc-comment to describe the lifecycle (open->wip->{root-caused|inconclusive}->resolved|wontfix; root-caused is the queryable file-and-defer gate; inconclusive re-openable to wip). No baboon/model-version step (Q69 — direct edit). FsLedgerStore.init() guards on-disk schema divergence (backup-reinit default); the live-data migration of any defect on a removed status (blocked/abandoned) is handled by T122 — this task is the in-code constant + its unit tests.
+- acceptance: "DEFECTS_SCHEMA.statusValues deep-equals [open, wip, root-caused, inconclusive, resolved, wontfix]; terminalStatuses deep-equals [resolved, wontfix]; transitions match Q67 EXACTLY (open->{wip,resolved,wontfix} ONLY — no open->root-caused/inconclusive edge; every terminal status has empty outgoing; every referenced target is a declared status; validateSchema accepts it). Add/extend a unit test in packages/ledger asserting the new statusValues/terminalStatuses and that a wip->root-caused->resolved path and a wip->inconclusive->wip path are ACCEPTED while a removed edge (open->blocked) and an illegal direct open->root-caused are REJECTED. `bun run check` green."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G6"]
+- resultCommit: ef4bc69
+- completion: "DEFECTS_SCHEMA → [open,wip,root-caused,inconclusive,resolved,wontfix], terminal [resolved,wontfix], Q67-verbatim transitions; rootCause+severity kept; discriminating transition test. Reviewer-noted wontfix→DROPPED-bucket gap is covered by T117/T118."
+
+### T117 — done
+
+- createdAt: 2026-06-03T00:41:21.413Z
+- updatedAt: 2026-06-03T02:39:16.990Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "TUI: extend defect status→color/bucket map for root-caused + inconclusive (drop blocked/abandoned)"
+- description: "Update the ledger-tui status→bucket/color mapping so the two new non-terminal defect states (root-caused, inconclusive) render with a sensible bucket/color, and the removed states (blocked, abandoned) no longer appear for defects. Locate the TUI status→color map (cf. the G2 'warning' bucket work referenced in grounding; grep packages/ledger-tui for the existing defect status color/bucket table). Map: open/wip→in-progress bucket; root-caused→a distinct 'ready' colour (cause confirmed, fix pending); inconclusive→a 'warning'/parked colour; resolved→done/success; wontfix→muted/terminal. Keep behaviour for other ledgers unchanged. Depends on the locked status names from the schema task."
+- acceptance: TUI renders a defect in each new status (root-caused, inconclusive, wontfix) with a defined, distinct colour/bucket; no reference to defect 'blocked'/'abandoned' remains in the map. ink-testing-library test asserts the bucket/colour for root-caused and inconclusive. `bun run check` green.
+- suggestedModel: standard
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+- resultCommit: b7fdcfa
+- completion: "TUI status map: root-caused→ready(blueBright), inconclusive→warning(magenta, non-terminal path), wontfix→DROPPED(gray). Tests assert all three."
+
+### T118 — done
+
+- createdAt: 2026-06-03T00:41:33.582Z
+- updatedAt: 2026-06-03T02:39:34.239Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "Web: extend defect status→color/bucket map for root-caused + inconclusive (drop blocked/abandoned)"
+- description: "Mirror the TUI change in ledger-web: update the web status→bucket/colour mapping (grep packages/ledger-web for the defect status colour/bucket table, cf. styles.css buckets + the App status→colour logic) so root-caused and inconclusive render with distinct buckets/colours and the removed defect states (blocked, abandoned) are gone. Use the same bucket semantics as the TUI task for consistency (root-caused→ready, inconclusive→warning/parked, wontfix→muted/terminal). Frontends are pure MCP clients — do not read docs/ directly. Depends on the locked status names."
+- acceptance: Web renders a defect in each new status with a defined distinct bucket/colour; no defect 'blocked'/'abandoned' mapping remains. happy-dom test asserts the rendered class/colour for a root-caused and an inconclusive defect. `bun run check` green.
+- suggestedModel: standard
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+- resultCommit: d05f3d5
+- completion: "Web status map: root-caused→ready(#7c6af5, new bucket + --lw-status-ready), inconclusive→warning(WARNING_ACTIVE non-terminal), wontfix→DROPPED(muted). happy-dom test asserts each."
+
+### T119 — done
+
+- createdAt: 2026-06-03T00:41:52.891Z
+- updatedAt: 2026-06-03T02:39:41.513Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "investigate/advance.md: adjudication writes root-caused|inconclusive STATUS instead of rootCause text markers"
+- description: |
+    Rewrite the investigate-flow adjudication + file-and-defer sections of llm/commands/investigate/advance.md (and llm/commands/investigate/start.md if it restates the marker convention) so defect STATUS — not a rootCause prose marker — carries the lifecycle.
+    
+    TRANSITION-LEGALITY (BLOCKING, per R111): Q67's locked transition map has NO open->root-caused edge — root-caused is reachable ONLY from wip. Today the investigate flow (step 5a) NEVER sets the defect's STATUS; the lifecycle lives entirely on the HYPOTHESIS tree (open|uncertain|confirmed|wrong) and rootCause is written as narrative + citations. So the flow MUST move the defect open->wip when it BEGINS investigating (the adjudication step / step where an explorer starts work), making the path open->wip->root-caused — both edges legal per Q67. A direct open->root-caused write WOULD throw InvalidTransitionError against the server's strict transition guard. Make the wip transition EXPLICIT in the adjudication task.
+    
+    Thus, edit the prompt to instruct: (1) when investigation STARTS on an `open` defect, update_item status=wip (explicit); (2) on a CONFIRMED root cause, update_item status=root-caused (legal from wip); (3) on an investigated-but-unpinned cause, update_item status=inconclusive (legal from wip; re-openable to wip). The rootCause FIELD stays as the free-text cause NARRATIVE (Q68) WITHOUT lifecycle tokens. The file-and-defer seeding gate becomes 'status == root-caused' (Q68). Update any prose that says 'confirmed root cause'/'mark rootCause CONFIRMED' to the status-based phrasing. Keep the explorer-dispatch + citation-validation behaviour unchanged.
+- acceptance: "grep of llm/commands/investigate/*.md shows NO remaining instruction to stuff UNKNOWN/CONFIRMED/GROUNDED into rootCause; the prompt EXPLICITLY instructs update_item status=wip when investigation begins on an open defect (so no direct open->root-caused write occurs), then status=root-caused (confirmed) / status=inconclusive (unpinned) at adjudication; the file-and-defer precondition is stated as status==root-caused; the documented path is open->wip->{root-caused|inconclusive} (Q67-legal). `bun run check` green (markdown-only; no-op gate)."
+- suggestedModel: frontier
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+- resultCommit: 9456c23
+- completion: "investigate/advance.md: open→wip at investigation start, root-caused/inconclusive at adjudication, seed gate status==root-caused; rootCause narrative-only + marker prohibition; hypothesis-tree vocabulary intact."
+
+### T120 — done
+
+- createdAt: 2026-06-03T00:42:07.203Z
+- updatedAt: 2026-06-03T02:39:46.009Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "plan prompts: re-key the DEFECT-STATUS auto-investigate worklist/seed-gate to status==root-caused (leave hypothesis-tree predicates intact)"
+- description: |
+    Update llm/commands/plan/advance.md AND llm/agents/plan-advance.md so the DEFECT-STATUS worklist + file-and-defer SEED GATE key off the queryable defect STATUS — NOT a prose marker.
+    
+    SCOPE (BLOCKING DISTINCTION, per R111 — be SURGICAL about which 'confirmed' is which):
+    - CHANGE (defect lifecycle): the auto-investigate WORKLIST (plan/advance.md:92-98 + plan-advance.md:248-249, currently keyed on status:open) and the file-and-defer SEED GATE. New semantics: the worklist treats `open`/`wip`/`inconclusive` defects as still-ACTIONABLE, `root-caused` as READY-TO-SEED (the seed gate becomes status==root-caused, replacing any 'confirmed root cause' prose check), and `resolved`/`wontfix` as terminal/EXCLUDED. Replace any prose marker checks (rootCause CONFIRMED/UNKNOWN) here with status queries.
+    - PRESERVE (hypothesis tree — DO NOT TOUCH): the K12 stop-predicates (b)/(c)/(d) at plan/advance.md:150-164 reason over the HYPOTHESIS TREE (hypothesis status `confirmed` + `[correct]` evidence — the investigate adjudication + ill-loop/convergence detector), which is a SEPARATE concept from the defect lifecycle. A blanket 're-key every confirmed node/confirmed root cause to status==root-caused' would CORRUPT these. Leave the hypothesis-tree `confirmed`-node vocabulary and the stop predicates' hypothesis reasoning INTACT. Only the defect-STATUS seed gate / worklist references change.
+    
+    Keep the auto-investigate ledger-query mechanism (re-derive worklist from the ledger) intact; only the defect-status predicate vocabulary changes. NOTE: these two files are ALSO edited by the M31 /advance + sweep tasks — this task lands FIRST (M33 precedes M31); the M31 tasks declare dependsOn this task to serialize the shared files.
+- acceptance: "grep of llm/commands/plan/advance.md + llm/agents/plan-advance.md shows the auto-investigate WORKLIST + file-and-defer SEED GATE keyed off defect STATUS (open/wip/inconclusive actionable, root-caused ready-to-seed, resolved/wontfix excluded), with no remaining 'confirmed root cause' prose-marker gate on the DEFECT path. The K12 stop-predicates (b)/(c)/(d) at plan/advance.md:150-164 STILL reference the HYPOTHESIS-TREE `confirmed` node + `[correct]` evidence UNCHANGED (verify via diff that those lines' hypothesis vocabulary is preserved, not re-keyed to defect status). `bun run check` green (markdown-only)."
+- suggestedModel: frontier
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+- resultCommit: 6818f7a
+- completion: "plan/advance.md + plan-advance.md: auto-investigate worklist keyed to open/wip/inconclusive actionable, seed gate status==root-caused, resolved/wontfix excluded; K12 hypothesis-tree predicates (b)/(c)/(d) untouched."
+
+### T121 — wip
+
+- createdAt: 2026-06-03T00:42:18.563Z
+- updatedAt: 2026-06-03T02:42:30.158Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "implement/advance.md: align defect-terminal vocabulary with the locked set (abandoned->wontfix at :198; reviewer-filed defects already status:open)"
+- description: |
+    Two SURGICAL edits to llm/commands/implement/advance.md, both grounded against the live file (R111 corrected the original premise):
+    
+    (a) MILESTONE-COMPLETION terminal vocabulary (the MISSED touch-point, BLOCKING-adjacent): line 198 states the defect terminal set as `resolved`/`abandoned`. The locked schema (T116) RENAMES abandoned->wontfix and DROPS blocked, so this line references a REMOVED status. Edit :198 (and grep the whole file for any OTHER `abandoned` defect-terminal reference) to read `resolved`/`wontfix`. This is the primary content of this task.
+    
+    (b) REVIEWER-FILED defects section (lines 96-117): the original T121 premise was WRONG — this section ALREADY files reviewer defects with status:open and fields {headline, description, severity, suggestedFix?}; it writes NO rootCause marker and NO CONFIRMED/UNKNOWN token. So there is NOTHING to remove here. The ONLY action for this section is to CONFIRM it stays status=open (untriaged; a defect reaches root-caused only via an investigate pass, never directly from the implement reviewer) and that it sets NO removed status (blocked/abandoned). Do NOT instruct the implementer to hunt for a nonexistent rootCause marker.
+    
+    NOTE: implement/advance.md is ALSO edited by the M31 N=4->8 bump (T127) and the milestone-sweep predicate task (T128) — this task lands first (M33 precedes M31); those M31 tasks declare dependsOn this task to serialize the shared file.
+- acceptance: "grep of llm/commands/implement/advance.md shows (a) the milestone-completion defect-terminal reference at ~:198 reads `resolved`/`wontfix` with NO remaining `abandoned` (nor `blocked`) defect-status reference anywhere in the file; (b) the reviewer-filed-defects section still creates defects with status=open and {headline,description,severity,suggestedFix?} (unchanged), with rootCause used as narrative only and no removed status written. `bun run check` green (markdown-only)."
+- suggestedModel: standard
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+
+### T122 — planned
+
+- createdAt: 2026-06-03T00:42:35.400Z
+- updatedAt: 2026-06-03T00:42:35.400Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Migrate live open defects to the new status vocabulary (one-shot, data-only; no on-load coercion)
+- description: "After the schema lands (T116), perform a one-shot update_item migration of every live NON-terminal defect to the new vocabulary (Q69): for each, read its current status + rootCause marker and set the new status — a defect whose rootCause carried CONFIRMED/GROUNDED → root-caused; UNKNOWN-still-investigating → stays open (or wip if under active investigation); strip the marker token from rootCause leaving only the narrative. Also migrate any defect currently in a REMOVED status: status 'blocked' → open or wip (per its situation); status 'abandoned' (now removed; the terminal rename is abandoned→wontfix) → wontfix. The known live open defects are D13 (TUI nav latency, rootCause 'UNKNOWN' → stays open, marker stripped) and D20 (inspect its current marker). D13/D20 are MIGRATED ONLY, not fixed (explicitly out of scope). Re-query the defects ledger at execution time for the authoritative live set — do not trust this list. Use update_item via the ledger MCP (author/session set); do NOT hand-edit docs/defects.md. No permanent on-load coercion in the store (Q69)."
+- acceptance: "Every live non-terminal defect carries a status from the new set [open, wip, root-caused, inconclusive] (or terminal resolved/wontfix); no live defect remains in a removed status (blocked/abandoned); no rootCause field contains a UNKNOWN/CONFIRMED/GROUNDED lifecycle token (narrative text only). Confirm via fts_search/fetch over the defects ledger. D13/D20 unchanged except status/rootCause-marker migration. `bun run check` green."
+- suggestedModel: standard
+- dependsOn: ["T116"]
+- ledgerRefs: ["goals:G6"]
+
+## M32
+
+### T123 — done
+
+- createdAt: 2026-06-03T00:42:54.427Z
+- updatedAt: 2026-06-03T04:26:01.511Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "@cq/ledger: expose a public reset() on FsLedgerStore wrapping backupAndReinit (+ per-ledger summary return)"
+- description: "backupAndReinit is currently a PRIVATE method (packages/ledger/src/store/FsLedgerStore.ts:694) invoked only from init()'s schema-divergence branch. Add a public async reset() method (or make backupAndReinit public) that the --reset CLI wrapper can call on a freshly-constructed (NOT-yet-serving) store: it must perform the same timestamped docs/.backup/<ts>/ snapshot + fresh canonical reinit, and RETURN a small summary the CLI can print (Q64) — e.g. { backupDir: absolute path, ledgers: Array<{ name, itemCount }> } counting items in each active ledger BEFORE the wipe. Reuse backupAndReinit verbatim for the snapshot/reinit (Q65); the reset() wrapper adds only the pre-count + the returned summary. FS-only (InMemory store needs no parallel — Q65). Keep init()'s existing private call-site working (if backupAndReinit stays private, reset() pre-counts then calls it; if made public, init still calls it). Export any new public type from @cq/ledger index.ts as needed."
+- acceptance: "FsLedgerStore exposes a public reset() returning { backupDir, ledgers: [{name,itemCount}] }; a unit test creates a store with seeded items, calls reset(), and asserts (a) a docs/.backup/<ts>/ dir exists containing the prior ledgers.yaml + ledger files, (b) the live ledgers are back to the canonical empty set, (c) the summary item counts match what was seeded, (d) the post-reset defects ledger carries the NEW status set (proves CANONICAL_LEDGERS reuse). `bun run check` green."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G6"]
+- resultCommit: af0d882
+- completion: "Public FsLedgerStore.reset() → ResetSummary{backupDir,ledgers:[{name,itemCount}]}: pre-counts, reuses backupAndReinit (now returns backup dir), reloads canonical via init(). Test asserts backup contents + canonical empty + counts + new defect status set."
+
+### T124 — planned
+
+- createdAt: 2026-06-03T00:43:10.514Z
+- updatedAt: 2026-06-03T00:43:10.514Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "ledger-mcp: add --reset flag (TTY y/N confirm + --yes skip), short-circuit main() to reset then exit"
+- description: "Extend packages/ledger-mcp/src/main.ts: (1) parseArgs (line 109) recognises `--reset` (boolean) and `--yes`/`-y` (boolean), threading them into ParsedArgs; `--reset` honours the existing --cwd/$LEDGER_ROOT root resolution. (2) main() short-circuits when reset is set: construct the FsLedgerStore for the resolved cwd, print a per-ledger summary of what will be backed up (counts — obtain by init()+count or via the reset() summary), then CONFIRM per Q64 — if process.stdin.isTTY and NOT --yes, prompt 'Reset ledgers at <cwd>? Backup will be written to docs/.backup/. [y/N] ' and proceed only on y/Y; if --yes, skip the prompt (unattended); if NOT a TTY and NOT --yes, REFUSE with a non-zero exit + a message instructing --yes (a non-interactive run must not wipe silently). On confirm, call store.reset() (T123), print the returned backupDir + summary, and return (NO server started; process exits 0). Do NOT start the watcher/HTTP/stdio server on the reset path. Keep the existing serve paths unchanged when --reset is absent."
+- acceptance: parseArgs recognises --reset/--yes (unit test). `ledger-mcp --cwd <tmp> --reset --yes` backs up + reinits the tmp ledger tree and exits 0 without serving (integration-style test invoking main() with --yes on a seeded tmp dir asserts docs/.backup/<ts>/ created, live tree reset, no server bound). A non-TTY invocation WITHOUT --yes exits non-zero and does NOT modify the tree. `bun run check` green.
+- suggestedModel: frontier
+- dependsOn: ["T123"]
+- ledgerRefs: ["goals:G6"]
+
+## M31
+
+### T125 — done
+
+- createdAt: 2026-06-03T00:43:34.683Z
+- updatedAt: 2026-06-03T04:26:04.498Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "Author llm/commands/advance.md: universal /advance sequencer (investigate→plan→implement, loop to quiescence)"
+- description: "Create the new top-level command prompt llm/commands/advance.md (NO namespace) — a thin sequencer run in the MAIN session that dispatches NO subagents of its own (Q58, K12: command-of-commands). Behaviour: evaluate the three ledger-query DETECTION PREDICATES (Q55, adopt as recommended): (investigate) an `open`/`wip`/`inconclusive` defect actionable by /investigate:advance (not blocked solely on an open question; root-caused defects are handled by plan auto-investigate, not re-triaged here); (plan) a goal in a movable planning phase (clarifying with no open question, or planning); (implement) a goal in planned/building with a DAG-ready non-terminal task per implement/advance.md READY-SET. Run the cycle investigate→plan→implement, re-checking investigate after implement (reviewer may file defects) and relying on plan:advance to OWN auto-investigate of goal-linked defects (Q57 — do not double-triage). LOOP the whole sequence to quiescence with NO max-iteration cap (Q56) — stop only when progress is genuinely impossible (every ledger drained OR every actionable item blocked on an unanswered question). End-of-run REPORT taxonomy (Q59): DRAINED (nothing actionable), BLOCKED-ON-QUESTIONS (enumerate the blocking question ids + their owning defect/goal/task, instruct answer-then-rerun), MIXED (progress made + remaining blocked); mirror implement/advance.md's end-of-pass report. /advance introduces NO concurrency cap of its own (inherits each sub-flow's, Q60). Reference the defect STATUS vocabulary from M33 (root-caused/inconclusive) in the predicates. NOTE the milestone auto-close+archive sweep (separate M31 task) plugs into this command's end-of-run."
+- acceptance: "llm/commands/advance.md exists and specifies: the 3 ledger-query predicates (Q55), the loop-to-quiescence with no cap + the genuinely-impossible stop condition (Q56), the investigate→plan→implement→re-check-investigate ordering + plan-owns-auto-investigate boundary (Q57), the command-of-commands main-session shape dispatching no subagents (Q58), and the DRAINED/BLOCKED/MIXED report enumerating blocking question ids (Q59). Predicates reference defect statuses from the new vocabulary. `bun run check` green (markdown-only)."
+- suggestedModel: frontier
+- dependsOn: ["T120"]
+- ledgerRefs: ["goals:G6"]
+- resultCommit: 010f323
+- completion: "Authored llm/commands/advance.md: main-session command-of-commands sequencer (3 ledger-query predicates over new defect statuses, investigate→plan→implement loop-to-quiescence no-cap, plan-owns-auto-investigate, DRAINED/BLOCKED/MIXED report). T126 wires it; T128 fills the sweep placeholder."
+
+### T126 — planned
+
+- createdAt: 2026-06-03T00:43:46.828Z
+- updatedAt: 2026-06-03T00:43:46.828Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Wire /advance into scripts/link-prompts.ts LINKS + add committed .codex/prompts/advance.md symlink
+- description: "Register the new /advance command for both tool families (Q58). (1) Append to the LINKS array in scripts/link-prompts.ts (line 29-43): { link: '.claude/commands/advance.md', source: 'llm/commands/advance.md' } — note advance has NO namespace subdir (unlike plan/implement/investigate), so the link path is directly under .claude/commands/. (2) Add the COMMITTED .codex/prompts mirror: link-prompts.ts only materialises the gitignored .claude tree; the .codex/prompts/*.md symlinks are committed separately — create .codex/prompts/advance.md as a symlink to the llm/ source matching the existing committed .codex/prompts entries (inspect an existing one for the exact relative target convention). Run `bun run link-prompts` to verify the .claude link materialises and points at llm/commands/advance.md."
+- acceptance: scripts/link-prompts.ts LINKS contains the advance.md entry; `bun run link-prompts` materialises .claude/commands/advance.md → llm/commands/advance.md without error; a committed .codex/prompts/advance.md symlink exists pointing at the llm/ source (matching sibling .codex/prompts symlinks). `bun run check` green.
+- suggestedModel: standard
+- dependsOn: ["T125"]
+- ledgerRefs: ["goals:G6"]
+
+### T127 — planned
+
+- createdAt: 2026-06-03T00:43:59.882Z
+- updatedAt: 2026-06-03T00:51:58.893Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: Bump implement-flow concurrent-worker cap N=4→8 (implement/advance.md + audit other flows)
+- description: "Per Q60 (as recommended): change the implement-flow concurrency cap from N=4 to N=8 in llm/commands/implement/advance.md (the 'Concurrency' rule, ~line 36). The live text reads 'at most N = 4 workers ... (configurable — treat 4 as the default ready-batch size)' — you MUST bump BOTH the 'N = 4' AND the parenthetical 'treat 4 as the default ready-batch size' to 8, else a stale 4 survives (R111). Update any RESTATEMENT of that default in llm/commands/implement/start.md. AUDIT investigate/* and plan/* prompts for any explicit concurrency cap (concurrent explorer subagents / concurrent reviewers) and bump those to 8 ONLY IF they exist (grounding: the only confirmed explicit 'N = 4' is in implement/advance.md — verify before editing). /advance introduces no cap of its own. NOTE: edits implement/advance.md which T121 (M33) also edits — dependsOn T121 to serialize that file."
+- acceptance: implement/advance.md states the worker cap as N = 8 with NO remaining literal '4' in the Concurrency rule — BOTH 'N = 4' AND the parenthetical 'treat 4 as the default ready-batch size' now read 8; any restatement in implement/start.md updated; a grep across llm/commands/investigate + llm/commands/plan confirms either no other numeric concurrency cap exists or it was bumped to 8 consistently. `bun run check` green (markdown-only).
+- suggestedModel: fast
+- dependsOn: ["T121"]
+- ledgerRefs: ["goals:G6"]
+
+### T128 — planned
+
+- createdAt: 2026-06-03T00:44:15.128Z
+- updatedAt: 2026-06-03T00:44:15.128Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "Milestone auto-close+archive sweep: factor the predicate once; state it in /advance + implement/advance.md"
+- description: "Per Q70/Q71 (as recommended). Define the auto-close+archive sweep as a SINGLE factored predicate stated once and referenced from both prompts: the AUTHORITATIVE sweep lives in the new /advance command (llm/commands/advance.md — it re-derives ledger state each run and is the catch-all for goals the user closed between runs), and the SAME predicate is stated in llm/commands/implement/advance.md's milestone-completion step so an implement run that finishes the last work also closes its work milestones consistently. PREDICATE (Q71): a milestone M is eligible iff (1) EVERY item under M (all ledgers) is terminal, AND (2) if M is a COORDINATION milestone (its items include a goal), that goal is itself terminal (done/abandoned). MECHANISM: update_milestone status=done THEN archive_milestone (archive refuses unless the milestone-item is terminal — observed M21/M30). GUARD: never archive a coordination milestone whose goal is non-terminal (new follow-up scope may add items — cf. M27 while G6 active). Make the goal-vs-milestone ASYMMETRY an explicit one-liner in both prompts: GOALS NEVER auto-close (user-driven only, the G3-B/M16 invariant); MILESTONES ALWAYS may once eligible. WORK milestones have no goal so condition (2) is vacuous. Do NOT add a dependsOn-terminal requirement (Q71). NOTE: edits implement/advance.md (serialized after T127/T121) and advance.md (after T125)."
+- acceptance: Both llm/commands/advance.md and llm/commands/implement/advance.md state the identical eligibility predicate (all-items-terminal AND coordination→goal-terminal), the update_milestone-done-then-archive_milestone mechanism, the goal-non-terminal guard, and the explicit goals-never / milestones-always asymmetry one-liner; the predicate is written once and cross-referenced (not divergently duplicated). `bun run check` green (markdown-only).
+- suggestedModel: frontier
+- dependsOn: ["T125","T127"]
+- ledgerRefs: ["goals:G6"]
+
+### T129 — planned
+
+- createdAt: 2026-06-03T00:44:28.395Z
+- updatedAt: 2026-06-03T00:44:28.395Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "One-shot backlog cleanup: close+archive already-completed coordination milestones (re-verify eligibility)"
+- description: "Per Q72 (as recommended). Run the sweep once over the candidate lingering OPEN coordination milestones from the goal text — M10, M11, M15, M20, M23, M29 — but RE-VERIFY each at execution time (do NOT trust the list): for each candidate, list_milestone_items + check ALL items terminal AND (if it owns a goal) that goal is terminal. For each GENUINELY ELIGIBLE one, update_milestone status=done THEN archive_milestone (via the ledger MCP, author/session set). EXCLUDE M27 (G6 active) and any milestone whose goal is non-terminal or whose items are not all terminal — report each SKIPPED one with the reason. This both validates the new rule end-to-end and clears the observed backlog. Do NOT hand-edit docs/*.md — go through update_milestone/archive_milestone. Depends on the predicate being defined (T128)."
+- acceptance: "Each of M10/M11/M15/M20/M23/M29 is either (a) archived (status done + archive_milestone) after verified eligibility, or (b) reported SKIPPED with a concrete reason (non-terminal item id, or non-terminal owning goal). M27 explicitly excluded (G6 active). A short report lists archived vs skipped with reasons. Post-run: fetch_milestone on each archived id shows it done/archived; no milestone with a live item or active goal was archived. `bun run check` green."
+- suggestedModel: standard
+- dependsOn: ["T128"]
+- ledgerRefs: ["goals:G6"]

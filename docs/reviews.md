@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 110
+  item: 119
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -321,6 +321,28 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G6"]
 
+### R111 — revise
+
+- createdAt: 2026-06-03T00:49:13.162Z
+- updatedAt: 2026-06-03T00:49:13.162Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: Plan is faithful to Q55-Q72 on shape (state set, transitions, /advance semantics, reset, sweep) and well-grounded against constants.ts/main.ts/FsLedgerStore/link-prompts.ts; but #4A has a blocking transition-legality gap (no open->root-caused edge), an over-broad confirmed-node re-key that would corrupt hypothesis-tree stop predicates, and a missed abandoned->wontfix touch-point in implement/advance.md. Revise.
+- new_questions: []
+- criticism: ["BLOCKING (T119 / transition-legality): Q67's LOCKED transition map (verified at constants.ts:110-116 today = [open,wip,blocked,resolved,abandoned]; target per Q67 = open->{wip,resolved,wontfix}; root-caused reachable ONLY from wip) has NO open->root-caused edge. The current investigate flow (llm/commands/investigate/advance.md step 5a) NEVER sets the defect's STATUS — the lifecycle lives entirely on the hypothesis tree (status open|uncertain|confirmed|wrong); rootCause is written as the narrative cause + citations, not a marker. So T119's instruction 'a confirmed root cause sets defect STATUS = root-caused' will, for a defect still in status=open, throw InvalidTransitionError against the server's strict transition guard. FIX T119: instruct investigate to move the defect open->wip when it begins investigating (step 1/3), so the file-and-defer path is open->wip->root-caused (both edges legal per Q67). State this explicitly in T119's description and acceptance.","T120 OVER-BROAD RE-KEY (grounded, planner-fixable): 'confirmed node'/'confirmed root cause' in plan/advance.md predicates (b)/(c)/(d) (verified llm/commands/plan/advance.md:150-164) refers to the HYPOTHESIS-TREE `confirmed` status + `[correct]` evidence — the investigate adjudication and ill-loop/convergence detector — NOT a defect rootCause marker and NOT the defect lifecycle. T120's instruction to 're-key every reference to confirmed node/confirmed root cause to status==root-caused' would corrupt those hypothesis-tree stop predicates. Scope the re-key to the DEFECT-STATUS worklist gate only (plan/advance.md:92-98 worklist + plan-advance.md:248-249, currently keyed on status:open; new: include open/wip/inconclusive as actionable, EXCLUDE root-caused/resolved/wontfix), and explicitly PRESERVE the hypothesis-tree confirmed/[correct]-evidence vocabulary in predicates (b)/(c)/(d). T120's acceptance already gets the worklist semantics right; the description's blanket 'confirmed node->root-caused' is the wrong instruction.","MISSED #4A TOUCH-POINT (under-scoped): implement/advance.md:198 (Milestone completion) states defect terminal = `resolved`/`abandoned`. The locked set renames abandoned->wontfix, so this line will reference a removed status. No task covers it — T121 targets only the reviewer-filed-defects section (lines 96-117). Add implement/advance.md:198 (and any other `abandoned` defect-terminal reference in that file) to T121's (or T128's) edit scope.","T121 PREMISE OVERSTATED (minor, planner-fixable): implement/advance.md:96-117 already files reviewer defects with status:open and fields {headline,description,severity,suggestedFix?} — it writes NO rootCause marker. There is no 'CONFIRMED/UNKNOWN in rootCause' instruction to remove, so T121 as written sends the implementer hunting for a nonexistent marker. Correct T121's description: its real content is (a) confirm status=open + no removed status, and (b) fix the abandoned->wontfix reference at line 198 (per the criticism above).","T127 COMPLETENESS (minor): implement/advance.md:36 reads 'at most N = 4 workers ... (configurable — treat 4 as the default ready-batch size)'. T127's acceptance ('no remaining N = 4') must also bump the parenthetical 'treat 4 as the default' to 8, else a stale 4 survives.","T116 INTERNAL CONTRADICTION (minor): the description first lists open: [wip, root-caused, inconclusive, resolved, wontfix] then says 'follow Q67 verbatim: open->{wip, resolved, wontfix}'. The acceptance pins 'Q67 exactly' (open has NO ->root-caused/->inconclusive edge), so drop the contradictory first listing from the description to prevent the implementer encoding the wrong edge set."]
+- ledgerRefs: ["goals:G6"]
+
+### R112 — go-ahead
+
+- createdAt: 2026-06-03T00:55:11.437Z
+- updatedAt: 2026-06-03T00:55:11.437Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "All 6 R111 criticisms resolved against live source: T119 makes open->wip explicit (file-and-defer path open->wip->root-caused, Q67-legal); T120 surgically scopes the re-key to the defect-STATUS worklist/seed-gate (plan/advance.md:92-98 + plan-advance.md:248-249) and preserves the hypothesis-tree confirmed/[correct] predicates at :150-164; T121 covers abandoned->wontfix at implement/advance.md:198 and corrects the false rootCause-marker premise (reviewer defects stay status:open); T127 bumps both N=4 and the 'default ready-batch size 4' parenthetical to 8; T116 drops the contradictory open-edge listing and encodes Q67 verbatim (add root-caused+inconclusive, drop blocked, rename abandoned->wontfix) with T122 migrating live blocked/abandoned defects. Plan T116-T129 across M33/M31/M32 (M31 dependsOn M33) is fine-grained, sequenced, testable, grounded, complete, and faithful to Q55-Q72. Go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G6"]
+
 ## M28
 
 ### R98 — go-ahead
@@ -401,3 +423,86 @@ archives:
 - new_questions: []
 - criticism: []
 - ledgerRefs: ["goals:G7"]
+
+## M33
+
+### R113 — go-ahead
+
+- createdAt: 2026-06-03T01:11:11.427Z
+- updatedAt: 2026-06-03T01:11:11.427Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T116 approved: defects schema deep-equals locked Q66/Q67 (no open→root-caused, terminals empty, all targets declared, validateSchema accepts); tests proven discriminating via two mutations (open→root-caused, blocked); abandoned still valid in goals/tasks; check green 704/0. Out-of-scope note: wontfix missing from tui/web DROPPED bucket — covered by T117/T118 (not separately filed)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T116","goals:G6"]
+
+### R114 — go-ahead
+
+- createdAt: 2026-06-03T02:39:47.574Z
+- updatedAt: 2026-06-03T02:39:47.574Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T117 approved: root-caused→ready, inconclusive→warning (non-terminal path), wontfix→dropped(not green); status tests 17/17. Sole check failure was the unrelated pre-existing navMemo/ledger-tui timing flake under concurrent load (D20)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T117","goals:G6"]
+
+### R115 — go-ahead
+
+- createdAt: 2026-06-03T02:39:56.817Z
+- updatedAt: 2026-06-03T02:39:56.817Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T118 approved: web defect statuses root-caused→ready (new bucket wired through union+BUCKET_HEX+--lw-status-ready), inconclusive→warning, wontfix→dropped; discriminating happy-dom test (3/4 fail on base); tsc+eslint+targeted tests green; scope confined to ledger-web; pure-MCP-client preserved."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T118","goals:G6"]
+
+### R116 — go-ahead
+
+- createdAt: 2026-06-03T02:40:29.818Z
+- updatedAt: 2026-06-03T02:40:29.818Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T119 approved: investigate/advance.md carries the defect lifecycle via STATUS (open→wip→{root-caused|inconclusive}, seed gate status==root-caused), rootCause narrative-only with token prohibition; all clauses match the T116 schema; hypothesis-tree vocabulary disambiguated/intact; markdown-only. Red check = unrelated flaky ledger-tui (D20)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T119","goals:G6"]
+
+### R117 — go-ahead
+
+- createdAt: 2026-06-03T02:40:50.653Z
+- updatedAt: 2026-06-03T02:40:50.653Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T120 approved: defect-status worklist/seed-gate re-keyed exactly per T116 (open/wip/inconclusive actionable, root-caused ready-to-seed, resolved/wontfix excluded); K12 hypothesis-tree predicates (b)/(c)/(d) at advance.md ~:150-170 outside all diff hunks and intact (no blanket re-key); diff confined to the two prompt files. Red check = pre-existing/flaky ledger-tui under concurrent load (D20)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T120","goals:G6"]
+
+## M32
+
+### R118 — go-ahead
+
+- createdAt: 2026-06-03T04:26:07.837Z
+- updatedAt: 2026-06-03T04:26:07.837Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T123 approved: public reset() pre-counts then reuses backupAndReinit verbatim + reloads canonical via init(); targeted tests 8/8, tsc clean; test (d) asserts the post-reset canonical defect status set (proves CANONICAL reuse). One out-of-scope low defect filed (D21: non-canonical ledgers orphaned by reset)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T123","goals:G6"]
+
+## M31
+
+### R119 — go-ahead
+
+- createdAt: 2026-06-03T04:26:11.598Z
+- updatedAt: 2026-06-03T04:26:11.598Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- summary: "T125 approved: advance.md fully specifies Q55-Q60 (3 ledger-query predicates over new defect statuses incl. root-caused excluded as plan-owned; loop-to-quiescence no-cap; command-of-commands no-own-subagents chaining sub-commands; re-check-investigate + plan-owns-auto-investigate boundary; DRAINED/BLOCKED/MIXED report; no own cap). Cross-checked against the sub-command prompts — boundaries consistent, no stranding gap. T128 sweep correctly a placeholder."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T125","goals:G6"]

@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 19
+  item: 20
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -214,6 +214,16 @@ archives:
 - headline: "plan review: approved (D12 follow-up)"
 - rationale: "Reviewer go-ahead R97 (0 criticisms / 0 new_questions; R95+R96 grounding/locus gaps resolved — T109 relocates the legacy ArchivePointer title/status backfill to async FsLedgerStore.init() (FS-only), forbids touching materialiseFetchedLedger/InMemory to preserve D10/T106 parity, with a reproduction-first FS-fixture acceptance). Extends the locked plan (prior decision K17 locked round-1 fix tasks T105/T106/T107 for D9/D10/D11 under M28) to cover the D12 follow-up: T109 (ledger FsLedgerStore.init() legacy-pointer title/status backfill) sequenced before T108 (web App.tsx archived-milestone rows in the milestones-ledger view). Gate `bun run check`."
 - ledgerRefs: ["goals:G6","defects:D12","tasks:T108","tasks:T109"]
+
+### K20 — locked
+
+- createdAt: 2026-06-03T00:56:16.161Z
+- updatedAt: 2026-06-03T00:56:16.161Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- headline: "plan review: approved (follow-up #2/#3/#4 scope)"
+- rationale: "Reviewer go-ahead R112 (0 criticisms, 0 new questions) approves the follow-up plan T116-T129 across work milestones M33/M32/M31 (M31 dependsOn M33): formal defect-lifecycle states (root-caused/inconclusive; drop blocked; rename abandoned->wontfix), universal /advance command, N=4->8 concurrency bump, ledger-reset tooling, and coordination-milestone auto-close+archive. Distinct from prior locks K17 (D9/D10/D11) and K18 (D12) which covered the original defect-seeded cleanup."
+- ledgerRefs: ["goals:G6"]
 
 ## M29
 
