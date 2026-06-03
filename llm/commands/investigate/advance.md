@@ -29,10 +29,24 @@ durable ledger state left off. **ONE invocation = ONE research round.**
   seeding disjoint top-level (root) hypotheses. While DRILLING a single branch
   (a node and its children), dispatch **serially** — each child's framing
   depends on the parent's validated findings.
+- **The defect LIFECYCLE lives on the defect's STATUS, not on free-text
+  markers.** The `defects` ledger status is `open → wip → {root-caused |
+  inconclusive} → resolved | wontfix` (T116; terminal: `resolved`/`wontfix`;
+  `root-caused`/`inconclusive` are non-terminal and re-openable to `wip`). The
+  investigate flow drives the NON-terminal part of that lifecycle by calling
+  `update_item("defects", D, status: …)` — it NEVER encodes the lifecycle as
+  `UNKNOWN`/`CONFIRMED`/`GROUNDED` tokens inside the `rootCause` field. The
+  `rootCause` field is purely the free-text cause NARRATIVE (with citations); no
+  status tokens. Transition legality (Q67): the map has **no `open →
+  root-caused` edge** — `root-caused` is reachable ONLY from `wip`, so the flow
+  MUST move an `open` defect to `wip` the moment investigation begins (step 1),
+  then to `root-caused`/`inconclusive` at adjudication (step 4/5). A direct
+  `open → root-caused` write throws `InvalidTransitionError`.
 - **Handoff = file-and-defer**, never an inline plan loop (see step 5). On a
-  confirmed root cause you write `defects.rootCause`/`suggestedFix`, seed/extend a
-  plan-flow goal, and STOP. You MUST NOT re-implement or invoke the
-  planner↔plan-reviewer loop yourself. **Two contexts (K12):**
+  confirmed root cause you set the defect `status: root-caused`, write
+  `defects.rootCause`/`suggestedFix`, seed/extend a plan-flow goal, and STOP. You
+  MUST NOT re-implement or invoke the planner↔plan-reviewer loop yourself. **Two
+  contexts (K12):**
   - *Standalone* (`/investigate:start` run directly by the user): file the
     open question pointing at `/plan:advance <G>` and STOP — the user resumes
     manually.
@@ -70,6 +84,18 @@ existing `rootCause`/`suggestedFix`. Then derive the current tree:
   skip to **Report** (resumable: the user answers in the TUI/web, then re-runs
   `/investigate:advance D`). If a previously-open question is now `answered`
   (non-empty `answer`), fold its answer into this round's framing and continue.
+
+**Move the defect to `wip` the moment investigation begins.** If the defect's
+status is still `open` and you are about to do real research this round (form
+hypotheses / dispatch explorers — i.e. NOT parked on an unanswered question),
+`update_item("defects", D, status: "wip")` BEFORE step 2. This is mandatory: the
+transition map (Q67) has **no `open → root-caused` edge** — `root-caused` is
+reachable ONLY from `wip` — so a later adjudication write of `root-caused` on a
+still-`open` defect would throw `InvalidTransitionError`. Moving to `wip` here
+makes the documented path `open → wip → {root-caused | inconclusive}` legal at
+every edge. The transition is idempotent in effect: if the defect is already
+`wip` (a prior round set it), leave it. Do NOT touch status when the round is
+parked on a question (no research happens).
 
 If a node is already `confirmed`, go straight to step 5 (the handoff may be
 incomplete from a prior interrupted round — it is idempotent to redo).
@@ -117,19 +143,39 @@ citation yourself:
   establishes the root cause; `wrong` when `[correct]` evidence rules it out;
   `uncertain` when partial (then drill children next round, step 2). Leave `open`
   only if no usable evidence came back. `update_item("hypothesis", H, status:
-  <verdict>)`.
+  <verdict>)`. (This is the HYPOTHESIS-tree vocabulary
+  `open|uncertain|confirmed|wrong` — distinct from the defect STATUS below.)
+- **Reflect the verdict onto the DEFECT's STATUS** (the lifecycle carrier — never
+  free-text markers). The defect is already `wip` (set in step 1):
+  - a node reached `confirmed` (the root cause is pinned) → proceed to step 5,
+    which sets `update_item("defects", D, status: "root-caused")` (legal from
+    `wip`) as part of the handoff;
+  - this round investigated the tree but **pinned nothing** and no further
+    branch is adjudicable from available evidence (every leaf `wrong`, or the
+    tree is exhausted/blocked) → `update_item("defects", D, status:
+    "inconclusive")` (legal from `wip`; re-openable to `wip` on a later round
+    that finds a new lead). Then file the NEEDS-user-input question (step 6) if
+    the user could unblock it.
+  - more drilling is still warranted this/next round (`uncertain` leaves remain)
+    → leave the defect at `wip`; do not write a non-terminal verdict yet.
 
 ### 5. CONFIRMED root cause → FILE-AND-DEFER handoff (NOT an inline plan loop)
-When a node reaches `confirmed`, perform the **file-and-defer** handoff — and
-nothing more. You MUST NOT run, re-implement, or invoke the
-planner↔plan-reviewer loop inline; a command cannot run another command's loop,
-and inline duplication contradicts the file-and-defer principle (K8 point 3 /
-Q26). The subsequent USER-run `/plan:advance` round is what produces the reviewed
-fix tasks that ledgerRef `defects:<D>` (Q25/Q26). Do this and STOP:
+The **seed gate** for file-and-defer is the defect STATUS: perform this handoff
+**iff the defect is about to be `status == root-caused`** (a node reached
+`confirmed`, so the root cause is pinned). Perform the handoff — and nothing
+more. You MUST NOT run, re-implement, or invoke the planner↔plan-reviewer loop
+inline; a command cannot run another command's loop, and inline duplication
+contradicts the file-and-defer principle (K8 point 3 / Q26). The subsequent
+USER-run `/plan:advance` round is what produces the reviewed fix tasks that
+ledgerRef `defects:<D>` (Q25/Q26). Do this and STOP:
 
-(a) **Write the defect fields.** `update_item("defects", D, fields: { rootCause:
-"<the confirmed root cause, with the [correct] citations that establish it>",
-suggestedFix: "<the concrete fix the evidence points to>" })`.
+(a) **Set the defect STATUS to `root-caused` and write its fields.**
+`update_item("defects", D, status: "root-caused", fields: { rootCause: "<the
+confirmed root cause NARRATIVE — free text, with the [correct] citations that
+establish it; NO UNKNOWN/CONFIRMED/GROUNDED status tokens>", suggestedFix: "<the
+concrete fix the evidence points to>" })`. The `root-caused` status (legal only
+from `wip`, set in step 1) is the lifecycle marker; the `rootCause` field stays
+pure narrative.
 
 (b) **Seed OR extend a plan-flow goal — defect-seeded.** Search the `goals`
 ledger for a live goal already `ledgerRefs`-linked to `defects:<D>`.
@@ -178,8 +224,12 @@ loop resumes exactly where it left off.
 Summarize the round concisely:
 - hypotheses **seeded/drilled** this round (id + statement + new `status`);
 - citations **validated** (`[correct]` vs `[incorrect]` counts per node);
-- any node **confirmed** → the defect's `rootCause`/`suggestedFix`, the
-  defect-seeded goal **G**, and the next action (K12):
+- the defect's **STATUS** after this round (`wip` while drilling; `root-caused`
+  when the cause is pinned; `inconclusive` when investigated but unpinned) and
+  the documented path it followed (`open → wip → {root-caused | inconclusive}`);
+- any node **confirmed** → the defect now `status == root-caused`, its
+  `rootCause`/`suggestedFix`, the defect-seeded goal **G**, and the next action
+  (K12):
   - *Standalone*: **"run `/plan:advance G`"** (file-and-defer; this command does
     NOT run it);
   - *Auto-launched inside plan:*\*: the parent plan session resumes G
