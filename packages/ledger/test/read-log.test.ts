@@ -14,8 +14,9 @@
  * asserted in mcp-tools.test.ts.
  */
 
-import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtemp, rm, writeFile, mkdir, symlink } from "node:fs/promises";
+import { describe, it, expect, afterAll, spyOn } from "bun:test";
+import { mkdtemp, rm, writeFile, mkdir, symlink, unlink, realpath as origRealpath } from "node:fs/promises";
+import { promises as fsPromises } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import {
@@ -146,6 +147,67 @@ describe("read_log (FS-backed)", () => {
       expect(isEnoent).toBe(true);
     }
     expect(threw).toBe(true);
+  });
+
+  // D28 regression: readLog must read the validated canonical path (`real`),
+  // not the raw `resolved` (symlink-bearing) path.  This test reproduces the
+  // TOCTOU deterministically: it injects a symlink swap BETWEEN the realpath
+  // check and the readFile by spying on fs.realpath.  The spy calls the real
+  // realpath, then re-points the symlink to a different target, then returns the
+  // canonical result.
+  //
+  // With the fix (`fs.readFile(real ?? resolved)`): `real` was captured before
+  // the swap, so it points to originalTarget.log → content "ORIGINAL" ✓.
+  // With the bug (`fs.readFile(resolved)`): `resolved` is the symlink path
+  // which now points to swappedTarget.log → content "SWAPPED" ✗.
+  //
+  // The spy only triggers on the first realpath call (the `resolved` path) so
+  // that the second call (`this.logsDir`) is not affected.
+  it("reads the canonical (realpath'd) target of an in-root symlink under a post-check swap (D28 TOCTOU)", async () => {
+    const { store, root } = await buildFsStore();
+    const logsDir = path.join(root, "docs", "logs");
+    await mkdir(logsDir, { recursive: true });
+
+    // Two distinct target files with different content.
+    const originalTarget = path.join(logsDir, "originalTarget.log");
+    const swappedTarget = path.join(logsDir, "swappedTarget.log");
+    const linkPath = path.join(logsDir, "link.log");
+
+    await writeFile(originalTarget, "ORIGINAL", "utf8");
+    await writeFile(swappedTarget, "SWAPPED", "utf8");
+    // link.log initially points at originalTarget.log.
+    await symlink(originalTarget, linkPath);
+
+    // Spy on fs.realpath: after resolving link.log → originalTarget, atomically
+    // re-point link.log at swappedTarget.log BEFORE readFile executes.  The spy
+    // only fires on the FIRST call (the `resolved` path); subsequent calls
+    // (for this.logsDir and any retries) pass through to the real implementation.
+    let swapDone = false;
+    const spy = spyOn(fsPromises, "realpath");
+    spy.mockImplementation(async (p, ...rest) => {
+      // @ts-expect-error — rest is a valid optional argument
+      const canonical = await origRealpath(p as string, ...rest);
+      if (!swapDone) {
+        swapDone = true;
+        // Atomically swap the symlink: link.log now points at swappedTarget.
+        await unlink(linkPath);
+        await symlink(swappedTarget, linkPath);
+      }
+      return canonical;
+    });
+
+    let result: Awaited<ReturnType<typeof store.readLog>>;
+    try {
+      result = await store.readLog("link.log");
+    } finally {
+      spy.mockRestore();
+    }
+
+    // With the fix, `real` was captured as originalTarget.log BEFORE the swap.
+    // readFile(real) reads originalTarget.log → "ORIGINAL".
+    expect(result.content).toBe("ORIGINAL");
+    expect(result.path).toBe("link.log");
+    expect(result.truncated).toBeUndefined();
   });
 
   // D26 round-1 regression: readLog must succeed when the store root sits under

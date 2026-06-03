@@ -1273,8 +1273,15 @@ export class FsLedgerStore implements LedgerStore {
     // not as a false escape error. The logsDir realpath is computed each time
     // (the root must exist when a read is attempted; if it can ENOENT, let the
     // subsequent readFile surface the right error).
+    //
+    // D28: hoist `real` outside the try block so the subsequent readFile uses
+    // the validated canonical path instead of the raw `resolved` path.  This
+    // closes the check-then-use TOCTOU: if a symlink is swapped between the
+    // realpath check and the readFile, reading `real` (canonical, symlink-free)
+    // ensures no new symlink is followed at read time.
+    let real: string | undefined;
     try {
-      const real = await fs.realpath(resolved);
+      real = await fs.realpath(resolved);
       let realLogsDir: string;
       try {
         realLogsDir = await fs.realpath(this.logsDir);
@@ -1291,9 +1298,14 @@ export class FsLedgerStore implements LedgerStore {
       const code = (err as NodeJS.ErrnoException).code;
       if (code !== "ENOENT") throw err;
       // ENOENT: file doesn't exist — fall through so readFile surfaces it.
+      // `real` stays undefined; `real ?? resolved` below reads `resolved` so
+      // the normal not-found error still surfaces (not masked).
     }
 
-    const buf = await fs.readFile(resolved);
+    // Use the validated canonical path when available (D28: close TOCTOU).
+    // When realpath threw ENOENT, `real` is undefined and we fall back to
+    // `resolved` so the readFile surfaces the expected not-found error.
+    const buf = await fs.readFile(real ?? resolved);
     if (buf.byteLength > MAX_READ_LOG_BYTES) {
       const content = buf.subarray(0, MAX_READ_LOG_BYTES).toString("utf8");
       return { path: relPath, content, truncated: true };
