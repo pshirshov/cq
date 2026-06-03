@@ -98,21 +98,36 @@ const COMMON_REF_FIELDS = {
   suggestedModel: { type: "string", required: false },
 } as const satisfies LedgerSchema["fields"];
 
-/** §2 — defects ledger. */
+/**
+ * §2 — defects ledger.
+ *
+ * Locked defect lifecycle (Q66/Q67):
+ *   open → wip → {root-caused | inconclusive} → resolved | wontfix
+ *
+ * - `open` is intake; it may move only to `wip` or straight to a terminal
+ *   (resolved/wontfix). It does NOT reach `root-caused` or `inconclusive`
+ *   directly — those investigation outcomes are reachable ONLY from `wip`.
+ * - `root-caused` is the queryable file-and-defer gate: the root cause is
+ *   captured (in the free-text `rootCause` field, no markers) and the fix
+ *   deferred; it resolves, is abandoned (wontfix), or returns to `wip`.
+ * - `inconclusive` is a re-openable hold: investigation did not converge, so
+ *   it either goes back to `wip` or is abandoned (wontfix).
+ * - `resolved` and `wontfix` are terminal (no outgoing transitions).
+ */
 export const DEFECTS_SCHEMA: LedgerSchema = {
-  statusValues: ["open", "wip", "blocked", "resolved", "abandoned"],
-  terminalStatuses: ["resolved", "abandoned"],
+  statusValues: ["open", "wip", "root-caused", "inconclusive", "resolved", "wontfix"],
+  terminalStatuses: ["resolved", "wontfix"],
   idPrefix: "D",
-  // F1 transition guard. The proposed map omitted the `blocked` status that
-  // the schema actually declares; `blocked` is folded in as a reversible
-  // hold reachable from open/wip and returning to either, with the terminal
-  // states (resolved/abandoned) reachable from any non-terminal state.
+  // F1 transition guard. Q67 VERBATIM: open reaches only wip + the two
+  // terminals (NO open→root-caused, NO open→inconclusive). root-caused and
+  // inconclusive are reachable ONLY from wip; both may loop back to wip.
   transitions: {
-    open: ["wip", "blocked", "resolved", "abandoned"],
-    wip: ["blocked", "resolved", "abandoned"],
-    blocked: ["open", "wip", "resolved", "abandoned"],
+    open: ["wip", "resolved", "wontfix"],
+    wip: ["root-caused", "inconclusive", "resolved", "wontfix"],
+    "root-caused": ["resolved", "wontfix", "wip"],
+    inconclusive: ["wip", "wontfix"],
     resolved: [],
-    abandoned: [],
+    wontfix: [],
   },
   fields: {
     headline: { type: "string", required: true },

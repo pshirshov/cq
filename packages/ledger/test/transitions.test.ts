@@ -22,6 +22,7 @@ import {
   serializeRegistry,
   validateSchema,
   GOALS_LEDGER,
+  DEFECTS_LEDGER,
   MILESTONES_SCHEMA,
   DEFECTS_SCHEMA,
   TASKS_SCHEMA,
@@ -84,6 +85,15 @@ const freeformSchema: LedgerSchema = {
   idPrefix: "FF",
   fields: { note: { type: "string", required: false } },
 };
+
+async function seedDefect(store: LedgerStore): Promise<string> {
+  const m = await store.createMilestone({ title: "m" });
+  const d = await store.createItem(DEFECTS_LEDGER, m.id, {
+    status: "open",
+    fields: { headline: "d", severity: "minor" },
+  });
+  return d.id;
+}
 
 async function seedGoal(store: LedgerStore): Promise<string> {
   const m = await store.createMilestone({ title: "m" });
@@ -203,6 +213,61 @@ for (const factory of [fsFactory, inMemFactory]) {
         await factory.teardown(store);
       }
     });
+
+    // Defects locked lifecycle (Q66/Q67). The hyphenated id `root-caused` must
+    // round-trip through the guard and store like any other status.
+    it("7. defects: wip → root-caused → resolved is accepted", async () => {
+      const store = await factory.build([]);
+      try {
+        const id = await seedDefect(store);
+        await store.updateItem(DEFECTS_LEDGER, id, { status: "wip" });
+        const rc = await store.updateItem(DEFECTS_LEDGER, id, { status: "root-caused" });
+        expect(rc.status).toBe("root-caused");
+        const resolved = await store.updateItem(DEFECTS_LEDGER, id, { status: "resolved" });
+        expect(resolved.status).toBe("resolved");
+      } finally {
+        await factory.teardown(store);
+      }
+    });
+
+    it("8. defects: wip → inconclusive → wip (re-open) is accepted", async () => {
+      const store = await factory.build([]);
+      try {
+        const id = await seedDefect(store);
+        await store.updateItem(DEFECTS_LEDGER, id, { status: "wip" });
+        const inc = await store.updateItem(DEFECTS_LEDGER, id, { status: "inconclusive" });
+        expect(inc.status).toBe("inconclusive");
+        const back = await store.updateItem(DEFECTS_LEDGER, id, { status: "wip" });
+        expect(back.status).toBe("wip");
+      } finally {
+        await factory.teardown(store);
+      }
+    });
+
+    it("9. defects: open → blocked (removed status) is rejected", async () => {
+      const store = await factory.build([]);
+      try {
+        const id = await seedDefect(store);
+        // `blocked` is no longer a declared status; the patch must be rejected.
+        await expect(
+          store.updateItem(DEFECTS_LEDGER, id, { status: "blocked" }),
+        ).rejects.toThrow();
+      } finally {
+        await factory.teardown(store);
+      }
+    });
+
+    it("10. defects: direct open → root-caused is rejected (only reachable from wip)", async () => {
+      const store = await factory.build([]);
+      try {
+        const id = await seedDefect(store);
+        await expect(
+          store.updateItem(DEFECTS_LEDGER, id, { status: "root-caused" }),
+        ).rejects.toThrow(/transition/i);
+      } finally {
+        await factory.teardown(store);
+      }
+    });
   });
 }
 
@@ -288,10 +353,37 @@ describe("canonical schema transition maps — pinned edges", () => {
     expect(MILESTONES_SCHEMA.transitions?.["done"]).toEqual([]);
   });
 
-  it("defects: blocked is reversible to open/wip; resolved is terminal", () => {
-    expect(DEFECTS_SCHEMA.transitions?.["blocked"]).toContain("open");
-    expect(DEFECTS_SCHEMA.transitions?.["blocked"]).toContain("wip");
+  it("defects: locked lifecycle vocabulary and Q67 edges (statusValues/terminals/transitions)", () => {
+    // statusValues / terminalStatuses deep-equal the locked target.
+    expect(DEFECTS_SCHEMA.statusValues).toEqual([
+      "open",
+      "wip",
+      "root-caused",
+      "inconclusive",
+      "resolved",
+      "wontfix",
+    ]);
+    expect(DEFECTS_SCHEMA.terminalStatuses).toEqual(["resolved", "wontfix"]);
+    // Q67 VERBATIM edge map — open reaches ONLY wip + the two terminals.
+    expect(DEFECTS_SCHEMA.transitions).toEqual({
+      open: ["wip", "resolved", "wontfix"],
+      wip: ["root-caused", "inconclusive", "resolved", "wontfix"],
+      "root-caused": ["resolved", "wontfix", "wip"],
+      inconclusive: ["wip", "wontfix"],
+      resolved: [],
+      wontfix: [],
+    });
+    // No open→root-caused, no open→inconclusive (reachable only from wip).
+    expect(DEFECTS_SCHEMA.transitions?.["open"]).not.toContain("root-caused");
+    expect(DEFECTS_SCHEMA.transitions?.["open"]).not.toContain("inconclusive");
+    // The dropped status is absent everywhere.
+    expect(DEFECTS_SCHEMA.statusValues).not.toContain("blocked");
+    expect(DEFECTS_SCHEMA.statusValues).not.toContain("abandoned");
+    expect(DEFECTS_SCHEMA.transitions?.["blocked"]).toBeUndefined();
+    // Both terminals carry no outgoing edges; validateSchema accepts the schema.
     expect(DEFECTS_SCHEMA.transitions?.["resolved"]).toEqual([]);
+    expect(DEFECTS_SCHEMA.transitions?.["wontfix"]).toEqual([]);
+    expect(() => validateSchema(DEFECTS_SCHEMA)).not.toThrow();
   });
 
   it("tasks: planned → wip present; done is terminal", () => {
