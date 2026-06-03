@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 65
+  item: 72
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -821,3 +821,87 @@ archives:
 - recommendation: Reuse `backupAndReinit` verbatim as the single source of truth for the snapshot+reinit, with the reset command as a thin CLI wrapper that adds only arg-parsing, the confirmation guard, and the per-ledger summary; this is contingent on choosing the backup-first/whole-tree operational meaning. Reset is FS-only (the InMemory store is non-persistent; no parallel needed).
 - ledgerRefs: ["goals:G6"]
 - answer: Reuse `backupAndReinit` verbatim — the reset command is a thin CLI wrapper that calls it (assumes the backup-first/whole-tree semantic is chosen)
+
+### Q66 — open
+
+- createdAt: 2026-06-03T00:21:40.620Z
+- updatedAt: 2026-06-03T00:21:40.620Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4A — FINAL defects-ledger status SET + names + which are terminal. The defects schema in @cq/ledger CANONICAL_LEDGERS currently has statusValues = open / wip / resolved / wontfix (resolved+wontfix terminal). Proposal: replace the free-text rootCause markers (UNKNOWN | CONFIRMED | GROUNDED) with explicit lifecycle states. Candidate full set: open -> wip (under investigation) -> { root-caused (cause confirmed, ready to seed a fix) | inconclusive (investigated, cause not pinned) } -> resolved | wontfix. Confirm: (i) the exact statusValues set [open, wip, root-caused, inconclusive, resolved, wontfix]; (ii) the FINAL names for the two new mid-states — your working pair was investigated|unclear, the orchestrator counter-proposes root-caused|inconclusive — pick the pair to LOCK; (iii) which are terminal (proposal: resolved + wontfix terminal; root-caused + inconclusive NON-terminal so they remain in the worklist)."
+- context: This is the central naming/shape decision the whole feature keys off; the schema's statusValues/terminalStatuses cannot be written until the names + terminal set are locked. root-caused must be a distinct, queryable, NON-terminal state because the investigate file-and-defer + plan auto-investigate worklist need to query 'is this defect root-caused?' without parsing prose. inconclusive must be non-terminal + re-openable so a parked defect stays discoverable.
+- suggestions: ["LOCK [open, wip, root-caused, inconclusive, resolved, wontfix]; root-caused+inconclusive non-terminal; resolved+wontfix terminal","Use the working names: [open, wip, investigated, unclear, resolved, wontfix] (investigated=cause confirmed, unclear=cause not pinned)","A different/smaller set (specify) — e.g. fold inconclusive into wip with a separate flag"]
+- recommendation: "LOCK statusValues = [open, wip, root-caused, inconclusive, resolved, wontfix]; terminalStatuses = [resolved, wontfix]; root-caused and inconclusive are non-terminal. The pair root-caused|inconclusive reads more precisely than investigated|unclear (root-caused names the queryable precondition the file-and-defer gate checks)."
+- ledgerRefs: ["goals:G6"]
+
+### Q67 — open
+
+- createdAt: 2026-06-03T00:21:49.356Z
+- updatedAt: 2026-06-03T00:21:49.356Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4A — the TRANSITION GRAPH for the new defect states (the schema's `transitions` map). Proposal: open -> {wip, wontfix}; wip -> {root-caused, inconclusive, wontfix, resolved}; root-caused -> {resolved, wontfix, wip}; inconclusive -> {wip, wontfix}; resolved -> {} ; wontfix -> {}. Rationale: investigation moves open->wip; adjudication moves wip->root-caused or wip->inconclusive; a root-caused defect is resolved when its fix tasks complete (root-caused->resolved) or re-opened (root-caused->wip) if the cause is overturned; inconclusive is re-openable to wip when new evidence appears. Confirm or amend each edge; in particular: (a) may open go straight to resolved/wontfix (trivial dispositions without investigation)? (b) may wip go straight to resolved (fixed without a formal root-cause adjudication)? (c) is root-caused->inconclusive (or the reverse) ever needed?"
+- context: The server enforces `transitions` strictly (InvalidTransitionError on an illegal jump), so the edge set must cover every move the investigate/plan/implement flows actually perform. Today defects move open->wip->resolved/wontfix freely; the new mid-states insert between wip and terminal. Getting the edges wrong will make the flows throw at runtime.
+- suggestions: ["Adopt the proposed edge set as-is (open->wip/wontfix; wip->root-caused/inconclusive/resolved/wontfix; root-caused->resolved/wontfix/wip; inconclusive->wip/wontfix)","Also allow open->resolved and open->wontfix (trivial close without investigation)","Make root-caused the MANDATORY precondition for resolved (forbid wip->resolved), so every fix is traceable to an adjudicated root cause"]
+- recommendation: "Adopt the proposed set AND additionally allow open->{resolved,wontfix} (trivial closes) and keep wip->resolved (a fix may land without a formal root-caused step for simple defects). Do NOT force root-caused before resolved — that would over-constrain quick fixes. No root-caused<->inconclusive direct edge (route through wip)."
+- ledgerRefs: ["goals:G6"]
+
+### Q68 — open
+
+- createdAt: 2026-06-03T00:22:10.240Z
+- updatedAt: 2026-06-03T00:22:10.240Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4A — GATE SEMANTICS + textual-marker mapping + rootCause field disposition. (1) Should `root-caused` STATUS become the queryable PRECONDITION that replaces the current prose checks — i.e. investigate/advance.md's file-and-defer 'on a confirmed root cause' check, and plan's auto-investigate worklist + stop-predicates (K12 a–f currently say 'confirmed node' / 'confirmed root cause') both re-keyed to `status == root-caused` (instead of reading rootCause text)? (2) Mapping from today's markers: rootCause 'CONFIRMED'/'GROUNDED' -> status root-caused; rootCause 'UNKNOWN' on a still-investigating defect -> stays wip (or -> inconclusive only after an adjudication concluded the cause can't be pinned). Confirm. (3) Does the `rootCause` FIELD survive as a free-text NARRATIVE (the actual cause description) once the STATUS carries the lifecycle marker — i.e. keep rootCause for prose, stop stuffing UNKNOWN/CONFIRMED tokens into it — or remove/rename it?"
+- context: The whole point of #4A is to stop encoding lifecycle in prose. The gate semantics decide whether K12 a–f and the investigate adjudication query a STATUS. The rootCause field still has a legitimate narrative use (describing the cause once known); the markers are what move to status. Pinning (1)–(3) lets the planner enumerate exact edits to investigate/advance.md, plan/advance.md + plan-advance.md, implement/advance.md.
+- suggestions: ["Yes to all: status==root-caused is the gate everywhere (replaces every 'confirmed root cause'/'confirmed node' prose check); map CONFIRMED/GROUNDED->root-caused, UNKNOWN->wip-or-inconclusive; KEEP rootCause as free-text narrative (cause description), markers removed","Same, but also RENAME rootCause -> e.g. `analysis`/`findings` to signal it is narrative-only now","Keep a prose check as a fallback in addition to the status gate (belt-and-suspenders)"]
+- recommendation: "Yes to all three: re-key every gate (investigate file-and-defer, K12 a–f worklist + stop-predicates) to status==root-caused; map CONFIRMED/GROUNDED->root-caused and UNKNOWN->wip (only ->inconclusive when an adjudication explicitly concluded the cause is unpinnable); KEEP `rootCause` as the free-text cause NARRATIVE (no marker tokens), no rename — minimizes churn and the name still fits the narrative use."
+- ledgerRefs: ["goals:G6"]
+
+### Q69 — open
+
+- createdAt: 2026-06-03T00:22:21.356Z
+- updatedAt: 2026-06-03T00:22:21.356Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4A — schema VERSIONING + MIGRATION of existing OPEN defects. (1) Is the defects ledger schema versioned via baboon/model-version (the goal flags 'if the defects schema is versioned'), requiring a model-version bump + wire-conversion when statusValues/transitions change, or is CANONICAL_LEDGERS a plain in-code constant that can be edited directly with no model-evolution step? (2) For existing OPEN defects — the live tracked ones are D13 (TUI nav latency, rootCause 'UNKNOWN') and D20 (separately tracked) — should the migration set their NEW status from their current rootCause marker (UNKNOWN-still-investigating -> stays open/wip; a defect with a CONFIRMED/GROUNDED marker -> root-caused), and is that migration a one-shot data fixup (rewrite docs/defects.md entries via update_item) or an automatic on-load coercion in the store? Note: D13/D20 are NOT goal scope to FIX here, only to MIGRATE to the new status vocabulary."
+- context: Determines whether #4A carries a baboon model-version task (and @cq/shared wire conversion) or is a direct constant edit. Also pins how the handful of live open defects land on the new states without a manual scramble. The repo gate is bun run check. The goal explicitly excludes fixing D13/D14-D19/D20 — this is purely about their status-vocabulary migration.
+- suggestions: ["Direct CANONICAL_LEDGERS edit (no baboon version bump) + a one-shot update_item migration of the live open defects' status; no on-load coercion","Baboon model-version bump + wire conversion (if the defects schema is a versioned model) + one-shot data migration","Direct edit + automatic on-load coercion in the store (any legacy status/marker mapped to the new set at read time, no data rewrite)"]
+- recommendation: "Confirm whether the defects schema is a versioned baboon model first (the planner will branch the task list on the answer). For migration: a one-shot update_item pass mapping each live open defect from its rootCause marker to the new status (D13 UNKNOWN -> open or wip per its current state; any CONFIRMED/GROUNDED -> root-caused), no permanent on-load coercion (keeps the store clean). D13/D20 migrated only, not fixed."
+- ledgerRefs: ["goals:G6"]
+
+### Q70 — open
+
+- createdAt: 2026-06-03T00:22:40.314Z
+- updatedAt: 2026-06-03T00:22:40.314Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4B — WHERE does the coordination-milestone auto-close+archive sweep live? Today only WORK milestones get archived at end-of-implement-run (implement/advance.md milestone-completion); COORDINATION milestones (which hold goal + questions + reviews + decisions — M10/M11/M15/M20/M23, M27/M29) linger `open`. Options: (a) extend implement/advance.md's milestone-completion step to ALSO sweep the goal's coordination milestone once the goal is terminal; (b) put a dedicated sweep in the NEW /advance command (Follow-up #2) that runs after its sub-flows; (c) add the sweep to every flow's completion; (d) a standalone one-off maintenance step only. Which locus (or combination)?"
+- context: The sweep must run reliably whenever a coordination milestone becomes fully terminal. implement/advance.md already owns work-milestone archival, so it is the natural home for milestone closure; but a coordination milestone only becomes eligible when its GOAL is terminal, and goal-closure is user-driven (the never-auto-close-goals invariant), so the sweep must be triggered AFTER a user closes the goal — which the new /advance command (re-derives state by ledger query) is well-placed to do on its next run. Picking the locus determines which prompt(s) the planner edits.
+- suggestions: ["/advance command runs the sweep (it already re-derives ledger state each run; natural place to detect 'goal terminal + all coordination-milestone items terminal' and close+archive)","implement/advance.md milestone-completion extended to also close+archive the goal's coordination milestone when the goal is terminal","Both: implement/advance.md sweeps work AND coordination milestones it can prove terminal; /advance also sweeps as a catch-all for goals closed outside an implement run","A dedicated reusable sweep routine referenced by both /advance and implement/advance.md"]
+- recommendation: Put the authoritative sweep in the new /advance command (it re-derives all ledger state by query each run and is the natural catch-all for goals the user closed between runs), AND state the same predicate in implement/advance.md so an implement run that finishes the last work also closes its work milestones consistently. Factor the predicate once and reference it from both prompts to avoid drift.
+- ledgerRefs: ["goals:G6"]
+
+### Q71 — open
+
+- createdAt: 2026-06-03T00:22:50.411Z
+- updatedAt: 2026-06-03T00:22:50.411Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4B — the exact PREDICATE + GUARD for auto-closing a milestone. Proposal: a milestone M is eligible to auto-close+archive iff (1) every ITEM under M (across all ledgers) is terminal, AND (2) for a COORDINATION milestone (one whose items include a goal), that goal is itself terminal (done/abandoned) — because new follow-up scope can add items to a coordination milestone while its goal is active (cf. THIS goal G6, whose M27 must stay open while G6 is clarifying). The mechanism: set milestone status=done via update_milestone, THEN archive_milestone (archive refuses unless the milestone-item itself is terminal — observed with M21/M30). And the prompts must state the goal-vs-milestone ASYMMETRY explicitly: goals NEVER auto-close (user-driven only); milestones ALWAYS may once eligible. Confirm the predicate, the two-step done-then-archive mechanism, and the goal-non-terminal guard."
+- context: The guard against archiving a coordination milestone whose goal is still active is essential — otherwise a milestone gets archived mid-flow and new follow-up items (like #4 itself) can't attach. archive_milestone's refusal-unless-terminal was observed (M21/M30 needed update_milestone status=done first). WORK milestones have no goal so condition (2) is vacuous — they close as soon as their items are all terminal. Confirm so the planner can encode the predicate as an explicit checklist in the prompt(s).
+- suggestions: ["Adopt as proposed: (all items terminal) AND (if coordination milestone, goal terminal); do update_milestone status=done then archive_milestone; document goal-vs-milestone asymmetry explicitly","Same predicate, but ALSO require all the milestone's dependsOn/blockedBy milestones to be terminal before archiving (DAG-safe ordering)","Looser: archive any milestone whose items are all terminal regardless of goal status (rejected — breaks follow-up attachment)"]
+- recommendation: Adopt the proposed predicate + guard + two-step mechanism exactly, and make the goal-vs-milestone asymmetry an explicit one-liner in the hardened prompt(s). Do NOT add the dependsOn-terminal requirement unless the user wants it — a milestone's own items being terminal is the operative condition; DAG predecessors being non-terminal does not make a fully-terminal milestone unsafe to archive.
+- ledgerRefs: ["goals:G6"]
+
+### Q72 — open
+
+- createdAt: 2026-06-03T00:23:07.216Z
+- updatedAt: 2026-06-03T00:23:07.216Z
+- author: "opus-4.8[1m]"
+- session: fe0aaf85-56b3-45ce-a7fc-718ab19c37e1
+- question: "Follow-up #4B — the ONE-SHOT CLEANUP of already-open completed milestones. After the auto-close rule lands, a one-time sweep should close+archive the coordination milestones that are ALREADY fully terminal but still `open` (candidates from the goal text: M10/M11/M15/M20/M23, and M29; M27 is EXCLUDED while G6 is active). Two decisions: (1) Should this cleanup be part of THIS goal's deliverable (a task that runs the sweep over the listed milestones, each verified all-items-terminal + goal-terminal before archiving), or left to the new rule to pick up organically on the next /advance run? (2) Is it acceptable for the planner to first VERIFY each candidate's actual eligibility at plan/execution time (re-query items + owning goal status) rather than trusting the goal text's list — since some listed ids may have non-terminal items or active goals?"
+- context: The goal lists candidate lingering milestones but that list was assembled from memory; the executing task must re-verify each is genuinely eligible (all items terminal AND — if it owns a goal — that goal terminal) before archiving, to avoid prematurely archiving a milestone with live work or an active goal. This bounds whether #4 ships a cleanup task or relies on the standing rule. archive_milestone needs update_milestone status=done first (M21/M30 precedent).
+- suggestions: ["Include a one-shot cleanup task in this goal that re-verifies each candidate (M10/M11/M15/M20/M23/M29) is all-items-terminal + goal-terminal, then update_milestone done + archive_milestone for the eligible ones; report any skipped (ineligible) ones","Ship only the standing rule + prompt hardening; let the next /advance run sweep the backlog organically (no dedicated cleanup task)","Cleanup task, but the user pre-confirms the exact eligible id list (planner presents the verified list for sign-off before archiving)"]
+- recommendation: Include a one-shot cleanup task that RE-VERIFIES eligibility per milestone at execution time (do not trust the text list), archives only the genuinely eligible ones (update_milestone done then archive_milestone), and reports any skipped with the reason; this both validates the new rule end-to-end and clears the observed backlog. Exclude M27 (G6 active) and any milestone whose goal is non-terminal.
+- ledgerRefs: ["goals:G6"]
