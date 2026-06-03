@@ -777,3 +777,38 @@ button:hover {
   align-items: center;
   gap: 2px;
 }
+
+/* HoldButton — confirm-by-holding (T150). The fill width is set inline by the
+   component as it animates; these rules give the track/label their layout. */
+.lw-holdbtn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.lw-holdbtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.lw-holdbtn-label {
+  pointer-events: none;
+}
+.lw-holdbtn-track {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: var(--border, #2a2f3a);
+  border-radius: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lw-holdbtn-fill {
+  display: block;
+  height: 100%;
+  background: var(--lw-status-warning, #e0a341);
+}
