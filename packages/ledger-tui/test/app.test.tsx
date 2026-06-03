@@ -19,6 +19,11 @@ import type { ArchiveContent, FetchedLedger, Item, LedgerClient, LedgerSummary }
 import type { Milestone } from "@cq/ledger";
 import { MILESTONES_SCHEMA } from "@cq/ledger";
 
+// Disable the detail-render debounce in tests so content assertions observe the
+// full ContentPane synchronously (the debounce is a perf optimisation verified
+// via the PTY harness, not these unit tests). See app.tsx detailSettleMs().
+process.env["LEDGER_TUI_DETAIL_SETTLE_MS"] = "0";
+
 const DOWN = "[B";
 const LEFT = "[D";
 const RIGHT = "[C";

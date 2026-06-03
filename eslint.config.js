@@ -7,7 +7,14 @@ import globals from "globals";
 export default tseslint.config(
   {
     // Global ignores — these are excluded from all configs below
-    ignores: ["**/node_modules/**", "**/.cache/**", "**/.direnv/**", "**/dist/**", "**/.claude/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/.cache/**",
+      "**/.direnv/**",
+      "**/dist/**",
+      "**/.claude/**",
+      "**/debug/**",
+    ],
   },
   // Base JS rules
   eslint.configs.recommended,

@@ -41,6 +41,7 @@ docs/.ledger-backup/
 
 # scratch
 /debug/
+**/debug/
 
 # CodeGraph local index (per-machine)
 .codegraph/

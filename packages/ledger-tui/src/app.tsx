@@ -329,6 +329,41 @@ type Overlay =
 // App
 // ---------------------------------------------------------------------------
 
+/**
+ * Idle delay (ms) before the heavy detail pane renders after the selection
+ * changes. Rendering a large item's detail is expensive (ink measures the full
+ * text volume), so a rapid sequence of cursor moves must not each pay it — see
+ * {@link useDebounced} + the detail skeleton. Overridable via
+ * `LEDGER_TUI_DETAIL_SETTLE_MS` (tests set it to `0` to disable the debounce so
+ * content assertions see the full detail synchronously).
+ */
+const DEFAULT_DETAIL_SETTLE_MS = 110;
+function detailSettleMs(): number {
+  const raw = process.env["LEDGER_TUI_DETAIL_SETTLE_MS"];
+  return raw !== undefined && raw !== "" ? Number(raw) : DEFAULT_DETAIL_SETTLE_MS;
+}
+
+/**
+ * Returns `value` but lags updates until it has been stable for `ms`. Because
+ * the held state starts at the OLD value, the first render after `value`
+ * changes already returns the stale value — callers compare `debounced ===
+ * value` to detect "selection is still settling". `ms <= 0` disables the
+ * debounce entirely (returns the live value), which the test harness uses.
+ */
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    if (v === value) return;
+    if (ms <= 0) {
+      setV(value);
+      return;
+    }
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms, v]);
+  return ms <= 0 ? value : v;
+}
+
 export function App({
   client,
   liveUrl = null,
@@ -402,6 +437,17 @@ export function App({
       return [...s.slice(0, -1), { ...t, ...patch } as Frame];
     });
   }, []);
+
+  // Detail-render debounce (perf): while the selection is actively changing,
+  // render a cheap skeleton instead of the heavy ContentPane; the full detail
+  // renders only once the cursor has been idle for DETAIL_SETTLE_MS. The key
+  // also includes `focus` so toggling into the content pane (to scroll) renders
+  // the full detail. `top.scroll` is deliberately EXCLUDED so scrolling within
+  // the content pane is not debounced (windowing keeps each scroll step cheap).
+  const selKey =
+    top.kind === "items" ? `items#${top.ledger}#${top.cursor}#${top.focus}` : top.kind;
+  const committedSelKey = useDebounced(selKey, detailSettleMs());
+  const showFullDetail = committedSelKey === selKey;
 
   // Effective extra columns for a ledger: the session selection if the user
   // has customised it, else the per-ledger defaults (seeded lazily).
@@ -1011,17 +1057,30 @@ export function App({
     const taskItems = crossItems.get(TASKS_LEDGER) ?? [];
     contentEl =
       cur !== undefined ? (
-        <ContentPane
-          row={cur}
-          ledger={top.ledger}
-          schema={schema}
-          width={contentInnerW}
-          height={contentInnerH}
-          scroll={top.scroll}
-          readOnly={cursorInArchive}
-          viewItems={viewItems}
-          taskItems={taskItems}
-        />
+        showFullDetail ? (
+          <ContentPane
+            row={cur}
+            ledger={top.ledger}
+            schema={schema}
+            width={contentInnerW}
+            height={contentInnerH}
+            scroll={top.scroll}
+            readOnly={cursorInArchive}
+            viewItems={viewItems}
+            taskItems={taskItems}
+          />
+        ) : (
+          // Cheap placeholder during active navigation (DETAIL_SETTLE_MS
+          // debounce): just the item's id/status/summary, no markdown — so a
+          // rapid sequence of cursor moves does not each pay the heavy render.
+          <DetailSkeleton
+            row={cur}
+            ledger={top.ledger}
+            schema={schema}
+            height={contentInnerH}
+            readOnly={cursorInArchive}
+          />
+        )
       ) : (
         <Text dimColor>(no item selected)</Text>
       );
@@ -1320,6 +1379,40 @@ function ScrollList<T>({
 function estimateLines(value: string, width: number): number {
   const w = Math.max(8, width - 2);
   return value.split("\n").reduce((acc, line) => acc + Math.max(1, Math.ceil(line.length / w)), 0);
+}
+
+/**
+ * Lightweight stand-in for {@link ContentPane} shown while the selection is
+ * still settling (see the DETAIL_SETTLE_MS debounce). Renders only the item's
+ * id/status/summary — no per-field markdown — so rapid cursor movement stays
+ * fluid regardless of the selected item's size.
+ */
+function DetailSkeleton({
+  row,
+  ledger,
+  schema,
+  height,
+  readOnly = false,
+}: {
+  row: Row;
+  ledger: string;
+  schema: LedgerSchema;
+  height: number;
+  readOnly?: boolean;
+}): React.ReactElement {
+  return (
+    <Box flexDirection="column" height={height} overflow="hidden">
+      <Text>
+        <Text bold>{row.item.id}</Text>
+        <Text dimColor> @ {ledger}</Text>
+        {"  "}
+        <Text color={statusColor(row.item.status, schema)}>{row.item.status}</Text>
+        {readOnly ? <Text dimColor> [archived · read-only]</Text> : null}
+      </Text>
+      <Text>{summarize(row.item)}</Text>
+      <Text dimColor>…</Text>
+    </Box>
+  );
 }
 
 function ContentPane({
