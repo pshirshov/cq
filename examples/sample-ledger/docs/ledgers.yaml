@@ -71,6 +71,9 @@ ledgers:
         suggestedModel:
           type: string
           required: false
+        sessionLogs:
+          type: string[]
+          required: false
       idPrefix: D
   - name: tasks
     schema:
@@ -123,6 +126,9 @@ ledgers:
         suggestedModel:
           type: string
           required: false
+        sessionLogs:
+          type: string[]
+          required: false
       idPrefix: T
   - name: hypothesis
     schema:
@@ -167,6 +173,9 @@ ledgers:
           required: false
         suggestedModel:
           type: string
+          required: false
+        sessionLogs:
+          type: string[]
           required: false
       idPrefix: H
   - name: questions
@@ -288,6 +297,9 @@ ledgers:
         sourceRefs:
           type: string[]
           required: false
+        sessionLogs:
+          type: string[]
+          required: false
       idPrefix: G
   - name: reviews
     schema:
@@ -314,6 +326,9 @@ ledgers:
           type: string[]
           required: false
         sourceRefs:
+          type: string[]
+          required: false
+        sessionLogs:
           type: string[]
           required: false
       idPrefix: R

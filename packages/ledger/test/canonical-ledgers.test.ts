@@ -33,6 +33,7 @@ import {
   HANDOFFS_LEDGER,
   HANDOFFS_SCHEMA,
   InvalidStatusError,
+  SchemaValidationError,
   DEFECTS_SCHEMA,
   TASKS_SCHEMA,
   HYPOTHESIS_SCHEMA,
@@ -704,6 +705,86 @@ for (const factory of [inMem, fs_]) {
             fields: { summary: "wrong status" },
           }),
         ).rejects.toThrow(InvalidStatusError);
+      } finally {
+        await store.dispose();
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// T138 — sessionLogs field presence: present on work-producing ledgers
+// (defects/tasks/hypothesis/goals/reviews/handoffs), absent on
+// questions/decisions.
+// ---------------------------------------------------------------------------
+
+describe("T138: sessionLogs field presence on work-producing ledgers", () => {
+  const SCHEMAS_WITH_SESSION_LOGS: Array<[string, LedgerSchema]> = [
+    [DEFECTS_LEDGER, DEFECTS_SCHEMA],
+    [TASKS_LEDGER, TASKS_SCHEMA],
+    [HYPOTHESIS_LEDGER, HYPOTHESIS_SCHEMA],
+    [GOALS_LEDGER, GOALS_SCHEMA],
+    [REVIEWS_LEDGER, REVIEWS_SCHEMA],
+    [HANDOFFS_LEDGER, HANDOFFS_SCHEMA],
+  ];
+
+  const SCHEMAS_WITHOUT_SESSION_LOGS: Array<[string, LedgerSchema]> = [
+    [QUESTIONS_LEDGER, QUESTIONS_SCHEMA],
+    [DECISIONS_LEDGER, DECISIONS_SCHEMA],
+  ];
+
+  for (const [name, schema] of SCHEMAS_WITH_SESSION_LOGS) {
+    it(`${name}: has sessionLogs field (type:string[], required:false)`, () => {
+      const f = schema.fields["sessionLogs"];
+      expect(f).toBeDefined();
+      expect(f!.type).toBe("string[]");
+      expect(f!.required).toBe(false);
+    });
+  }
+
+  for (const [name, schema] of SCHEMAS_WITHOUT_SESSION_LOGS) {
+    it(`${name}: does NOT have sessionLogs field`, () => {
+      expect(schema.fields["sessionLogs"]).toBeUndefined();
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// T138 — create_item accepts sessionLogs on a task; rejects it on a question.
+// ---------------------------------------------------------------------------
+
+for (const factory of [inMem, fs_]) {
+  describe(`T138: sessionLogs accepted on task, rejected on question (${factory.name})`, () => {
+    it("accepts sessionLogs on a task create_item", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "T138 task milestone" });
+        const created = await store.createItem(TASKS_LEDGER, m.id, {
+          status: "planned",
+          fields: {
+            headline: "Task with session log",
+            sessionLogs: ["docs/logs/20260603-120000-agent-abc.md"],
+          },
+        });
+        expect(created.fields["sessionLogs"]).toEqual(["docs/logs/20260603-120000-agent-abc.md"]);
+      } finally {
+        await store.dispose();
+      }
+    });
+
+    it("rejects sessionLogs on a question create_item (unknown field)", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "T138 question milestone" });
+        await expect(
+          store.createItem(QUESTIONS_LEDGER, m.id, {
+            status: "open",
+            fields: {
+              question: "Should we add sessionLogs to questions?",
+              sessionLogs: ["docs/logs/20260603-120000-agent-abc.md"],
+            },
+          }),
+        ).rejects.toThrow(SchemaValidationError);
       } finally {
         await store.dispose();
       }

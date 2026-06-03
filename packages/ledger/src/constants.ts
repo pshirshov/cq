@@ -137,6 +137,8 @@ export const DEFECTS_SCHEMA: LedgerSchema = {
     suggestedFix: { type: "string", required: false },
     fix: { type: "string", required: false },
     severity: { type: "string", required: true },
+    /** Repo-relative paths to session log files (docs/logs/<ts>-<agent-id>.md). */
+    sessionLogs: { type: "string[]", required: false },
     ...COMMON_REF_FIELDS,
   },
 };
@@ -165,6 +167,8 @@ export const TASKS_SCHEMA: LedgerSchema = {
     resultCommit: { type: "string", required: false },
     completion: { type: "string", required: false },
     severity: { type: "string", required: false },
+    /** Repo-relative paths to session log files (docs/logs/<ts>-<agent-id>.md). */
+    sessionLogs: { type: "string[]", required: false },
     ...COMMON_REF_FIELDS,
   },
 };
@@ -188,6 +192,8 @@ export const HYPOTHESIS_SCHEMA: LedgerSchema = {
     rationale: { type: "string", required: false },
     parentHypothesis: { type: "id", required: false },
     evidence: { type: "string[]", required: false },
+    /** Repo-relative paths to session log files (docs/logs/<ts>-<agent-id>.md). */
+    sessionLogs: { type: "string[]", required: false },
     ...COMMON_REF_FIELDS,
   },
 };
@@ -271,6 +277,8 @@ export const GOALS_SCHEMA: LedgerSchema = {
     grounding: { type: "string", required: false },
     tags: { type: "string[]", required: false },
     sourceRefs: { type: "string[]", required: false },
+    /** Repo-relative paths to session log files (docs/logs/<ts>-<agent-id>.md). */
+    sessionLogs: { type: "string[]", required: false },
   },
 };
 
@@ -299,6 +307,8 @@ export const REVIEWS_SCHEMA: LedgerSchema = {
     ledgerRefs: { type: "id[]", required: false },
     tags: { type: "string[]", required: false },
     sourceRefs: { type: "string[]", required: false },
+    /** Repo-relative paths to session log files (docs/logs/<ts>-<agent-id>.md). */
+    sessionLogs: { type: "string[]", required: false },
   },
 };
 
