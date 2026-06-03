@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 15-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 18-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. This is the stdio counterpart to `createLedgerMcpTools`
  * (the in-process Claude-SDK `tool()` factory in `./ledgerTools.ts`): both
@@ -23,6 +23,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LedgerStore, CreateItemInit, UpdateItemPatch } from "../store/LedgerStore.js";
 import { QUERY_LANGUAGE_HELP } from "../search/query.js";
 import type { FieldValue, LedgerSchema } from "../types.js";
+import {
+  ReadLogNotImplementedError,
+  type ReadLogCapability,
+} from "./readLog.js";
 
 // ---------------------------------------------------------------------------
 // Shared Zod fragments (mirror ./ledgerTools.ts)
@@ -107,10 +111,18 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 17 ledger tools on the given MCP server. Identical
+ * Register the 18 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
+ *
+ * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
+ * R137 #6). When omitted (the factory wired over an in-memory store), the
+ * `read_log` tool throws `ReadLogNotImplementedError`.
  */
-export function registerLedgerStdioTools(server: McpServer, store: LedgerStore): void {
+export function registerLedgerStdioTools(
+  server: McpServer,
+  store: LedgerStore,
+  readLog?: ReadLogCapability,
+): void {
   // ---- Item / ledger surface (9) -----------------------------------------
 
   server.registerTool(
@@ -443,5 +455,22 @@ export function registerLedgerStdioTools(server: McpServer, store: LedgerStore):
       },
     },
     async () => jsonResult({ ledger: store.snapshot() }),
+  );
+
+  // ---- Filesystem read (1) -----------------------------------------------
+
+  server.registerTool(
+    "read_log",
+    {
+      description:
+        "Read a log file under the ledger's <root>/docs/logs/ directory and return its text content. `path` is repo-relative to docs/logs (e.g. \"20260101-1200-session.md\"); absolute paths and any path escaping docs/logs (e.g. `..` traversal) are rejected. Oversized files are truncated (truncated:true). Returns { path, content, truncated? }. Only available when the server is filesystem-backed; against an in-memory store it returns a not-implemented error.",
+      inputSchema: {
+        path: z.string().describe("repo-relative path under docs/logs/"),
+      },
+    },
+    async (args) => {
+      if (readLog === undefined) throw new ReadLogNotImplementedError();
+      return jsonResult(await readLog(args.path));
+    },
   );
 }

@@ -53,15 +53,25 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (17 tools)", async () => {
+  it("exports the expected tool names (18 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(17);
+    expect(LEDGER_TOOL_NAMES.length).toBe(18);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
     expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
     expect(LEDGER_TOOL_NAMES).toContain("unarchive_item");
+    expect(LEDGER_TOOL_NAMES).toContain("read_log");
+  });
+
+  it("read_log against the in-memory store throws the documented not-implemented error", async () => {
+    const store = await buildStore();
+    // No readLog capability supplied -> the in-memory dummy has no filesystem.
+    const tools = createLedgerMcpTools(store);
+    await expect(
+      callTool(tools, "read_log", { path: "anything.md" }),
+    ).rejects.toThrow(/not implemented/i);
   });
 
   it("enumerate_ledgers + create_ledger + fetch_ledger round-trip (includes bootstrapped milestones)", async () => {

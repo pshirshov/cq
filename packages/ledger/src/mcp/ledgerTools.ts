@@ -4,7 +4,7 @@
  * Returns an array of `tool()` instances ready to be passed to
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
  *
- * Tool surface (17 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item):
+ * Tool surface (18 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item + read_log):
  *
  * Item / ledger surface (9):
  *  - enumerate_ledgers, fetch_ledger, fetch_ledger_archive,
@@ -26,6 +26,11 @@
  *  - reopen_item(ledger_id, item_id, to_status) — recover terminal item
  *  - unarchive_item(ledger_id, milestone_id, item_id) — restore archived item
  *
+ * Filesystem read (1):
+ *  - read_log(path) — bounded, root-confined read of a <root>/docs/logs file.
+ *    Requires an explicit FS-store `readLog` capability (Q87 / R137 #6); when
+ *    the factory is wired over an in-memory store it throws not-implemented.
+ *
  * Each handler turns the validated input into a single LedgerStore call,
  * serialises the result as JSON, and returns it as a text content block.
  * Errors are surfaced via thrown Error (the SDK reports them as tool errors).
@@ -41,6 +46,10 @@ import type { LedgerStore, CreateItemInit, UpdateItemPatch } from "../store/Ledg
 import { QUERY_LANGUAGE_HELP } from "../search/query.js";
 import type { FieldValue, LedgerSchema } from "../types.js";
 import { projectCompact, paginate } from "../projection.js";
+import {
+  ReadLogNotImplementedError,
+  type ReadLogCapability,
+} from "./readLog.js";
 
 /**
  * The SDK's `tools?:` field on createSdkMcpServer is typed as
@@ -146,7 +155,10 @@ const safeIdSchema = z
 // Tool builders
 // ---------------------------------------------------------------------------
 
-export function createLedgerMcpTools(store: LedgerStore): AnyTool[] {
+export function createLedgerMcpTools(
+  store: LedgerStore,
+  readLog?: ReadLogCapability,
+): AnyTool[] {
   // ---- Item / ledger surface (8) -----------------------------------------
 
   const enumerateLedgers = tool(
@@ -477,6 +489,20 @@ When no params are provided the response is the unchanged full ledger (backward-
     async () => jsonResult({ ledger: store.snapshot() }),
   );
 
+  // ---- Filesystem read (1) -----------------------------------------------
+
+  const readLogTool = tool(
+    "read_log",
+    "Read a log file under the ledger's <root>/docs/logs/ directory and return its text content. `path` is repo-relative to docs/logs (e.g. \"20260101-1200-session.md\"); absolute paths and any path escaping docs/logs (e.g. `..` traversal) are rejected. Oversized files are truncated (truncated:true). Returns { path, content, truncated? }. Only available when the server is filesystem-backed; against an in-memory store it returns a not-implemented error.",
+    {
+      path: z.string().describe("repo-relative path under docs/logs/"),
+    } as const,
+    async (args) => {
+      if (readLog === undefined) throw new ReadLogNotImplementedError();
+      return jsonResult(await readLog(args.path));
+    },
+  );
+
   return [
     enumerateLedgers,
     fetchLedger,
@@ -495,6 +521,7 @@ When no params are provided the response is the unchanged full ledger (backward-
     snapshotTool,
     reopenItem,
     unarchiveItem,
+    readLogTool,
   ] as unknown as AnyTool[];
 }
 
@@ -517,4 +544,5 @@ export const LEDGER_TOOL_NAMES = [
   "snapshot",
   "reopen_item",
   "unarchive_item",
+  "read_log",
 ] as const;

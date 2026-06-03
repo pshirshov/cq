@@ -39,6 +39,7 @@ import {
   FsLedgerStore,
   type LedgerStore,
   type ResetSummary,
+  type ReadLogCapability,
   registerLedgerStdioTools,
 } from "@cq/ledger";
 import { startLedgerWatcher } from "./watcher.js";
@@ -203,7 +204,8 @@ export function projectInstructionLine(displayName: string): string {
 }
 
 /**
- * Build a fresh McpServer with the 14 ledger tools bound to `store`.
+ * Build a fresh McpServer with the ledger tools (LEDGER_TOOL_NAMES) bound to
+ * `store`. read_log is wired only when `store` is filesystem-backed.
  *
  * `displayName` is the basename of the resolved `--cwd` (the project directory
  * name). Frontends are pure MCP clients and never read cwd, so the server
@@ -219,7 +221,13 @@ export function buildServer(store: LedgerStore, displayName: string): McpServer 
     capabilities: { tools: {} },
     instructions,
   });
-  registerLedgerStdioTools(server, store);
+  // read_log (Q87 / R137 #6) is bounded to the EXPLICIT FS-store root, not the
+  // generic LedgerStore interface; thread the capability only when the store is
+  // filesystem-backed. An in-memory store supplies no capability and read_log
+  // then throws the documented not-implemented error.
+  const readLog: ReadLogCapability | undefined =
+    store instanceof FsLedgerStore ? (p) => store.readLog(p) : undefined;
+  registerLedgerStdioTools(server, store, readLog);
   return server;
 }
 

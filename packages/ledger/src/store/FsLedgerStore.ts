@@ -93,6 +93,7 @@ import type {
 } from "./LedgerStore.js";
 import type { LedgerSnapshot } from "../snapshot.js";
 import { buildSnapshot } from "../snapshot.js";
+import { MAX_READ_LOG_BYTES, type ReadLogResult } from "../mcp/readLog.js";
 import { LedgerSearchIndex } from "../search/LedgerSearchIndex.js";
 import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
@@ -160,6 +161,7 @@ const REGISTRY_LOCK_KEY = "__registry__";
 export class FsLedgerStore implements LedgerStore {
   private readonly root: string;
   private readonly docsDir: string;
+  private readonly logsDir: string;
   private readonly locksDir: string;
   private readonly archiveDir: string;
   private readonly registryPath: string;
@@ -176,6 +178,7 @@ export class FsLedgerStore implements LedgerStore {
   constructor(opts: FsLedgerStoreOpts) {
     this.root = opts.root;
     this.docsDir = path.join(this.root, "docs");
+    this.logsDir = path.join(this.docsDir, "logs");
     this.locksDir = path.join(this.docsDir, ".locks");
     this.archiveDir = path.join(this.docsDir, "archive");
     this.registryPath = path.join(this.docsDir, "ledgers.yaml");
@@ -1229,6 +1232,44 @@ export class FsLedgerStore implements LedgerStore {
     const l = this.ledgers.get(ledgerId);
     if (l === undefined) throw new LedgerNotFoundError(ledgerId);
     return l;
+  }
+
+  /**
+   * Bounded, root-confined read of a log file under `<root>/docs/logs/`
+   * (T147 / Q87). This is the FS-store's `read_log` capability: the
+   * confinement root is the EXPLICIT FS-store root (`this.logsDir`), NOT the
+   * generic `LedgerStore` interface — the in-memory store has no filesystem and
+   * supplies no such capability.
+   *
+   * Security/bounds:
+   *  - `relPath` MUST be repo-relative; an absolute path is rejected.
+   *  - The path is resolved against `<root>/docs/logs` and REJECTED if it
+   *    escapes that directory (e.g. `..` traversal).
+   *  - The returned content is capped at {@link MAX_READ_LOG_BYTES}; an
+   *    oversized file is truncated and flagged `truncated: true`.
+   */
+  async readLog(relPath: string): Promise<ReadLogResult> {
+    if (path.isAbsolute(relPath)) {
+      throw new LedgerError(`read_log: absolute paths are not allowed: ${relPath}`);
+    }
+    // Normalise the requested relative path, then resolve under logsDir and
+    // verify containment (defence-in-depth against `..` traversal).
+    const resolved = path.resolve(this.logsDir, relPath);
+    if (
+      resolved !== this.logsDir &&
+      !resolved.startsWith(this.logsDir + path.sep)
+    ) {
+      throw new LedgerError(
+        `read_log: path escapes docs/logs root: ${relPath}`,
+      );
+    }
+
+    const buf = await fs.readFile(resolved);
+    if (buf.byteLength > MAX_READ_LOG_BYTES) {
+      const content = buf.subarray(0, MAX_READ_LOG_BYTES).toString("utf8");
+      return { path: relPath, content, truncated: true };
+    }
+    return { path: relPath, content: buf.toString("utf8") };
   }
 
   private ledgerPath(name: string): string {
