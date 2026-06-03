@@ -12,6 +12,7 @@ import type {
   LedgerClient,
   LedgerSchema,
   LedgerSummary,
+  ReadLogResult,
 } from "../../src/types.js";
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -129,6 +130,9 @@ export class DagFakeClient implements LedgerClient {
     return [];
   }
   async createMilestone(): Promise<Item> {
+    throw new Error("not used in DAG tests");
+  }
+  async readLog(): Promise<ReadLogResult> {
     throw new Error("not used in DAG tests");
   }
   async close(): Promise<void> {

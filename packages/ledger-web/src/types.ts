@@ -24,6 +24,16 @@ export interface FtsHit {
   matchedFields: string[];
 }
 
+/** Result of a bounded read of a docs/logs file (mirrors the server-side ReadLogResult). */
+export interface ReadLogResult {
+  /** The repo-relative path requested (echoed back, normalised). */
+  path: string;
+  /** The file content (possibly truncated). */
+  content: string;
+  /** Present and `true` only when the file exceeded the byte cap. */
+  truncated?: boolean;
+}
+
 export interface ItemPatch {
   status?: string;
   fields?: Record<string, FieldValue>;
@@ -72,5 +82,7 @@ export interface LedgerClient {
   ftsSearch(query: string, opts?: { ledger?: string }): Promise<FtsHit[]>;
   createMilestone(init: { title: string; description?: string; id?: string }): Promise<Item>;
   updateMilestone(milestoneId: string, patch: MilestonePatch): Promise<Item>;
+  /** Read a log file under docs/logs/ via the read_log MCP tool. */
+  readLog(path: string): Promise<ReadLogResult>;
   close(): Promise<void>;
 }

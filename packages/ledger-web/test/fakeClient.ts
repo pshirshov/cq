@@ -15,6 +15,7 @@ import type {
   LedgerSchema,
   LedgerSummary,
   MilestonePatch,
+  ReadLogResult,
 } from "../src/types.js";
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -99,6 +100,13 @@ export class FakeClient implements LedgerClient {
   readonly archiveFetches: Record<string, number> = {};
   /** `<ledger>/<archiveId>` keys whose fetchLedgerArchive must reject (error-path assertions). */
   readonly failArchiveFetch: Set<string> = new Set();
+  /**
+   * Per-path readLog overrides. Map a repo-relative path to:
+   * - a `ReadLogResult` to return that content (possibly truncated)
+   * - an `Error` to simulate a read_log tool error
+   * If the path is not present, a default stub result is returned.
+   */
+  readonly readLogResults: Map<string, ReadLogResult | Error> = new Map();
   private readonly _displayName: string;
   private msCounter = 1;
   private itemCounter = 1;
@@ -361,6 +369,13 @@ export class FakeClient implements LedgerClient {
     if (patch.title !== undefined) it.fields["title"] = patch.title;
     if (patch.description !== undefined) it.fields["description"] = patch.description;
     return it;
+  }
+  async readLog(path: string): Promise<ReadLogResult> {
+    const override = this.readLogResults.get(path);
+    if (override instanceof Error) throw override;
+    if (override !== undefined) return override;
+    // Default stub: return synthetic content for any path not explicitly configured.
+    return { path, content: `stub content for ${path}` };
   }
   async close(): Promise<void> {
     this.closed = true;

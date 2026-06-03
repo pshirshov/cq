@@ -23,6 +23,7 @@ import type {
   LedgerClient,
   LedgerSummary,
   MilestonePatch,
+  ReadLogResult,
 } from "./types.js";
 
 export class LedgerToolError extends Error {
@@ -175,6 +176,10 @@ export class McpLedgerClient implements LedgerClient {
     if (patch.blockedBy !== undefined) args["blockedBy"] = patch.blockedBy;
     if (patch.dependsOn !== undefined) args["dependsOn"] = patch.dependsOn;
     return (await this.call<{ milestone: Item }>("update_milestone", args)).milestone;
+  }
+
+  async readLog(path: string): Promise<ReadLogResult> {
+    return await this.call<ReadLogResult>("read_log", { path });
   }
 
   async close(): Promise<void> {

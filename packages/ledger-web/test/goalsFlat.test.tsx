@@ -30,6 +30,7 @@ import type {
   LedgerSchema,
   LedgerSummary,
   MilestonePatch,
+  ReadLogResult,
 } from "../src/types.js";
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -129,6 +130,9 @@ class GoalsClient implements LedgerClient {
     throw new Error("not used");
   }
   async updateMilestone(_m: string, _p: MilestonePatch): Promise<Item> {
+    throw new Error("not used");
+  }
+  async readLog(): Promise<ReadLogResult> {
     throw new Error("not used");
   }
   async close(): Promise<void> {

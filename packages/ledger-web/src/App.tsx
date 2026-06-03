@@ -1288,6 +1288,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
                   isArchived={true}
                   onClose={() => setSelectedArchiveRow(null)}
                   holdClock={holdClock}
+                  {...(client !== null ? { onReadLog: (p: string) => client.readLog(p) } : {})}
                 />
               ) : (
                 selected !== null && (
@@ -1304,6 +1305,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
                     auxItems={auxItems}
                     onNavigateToItem={(targetLedger, itemId) => void navigateToItem(targetLedger, itemId)}
                     holdClock={holdClock}
+                    {...(client !== null ? { onReadLog: (p: string) => client.readLog(p) } : {})}
                   />
                 )
               )}
@@ -2154,6 +2156,7 @@ function DetailPanel({
   auxItems,
   onNavigateToItem,
   holdClock,
+  onReadLog,
 }: {
   row: Row;
   ledger: string;
@@ -2176,6 +2179,8 @@ function DetailPanel({
   onNavigateToItem?: (targetLedger: string, itemId: string) => void;
   /** Injectable HoldClock for tests; defaults to the real browser clock. */
   holdClock?: HoldClock | undefined;
+  /** Callback to read a log file via the read_log MCP tool. */
+  onReadLog?: (path: string) => Promise<import("./types.js").ReadLogResult>;
 }): React.ReactElement {
   const isDraft = draftMilestones !== undefined;
   const fieldNames = Object.keys(schema.fields);
@@ -2638,6 +2643,10 @@ function DetailPanel({
           onNavigate={(id) => onNavigateToItem?.(HYPOTHESIS_LEDGER, id)}
         />
       )}
+      {/* Session logs panel */}
+      {!isDraft && onReadLog !== undefined && (
+        <SessionLogsPanel item={row.item} onReadLog={onReadLog} />
+      )}
     </aside>
   );
 }
@@ -2769,6 +2778,140 @@ function HypothesisTreePanel({
         </>
       )}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Session-log popup (T152 / Q87)
+// ---------------------------------------------------------------------------
+
+/** State for the log-content modal. */
+type LogModalState =
+  | { kind: "closed" }
+  | { kind: "loading"; path: string }
+  | { kind: "ok"; path: string; content: string; truncated: boolean }
+  | { kind: "error"; path: string; message: string };
+
+/**
+ * Modal overlay that renders a single log file's content (preformatted).
+ * Closes on the ✕ button, on Escape, or on backdrop click.
+ */
+function LogModal({ state, onClose }: { state: LogModalState; onClose: () => void }): React.ReactElement | null {
+  const handleKey = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose],
+  );
+  useEffect(() => {
+    if (state.kind === "closed") return;
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [state.kind, handleKey]);
+
+  if (state.kind === "closed") return null;
+
+  return (
+    <div
+      className="lw-modal-backdrop"
+      data-testid="log-modal-backdrop"
+      onClick={onClose}
+    >
+      <div
+        className="lw-modal"
+        data-testid="log-modal"
+        role="dialog"
+        aria-label={`log: ${state.path}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="lw-modal-head">
+          <span className="lw-modal-title" data-testid="log-modal-path">{state.path}</span>
+          <button type="button" className="lw-close" data-testid="log-modal-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="lw-modal-body">
+          {state.kind === "loading" && (
+            <span className="lw-dim" data-testid="log-modal-loading">loading…</span>
+          )}
+          {state.kind === "error" && (
+            <span className="lw-error" data-testid="log-modal-error">{state.message}</span>
+          )}
+          {state.kind === "ok" && (
+            <>
+              {state.truncated && (
+                <p className="lw-dim lw-log-truncated" data-testid="log-modal-truncated">
+                  (log truncated — file exceeds the read cap)
+                </p>
+              )}
+              <pre className="lw-log-content" data-testid="log-modal-content">{state.content}</pre>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Renders the `sessionLogs` field of an item as a labeled section of clickable
+ * links. Each link opens `LogModal` and fetches the file via `onReadLog`.
+ * When the item has no `sessionLogs` (or the array is empty), renders nothing.
+ */
+function SessionLogsPanel({
+  item,
+  onReadLog,
+}: {
+  item: Item;
+  onReadLog: (path: string) => Promise<import("./types.js").ReadLogResult>;
+}): React.ReactElement | null {
+  const raw = item.fields["sessionLogs"];
+  const paths: string[] = Array.isArray(raw) ? raw.filter((v) => typeof v === "string") : [];
+  const [modal, setModal] = useState<LogModalState>({ kind: "closed" });
+
+  if (paths.length === 0) return null;
+
+  const open = (path: string): void => {
+    setModal({ kind: "loading", path });
+    void onReadLog(path)
+      .then((r) =>
+        setModal({
+          kind: "ok",
+          path: r.path,
+          content: r.content,
+          truncated: r.truncated === true,
+        }),
+      )
+      .catch((err: unknown) =>
+        setModal({
+          kind: "error",
+          path,
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      );
+  };
+
+  return (
+    <>
+      <section className="lw-rel-section" data-testid="session-logs-section">
+        <h4 className="lw-rel-heading">logs</h4>
+        <ul className="lw-rel-list">
+          {paths.map((p) => (
+            <li key={p}>
+              <button
+                type="button"
+                className="lw-log-link"
+                data-testid={`log-link-${p}`}
+                onClick={() => open(p)}
+              >
+                {p}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <LogModal state={modal} onClose={() => setModal({ kind: "closed" })} />
+    </>
   );
 }
 
