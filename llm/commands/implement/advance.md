@@ -33,8 +33,8 @@ exactly where it left off.
   a bun workspace's per-package layout and makes a later `bun install` a no-op —
   see defect D2). Let the worker run a real `bun install` in the worktree
   (cheap with a warm global cache, offline-capable).
-- **Concurrency**: at most **N = 4** workers in flight at once (configurable —
-  treat 4 as the default ready-batch size). Dispatch a batch in a single
+- **Concurrency**: at most **N = 8** workers in flight at once (configurable —
+  treat 8 as the default ready-batch size). Dispatch a batch in a single
   message (parallel `Agent` calls), then process returns.
 
 ## Provenance (every ledger write)

@@ -27,7 +27,7 @@ answering questions); it picks up exactly where the durable ledger state left of
   preserved because ONLY this command (a command) chains commands; the sub-flows'
   subagents still spawn nothing.
 - **No concurrency cap of this command's own (Q60).** /advance introduces NO
-  concurrency limit; each chained sub-flow keeps its OWN (implement-flow's `N = 4`
+  concurrency limit; each chained sub-flow keeps its OWN (implement-flow's `N = 8`
   worker batch, investigate's seed-parallel/drill-serial rule, etc.). You inherit
   whatever each sub-command enforces and add nothing.
 - **No double-triage of goal-linked defects (Q57).** `/plan:advance` OWNS the
