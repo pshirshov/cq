@@ -64,7 +64,7 @@ function decode<T>(result: unknown): T {
 }
 
 describe("ledger-mcp Streamable HTTP", () => {
-  it("lists the 17 ledger tools over HTTP", async () => {
+  it("lists the 18 ledger tools over HTTP", async () => {
     await withClient(async (client) => {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
       expect(names).toEqual([...LEDGER_TOOL_NAMES].sort());

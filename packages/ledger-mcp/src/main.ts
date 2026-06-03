@@ -154,7 +154,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { cwd: resolved, http, reset, yes };
 }
 
-/** Build a fresh McpServer with the 14 ledger tools bound to `store`. */
+/** Build a fresh McpServer with the 18 ledger tools bound to `store`. */
 /**
  * Server-level usage guidance, surfaced to the client on `initialize` (the MCP
  * `instructions` field). Clients that inject it give the model "when/how to
