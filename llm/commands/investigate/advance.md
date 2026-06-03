@@ -137,13 +137,19 @@ citation yourself:
   `excerpt`. If the excerpt matches the source AND genuinely bears on H, store it
   into `hypothesis.evidence[]` prefixed **`[correct]`**; otherwise store it
   prefixed **`[incorrect]`** (wrong line, paraphrase that misrepresents source,
-  or irrelevant). `update_item("hypothesis", H, fields: { evidence: [...] })`.
+  or irrelevant). `update_item("hypothesis", H, fields: { evidence: [...],
+  sessionLogs: ["docs/logs/<ts>-<explorer-agent-id>.md"] })` — include the
+  explorer's session-log path in the SAME `update_item` that stores the evidence
+  (the log file for this explorer was written in §Session logs above; use that
+  path here). Do NOT defer `sessionLogs` to a separate update.
 - **Adjudicate H's `status` from the `[correct]` items ONLY** (ignore
   `[incorrect]` evidence entirely): set `confirmed` when `[correct]` evidence
   establishes the root cause; `wrong` when `[correct]` evidence rules it out;
   `uncertain` when partial (then drill children next round, step 2). Leave `open`
   only if no usable evidence came back. `update_item("hypothesis", H, status:
-  <verdict>)`. (This is the HYPOTHESIS-tree vocabulary
+  <verdict>)` — if you adjudicate in the same call, combine with the evidence
+  update above: `update_item("hypothesis", H, status: <verdict>, fields: {
+  evidence: [...], sessionLogs: ["docs/logs/<ts>-<explorer-agent-id>.md"] })`. (This is the HYPOTHESIS-tree vocabulary
   `open|uncertain|confirmed|wrong` — distinct from the defect STATUS below.)
 - **Reflect the verdict onto the DEFECT's STATUS** (the lifecycle carrier — never
   free-text markers). The defect is already `wip` (set in step 1):
@@ -173,9 +179,12 @@ ledgerRef `defects:<D>` (Q25/Q26). Do this and STOP:
 `update_item("defects", D, status: "root-caused", fields: { rootCause: "<the
 confirmed root cause NARRATIVE — free text, with the [correct] citations that
 establish it; NO UNKNOWN/CONFIRMED/GROUNDED status tokens>", suggestedFix: "<the
-concrete fix the evidence points to>" })`. The `root-caused` status (legal only
-from `wip`, set in step 1) is the lifecycle marker; the `rootCause` field stays
-pure narrative.
+concrete fix the evidence points to>", sessionLogs: ["docs/logs/<ts>-<agent-id>.md",
+...] })` — include ALL session-log paths written for this investigation round
+(all explorer log files) in the SAME `update_item` call that sets `root-caused`.
+Do NOT defer `sessionLogs` to a separate update. The `root-caused` status (legal
+only from `wip`, set in step 1) is the lifecycle marker; the `rootCause` field
+stays pure narrative.
 
 (b) **Seed OR extend a plan-flow goal — defect-seeded.** Search the `goals`
 ledger for a live goal already `ledgerRefs`-linked to `defects:<D>`.

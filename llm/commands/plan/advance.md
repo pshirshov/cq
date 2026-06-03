@@ -192,6 +192,20 @@ a durable trace (the subagents are read-only and write nothing themselves):
 4. `Write` `docs/logs/<timestamp>-<agent-id>.md` containing a short header
    (which goal, which subagent/role, the returned status token or verdict) and
    the verbatim `### Session summary` block the subagent emitted.
+5. **Populate `sessionLogs` on the outcome items** — the orchestrator owns the
+   goal's `sessionLogs` write (the planner subagent updates the goal's phase,
+   but after its log is written you, the orchestrator, must attach the path):
+   - **After the planner returns** and you have written its log file, call
+     `update_item("goals", G, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
+     to record the log path on the goal item. This keeps the goal's session
+     provenance without a separate pass.
+   - **After the reviewer returns** and you have written its log file, call
+     `update_item("reviews", <reviewId>, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
+     — the reviewer subagent creates the review item, but you, the orchestrator,
+     attach the log path to it immediately after writing the file (you have the
+     review id from the reviewer's returned summary). Use the review id the
+     reviewer reported (or look it up via `fts_search` on the reviews ledger for
+     the just-created verdict).
 
 Do this for the planner AND the reviewer on every iteration — one log file per
 spawned subagent. The inline `/investigate:advance` pass logs its own

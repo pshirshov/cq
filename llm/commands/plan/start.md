@@ -61,13 +61,16 @@ report its id and stop instead of creating a new one.
    clarifying questions and returns `awaiting-answers`. You drive it exactly once
    here — there is nothing to review yet, so no loop is needed.
 
-4. **Write the session log.** The `plan-advance` subagent ends its reply with a
-   `### Session summary` section. Persist it: take `<agent-id>` from the `Agent`
-   tool result, stamp `<timestamp>` via `Bash` (`date -u +%Y%m%d-%H%M%S`),
-   `mkdir -p docs/logs`, and `Write` `docs/logs/<timestamp>-<agent-id>.md` with a
-   short header (goal id, role: planner, returned status token) followed by the
-   verbatim summary block. The subagent writes no file itself — the orchestrator
-   does.
+4. **Write the session log and attach it to the goal.** The `plan-advance`
+   subagent ends its reply with a `### Session summary` section. Persist it:
+   take `<agent-id>` from the `Agent` tool result, stamp `<timestamp>` via
+   `Bash` (`date -u +%Y%m%d-%H%M%S`), `mkdir -p docs/logs`, and `Write`
+   `docs/logs/<timestamp>-<agent-id>.md` with a short header (goal id, role:
+   planner, returned status token) followed by the verbatim summary block.
+   The subagent writes no file itself — the orchestrator does. **Immediately
+   after writing the log**, call `update_item("goals", G, fields: { sessionLogs:
+   ["docs/logs/<timestamp>-<agent-id>.md"] })` to attach the log path to the
+   goal item — do NOT defer this to a separate pass.
 
 5. **Auto-investigate filed defects (conditional — K12).** This mirrors the
    same phase in `plan/advance.md` (see that file's §Auto-investigate filed

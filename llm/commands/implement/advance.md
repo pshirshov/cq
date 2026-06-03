@@ -162,8 +162,11 @@ after every task in its `dependsOn` has merged). For each:
    this task (and transitively anything depending on it) this pass.
 3. On a clean rebase (or resolved conflict) → fast-forward merge into the base,
    set `update_item("tasks", <id>, status: "done", fields: { resultCommit:
-   "<merged sha>", completion: "<1-line: what landed>" })` (both are valid
-   optional `tasks` fields), and remove the worktree (Claude: auto; Codex: `git
+   "<merged sha>", completion: "<1-line: what landed>", sessionLogs:
+   ["docs/logs/<ts>-<worker-agent-id>.md", ...] })` — include ALL session-log
+   paths written for this task (worker + reviewer rounds) in the SAME
+   `update_item` call that marks the task `done`; do NOT defer `sessionLogs` to
+   a separate update. Then remove the worktree (Claude: auto; Codex: `git
    worktree remove` + delete the branch).
 4. **Resolve the defect this task fixed (Q20 — orchestrator-owned closure).** If
    the just-merged task `ledgerRefs` one or more `defects:<D>` (it is a fix task
@@ -189,8 +192,11 @@ blocked-on-question): `create_item("reviews", <taskMilestone>, status:
 "go-ahead" | "revise", fields: { summary: "<reviewer's summary field, or
 '<verdict>: <first line of rationale, truncated to ~80 chars>' if omitted>",
 criticism: [...], new_questions: [...], ledgerRefs: ["tasks:<id>",
-"goals:<G>"] })`. Use the reviewer's `summary` when present; otherwise
-synthesize `'<verdict>: <first line of rationale, truncated to ~80 chars>'`.
+"goals:<G>"], sessionLogs: ["docs/logs/<ts>-<reviewer-agent-id>.md"] })`.
+Include the reviewer's session-log path (the log file written for this
+reviewer call) in the SAME `create_item` — do NOT defer it to a separate
+update. Use the reviewer's `summary` when present; otherwise synthesize
+`'<verdict>: <first line of rationale, truncated to ~80 chars>'`.
 This keeps the ledger to one review per task instead of one per criticism round.
 
 ## Milestone completion
