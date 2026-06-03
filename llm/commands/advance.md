@@ -85,6 +85,13 @@ APPEND-ONLY (written once at end-of-run, never updated). This single write is th
 ONLY mutation `/advance` performs; all other mutations remain delegated to the
 chained sub-commands.
 
+**This write is the STOP GATE** (see §Stop condition). You may not conclude an
+`/advance` run without it, and you may only write it once the run genuinely maps
+to one of the four statuses above — i.e. once the re-derived predicates show
+DRAINED or everything-blocked. If no status legitimately applies because a
+predicate is still TRUE and unblocked, the run has NOT reached a legal stop:
+CONTINUE the cycle instead of writing a handoff.
+
 ## Session logs
 This command spawns no subagents, so it writes no session-log file of its own.
 Each chained sub-command logs ITS subagents to `docs/logs/` per that command's
@@ -234,9 +241,37 @@ Operationally, STOP when, at the end of a cycle, ALL hold:
 
 In other words: stop when **every ledger is DRAINED** (nothing actionable
 anywhere) **OR every actionable item is BLOCKED on an unanswered user question**.
-Do NOT stop merely because a cycle was "long"; keep cycling while ANY stage still
-moves the ledger forward. A cycle that made progress (any stage acted, or
-re-check (4) surfaced new work) means another cycle is warranted.
+
+### The stop is PROGRESS-bounded, never EFFORT-bounded (hard gate)
+A stop is legitimate ONLY when the predicates say so — never because the run has
+cost effort. Before you may end a run you MUST do BOTH, in order:
+
+1. **Re-derive and STATE the gate.** Emit the three predicates + the open-question
+   gate from the ledger, explicitly: `P-investigate=… / P-plan=… / P-implement=…
+   / open-Q-gate=…`. You may end ONLY if that line shows all three FALSE (DRAINED)
+   or every still-TRUE predicate is gated solely by an unanswered `open` question
+   (BLOCKED / MIXED). If any predicate is TRUE and nothing blocks it, you have NOT
+   reached a legal stop — **CONTINUE**.
+2. **Write the run-level `handoffs` record** (§Provenance / §End-of-run). This is
+   the GATE: its only legal statuses are `drained` / `answers-required` / `mixed`
+   / `illness-detected`, and each REQUIRES a specific predicate condition
+   (`drained` needs all three predicates FALSE; `answers-required` / `mixed` need a
+   non-empty `blockingQuestions[]`). There is deliberately **NO handoff status for
+   an effort-based stop**, so such a stop has no legal terminal artifact.
+
+**These are NOT stop conditions — NEVER end a run for any of them:**
+- the turn or cycle is "long", or has run for many steps;
+- token / compute cost, or the number of subagents dispatched;
+- "a natural stopping point" / "a substantial milestone has been reached";
+- "substantial work has already landed this run";
+- the remaining work feels disproportionate to its value (e.g. the full
+  investigate→plan→implement ceremony for a confirmed one-line fix) — proportion
+  is not a stop condition; continue and finish it.
+
+If you find yourself reaching for any of the above, that is the signal to
+**CONTINUE**, not to classify. Keep cycling while ANY stage still moves the
+ledger forward. A cycle that made progress (any stage acted, or re-check (4)
+surfaced new work) means another cycle is warranted.
 
 ---
 

@@ -259,6 +259,18 @@ Summarize the pass concisely:
 ---
 
 ## Handoff record (STANDALONE only — suppressed when chained)
+
+> **Your stop is PROGRESS-bounded, never EFFORT-bounded.** Stop ONLY when this
+> flow's own stop predicate fires — the READY-SET is empty, every remaining task
+> is blocked on an `open` user question, or the criticism loop hit an ill-loop
+> bailout — NEVER because the run is long, costly, used many worker waves,
+> reached "a natural milestone", or the remaining work feels disproportionate.
+> The handoff status you write is the gate: one of `drained` / `answers-required`
+> / `mixed` / `illness-detected`, each requiring a real predicate condition —
+> there is no status for an effort-based stop. If tempted to stop while a task is
+> still READY (or a criticism round is still converging), CONTINUE. (See
+> llm/commands/advance.md §Stop condition.)
+
 Whether you write a `handoffs` record at your stop depends ENTIRELY on your
 invocation context — there is **no env var or process signal** to read. You,
 the executing agent, run both this command and (when chained) the wrapping

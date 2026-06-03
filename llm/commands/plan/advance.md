@@ -249,6 +249,18 @@ auto-investigated: 1 confirmed→seeded goal, 1 parked on a question").
 ---
 
 ## Handoff record (STANDALONE only — suppressed when chained)
+
+> **Your stop is PROGRESS-bounded, never EFFORT-bounded.** Stop ONLY when this
+> flow's own stop predicate fires — a terminal planner token (`awaiting-answers`
+> / `completed` / `noop`), the auto-investigate stop predicates (a)–(f), or
+> everything parked on an `open` user question — NEVER because the run is long,
+> costly, used many subagents, reached "a natural milestone", or the remaining
+> work feels disproportionate. The handoff status you write is the gate: one of
+> `drained` / `answers-required` / `mixed` / `illness-detected`, each requiring a
+> real predicate condition — there is no status for an effort-based stop. If
+> tempted to stop while progress is still possible, CONTINUE. (See
+> llm/commands/advance.md §Stop condition.)
+
 Whether you write a `handoffs` record at your stop depends ENTIRELY on your
 invocation context — there is **no env var or process signal** to read. You,
 the executing agent, run both this command and (when chained) the wrapping

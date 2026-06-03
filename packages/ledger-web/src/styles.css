@@ -778,15 +778,16 @@ button:hover {
   gap: 2px;
 }
 
-/* HoldButton — confirm-by-holding (T150). The fill width is set inline by the
-   component as it animates; these rules give the track/label their layout. */
+/* HoldButton — confirm-by-holding (T150). Progress renders as a background
+   fill of the button itself (no extra height): the track overlays the whole
+   button behind the label, and the fill grows left→right as the hold
+   completes. The fill width is set inline by the component as it animates. */
 .lw-holdbtn {
   position: relative;
   overflow: hidden;
   display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   user-select: none;
   touch-action: none;
@@ -796,19 +797,22 @@ button:hover {
   opacity: 0.5;
 }
 .lw-holdbtn-label {
+  position: relative;
+  z-index: 1;
   pointer-events: none;
 }
 .lw-holdbtn-track {
-  display: block;
-  height: 3px;
-  width: 100%;
-  background: var(--border, #2a2f3a);
-  border-radius: 2px;
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border-radius: inherit;
   overflow: hidden;
   pointer-events: none;
 }
 .lw-holdbtn-fill {
-  display: block;
+  position: absolute;
+  inset: 0 auto 0 0;
   height: 100%;
   background: var(--lw-status-warning, #e0a341);
+  opacity: 0.35;
 }
