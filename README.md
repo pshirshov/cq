@@ -14,7 +14,7 @@ diffable and git-friendly. Milestones form a dependency DAG via their
 | Package | What it is |
 |---|---|
 | `@cq/ledger` | The library: parser, `FsLedgerStore`, schema/registry, FTS index, and the MCP tool definitions. |
-| `@cq/ledger-mcp` | Standalone MCP server exposing the 14-tool ledger surface over **stdio** or **Streamable HTTP**. |
+| `@cq/ledger-mcp` | Standalone MCP server exposing the 18-tool ledger surface over **stdio** or **Streamable HTTP**. |
 | `@cq/ledger-tui` | Ink terminal UI — a pure MCP client. Runs against a remote `ledger-mcp --http` (`--mcp-url`) or, by default, with the MCP server **embedded in-process** (`--cwd`). |
 | `@cq/ledger-web` | Browser explorer/editor + milestone **DAG view** — a pure MCP client served as a static bundle. Reverse-proxies to a remote `ledger-mcp` (`--mcp-url`) or, by default, **embeds the MCP server in-process** (`--cwd`). |
 
@@ -24,12 +24,13 @@ MCP protocol. Embedded mode does not change that invariant: it merely
 transport for the TUI; a co-hosted `/mcp` + `/ws` for the web server), so a
 single command needs no separately-running server.
 
-## Tool surface (14)
+## Tool surface (18)
 
 `enumerate_ledgers`, `create_ledger`, `fetch_ledger`, `fetch_ledger_archive`,
 `create_item`, `fetch_item`, `update_item`, `search_items`, `fts_search`,
 `create_milestone`, `update_milestone`, `fetch_milestone`,
-`list_milestone_items`, `archive_milestone`.
+`list_milestone_items`, `archive_milestone`, `snapshot`, `reopen_item`,
+`unarchive_item`, `read_log`.
 
 ## Quick start (Nix)
 

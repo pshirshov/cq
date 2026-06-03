@@ -1,6 +1,6 @@
 #!/usr/bin/env -S bun run
 /**
- * ledger-mcp — standalone MCP server exposing the 14 ledger tools.
+ * ledger-mcp — standalone MCP server exposing the 18 ledger tools.
  *
  * This is the cq-free ledger MCP server: it serves the tool surface backed
  * by a file-backed `FsLedgerStore` rooted at the supplied `--cwd` directory,

@@ -140,7 +140,7 @@
         # ------------------------------------------------------------------ #
         # ledger-mcp — the standalone ledger MCP server.                       #
         #                                                                      #
-        # Serves the 14-tool ledger surface over stdio or Streamable HTTP      #
+        # Serves the 18-tool ledger surface over stdio or Streamable HTTP      #
         # (`--http [host:]port`), backed by a file-backed FsLedgerStore. The   #
         # closure is the @cq/ledger library + the @cq/ledger-mcp binary plus   #
         # their runtime npm deps from the shared FOD.                          #

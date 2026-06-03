@@ -3,7 +3,7 @@
  *
  * Starts the server's `serveHttp` over Bun.serve on an ephemeral port,
  * connects a real `@modelcontextprotocol/sdk` Client through the
- * StreamableHTTPClientTransport, and asserts the 14-tool surface plus a
+ * StreamableHTTPClientTransport, and asserts the 18-tool surface plus a
  * full create → update → fetch → search round-trip works over HTTP and
  * persists to disk.
  */
