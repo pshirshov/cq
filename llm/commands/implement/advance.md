@@ -195,8 +195,8 @@ This keeps the ledger to one review per task instead of one per criticism round.
 
 ## Milestone completion
 `archive_milestone(<id>)` requires ALL items under the milestone to be terminal —
-that includes its `defects` (terminal = `resolved`/`abandoned`), not just its
-`tasks` (`done`/abandoned). So a milestone whose tasks are all `done` but that
+that includes its `defects` (terminal = `resolved`/`wontfix`), not just its
+`tasks` (`done`/`abandoned`). So a milestone whose tasks are all `done` but that
 still carries an `open` defect is NOT yet complete: archiving waits until the
 defect reaches a terminal status too (it gets there via the orchestrator-owned
 closure in §7.4 when its fix tasks all merge, or via the investigate-flow for an
