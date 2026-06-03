@@ -4,7 +4,7 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { statusBucket, statusColor, isTerminal } from "../src/status.js";
 import type { LedgerSchema } from "../src/types.js";
-import { REVIEWS_SCHEMA } from "@cq/ledger";
+import { REVIEWS_SCHEMA, DEFECTS_SCHEMA } from "@cq/ledger";
 
 // Resolve chalk via ink's dependency to force ANSI output in tests.
 const inkPath = import.meta.resolve("ink");
@@ -67,6 +67,47 @@ describe("warning bucket (reviews schema)", () => {
     expect(statusColor("go-ahead", REVIEWS_SCHEMA)).toBe("green");
   });
 });
+
+describe("defects schema — new lifecycle statuses (T117)", () => {
+  it("root-caused → ready bucket (non-terminal)", () => {
+    expect(isTerminal("root-caused", DEFECTS_SCHEMA)).toBe(false);
+    expect(statusBucket("root-caused", DEFECTS_SCHEMA)).toBe("ready");
+  });
+
+  it("inconclusive → warning bucket (non-terminal)", () => {
+    expect(isTerminal("inconclusive", DEFECTS_SCHEMA)).toBe(false);
+    expect(statusBucket("inconclusive", DEFECTS_SCHEMA)).toBe("warning");
+  });
+
+  it("wontfix → dropped bucket (terminal)", () => {
+    expect(isTerminal("wontfix", DEFECTS_SCHEMA)).toBe(true);
+    expect(statusBucket("wontfix", DEFECTS_SCHEMA)).toBe("dropped");
+  });
+
+  it("wontfix color is gray (muted, NOT green)", () => {
+    const color = statusColor("wontfix", DEFECTS_SCHEMA);
+    expect(color).toBe("gray");
+    expect(color).not.toBe("green");
+  });
+
+  it("root-caused color is blueBright (distinct from yellow/progress and green/done)", () => {
+    const color = statusColor("root-caused", DEFECTS_SCHEMA);
+    expect(color).toBe("blueBright");
+    expect(color).not.toBe("yellow");
+    expect(color).not.toBe("green");
+  });
+
+  it("inconclusive color is magenta (warning)", () => {
+    expect(statusColor("inconclusive", DEFECTS_SCHEMA)).toBe("magenta");
+  });
+
+  it("open → start bucket; wip → progress bucket; resolved → done bucket", () => {
+    expect(statusBucket("open", DEFECTS_SCHEMA)).toBe("start");
+    expect(statusBucket("wip", DEFECTS_SCHEMA)).toBe("progress");
+    expect(statusBucket("resolved", DEFECTS_SCHEMA)).toBe("done");
+  });
+});
+
 
 // ANSI magenta = [35m; green = [32m.  Force chalk.level=1 so ink
 // emits escape codes even in a non-TTY test runner.

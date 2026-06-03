@@ -11,12 +11,19 @@
 
 import type { LedgerSchema } from "./types.js";
 
-export type StatusBucket = "start" | "progress" | "blocked" | "done" | "dropped" | "warning";
+export type StatusBucket = "start" | "progress" | "ready" | "blocked" | "done" | "dropped" | "warning";
 
 // Non-terminal "in progress" vocabulary across the canonical ledgers + common
 // synonyms. Terminal statuses are classified via the schema, not this set.
 const PROGRESS = new Set(["wip", "building", "planning", "in-progress", "in_progress", "doing"]);
 const BLOCKED = new Set(["blocked"]);
+// Non-terminal statuses where a root cause is confirmed but the fix is
+// deferred (defects lifecycle: root-caused). Rendered in a distinct "ready"
+// bucket — distinct from in-progress and done.
+const ROOT_CAUSED = new Set(["root-caused"]);
+// Non-terminal statuses that are parked / inconclusive — investigation did not
+// converge (defects lifecycle: inconclusive). Rendered as a warning colour.
+const PARKED_WARNING = new Set(["inconclusive"]);
 // Terminal statuses that mean "needs changes" (rendered as a warning, not green).
 const WARNING = new Set(["revise"]);
 // Terminal statuses that mean "did not complete" (rendered muted, not green).
@@ -29,6 +36,7 @@ const DROPPED = new Set([
   "cancelled",
   "canceled",
   "rejected",
+  "wontfix",
 ]);
 
 export function isTerminal(status: string, schema: LedgerSchema): boolean {
@@ -44,12 +52,15 @@ export function statusBucket(status: string, schema: LedgerSchema): StatusBucket
   }
   if (BLOCKED.has(s)) return "blocked";
   if (PROGRESS.has(s)) return "progress";
+  if (ROOT_CAUSED.has(s)) return "ready";
+  if (PARKED_WARNING.has(s)) return "warning";
   return "start";
 }
 
 const BUCKET_COLOR: Record<StatusBucket, string> = {
   start: "cyan",
   progress: "yellow",
+  ready: "blueBright",
   blocked: "red",
   done: "green",
   dropped: "gray",
