@@ -249,3 +249,42 @@ Summarize the pass concisely:
   instruct the user to close it in the TUI/web (set status to `done`);
 - the next action: if anything is `blocked`, "answer the listed questions in the
   TUI/web, then run `/implement:advance` to resume"; if all done, say so.
+
+---
+
+## Handoff record (STANDALONE only — suppressed when chained)
+Whether you write a `handoffs` record at your stop depends ENTIRELY on your
+invocation context — there is **no env var or process signal** to read. You,
+the executing agent, run both this command and (when chained) the wrapping
+`/advance` command in the SAME inline session, so you already KNOW which
+context you are in.
+
+- **Run STANDALONE** (the user invoked `/implement:advance` directly, with no
+  wrapping flow command): after the §Report, write ONE `handoffs` record for
+  this stop — `create_item("handoffs", <milestone>, <status>, <fields>)` —
+  mapping your end-of-pass classification to the handoff `status`:
+
+  | This pass's stop                                                       | handoff `status`   |
+  | ---------------------------------------------------------------------- | ------------------ |
+  | ready-set drained, all reachable tasks merged / milestone(s) archived  | `drained`          |
+  | task(s) `blocked` on an `open` reviewer/ill-loop question              | `answers-required` |
+  | both at once — some tasks merged, others blocked on questions          | `mixed`            |
+  | an ill-loop bailout / merge-conflict / invariant violation you could not get past | `illness-detected` |
+
+  Field set (per `HANDOFFS_SCHEMA`; consistent with advance.md §Provenance):
+  `summary` (**required** — the why-it-stopped prose, mirror the §Report);
+  `flow` = `implement`; `ledgerRefs` = the stop-causing items (`tasks:<id>`,
+  `goals:<G>`); `blockingQuestions` = the `open` question ids for an
+  `answers-required`/`mixed` stop; `handoffReasons` = the component reasons for
+  a `mixed` stop (e.g. `[drained, answers-required]`); `sessionLogs` = the
+  `docs/logs/<ts>-<agent-id>.md` path(s) written this pass — populate them in
+  the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
+  once at the stop, never updated.
+
+- **Run CHAINED INLINE by `/advance`**: **SUPPRESS this handoff write.**
+  `/advance` owns the single authoritative run-level handoff and writes it once
+  at end-of-run (see advance.md §Provenance — it is the sole `handoffs` writer
+  for the whole run). You can tell you are in this context because `/advance`
+  explicitly chains you and its prompt instructs this suppression; a standalone
+  invocation has no `/advance` wrapper. Suppressing here is what guarantees
+  exactly ONE handoff per `/advance` run — never a duplicate.

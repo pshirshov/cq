@@ -106,6 +106,19 @@ report its id and stop instead of creating a new one.
      stopped by a K12 predicate) — same format as plan/advance.md's §Report
      auto-investigate lines.
 
+7. **Handoff record (STANDALONE).** This is a STANDALONE flow invocation (the
+   user ran `/plan:start`, never a `/advance`-chained pass), so write the ONE
+   `handoffs` record per plan/advance.md's §Handoff record, STANDALONE branch —
+   the goal is left in `clarifying`/`awaiting-answers` with the first questions
+   filed, so the stop classification is `answers-required` (`flow` = `plan`;
+   `ledgerRefs` `goals:<G>`; `blockingQuestions` the filed question ids;
+   `sessionLogs` the step-4 path). Do not restate the field mapping here. The
+   conditional step-5 auto-investigate sub-round writes NO handoff of its own —
+   investigate/advance.md suppresses its handoff whenever chained — so this one
+   record covers the whole invocation. The suppression branch never applies to
+   `/plan:start`: it is never chained inline by `/advance` (which chains
+   `/plan:advance` directly).
+
 Do not file questions, transition the goal, or emit any plan yourself — the
 `plan-advance` planner and `/plan:advance` own everything after the goal is
 created.

@@ -238,3 +238,43 @@ Summarize the round concisely:
   in the TUI/web, then run `/investigate:advance D` to resume";
 - if the tree still has `uncertain`/`open` leaves and no question is pending, say
   another round is warranted: "run `/investigate:advance D` again".
+
+---
+
+## Handoff record (STANDALONE only — suppressed when chained)
+Whether you write a `handoffs` record at your stop depends ENTIRELY on your
+invocation context — there is **no env var or process signal** to read. You,
+the executing agent, run both this command and (when chained) the wrapping flow
+command in the SAME inline session, so you already KNOW which context you are in.
+
+- **Run STANDALONE** (the user invoked `/investigate:advance` directly, with no
+  wrapping flow command): after the §Report, write ONE `handoffs` record for
+  this stop —
+  `create_item("handoffs", <defectMilestone>, <status>, <fields>)` — mapping
+  your stop classification to the handoff `status`:
+
+  | This round's stop                                                              | handoff `status`   |
+  | ------------------------------------------------------------------------------ | ------------------ |
+  | nothing left to drill / fully adjudicated (root-caused, or all leaves resolved) | `drained`          |
+  | parked on an `open` question (step 6 — NEEDS user input)                       | `answers-required` |
+  | both at once — some defect(s) root-caused/drained, other(s) parked             | `mixed`            |
+  | a defect or invariant violation you could not get past                         | `illness-detected` |
+
+  Field set (per `HANDOFFS_SCHEMA`; consistent with advance.md §Provenance):
+  `summary` (**required** — the why-it-stopped prose, mirror the §Report);
+  `flow` = `investigate`; `ledgerRefs` = the stop-causing items (`defects:<D>`,
+  defect-seeded `goals:<G>`); `blockingQuestions` = the `open` question ids for
+  an `answers-required`/`mixed` stop; `handoffReasons` = the component reasons
+  for a `mixed` stop (e.g. `[drained, answers-required]`); `sessionLogs` = the
+  `docs/logs/<ts>-<agent-id>.md` path(s) written this round — populate them in
+  the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
+  once at the stop, never updated.
+
+- **Run CHAINED INLINE by a parent flow command** (`/advance`, or `/plan:advance`
+  auto-launching this investigate round): **SUPPRESS this handoff write.** The
+  parent owns the single authoritative run-level handoff and writes it once at
+  end-of-run — `/advance` per its §Provenance (it is the sole `handoffs` writer
+  for the whole run). You can tell you are in this context because the parent
+  command explicitly chains you and its prompt instructs this suppression; a
+  standalone invocation has no such wrapper. Suppressing here is what guarantees
+  exactly ONE handoff per run — never a duplicate.
