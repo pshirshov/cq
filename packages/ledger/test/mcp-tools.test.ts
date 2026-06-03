@@ -53,13 +53,15 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (15 tools)", async () => {
+  it("exports the expected tool names (17 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(15);
+    expect(LEDGER_TOOL_NAMES.length).toBe(17);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
+    expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
+    expect(LEDGER_TOOL_NAMES).toContain("unarchive_item");
   });
 
   it("enumerate_ledgers + create_ledger + fetch_ledger round-trip (includes bootstrapped milestones)", async () => {
@@ -553,5 +555,105 @@ describe("ledger MCP tools", () => {
       await callTool(tools, "snapshot", { include_archived: true }),
     );
     expect(typeof out2.ledger).toBe("object");
+  });
+
+  it("reopen_item moves a terminal item to a non-terminal status", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    await callTool(tools, "create_milestone", { title: "r" });
+    await callTool(tools, "create_item", {
+      ledger_id: "xenos",
+      milestone_id: "M1",
+      status: "done",
+      fields: { note: "accidentally done" },
+    });
+
+    const reopened = decode<{ item: { id: string; status: string } }>(
+      await callTool(tools, "reopen_item", {
+        ledger_id: "xenos",
+        item_id: "X1",
+        to_status: "open",
+      }),
+    );
+    expect(reopened.item.status).toBe("open");
+    expect(reopened.item.id).toBe("X1");
+  });
+
+  it("reopen_item rejects an invalid (terminal) target status", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    await callTool(tools, "create_milestone", { title: "r" });
+    await callTool(tools, "create_item", {
+      ledger_id: "xenos",
+      milestone_id: "M1",
+      status: "done",
+      fields: {},
+    });
+
+    await expect(
+      callTool(tools, "reopen_item", {
+        ledger_id: "xenos",
+        item_id: "X1",
+        to_status: "done",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("unarchive_item restores a single item from a milestone-group archive", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    await callTool(tools, "create_milestone", { title: "arch" });
+    await callTool(tools, "create_item", {
+      ledger_id: "xenos",
+      milestone_id: "M1",
+      status: "done",
+      fields: { note: "to be archived" },
+    });
+    await callTool(tools, "update_milestone", { milestone_id: "M1", status: "done" });
+    await callTool(tools, "archive_milestone", { milestone_id: "M1", summary: "archived" });
+
+    // Item is gone from active ledger after archiving.
+    const snap = decode<{ ledger: Record<string, unknown> }>(
+      await callTool(tools, "snapshot", {}),
+    );
+    expect(snap.ledger["xenos"]).toBeUndefined();
+
+    const restored = decode<{ item: { id: string; status: string } }>(
+      await callTool(tools, "unarchive_item", {
+        ledger_id: "xenos",
+        milestone_id: "M1",
+        item_id: "X1",
+      }),
+    );
+    expect(restored.item.id).toBe("X1");
+    expect(restored.item.status).toBe("done");
+  });
+
+  it("unarchive_item rejects an unknown archive group", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    await expect(
+      callTool(tools, "unarchive_item", {
+        ledger_id: "xenos",
+        milestone_id: "M99",
+        item_id: "X1",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("reopen_item and unarchive_item do not declare author/session params", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    for (const name of ["reopen_item", "unarchive_item"]) {
+      const t = tools.find((x) => x.name === name);
+      if (t === undefined) throw new Error(`tool not found: ${name}`);
+      expect(Object.keys(t.inputSchema)).not.toContain("author");
+      expect(Object.keys(t.inputSchema)).not.toContain("session");
+    }
   });
 });

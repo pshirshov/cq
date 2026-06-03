@@ -107,7 +107,7 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 15 ledger tools on the given MCP server. Identical
+ * Register the 17 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  */
 export function registerLedgerStdioTools(server: McpServer, store: LedgerStore): void {
@@ -390,6 +390,42 @@ export function registerLedgerStdioTools(server: McpServer, store: LedgerStore):
       },
     },
     async (args) => jsonResult({ items: store.listMilestoneItems(args.milestone_id) }),
+  );
+
+  // ---- Recovery tools (2) ------------------------------------------------
+
+  server.registerTool(
+    "reopen_item",
+    {
+      description:
+        "Recover an item accidentally set to a terminal status by moving it to a chosen non-terminal status.",
+      inputSchema: {
+        ledger_id: z.string(),
+        item_id: z.string(),
+        to_status: z.string(),
+      },
+    },
+    async (args) => {
+      const item = await store.reopenItem(args.ledger_id, args.item_id, args.to_status);
+      return jsonResult({ item });
+    },
+  );
+
+  server.registerTool(
+    "unarchive_item",
+    {
+      description:
+        "Restore a single item that was swept into its milestone-group archive (./docs/archive/<ledger>/<milestoneId>.md) back to the active ledger; pass the archived item's milestone id.",
+      inputSchema: {
+        ledger_id: z.string(),
+        milestone_id: safeIdSchema,
+        item_id: z.string(),
+      },
+    },
+    async (args) => {
+      const item = await store.unarchiveItem(args.ledger_id, args.milestone_id, args.item_id);
+      return jsonResult({ item });
+    },
   );
 
   // ---- Cross-ledger overview (1) -----------------------------------------

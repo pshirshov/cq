@@ -4,7 +4,7 @@
  * Returns an array of `tool()` instances ready to be passed to
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
  *
- * Tool surface (15 tools: 13 msunify + fts_search + snapshot):
+ * Tool surface (17 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item):
  *
  * Item / ledger surface (9):
  *  - enumerate_ledgers, fetch_ledger, fetch_ledger_archive,
@@ -21,6 +21,10 @@
  *
  * Cross-ledger overview (1):
  *  - snapshot() → { ledger: LedgerSnapshot }
+ *
+ * Recovery tools (2):
+ *  - reopen_item(ledger_id, item_id, to_status) — recover terminal item
+ *  - unarchive_item(ledger_id, milestone_id, item_id) — restore archived item
  *
  * Each handler turns the validated input into a single LedgerStore call,
  * serialises the result as JSON, and returns it as a text content block.
@@ -429,6 +433,36 @@ When no params are provided the response is the unchanged full ledger (backward-
     async (args) => jsonResult({ items: store.listMilestoneItems(args.milestone_id) }),
   );
 
+  // ---- Recovery tools (2) ------------------------------------------------
+
+  const reopenItem = tool(
+    "reopen_item",
+    "Recover an item accidentally set to a terminal status by moving it to a chosen non-terminal status.",
+    {
+      ledger_id: z.string(),
+      item_id: z.string(),
+      to_status: z.string(),
+    } as const,
+    async (args) => {
+      const item = await store.reopenItem(args.ledger_id, args.item_id, args.to_status);
+      return jsonResult({ item });
+    },
+  );
+
+  const unarchiveItem = tool(
+    "unarchive_item",
+    "Restore a single item that was swept into its milestone-group archive (./docs/archive/<ledger>/<milestoneId>.md) back to the active ledger; pass the archived item's milestone id.",
+    {
+      ledger_id: z.string(),
+      milestone_id: safeIdSchema,
+      item_id: z.string(),
+    } as const,
+    async (args) => {
+      const item = await store.unarchiveItem(args.ledger_id, args.milestone_id, args.item_id);
+      return jsonResult({ item });
+    },
+  );
+
   // ---- Cross-ledger overview (1) -----------------------------------------
 
   const snapshotTool = tool(
@@ -459,6 +493,8 @@ When no params are provided the response is the unchanged full ledger (backward-
     archiveMilestone,
     listMilestoneItems,
     snapshotTool,
+    reopenItem,
+    unarchiveItem,
   ] as unknown as AnyTool[];
 }
 
@@ -479,4 +515,6 @@ export const LEDGER_TOOL_NAMES = [
   "archive_milestone",
   "list_milestone_items",
   "snapshot",
+  "reopen_item",
+  "unarchive_item",
 ] as const;
