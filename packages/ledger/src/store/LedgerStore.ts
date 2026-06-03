@@ -31,6 +31,7 @@ import type {
   ResolvedMilestone,
 } from "../types.js";
 import type { FtsSearchHit, FtsSearchOpts } from "../search/LedgerSearchIndex.js";
+import type { LedgerSnapshot } from "../snapshot.js";
 
 export type { FtsSearchHit, FtsSearchOpts } from "../search/LedgerSearchIndex.js";
 
@@ -162,6 +163,19 @@ export interface LedgerStore {
    * arrays. Empty values are omitted.
    */
   listMilestoneItems(milestoneId: string): Record<string, Item[]>;
+
+  /**
+   * Cross-ledger compact snapshot (T143, Q75): enumerate every ACTIVE
+   * (non-archived) ledger and group every active item by ledger then status,
+   * returning `{ [ledger]: { [status]: { count, items: {id,status,summary}[] } } }`.
+   * `summary` follows the canonical `summarize()` precedence
+   * (`headline ?? title ?? question ?? summary`). NO long narrative fields are
+   * included, so a realistic ledger's snapshot stays well under the
+   * token-overflow threshold. GENERIC and flow-agnostic: no DAG / phase /
+   * predicate semantics (those stay in flow prompts). Built on `enumerate()` +
+   * `fetch()` (whose views carry active items only).
+   */
+  snapshot(): LedgerSnapshot;
 
   // --- mutations (async, write-through under lock) ------------------------
 

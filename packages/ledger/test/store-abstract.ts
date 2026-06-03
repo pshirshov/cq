@@ -1002,5 +1002,114 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         }
       });
     });
+    // -----------------------------------------------------------------------
+    // T143 / Q75 — snapshot(): cross-ledger {id,status,summary} grouped by
+    // ledger × status; archived items excluded; NO long fields.
+    // -----------------------------------------------------------------------
+
+    describe("T143 — snapshot (cross-ledger compact view)", () => {
+      it("groups active items by ledger × status with correct counts + {id,status,summary} stubs, follows summarize() precedence, excludes archived items, and contains no long fields", async () => {
+        // Use canonical ledgers so the summary-source precedence is exercised:
+        //  - defects.headline → summary
+        //  - questions.question → summary
+        //  - widgets (custom, no summary-source field) → first-field fallback
+        const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
+        try {
+          const m = await store.createMilestone({ title: "snap-M" });
+
+          // defects: two statuses (open, wip) under one ledger.
+          const d1 = await store.createItem("defects", m.id, {
+            status: "open",
+            fields: {
+              headline: "alpha defect",
+              severity: "minor",
+              description: "LONG narrative body that must NOT appear in a stub",
+            },
+          });
+          const d2 = await store.createItem("defects", m.id, {
+            status: "open",
+            fields: { headline: "beta defect", severity: "major" },
+          });
+          const d3 = await store.createItem("defects", m.id, {
+            status: "wip",
+            fields: { headline: "gamma defect", severity: "minor" },
+          });
+
+          // questions: question field is the summary source.
+          const q1 = await store.createItem("questions", m.id, {
+            status: "open",
+            fields: { question: "is the snapshot compact?" },
+          });
+
+          // widgets: no headline/title/question/summary → first-field fallback
+          // (severity is the first declared field).
+          const w1 = await store.createItem(WIDGETS, m.id, {
+            status: "open",
+            fields: { severity: "nit", location: "x.ts", description: "widget body" },
+          });
+
+          const snap = store.snapshot();
+
+          // --- defects ledger: open (2) + wip (1) -----------------------------
+          expect(snap["defects"]?.["open"]?.count).toBe(2);
+          expect(snap["defects"]?.["wip"]?.count).toBe(1);
+          const defOpenIds = snap["defects"]?.["open"]?.items.map((i) => i.id).sort();
+          expect(defOpenIds).toEqual([d1.id, d2.id].sort());
+          // summary precedence: headline wins.
+          const d1Stub = snap["defects"]?.["open"]?.items.find((i) => i.id === d1.id);
+          expect(d1Stub?.summary).toBe("alpha defect");
+          expect(d1Stub?.status).toBe("open");
+          // NO long fields on the stub — exactly {id,status,summary}.
+          expect(Object.keys(d1Stub ?? {}).sort()).toEqual(["id", "status", "summary"]);
+          const d3Stub = snap["defects"]?.["wip"]?.items[0];
+          expect(d3Stub?.id).toBe(d3.id);
+          expect(d3Stub?.summary).toBe("gamma defect");
+
+          // --- questions ledger: question field is the summary ---------------
+          expect(snap["questions"]?.["open"]?.count).toBe(1);
+          const q1Stub = snap["questions"]?.["open"]?.items[0];
+          expect(q1Stub?.id).toBe(q1.id);
+          expect(q1Stub?.summary).toBe("is the snapshot compact?");
+
+          // --- widgets ledger: first-field fallback --------------------------
+          expect(snap[WIDGETS]?.["open"]?.count).toBe(1);
+          const w1Stub = snap[WIDGETS]?.["open"]?.items[0];
+          expect(w1Stub?.id).toBe(w1.id);
+          expect(w1Stub?.summary).toBe("nit");
+
+          // The milestones ledger appears too (the active group milestone-item
+          // resolves to its title via summarize's title source).
+          expect(snap[MILESTONES_LEDGER]?.["open"]?.count).toBeGreaterThanOrEqual(1);
+
+          // No long narrative field leaks anywhere in the snapshot.
+          const serialised = JSON.stringify(snap);
+          expect(serialised).not.toContain("LONG narrative body");
+          expect(serialised).not.toContain("widget body");
+
+          // --- archived items are excluded -----------------------------------
+          // Resolve every defect/question/widget under m, then archive m.
+          await store.updateItem("defects", d1.id, { status: "resolved" });
+          await store.updateItem("defects", d2.id, { status: "resolved" });
+          await store.updateItem("defects", d3.id, { status: "resolved" });
+          await store.updateItem("questions", q1.id, { status: "answered" });
+          await store.updateItem(WIDGETS, w1.id, { status: "resolved" });
+          await store.updateMilestone(m.id, { status: "done" });
+          await store.archiveMilestone(m.id, "snap archived");
+
+          const after = store.snapshot();
+          // All those items were under m; after archive none of them remain.
+          const afterIds = new Set(
+            Object.values(after).flatMap((byStatus) =>
+              Object.values(byStatus).flatMap((b) => b.items.map((i) => i.id)),
+            ),
+          );
+          for (const id of [d1.id, d2.id, d3.id, q1.id, w1.id]) {
+            expect(afterIds.has(id)).toBe(false);
+          }
+        } finally {
+          await factory.teardown?.(store);
+        }
+      });
+    });
   });
 }

@@ -91,6 +91,8 @@ import type {
   UpdateItemPatch,
   UpdateMilestoneItemPatch,
 } from "./LedgerStore.js";
+import type { LedgerSnapshot } from "../snapshot.js";
+import { buildSnapshot } from "../snapshot.js";
 import { LedgerSearchIndex } from "../search/LedgerSearchIndex.js";
 import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
@@ -496,6 +498,11 @@ export class FsLedgerStore implements LedgerStore {
       out[name] = group.items.map(cloneItem);
     }
     return out;
+  }
+
+  snapshot(): LedgerSnapshot {
+    this.assertInit();
+    return buildSnapshot(this.enumerate().map((name) => this.fetch(name)));
   }
 
   search(ledgerId: string, query: string): Item[] {

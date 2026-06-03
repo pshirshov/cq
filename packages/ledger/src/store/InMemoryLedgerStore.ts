@@ -51,6 +51,8 @@ import type {
   UpdateItemPatch,
   UpdateMilestoneItemPatch,
 } from "./LedgerStore.js";
+import type { LedgerSnapshot } from "../snapshot.js";
+import { buildSnapshot } from "../snapshot.js";
 import { LedgerSearchIndex } from "../search/LedgerSearchIndex.js";
 import type {
   FetchedLedger,
@@ -258,6 +260,11 @@ export class InMemoryLedgerStore implements LedgerStore {
       out[name] = group.items.map(cloneItem);
     }
     return out;
+  }
+
+  snapshot(): LedgerSnapshot {
+    this.assertInit();
+    return buildSnapshot(this.enumerate().map((name) => this.fetch(name)));
   }
 
   async fetchArchive(ledgerId: string, archiveId: string): Promise<ArchiveContent> {
