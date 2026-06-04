@@ -1,5 +1,5 @@
 {
-  description = "ledger-suite — markdown-backed ledgers: MCP server + TUI/web frontends (Bun)";
+  description = "cq — markdown-backed ledger suite (MCP + TUI/web) and a portable LLM coding-agent harness (Claude/Codex/Pi + yolo)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
