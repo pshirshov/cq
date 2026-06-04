@@ -4,9 +4,20 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+
+    # LLM coding-agent harness dependencies, consumed by
+    # homeManagerModules.dev-llm (the extracted Claude/Codex/Pi + yolo setup).
+    # CodeGraph — semantic code-intelligence MCP server. Pinned to the open
+    # PR that adds the flake; bump to upstream once merged.
+    codegraph = {
+      url = "github:uxtechie/codegraph/implement-nix-flake-support";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Darwin sandbox wrapper for claude-code (Linux uses the bubblewrap yolo).
+    claude-code-sandbox.url = "github:neko-kai/claude-code-sandbox";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = inputs@{ self, nixpkgs, flake-utils, ... }:
     let
       # All products are pure Bun/TypeScript; pin to x86_64-linux for the
       # hermetic outputs (the dev shell is available on other systems too).
@@ -14,12 +25,17 @@
 
       # System-agnostic: the LLM prompt/skill assets this repo contributes to a
       # home-manager LLM toolbelt. Pure/eval-time (IFD-free) — consumed as
-      # `inputs.<this>.llmAssets`. See ./llm/assets.nix for the shape.
-      llmAssets = import ./llm/assets.nix { lib = nixpkgs.lib; };
+      # `inputs.<this>.llmAssets`. See ./nix/pkg/cq-assets/assets.nix for the shape.
+      llmAssets = import ./nix/pkg/cq-assets/assets.nix { lib = nixpkgs.lib; };
     in
     (flake-utils.lib.eachSystem buildSystems (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        # allowUnfree: the LLM harness bundles proprietary agent CLIs
+        # (claude-code is unfree). The ledger packages themselves are free.
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
 
         # ------------------------------------------------------------------ #
         # Fixed-output derivation: fetches all npm dependencies via           #
@@ -31,17 +47,19 @@
           version = "0.0.1";
 
           # Only manifest files so the FOD hash is stable across source edits.
+          # The Bun workspace lives under ./nix/pkg/cq-ledgers; rooting toSource
+          # there keeps the in-store layout (and thus the FOD hash) unchanged.
           src = pkgs.lib.fileset.toSource {
-            root = ./.;
+            root = ./nix/pkg/cq-ledgers;
             fileset = pkgs.lib.fileset.unions [
-              ./package.json
-              ./bun.lock
-              ./bunfig.toml
-              ./packages/ledger/package.json
-              ./packages/ledger-live/package.json
-              ./packages/ledger-mcp/package.json
-              ./packages/ledger-tui/package.json
-              ./packages/ledger-web/package.json
+              ./nix/pkg/cq-ledgers/package.json
+              ./nix/pkg/cq-ledgers/bun.lock
+              ./nix/pkg/cq-ledgers/bunfig.toml
+              ./nix/pkg/cq-ledgers/packages/ledger/package.json
+              ./nix/pkg/cq-ledgers/packages/ledger-live/package.json
+              ./nix/pkg/cq-ledgers/packages/ledger-mcp/package.json
+              ./nix/pkg/cq-ledgers/packages/ledger-tui/package.json
+              ./nix/pkg/cq-ledgers/packages/ledger-web/package.json
             ];
           };
 
@@ -149,7 +167,7 @@
           pname = "ledger-mcp";
           version = "0.0.1";
 
-          src = ./.;
+          src = ./nix/pkg/cq-ledgers;
 
           nativeBuildInputs = [ pkgs.bun pkgs.makeWrapper ];
 
@@ -226,7 +244,7 @@
           pname = "ledger-tui";
           version = "0.0.1";
 
-          src = ./.;
+          src = ./nix/pkg/cq-ledgers;
 
           nativeBuildInputs = [ pkgs.bun pkgs.makeWrapper ];
 
@@ -296,7 +314,7 @@
           pname = "ledger-web";
           version = "0.0.1";
 
-          src = ./.;
+          src = ./nix/pkg/cq-ledgers;
 
           nativeBuildInputs = [ pkgs.bun pkgs.makeWrapper ];
 
@@ -360,6 +378,26 @@
           ledger-web = ledgerWeb;
           # Expose for debugging / hash refresh.
           node-modules = bunNodeModules;
+
+          # ── LLM coding-agent harness support packages ──────────────── #
+          # The building blocks of homeManagerModules.dev-llm, exposed so
+          # consumers (and CI) can build them directly. llm-prompts in
+          # particular is consumed by nix-config's copilot/vibe modules
+          # (its `context-with-env.md`).
+          # llm-prompts/default.nix returns { llmAssets; contextWithEnvFile;
+          # package; }; expose the build-time-validated derivation (it carries
+          # `context-with-env.md` for skill-less agents).
+          llm-prompts = (pkgs.callPackage ./nix/pkg/llm-prompts/default.nix { }).package;
+          llm-sandbox = pkgs.callPackage ./nix/pkg/llm-sandbox/default.nix { };
+          claude-code = pkgs.callPackage ./nix/pkg/claude-code/package.nix { };
+          codex = pkgs.callPackage ./nix/pkg/codex/package.nix { };
+          pi-coding-agent = pkgs.callPackage ./nix/pkg/pi-coding-agent/package.nix { };
+          pi-xai-patched = pkgs.callPackage ./nix/pkg/pi-xai-patched/package.nix { };
+          reattach-llm = pkgs.callPackage ./nix/pkg/reattach-llm/default.nix { };
+          yolo = pkgs.callPackage ./nix/pkg/yolo/default.nix {
+            llm-sandbox = pkgs.callPackage ./nix/pkg/llm-sandbox/default.nix { };
+            codegraph = inputs.codegraph.packages.${system}.default;
+          };
         };
 
         apps.default = {
@@ -406,7 +444,19 @@
         };
       }))
     // {
-      # System-agnostic LLM assets (prompts/skills) — see ./llm/assets.nix.
+      # System-agnostic LLM assets (prompts/skills) — see ./nix/pkg/cq-assets/assets.nix.
       inherit llmAssets;
+
+      # Portable home-manager module: the Claude Code / Codex / Pi coding-agent
+      # harness, shared asset-bundle + MCP infrastructure, and the bubblewrap
+      # `yolo` sandbox. Curried over this flake's inputs + self. The consumer
+      # wires host/hardware values via `smind.hm.dev.llm.*` options and keeps
+      # its own opencode / copilot / vibe + local-model provider config.
+      homeManagerModules.dev-llm = {
+        imports = [
+          (import ./nix/hm/dev-llm.nix { inherit inputs self; })
+          ./nix/hm/programs-pi.nix
+        ];
+      };
     };
 }

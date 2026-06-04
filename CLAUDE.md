@@ -4,12 +4,17 @@ Markdown-backed ledgers: an MCP server (`@cq/ledger-mcp`) plus a terminal
 (`@cq/ledger-tui`) and web (`@cq/ledger-web`) client, over the `@cq/ledger`
 library. Bun + TypeScript workspace; products are packaged with Nix.
 
+The Bun workspace lives under `nix/pkg/cq-ledgers/` (run the `bun` commands
+below from there); the contributed LLM assets live under `nix/pkg/cq-assets/`.
+The repo root holds only the flake plus the migrated coding-agent harness
+under `nix/` (see `nix/hm/dev-llm.nix`, `nix/pkg/{yolo,codex,claude-code,…}`).
+
 ## Build / test / check
 
-- `bun test` — full suite (run from the repo root).
+- `bun test` — full suite (run from `nix/pkg/cq-ledgers/`).
 - `bun run typecheck` (`tsc -b`) and `bun run lint` (`eslint .`).
 - `bun run check` — all three. Run it before declaring work done.
-- Nix products: `nix build .#ledger-mcp | .#ledger-tui | .#ledger-web`.
+- Nix products (from the repo root): `nix build .#ledger-mcp | .#ledger-tui | .#ledger-web`.
 - After changing dependencies / `bun.lock`: refresh the FOD hash in
   `flake.nix` — set `outputHash` to 52 `A`s, `nix build .#node-modules`, paste
   the `got:` hash back.
