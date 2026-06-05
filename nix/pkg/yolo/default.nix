@@ -1,7 +1,6 @@
 {
   lib,
   pkgs,
-  llm-sandbox,
   nix-ld,
   jq,
   codegraph,
@@ -24,6 +23,14 @@
 
 let
   yoloScript = ./yolo.sh;
+
+  # The bubblewrap path-whitelisting layer yolo execs internally (see
+  # llm-sandbox.sh / `exec "$YOLO_LLM_SANDBOX"`). It has no use on its own, so
+  # it is built here as a private helper rather than a standalone package — the
+  # script is installed verbatim (its own `#!/usr/bin/env bash` shebang).
+  llmSandbox = pkgs.runCommandLocal "llm-sandbox" { } ''
+    install -Dm755 ${./llm-sandbox.sh} $out/bin/llm-sandbox
+  '';
   podmanExports = lib.optionalString (podmanSocketPath != null) ''
     export YOLO_PODMAN_SOCKET_PATH=${lib.escapeShellArg podmanSocketPath}
     export YOLO_PODMAN_SOCKET_URI=${lib.escapeShellArg podmanSocketUri}
@@ -48,7 +55,7 @@ let
   '';
 in
 pkgs.writeShellScriptBin "yolo" ''
-  export YOLO_LLM_SANDBOX="${llm-sandbox}/bin/llm-sandbox"
+  export YOLO_LLM_SANDBOX="${llmSandbox}/bin/llm-sandbox"
   export YOLO_NIX_LD="${nix-ld}/bin/nix-ld"
   export YOLO_JQ="${jq}/bin/jq"
   export YOLO_CODEGRAPH_BIN="${codegraph}/bin/codegraph"

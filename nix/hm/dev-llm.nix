@@ -807,7 +807,6 @@ in
 
         (pkgs.callPackage ../pkg/yolo/default.nix {
           inherit copilotConfig;
-          llm-sandbox = pkgs.callPackage ../pkg/llm-sandbox/default.nix { };
           codegraph = codegraphPkg;
           podmanSocketPath = rootlessPodmanSocketPath;
           podmanSocketUri = rootlessPodmanSocketUri;

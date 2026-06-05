@@ -388,14 +388,13 @@
           # package; }; expose the build-time-validated derivation (it carries
           # `context-with-env.md` for skill-less agents).
           llm-prompts = (pkgs.callPackage ./nix/pkg/llm-prompts/default.nix { }).package;
-          llm-sandbox = pkgs.callPackage ./nix/pkg/llm-sandbox/default.nix { };
           claude-code = pkgs.callPackage ./nix/pkg/claude-code/package.nix { };
           codex = pkgs.callPackage ./nix/pkg/codex/package.nix { };
           pi-coding-agent = pkgs.callPackage ./nix/pkg/pi-coding-agent/package.nix { };
           pi-xai-patched = pkgs.callPackage ./nix/pkg/pi-xai-patched/package.nix { };
           reattach-llm = pkgs.callPackage ./nix/pkg/reattach-llm/default.nix { };
+          # yolo builds its internal llm-sandbox helper itself.
           yolo = pkgs.callPackage ./nix/pkg/yolo/default.nix {
-            llm-sandbox = pkgs.callPackage ./nix/pkg/llm-sandbox/default.nix { };
             codegraph = inputs.codegraph.packages.${system}.default;
           };
         };
