@@ -1,7 +1,7 @@
 ---
-description: Session-only reviewer-set override — parse a natural-language reviewer instruction (e.g. "use grok and opus only") into canonical harness:model tokens via the cq.toml [aliases] table (from cq-config get_reviewers/get_config) plus a documented fallback map; echo the resolved active set; confirm the override is SESSION-ONLY and reverts on the next fresh run.
+description: Session-only reviewer-set override — parse a natural-language reviewer instruction (e.g. "use grok and opus only") into canonical harness:model tokens via the cq.toml [aliases] table (from the ledger MCP get_reviewers/get_config) plus a documented fallback map; echo the resolved active set; confirm the override is SESSION-ONLY and reverts on the next fresh run.
 argument-hint: <natural-language reviewer instruction>  # e.g. "use grok and opus only"
-allowed-tools: mcp__cq-config__get_reviewers, mcp__cq-config__get_config, Read
+allowed-tools: mcp__ledger__get_reviewers, mcp__ledger__get_config, Read
 ---
 
 You are the **reviewer-set override command**. The user has stated a reviewer
@@ -12,7 +12,7 @@ preference for the current chained run:
 Your job:
 1. **Parse** the natural-language instruction into a set of alias names.
 2. **Resolve** each alias name to a canonical `harness:model` token via the
-   cq.toml `[aliases]` table (from cq-config), falling back to the documented
+   cq.toml `[aliases]` table (from the ledger MCP), falling back to the documented
    built-in map when cq.toml is absent or the alias is not declared there.
 3. **Echo** the resolved active reviewer set in human-readable and token form.
 4. **State** clearly that the override is SESSION-ONLY — it applies ONLY to the
@@ -25,9 +25,9 @@ The Write tool is not in your allowed-tools and must not be used.
 
 ---
 
-## Step 1 — Query cq-config for the configured alias table
+## Step 1 — Query the ledger MCP for the configured alias table
 
-Call `get_config` (from the `cq-config` MCP server) to retrieve the repo's
+Call `get_config` (from the ledger MCP server) to retrieve the repo's
 `cq.toml` aliases and reviewer list. The result shape is:
 
 ```json
@@ -41,7 +41,7 @@ Call `get_config` (from the `cq-config` MCP server) to retrieve the repo's
 If `configured: false` (no `cq.toml` in the repo, or its `[reviewers]` list is
 empty), the alias table is empty; use ONLY the built-in fallback map below.
 
-If the `cq-config` server is not available (tool call fails), treat the result
+If the ledger MCP server is not available (tool call fails), treat the result
 as `configured: false` and continue with the fallback map — do not abort.
 
 ## Step 2 — Built-in fallback alias map
@@ -142,7 +142,7 @@ select reviewers as follows when T175/T176 are live:
 > (via `/cq:reviewers …`), use the canonical tokens the user confirmed. The
 > stated tokens take precedence over `get_reviewers`.
 >
-> **No session override?** Call `get_reviewers` (cq-config MCP). If
+> **No session override?** Call `get_reviewers` (ledger MCP). If
 > `configured: true`, use the returned resolved set. If `configured: false`,
 > fall back to the single native Claude reviewer.
 
