@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 161
+  item: 181
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -178,6 +178,26 @@ archives:
     path: ./archive/tasks/M50.md
     summary: "G14 fix work (D28 readLog TOCTOU) — COMPLETE. T161: readLog now reads the validated canonical path (fs.readFile(real ?? resolved)) instead of the symlink-bearing resolved, closing the check-then-read TOCTOU; ENOENT unmasked. Deterministic TOCTOU regression test (spies fs.realpath to swap the target at the check→use boundary; verified to fail against the pre-fix read). Review R167 go-ahead (r0 disapprove: non-discriminating test → r1 made it fail against pre-fix code). Defect D28 resolved. Merged 537017f."
     title: Close D28 readLog check-then-read TOCTOU (read validated canonical path)
+    status: done
+  - id: M54
+    path: ./archive/tasks/M54.md
+    summary: "G16/D29 fix built+merged: backend questions-answer StatusChangePrecondition (dual-store) + web/TUI empty-answer UX guards. Tasks T162/T163/T164 done, reviews R172/R174/R175 go-ahead. Integrated bun run check green 908/0. D29 resolved."
+    title: D29 fix — reject empty/whitespace answer on a question's `answered` transition
+    status: done
+  - id: M58
+    path: ./archive/tasks/M58.md
+    summary: "G17/D30 fix built+merged: link-prompts.ts made import-safe + repointed 14 LINKS off the vanished llm/ root onto ../cq-assets/, hardened to throw on missing targets; cq-assets README de-staled. Tasks T179/T180/T181 done, reviews R173/R176/R177 go-ahead. D30 resolved; bun run link-prompts now produces non-dangling symlinks."
+    title: "G17 fix: repoint link-prompts.ts + cq-assets README off vanished `llm/` root (D30)"
+    status: done
+  - id: M55
+    path: ./archive/tasks/M55.md
+    summary: "G15 Feature 1 (explorer two-tier RW) built+merged: investigate-explorer JSON contract extended with optional probeRequest (T165); new execution-capable investigate-prober.md agent (Bash + throwaway worktree, read+execute, local-only/no-network) (T166); prober dispatch wired into investigate/advance.md gated on probeRequest with harvest-then-discard (T167); prober registered in link-prompts.ts + README (T168). Tasks T165-T168 done, reviews go-ahead. Integrated bun run check green."
+    title: G15 W1 — Explorer two-tier RW (investigate-prober)
+    status: done
+  - id: M56
+    path: ./archive/tasks/M56.md
+    summary: "G15 Feature 2 (pluggable parallel reviewers) built+merged: pi non-interactive spike confirmed (K30 invocation contract) (T169); @cq/config cq.toml parser package (T170) + cq-config MCP server exposing get_reviewers + Nix package (T171); registered in dev-llm.nix + .mcp.json (T172); shared /cq:plan-review (T173) + /cq:implement-review (T174) rubrics; reconciliation (strictest-wins+union-with-source-tags, get_reviewers MCP tool, pi shellout) wired into plan/advance.md (T175) + implement/advance.md (T176); /cq:reviewers session-only override (T177); cq.toml.example + cq/* link entries + README (T178). Tasks T169-T178 done, reviews go-ahead, K30 locked. Integrated bun run check green 930/0; all new asset symlinks resolve."
+    title: G15 W2 — Pluggable parallel reviewers (cq.toml + cq-config MCP + pi shellout)
     status: done
 ---
 

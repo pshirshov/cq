@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 26
+  item: 30
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -58,6 +58,11 @@ archives:
     path: ./archive/decisions/M35.md
     summary: G8 coordination — COMPLETE. Goal G8 (fix remaining buildable defects D20/D21) done; work milestone M36 archived; defects D20/D21 resolved, residuals D22/D23 resolved (D23 fixed via G10/T134; D22 user-resolved); D23 investigation hypothesis H13 confirmed; reviews R125/R126 + decision K21 terminal. Auto-archived by the /advance whole-ledger sweep.
     title: "Plan: fix remaining buildable defects (D20 tui-test flakiness, D21 reset non-canonical)"
+    status: done
+  - id: M56
+    path: ./archive/decisions/M56.md
+    summary: "G15 Feature 2 (pluggable parallel reviewers) built+merged: pi non-interactive spike confirmed (K30 invocation contract) (T169); @cq/config cq.toml parser package (T170) + cq-config MCP server exposing get_reviewers + Nix package (T171); registered in dev-llm.nix + .mcp.json (T172); shared /cq:plan-review (T173) + /cq:implement-review (T174) rubrics; reconciliation (strictest-wins+union-with-source-tags, get_reviewers MCP tool, pi shellout) wired into plan/advance.md (T175) + implement/advance.md (T176); /cq:reviewers session-only override (T177); cq.toml.example + cq/* link entries + README (T178). Tasks T169-T178 done, reviews go-ahead, K30 locked. Integrated bun run check green 930/0; all new asset symlinks resolve."
+    title: G15 W2 — Pluggable parallel reviewers (cq.toml + cq-config MCP + pi shellout)
     status: done
 ---
 
@@ -122,3 +127,39 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead (R166): G14/M50 plan approved round 0, 0 criticisms, 0 new questions, no out-of-scope defects. T161 closes D28 TOCTOU; fix + acceptance verified against source."
 - ledgerRefs: ["goals:G14"]
+
+## M53
+
+### K27 — locked
+
+- createdAt: 2026-06-05T18:38:46.696Z
+- updatedAt: 2026-06-05T18:38:46.696Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R168): D29 plan is fine-grained, reproduce-first, correctly sequenced (T163/T164 dependsOn T162), and complete across backend dual-store + all four frontend submit paths; no criticism, no new questions, no out-of-scope defects."
+- ledgerRefs: ["goals:G16"]
+
+## M57
+
+### K28 — locked
+
+- createdAt: 2026-06-05T19:09:30.004Z
+- updatedAt: 2026-06-05T19:09:30.004Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead on G17 plan (ref review R171): R170's sole import-safety criticism resolved; T179→T180→T181 grounded, fine-grained, reproduce-first, correctly serialized."
+- ledgerRefs: ["goals:G17"]
+
+## M51
+
+### K29 — locked
+
+- createdAt: 2026-06-05T20:25:53.209Z
+- updatedAt: 2026-06-05T20:25:53.209Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead on review R178 (0 criticisms, 0 new questions): all 3 R169 criticisms resolved, Q95 confirms strictest-wins+union reconciliation, DAG acyclic with same-file edits serialized. Approves the G15 plan (M55/M56) to advance planning -> planned."
+- ledgerRefs: ["goals:G15"]

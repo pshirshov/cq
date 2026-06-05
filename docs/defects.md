@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 28
+  item: 30
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -64,6 +64,11 @@ archives:
     summary: "G13 fix work (D25/D26/D27 G11 follow-up cleanup) — COMPLETE. T158 (D26): readLog symlink-escape hardening (realpath both target+root); T159 (D25): removed stale eslint-disable; T160 (D27): reworded CHAINED handoff trigger + made start/follow-up wrappers the single handoff writer (7 files). Reviews R163/R164/R165 go-ahead (T158/T160 each r0 disapprove→r1 approve). H15/H16/H18 confirmed. Defects D25/D26 resolved (also D28 filed here from T158 review, resolved via G14). Merged 311b8a1."
     title: "G13 fix tasks: D25/D26/D27 code-quality cleanup"
     status: done
+  - id: M52
+    path: ./archive/defects/M52.md
+    summary: "Investigation of D29 (empty-answer-accepted) complete: H19 (backend gap) + H20 (frontend gap) confirmed against source, root cause pinned, fix file-and-deferred to G16 and resolved this run. Q94 pointer withdrawn (fulfilled)."
+    title: "Investigate: empty-answer-accepted"
+    status: done
 ---
 
 # defects
@@ -100,3 +105,26 @@ archives:
 - rootCause: "CONFIRMED (H14). The \"'s' key is inert on an archived item\" test (packages/ledger-tui/test/app.test.tsx:959-986) asserts ONLY f.toContain('[archived]') (:982) and f.toContain('archived task') (:984). Both are overlay-INSENSITIVE: '[archived]' is the path-HEADER string (app.tsx:934-939, top-level header Box) and 'archived task' is the LIST-pane row (app.tsx:1069, a separate Box); both persist regardless of overlay state. The status overlay replaces ONLY the right-hand content-pane Box (app.tsx:1071-1073: `overlay !== null ? <Overlays/> : contentEl`). So if the 's' handler's `!cursorInArchive` guard (app.tsx:803 content-focus / :838 list-focus) were removed, pressing 's' on an archived row would open the status SelectList in the content pane, yet BOTH asserted strings would still be present → the test passes, failing to catch the regression. Contrast the sibling 'e'-inert test (:988-1010) which asserts f.toContain('read-only') (:1008) — a content-pane badge ('[archived · read-only]', app.tsx:1424) the overlay WOULD replace → it IS regression-sensitive."
 - dependsOn: ["T136"]
 - fix: "T136 (merged b8df1c6): the \"'s' key is inert on an archived item\" test now asserts the content-pane '[archived · read-only]' badge is present (+ an optional content-pane-scoped check that the SelectList '› ' picker marker is absent), mirroring the regression-sensitive 'e'-inert test — so it FAILS if the !cursorInArchive guard regresses and 's' opens the status overlay on an archived row. Verified red-for-right-reason via scratch guard removal; app.tsx untouched; integration check green 783/0. Sole fix task T136 done."
+
+## M51
+
+### D30 — resolved
+
+- createdAt: 2026-06-05T18:55:07.600Z
+- updatedAt: 2026-06-05T20:10:50.648Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: link-prompts.ts + cq-assets/README.md still reference the relocated 'llm/' single-source tree — bun run link-prompts likely creates dangling symlinks
+- severity: medium
+- rootCause: "Confirmed (H21, all 8 citations re-validated against source via Bash). The LLM asset tree was relocated to `nix/pkg/cq-assets/{commands,agents}/` and `assets.nix` updated (`collectMdIn ./commands`/`./agents`, assets.nix:49-50), but `scripts/link-prompts.ts` was NOT: its 14 LINKS entries still set `source: 'llm/commands/...' / 'llm/agents/...'` (link-prompts.ts:29-44), resolved against `REPO_ROOT = dirname(script)/.. = nix/pkg/cq-ledgers/` (link-prompts.ts:19; run via package.json:13). That `llm/` root no longer exists (`ls nix/pkg/cq-ledgers/llm` -> No such file or directory). The creation loop only stats the LINK path (`linkExists`/`lstat absLink`), never the TARGET (`absSource`); `symlink(2)` succeeds on a nonexistent target, and line 73 logs success (link-prompts.ts:46-73) — so `bun run link-prompts` SILENTLY produces 14 DANGLING symlinks under `.claude/` that Claude cannot load. Separately, `nix/pkg/cq-assets/README.md` (title + convention block + Claude-link table, README.md:1,10-11,40-42) still documents the old `llm/` root."
+- suggestedFix: |
+    Two parts:
+    1. Repoint `scripts/link-prompts.ts` LINKS `source:` paths from the vanished `llm/` root onto the real asset tree. Since assets now live at `nix/pkg/cq-assets/{commands,agents}/` (sibling of `nix/pkg/cq-ledgers/`), either (a) change each `source` to a path that resolves from REPO_ROOT to `../cq-assets/commands/...` / `../cq-assets/agents/...`, or (b) restore a `nix/pkg/cq-ledgers/llm -> ../cq-assets` symlink so the existing `llm/...` sources resolve. Prefer (a) (explicit, no hidden symlink).
+    2. HARDEN the loop: assert each `absSource` exists (e.g. `test -e`/`lstat absSource`) BEFORE `symlink`, throwing loud on a missing target so a future relocation fails fast instead of silently dangling. Add a reproduce-first test (or a `--check` mode) asserting every produced link resolves (`test -e` the link target).
+    3. Update `nix/pkg/cq-assets/README.md` (title, convention block, Three-consumers / Claude-link tables) to the `nix/pkg/cq-assets/...` layout.
+    Acceptance: after the fix, `bun run link-prompts` produces only NON-dangling symlinks (every `.claude/**` link target satisfies `test -e`); `bun run check` green.
+- description: "Filed from plan review R169 as an OUT-OF-SCOPE / pre-existing fault (file-and-defer; reviewer's explicit recommendation). It does NOT block the G15 plan — G15's own new link entries (T168/T178) were revised to verify the correct source root independently. This defect covers the PRE-EXISTING stale entries + README references. The /plan:* orchestrator re-derives the auto-investigate worklist by ledger query and may auto-launch /investigate:advance on this open defect per K12, separately from the G15 plan."
+- ledgerRefs: ["goals:G15","goals:G17"]
+- sessionLogs: ["docs/logs/20260605-185840-addf76024a26b2805.md"]
+- dependsOn: ["T179","T180","T181"]
+- fix: "Resolved across T179/T180/T181 (merged to main 24c1d51). T179: made link-prompts.ts import-safe (export LINKS+checkLinks, creation loop behind import.meta.main), added --check mode + reproduce-first test. T180: repointed all 14 LINKS sources llm/ -> ../cq-assets/{commands,agents}/ (all resolve) and hardened the loop to throw loud on a missing source (reuses checkLinks), flipped repro test to checkLinks(LINKS) toEqual([]). T181: de-staled cq-assets/README.md to the new layout. `bun run link-prompts` now produces 14 non-dangling symlinks; integrated bun run check green."

@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 14
+  item: 17
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -200,3 +200,91 @@ archives:
     GATE: bun run check green. Scope: packages/ledger/src/store/FsLedgerStore.ts (readLog) + test.
 - grounding: "Verified against packages/ledger/src/store/FsLedgerStore.ts (main, current tree). readLog() at L1251-1302: `resolved = path.resolve(this.logsDir, relPath)` (L1257); lexical containment check L1258-1265; then a try block (L1276-1294) computes `const real = await fs.realpath(resolved)` (L1277) and validates `real` against `realLogsDir` (L1285-1289) — but `real` is BLOCK-SCOPED to the try and the actual read at L1296 is `const buf = await fs.readFile(resolved)`, the non-canonical symlink-bearing path. Confirms H18 TOCTOU. The existing catch (L1290-1294) already swallows ENOENT (`if (code !== 'ENOENT') throw err`) to let a genuinely-missing file fall through to readFile — so the ENOENT-fallback semantics the fix must preserve already exist at the catch. Fix: hoist `real` to a `let` outside the try, assign inside; after the try, `await fs.readFile(real ?? resolved)` so a missing file (real undefined, ENOENT-swallowed) still reads `resolved` and surfaces the normal not-found error, while the happy path reads the validated canonical `real`. Sibling protections assertWithinDocsRoot (L1326) + the D26 realpath re-assert are the model. Tests live alongside in packages/ledger (D26 escape-rejection / symlinked-root / ENOENT suite must stay green)."
 - milestones: ["M50"]
+
+## M51
+
+### G15 — planned
+
+- createdAt: 2026-06-05T18:09:10.959Z
+- updatedAt: 2026-06-05T20:26:42.887Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Explorer RW access + pluggable parallel reviewers (cq.toml)
+- description: |
+    Plan two new features for the coding-agent flow harness.
+    
+    FEATURE 1 — Explorer read/write access in investigate:* flow:
+    Sometimes explorers in the investigate flow might need R/W rights to investigate better. Options under consideration:
+    (a) allow explorers writes (bash, etc.) but instruct them to attempt to avoid that unless necessary; or
+    (b) allow explorers to RETURN an RW permission request so the orchestrator can re-run the explorer with extended permissions.
+    The planner may propose an alternative/third approach.
+    
+    FEATURE 2 — Pluggable parallel reviewers via cq.toml:
+    The `pi` coding agent is available in this sandbox, with Codex and X.AI integrations configured. Goal: be able to use it to run reviews in parallel with, or instead of, Claude reviews.
+    - Add a root-directory config file, e.g. `cq.toml`, with a section defining reviewers, e.g. `reviewers = ["claude:opus", "pi:grok-build", "pi:gpt-5.5"]`.
+    - When defined, for every review the orchestrator launches all configured reviewers in parallel, then reconciles their outputs.
+    - The config file defines the defaults; the user can modify the ACTIVE reviewer set on the fly by saying so (e.g. a command `/cq:reviewers use grok and opus only`).
+- grounding: |
+    Grounded against the actual harness (2026-06-05) AND folded the Q88-Q93 answers into a concrete design. Assets live under nix/pkg/cq-assets/{commands,agents}/, fanned by nix/hm/dev-llm.nix (mergedCommands -> Claude commands + Codex ~/.codex/prompts + Pi promptTemplates; mergedAgents -> Claude ONLY). The Bun workspace is nix/pkg/cq-ledgers/ (packages/ledger{,-live,-mcp,-tui,-web}); `bun run check` = tsc -b && eslint . && bun test. programs.mcp.servers registry in dev-llm.nix currently wires codegraph + ledger; a new MCP server is added there.
+    
+    FEATURE 1 design (answers Q88=c, Q89=as-recommended): TWO-TIER explorer. Keep investigate-explorer.md read-only/no-worktree EXACTLY as-is. Add a NEW agent investigate-prober.md (Bash-enabled, runs in an ISOLATED throwaway git worktree) dispatched by commands/investigate/advance.md ONLY when an explorer's returned JSON sets a new optional `probeRequest` field (what it needs to RUN + why). The probe is READ + EXECUTE (repros, bun test, builds, git inspection) inside the throwaway worktree; NO persisted edits to the main checkout; LOCAL-ONLY, no network by default. Scope = investigate:* flow ONLY. The orchestrator harvests the prober's evidence (same citation-revalidation trust model) then DISCARDS the worktree. The explorer's existing fenced-json contract {hypothesisId, evidence[], lean, notes} gains the optional `probeRequest`; the prober emits the SAME evidence-json shape. investigate-explorer's disallowedTools already blocks Bash/worktree; the prober is a separate def so the read-only invariant that makes explorer citations trustworthy stays intact.
+    
+    FEATURE 2 design (answers Q90, Q91, Q92, Q93): Per-repo root cq.toml read via a NEW `cq-config` MCP server (Q92 — the user explicitly wants an MCP endpoint, NOT a prompt-side Read). cq.toml schema (Q92): an [aliases] table mapping alias->"<harness>:<model>" (e.g. codex="pi:gpt-5.5", grok="pi:grok-build", opus="claude:opus-4.8[1m]") PLUS reviewers=["codex","grok","opus"] (a list of ALIASES, resolved through [aliases]). cq-config MCP exposes a tool (e.g. get_reviewers / get_config) the orchestrators call to obtain the resolved reviewer set; lives as a new package under nix/pkg/cq-ledgers/packages (mirrors ledger-mcp) and is registered in programs.mcp.servers in dev-llm.nix. INVOCATION (Q90): claude:<model> -> native Agent subagent (today's plan-reviewer/implement-reviewer path, UNCHANGED). Non-Claude alias -> orchestrator shells out via Bash to `pi` ONLY (NOT codex CLI): `pi -p <prompt>` selecting provider+model (grok-build via grok-build provider; gpt-5.5 via the openai-codex provider already configured in pi). The pi reviewer must emit the SAME structured-JSON contract the native reviewer returns (plan: a reviews-item-shaped json {summary,new_questions,criticism,defects}; implement: {taskId,verdict,criticism,questions,defects,rationale}). Because pi/codex don't get AGENT files (mergedAgents is Claude-only), the reviewer RUBRIC must be extracted into a SHARED reviewer PROMPT both the native subagent and the pi shellout consume (a commands/* entry is auto-delivered to pi as a promptTemplate). RECONCILIATION (Q91 -> CONFIRMED by Q95 2026-06-05): STRICTEST-WINS verdict (any reviewer's revise/disapprove blocks; go-ahead/approve requires unanimity) + UNION of all reviewers' criticism/questions/defects, each finding tagged by source reviewer (e.g. a [grok] / [codex] prefix), aggregated into the SINGLE reviews item the round records. Q95 explicitly confirmed strictest-wins+union-with-source-tags as the intended semantics over majority-vote / designated-primary, so T175/T176 stand as written (no material change). ON-THE-FLY OVERRIDE (Q93=session-only): /cq:reviewers (commands/cq/reviewers.md, net-new /cq:* namespace) sets the ACTIVE reviewer set for the CURRENT chained run ONLY — NO durable override file, NO gitignored state, NO ledger item. The user re-states it each fresh /plan:advance or /implement:advance. cq-config provides the DEFAULT set from cq.toml; the session override (when stated) supersedes it in-memory for that run. Feature is OFF (single native Claude reviewer, today's exact behaviour) when cq.toml is absent. SPIKE-FIRST (Q90 recommendation): the FIRST task verifies `pi -p` runs non-interactively in this sandbox and emits parseable output, BEFORE the reconciliation tasks depend on it.
+    
+    R169 (revise) FIXES already folded into the durable plan: (1) T173 gates the native plan-reviewer's reviews-ledger write on mode — direct write ONLY in unconfigured single-reviewer fallback; RETURN json (write nothing) in configured multi-reviewer mode so the orchestrator writes the SINGLE aggregated item (resolves the T173/T175 double-write). (2) T168/T178 VERIFY the real cq-assets source root before adding link-prompts.ts entries and assert the new symlinks resolve to existing files (not a stale 'llm/' root). (3) T172 ALSO registers cq-config in THIS repo's .mcp.json (not just global dev-llm.nix) so in-repo dogfooding can reach get_reviewers. The stale-'llm/'-root pre-existing fault remains a separately-filed out-of-scope defect (R169 file-and-defer bucket).
+    
+    Parallel-safety: commands/investigate/advance.md, commands/plan/advance.md, commands/implement/advance.md and dev-llm.nix are each touched by multiple tasks across both features -> serialize same-file edits via dependsOn (R137/R138/R139 precedent). The cq-assets README.md is STALE and must be updated to list the investigate/* assets + the new prober/cq.toml/cq-config/reviewers assets.
+- sessionLogs: ["docs/logs/20260605-181341-a2e334d56e77d791c.md","docs/logs/20260605-184550-afa26f26f6fc1fad0.md","docs/logs/20260605-185213-a4b0e9587bbebb6a6.md","docs/logs/20260605-185546-af711a488fc88fde4.md","docs/logs/20260605-202254-afdfc963dee5ab691.md","docs/logs/20260605-202254b-a9ddca0b976c0faf3.md"]
+- milestones: ["M55","M56"]
+
+## M53
+
+### G16 — planned
+
+- createdAt: 2026-06-05T18:31:39.036Z
+- updatedAt: 2026-06-05T18:39:16.091Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Fix D29 — reject empty/whitespace answer on a question's `answered` transition
+- description: |
+    DEFECT-SEEDED goal (skips clarifying per T35; confirmed root cause embedded). Fix D29: the ledger accepts an empty/whitespace `answer` when a `questions` item transitions to `answered`, violating the invariant that an `answered` question carries a usable answer.
+    
+    CONFIRMED ROOT CAUSE (H19 backend + H20 frontend, all citations validated against source):
+    BACKEND (authoritative): QUESTIONS_SCHEMA.answer is `{type:'string', required:false}` with no content/status-conditional constraint (constants.ts:217). The store transition path applyUpdateItem (core.ts:259-291) runs assertTransitionAllowed + an OPTIONAL StatusChangePrecondition + validateFields; validateFields/assertFieldType only type-check (core.ts:831-859), and the precondition hook is wired ONLY for GOALS_LEDGER (FsLedgerStore.ts:571-581). The MCP update_item handler forwards status+fields verbatim (ledgerTools.ts:309-317); its Zod fieldsSchema accepts '' (ledgerTools.ts:171-173).
+    FRONTEND (complementary): all four submit paths are unguarded — web detail submitAnswer/HoldButton (App.tsx:2611/2629), web BatchAnswerModal (App.tsx:1732), TUI answer overlay via TextPrompt Enter (TextPrompt.tsx:30-43), TUI BatchAnswerOverlay Enter (app.tsx:1952).
+    
+    SUGGESTED FIX:
+    1. BACKEND (primary/invariant): reject (from != answered) -> (to == answered) on the questions ledger unless the EFFECTIVE answer = (patch.fields?.answer ?? item.fields.answer) is a non-empty trimmed string. Implement as a questions-specific StatusChangePrecondition mirroring assertGoalPhasePreconditions, wired for QUESTIONS_LEDGER in FsLedgerStore.updateItem AND the in-memory store. Reproduce-first: failing test that update_item(Q, status:'answered', fields:{answer:''}) and {answer:'   '} throw, non-empty still succeeds; dual-tests across FsLedgerStore + InMemoryLedgerStore.
+    2. FRONTEND (UX): disable 'save & mark answered' when the trimmed answer is empty (web detail HoldButton App.tsx:2629; web BatchAnswerModal App.tsx:1732; TUI TextPrompt Enter / BatchAnswerOverlay Enter), reusing the answerHasText/setAnswerHasText pattern.
+    Planning may weigh the targeted precondition (recommended) vs a general FieldSpec extension. Acceptance: `bun run check` green; reproduce-first red/green on the backend guard.
+- sourceRefs: ["defects:D29"]
+- milestones: ["M54"]
+- grounding: "Plan emitted under work milestone M54 (recorded here). Chose the TARGETED questions-specific StatusChangePrecondition (mirroring assertGoalPhasePreconditions, dual-store) over a general FieldSpec/nonEmpty extension — surgical, low-risk, matches the existing goals-only precedent. Backend = authoritative invariant (T162, reproduce-first dual-tests across FsLedgerStore + InMemoryLedgerStore); frontends = pure MCP clients per CLAUDE.md, so web/TUI guards (T163/T164) are complementary UX only and depend on T162. Same-file serialization honored: both web edits (HoldButton + BatchAnswerModal in App.tsx) are folded into ONE task T163 (repo reviewer policy R137/R138/R139); the two TUI edits live in different files so share T164. Codegraph index not loaded for this tree; citations rely on the investigation's source-validated anchors — implementers must re-cite against live source as line numbers may have drifted."
+- sessionLogs: ["docs/logs/20260605-183509-a2857ca64e4c97f47.md","docs/logs/20260605-183755b-a17d3b4e7f4b48f7b.md"]
+
+## M57
+
+### G17 — planned
+
+- createdAt: 2026-06-05T19:00:07.789Z
+- updatedAt: 2026-06-05T19:10:04.835Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Fix D30 — repoint link-prompts.ts + cq-assets README off the vanished `llm/` root
+- description: |
+    DEFECT-SEEDED goal (skips clarifying per T35; confirmed root cause embedded). Fix D30: `bun run link-prompts` silently creates 14 dangling `.claude/**` symlinks because the asset tree moved to `nix/pkg/cq-assets/{commands,agents}/` but link-prompts.ts + the cq-assets README still reference the removed `llm/` root.
+    
+    CONFIRMED ROOT CAUSE (H21, all 8 citations re-validated against source):
+    The asset tree was relocated to `nix/pkg/cq-assets/{commands,agents}/` and `assets.nix` updated (collectMdIn ./commands/./agents, assets.nix:49-50), but `scripts/link-prompts.ts` was not: its 14 LINKS still set `source: 'llm/commands/...' / 'llm/agents/...'` (link-prompts.ts:29-44) resolved against REPO_ROOT = nix/pkg/cq-ledgers/ (link-prompts.ts:19; package.json:13). `nix/pkg/cq-ledgers/llm` no longer exists. The loop stats only the LINK (`linkExists`/lstat absLink), never the TARGET (absSource); symlink(2) succeeds on a nonexistent target and logs success (link-prompts.ts:46-73) — so dangling links are produced silently. `nix/pkg/cq-assets/README.md:1,10-11,40-42` still documents the old `llm/` root.
+    
+    SUGGESTED FIX:
+    1. Repoint link-prompts.ts LINKS `source:` from `llm/...` onto the real tree: change each `source` to resolve from REPO_ROOT to `../cq-assets/commands/...` / `../cq-assets/agents/...` (preferred — explicit), OR restore a `nix/pkg/cq-ledgers/llm -> ../cq-assets` symlink.
+    2. HARDEN the loop: assert each `absSource` exists (test -e / lstat) BEFORE `symlink`, throwing loud on a missing target. Add reproduce-first coverage (or a `--check` mode) asserting every produced link resolves.
+    3. Update `nix/pkg/cq-assets/README.md` (title, convention block, Three-consumers / Claude-link tables) to the `nix/pkg/cq-assets/...` layout.
+    Acceptance: reproduce-first (a test/assertion that FAILS on the current dangling output, passes after); after fix `bun run link-prompts` yields only non-dangling links (every target `test -e`); `bun run check` green.
+    
+    NOTE coordination with G15: G15's tasks T168/T178 ADD new link entries (investigate-prober, /cq:*) and were revised to verify their source root independently — sequence so D30's repoint lands first or the two are reconciled to avoid edit collisions on link-prompts.ts.
+- sourceRefs: ["defects:D30"]
+- grounding: "Re-validated against source 2026-06-05. scripts/link-prompts.ts (nix/pkg/cq-ledgers/): REPO_ROOT = dirname(script)/.. = nix/pkg/cq-ledgers/ (L19); run via package.json:13 `link-prompts`. 14 LINKS (L29-44) set source:'llm/commands/...' / 'llm/agents/...'; nix/pkg/cq-ledgers/llm does NOT exist. The creation loop (L56-74) stats only the LINK (linkExists/lstat absLink, L64-65), NEVER the target absSource (L58), so symlink(2) (L72) succeeds on a nonexistent target and L73 logs success -> 14 dangling .claude/** symlinks produced silently. Real assets live at nix/pkg/cq-assets/{commands,agents}/ (assets.nix:49-50 collectMdIn ./commands/./agents); cq-assets is a SIBLING of cq-ledgers, so from REPO_ROOT the correct source is `../cq-assets/commands/...` / `../cq-assets/agents/...`. Explicit repoint preferred over restoring a hidden `llm -> ../cq-assets` symlink. nix/pkg/cq-assets/README.md still documents `llm/` root: title L1, convention block L9-13, current-assets table L18-29 (commands/.. relative, OK but header context stale), three-consumers Claude-link table L38-49 (llm/ sources), narrative L31,54. No existing test covers link-prompts.ts (package.json test = `bun test --pass-with-no-tests`). COORDINATION: G15 T168/T178 also edit scripts/link-prompts.ts (add investigate-prober / cq:* entries) — same-file, must be serialized with G17."
+- milestones: ["M58"]
+- sessionLogs: ["docs/logs/20260605-190250-a847f24eb64249876.md","docs/logs/20260605-190732-acc3a65f452db3ad0.md","docs/logs/20260605-190853b-a4d9f6096ca33a3fa.md"]

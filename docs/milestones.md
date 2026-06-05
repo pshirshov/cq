@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 50
+  item: 58
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -219,6 +219,31 @@ archives:
     summary: "G14 fix work (D28 readLog TOCTOU) — COMPLETE. T161: readLog now reads the validated canonical path (fs.readFile(real ?? resolved)) instead of the symlink-bearing resolved, closing the check-then-read TOCTOU; ENOENT unmasked. Deterministic TOCTOU regression test (spies fs.realpath to swap the target at the check→use boundary; verified to fail against the pre-fix read). Review R167 go-ahead (r0 disapprove: non-discriminating test → r1 made it fail against pre-fix code). Defect D28 resolved. Merged 537017f."
     title: Close D28 readLog check-then-read TOCTOU (read validated canonical path)
     status: done
+  - id: M54
+    path: ./archive/milestones/M54.md
+    summary: "G16/D29 fix built+merged: backend questions-answer StatusChangePrecondition (dual-store) + web/TUI empty-answer UX guards. Tasks T162/T163/T164 done, reviews R172/R174/R175 go-ahead. Integrated bun run check green 908/0. D29 resolved."
+    title: D29 fix — reject empty/whitespace answer on a question's `answered` transition
+    status: done
+  - id: M58
+    path: ./archive/milestones/M58.md
+    summary: "G17/D30 fix built+merged: link-prompts.ts made import-safe + repointed 14 LINKS off the vanished llm/ root onto ../cq-assets/, hardened to throw on missing targets; cq-assets README de-staled. Tasks T179/T180/T181 done, reviews R173/R176/R177 go-ahead. D30 resolved; bun run link-prompts now produces non-dangling symlinks."
+    title: "G17 fix: repoint link-prompts.ts + cq-assets README off vanished `llm/` root (D30)"
+    status: done
+  - id: M52
+    path: ./archive/milestones/M52.md
+    summary: "Investigation of D29 (empty-answer-accepted) complete: H19 (backend gap) + H20 (frontend gap) confirmed against source, root cause pinned, fix file-and-deferred to G16 and resolved this run. Q94 pointer withdrawn (fulfilled)."
+    title: "Investigate: empty-answer-accepted"
+    status: done
+  - id: M55
+    path: ./archive/milestones/M55.md
+    summary: "G15 Feature 1 (explorer two-tier RW) built+merged: investigate-explorer JSON contract extended with optional probeRequest (T165); new execution-capable investigate-prober.md agent (Bash + throwaway worktree, read+execute, local-only/no-network) (T166); prober dispatch wired into investigate/advance.md gated on probeRequest with harvest-then-discard (T167); prober registered in link-prompts.ts + README (T168). Tasks T165-T168 done, reviews go-ahead. Integrated bun run check green."
+    title: G15 W1 — Explorer two-tier RW (investigate-prober)
+    status: done
+  - id: M56
+    path: ./archive/milestones/M56.md
+    summary: "G15 Feature 2 (pluggable parallel reviewers) built+merged: pi non-interactive spike confirmed (K30 invocation contract) (T169); @cq/config cq.toml parser package (T170) + cq-config MCP server exposing get_reviewers + Nix package (T171); registered in dev-llm.nix + .mcp.json (T172); shared /cq:plan-review (T173) + /cq:implement-review (T174) rubrics; reconciliation (strictest-wins+union-with-source-tags, get_reviewers MCP tool, pi shellout) wired into plan/advance.md (T175) + implement/advance.md (T176); /cq:reviewers session-only override (T177); cq.toml.example + cq/* link entries + README (T178). Tasks T169-T178 done, reviews go-ahead, K30 locked. Integrated bun run check green 930/0; all new asset symlinks resolve."
+    title: G15 W2 — Pluggable parallel reviewers (cq.toml + cq-config MCP + pi shellout)
+    status: done
 ---
 
 # milestones
@@ -270,3 +295,24 @@ archives:
 - createdAt: 2026-06-03T20:40:38.475Z
 - updatedAt: 2026-06-03T20:40:38.475Z
 - title: "Plan: fix D28 (readLog TOCTOU)"
+
+### M51 — open
+
+- createdAt: 2026-06-05T18:09:01.382Z
+- updatedAt: 2026-06-05T18:09:01.382Z
+- title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
+- description: "Coordination milestone for a plan-flow goal covering two new features: (1) granting investigate-flow explorers read/write capability when needed; (2) a cq.toml-defined pluggable reviewer set (claude + pi/codex/x.ai) run in parallel and reconciled, with on-the-fly switching via a /cq:reviewers command. Groups the goal, its clarifying questions, plan reviews, and the final approval decision."
+
+### M53 — open
+
+- createdAt: 2026-06-05T18:30:41.769Z
+- updatedAt: 2026-06-05T18:30:41.769Z
+- title: "Plan: fix D29 (reject empty answer on question `answered`)"
+- description: Coordination milestone for the defect-seeded plan-flow goal that fixes D29 — the ledger accepting an empty/whitespace answer when a question is marked `answered`. Confirmed root cause embedded in the goal; skips clarifying (T35).
+
+### M57 — open
+
+- createdAt: 2026-06-05T18:59:52.376Z
+- updatedAt: 2026-06-05T18:59:52.376Z
+- title: "Plan: fix D30 (link-prompts stale `llm/` root → dangling symlinks)"
+- description: Coordination milestone for the defect-seeded plan-flow goal fixing D30 — scripts/link-prompts.ts + cq-assets/README.md still reference the relocated `llm/` asset root, so `bun run link-prompts` silently creates dangling symlinks. Confirmed root cause embedded; skips clarifying (T35).

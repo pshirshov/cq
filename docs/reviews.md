@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 167
+  item: 192
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -204,6 +204,26 @@ archives:
     summary: "G14 fix work (D28 readLog TOCTOU) — COMPLETE. T161: readLog now reads the validated canonical path (fs.readFile(real ?? resolved)) instead of the symlink-bearing resolved, closing the check-then-read TOCTOU; ENOENT unmasked. Deterministic TOCTOU regression test (spies fs.realpath to swap the target at the check→use boundary; verified to fail against the pre-fix read). Review R167 go-ahead (r0 disapprove: non-discriminating test → r1 made it fail against pre-fix code). Defect D28 resolved. Merged 537017f."
     title: Close D28 readLog check-then-read TOCTOU (read validated canonical path)
     status: done
+  - id: M54
+    path: ./archive/reviews/M54.md
+    summary: "G16/D29 fix built+merged: backend questions-answer StatusChangePrecondition (dual-store) + web/TUI empty-answer UX guards. Tasks T162/T163/T164 done, reviews R172/R174/R175 go-ahead. Integrated bun run check green 908/0. D29 resolved."
+    title: D29 fix — reject empty/whitespace answer on a question's `answered` transition
+    status: done
+  - id: M58
+    path: ./archive/reviews/M58.md
+    summary: "G17/D30 fix built+merged: link-prompts.ts made import-safe + repointed 14 LINKS off the vanished llm/ root onto ../cq-assets/, hardened to throw on missing targets; cq-assets README de-staled. Tasks T179/T180/T181 done, reviews R173/R176/R177 go-ahead. D30 resolved; bun run link-prompts now produces non-dangling symlinks."
+    title: "G17 fix: repoint link-prompts.ts + cq-assets README off vanished `llm/` root (D30)"
+    status: done
+  - id: M55
+    path: ./archive/reviews/M55.md
+    summary: "G15 Feature 1 (explorer two-tier RW) built+merged: investigate-explorer JSON contract extended with optional probeRequest (T165); new execution-capable investigate-prober.md agent (Bash + throwaway worktree, read+execute, local-only/no-network) (T166); prober dispatch wired into investigate/advance.md gated on probeRequest with harvest-then-discard (T167); prober registered in link-prompts.ts + README (T168). Tasks T165-T168 done, reviews go-ahead. Integrated bun run check green."
+    title: G15 W1 — Explorer two-tier RW (investigate-prober)
+    status: done
+  - id: M56
+    path: ./archive/reviews/M56.md
+    summary: "G15 Feature 2 (pluggable parallel reviewers) built+merged: pi non-interactive spike confirmed (K30 invocation contract) (T169); @cq/config cq.toml parser package (T170) + cq-config MCP server exposing get_reviewers + Nix package (T171); registered in dev-llm.nix + .mcp.json (T172); shared /cq:plan-review (T173) + /cq:implement-review (T174) rubrics; reconciliation (strictest-wins+union-with-source-tags, get_reviewers MCP tool, pi shellout) wired into plan/advance.md (T175) + implement/advance.md (T176); /cq:reviewers session-only override (T177); cq.toml.example + cq/* link entries + README (T178). Tasks T169-T178 done, reviews go-ahead, K30 locked. Integrated bun run check green 930/0; all new asset symlinks resolve."
+    title: G15 W2 — Pluggable parallel reviewers (cq.toml + cq-config MCP + pi shellout)
+    status: done
 ---
 
 # reviews
@@ -337,3 +357,68 @@ archives:
 - criticism: []
 - new_questions: []
 - ledgerRefs: ["goals:G14"]
+
+## M53
+
+### R168 — go-ahead
+
+- createdAt: 2026-06-05T18:37:37.196Z
+- updatedAt: 2026-06-05T18:38:12.427Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "G16/M54 plan go-ahead, round 0. Plan for D29 is fine-grained, correctly sequenced (T163/T164 dependsOn T162), reproduce-first, fully grounded against live source, and complete across backend dual-store + all four frontend submit paths. Verified: applyUpdateItem (core.ts:277) fires precondition(item.status,patch.status) BEFORE applying patch.fields (L281), so the questions guard must read the EFFECTIVE answer = (patch.fields?.answer ?? item.fields.answer) via closure — T162 specifies exactly this (not the mis-grounded post-patch read). Goals-only precondition wiring confirmed in BOTH FsLedgerStore.updateItem (L571-581) AND InMemoryLedgerStore.updateItem (L307-317) — both need the questions branch; T162 names both stores + dual-tests. QUESTIONS_SCHEMA.answer={type:string,required:false} (constants.ts:217), validateFields type-checks only — confirmed. Frontend anchors verified real: web submitAnswer App.tsx:2611, HoldButton:2629 (no disabled guard today), answerHasText/setAnswerHasText pattern present (2626/2635); TUI BatchAnswerOverlay app.tsx:1952 (key.return->onAnswer(row,value)), TextPrompt components/TextPrompt.tsx:32-33 (key.return->onSubmit(value)). Same-file safety: both web edits folded into T163 (R137-R139 precedent); T164's two TUI edits are different files; T163/T164 in disjoint package trees, both depend on T162 (ledger pkg, disjoint). No DAG-parallel pair shares a file. Note (not a defect): TextPrompt is a generic single-line input — the empty-guard belongs at the answer-overlay caller, not inside the shared component; T164's acceptance is correctly scoped to the answer overlay's behavior. Scope surgical (targeted precondition, not a general FieldSpec extension), no over-reach. No user-only gaps, no planner-fixable defects, no out-of-scope faults."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G16"]
+- sessionLogs: ["docs/logs/20260605-183755-a10a9c55f675c1aa4.md"]
+
+## M51
+
+### R169 — revise
+
+- createdAt: 2026-06-05T18:51:39.883Z
+- updatedAt: 2026-06-05T18:52:31.940Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Well-grounded plan; DAG acyclic with same-file edits serialized (link-prompts.ts/README via T178->T168, package.json/cq-config via T171->T170). Revise on three planner-fixable defects: T173/T175 double-write of the reviews item in multi-reviewer mode, a stale/unverified link-prompts.ts 'llm/' source root in T168/T178, and no .mcp.json registration of cq-config for in-repo dogfooding. One confirming question on the empty-answer Q91 reconciliation semantics."
+- criticism: ["T173 vs T175 contradiction (single-reviews-item invariant). T173 says 'keep native plan-reviewer.md as-is — the claude:* path still writes the reviews item directly', while T175 has each claude reviewer RETURN verdict json so the ORCHESTRATOR writes the single aggregated reviews item. In configured multi-reviewer mode these combine to produce TWO reviews items per round (the native reviewer's direct write + the orchestrator's aggregate), breaking the single-aggregated-reviews-item-per-round invariant the whole strictest-wins+union reconciliation (Q91) depends on. Resolve the 'rather than (or in addition to) writing the ledger' hedge in T175: in configured/multi-reviewer mode the native claude plan-reviewer must NOT write the reviews ledger — only the orchestrator writes the one aggregated item; the direct-write path is retained ONLY for the unconfigured single-reviewer fallback (today's behaviour). Note the implement side is already clean (implement-reviewer.md returns json and never writes the ledger — verified), so make the plan-side reconciliation symmetric to that: have the claude plan-reviewer RETURN json in configured mode.","T168 and T178 build on an unverified/stale link-prompts.ts source root. scripts/link-prompts.ts resolves every LINKS `source` as 'llm/commands/...' / 'llm/agents/...' relative to nix/pkg/cq-ledgers/, but the actual assets live under nix/pkg/cq-assets/{commands,agents}/ and the 'llm/' tree does not resolve under cq-ledgers (verified: Read of nix/pkg/cq-ledgers/llm/agents/plan-reviewer.md and llm/commands/plan/advance.md both fail with 'File does not exist' while their nix/pkg/cq-assets/ equivalents read fine). The instruction 'match existing entries source-path style exactly (do not invent a new root)' would replicate a stale/broken root, and the acceptance 'bun run link-prompts runs clean and creates the symlink' is not safely achievable if that root is wrong (symlink() succeeds for a nonexistent target, yielding a DANGLING link that Claude cannot load). T168/T178 must FIRST verify the real source root against the current tree (check whether nix/pkg/cq-ledgers/llm is a symlink to ../cq-assets or simply stale) and pin link entries to the correct path before adding the investigate-prober / cq:* entries; acceptance must assert the new symlinks resolve to existing files (e.g. `test -e` the link target), not merely that link-prompts runs.","No task registers the new cq-config MCP server in THIS repo's project-local .mcp.json. .mcp.json currently wires only the ledger server (command `nix run .#ledger-mcp`); T172 wires cq-config only into the home-manager global dev-llm.nix programs.mcp.servers registry. For an in-repo /plan:advance or /implement:advance to call the cq-config get_reviewers tool during dogfooding, the orchestrator must be able to reach that server in this repo's session. Add a .mcp.json entry for cq-config (e.g. `nix run .#cq-config-mcp`) as part of T172 (or a small dedicated task), OR explicitly state and verify that the global home-manager registration is merged into in-repo Claude sessions so get_reviewers is reachable here; as written the plan leaves the in-repo reviewer feature unreachable.","OUT-OF-SCOPE / pre-existing (file-and-defer, does NOT block this plan; recorded here because the reviews schema has no defects field): scripts/link-prompts.ts and nix/pkg/cq-assets/README.md both still reference a 'llm/' single-source tree (link-prompts.ts LINKS `source: llm/...`; README Convention + Three-consumers tables say 'llm/commands/...', 'llm/agents/...'). The asset tree was relocated to nix/pkg/cq-assets/{commands,agents}/ and assets.nix was updated to read ./commands and ./agents, but link-prompts.ts and the README were not. The 'llm/' paths do not resolve under nix/pkg/cq-ledgers/, so `bun run link-prompts` likely creates dangling symlinks today. severity: medium. suggestedFix: repoint link-prompts.ts LINKS source paths and the README tables to nix/pkg/cq-assets/..., or restore a symlink nix/pkg/cq-ledgers/llm -> ../cq-assets, then confirm bun run link-prompts produces valid (non-dangling) symlinks. The /plan:advance orchestrator should file this as an open defects item linked goals:G15 and auto-launch investigate per K12, separately from this plan."]
+- new_questions: ["Q91 (reviewer-disagreement reconciliation) was left empty by the user; the planner adopted recommendation (i) — strictest-wins verdict (any reviewer's revise/disapprove blocks; go-ahead/approve requires unanimity) + UNION of all reviewers' criticism/questions/defects, each finding source-tagged. This is the conservative, safety-maximizing default and composes with the existing 'revise/disapprove requires non-empty findings' invariant, so it is a reasonable default — but please confirm strictest-wins + union-with-source-tags is the intended semantics (vs majority-vote or a designated-primary reviewer) before T175/T176 implement it, since the empty answer leaves the core behavioural decision unconfirmed."]
+- ledgerRefs: ["goals:G15"]
+- sessionLogs: ["docs/logs/20260605-185213-a4b0e9587bbebb6a6.md"]
+
+### R178 — go-ahead
+
+- createdAt: 2026-06-05T20:24:58.713Z
+- updatedAt: 2026-06-05T20:25:28.373Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Re-review: all 3 R169 criticisms resolved (T173/T175 single-aggregated-write gated on mode; T168/T178 pin link sources to the verified ../cq-assets root with test -e resolve assertions, coherent with post-D30 link-prompts.ts; T172 adds .mcp.json cq-config entry). Q95 confirms strictest-wins+union-with-source-tags, matching T175/T176. Spike-first (T169) precedes pi-shellout consumers; same-file edits serialized (link-prompts.ts+README via T178->T168, package.json+cq-config via T171->T170, single writers for each advance.md and dev-llm.nix); DAG acyclic; each task carries a concrete verifiable acceptance; both features fully scoped. Coherent with current main; will not regress the D30 fix or the throw-on-missing hardening. go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G15"]
+- sessionLogs: ["docs/logs/20260605-202254-ad4f65b5c798e0da1.md"]
+
+## M57
+
+### R170 — revise
+
+- createdAt: 2026-06-05T19:05:43.046Z
+- updatedAt: 2026-06-05T19:06:13.849Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Plan is grounded, fine-grained, correctly sequenced (reproduce-first T179→T180→T181) and complete; one planner-fixable gap: T179 must make link-prompts.ts import-safe (guard the top-level creation loop) so the test can import the real LINKS array without firing symlink side effects."
+- criticism: ["T179 underspecifies the import-safety refactor. scripts/link-prompts.ts runs its symlink-CREATION loop at module top level (L56-74, a bare `for` with no `import.meta.main`/function guard). T179 requires the new test to operate on 'the SAME LINKS array the creation loop uses' — but importing the module from scripts/link-prompts.test.ts will EXECUTE that top-level loop and mutate `.claude/` at test time (and, against current `llm/` sources, may throw for the wrong reason rather than the D30 missing-target reason). Make it explicit in T179: extract LINKS + the per-link existence/check logic into importable exports and GUARD the creation loop behind `import.meta.main` (or move it into a `main()` invoked only when run as a script), so `bun test` imports the real LINKS array with zero filesystem side effects and the red failure is unambiguously the missing `llm/...` targets. Without this the implementer either duplicates the LINKS array in the test (defeating the 'same array' requirement and letting a stale source slip through undetected) or the test fails for an import-side-effect reason instead of the D30 reason."]
+- ledgerRefs: ["goals:G17"]
+- sessionLogs: ["docs/logs/20260605-190601-aa1442ade4288d14e.md"]
+
+### R171 — go-ahead
+
+- createdAt: 2026-06-05T19:08:37.036Z
+- updatedAt: 2026-06-05T19:09:03.312Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "R170's sole criticism resolved: revised T179 now explicitly mandates exporting LINKS as single source of truth, extracting a side-effect-free checkLinks helper, guarding the creation loop behind import.meta.main/main(), and a reproduce-first test importing the real LINKS with ZERO .claude/ mutation that fails for the D30 missing-target reason; T180 repoints the in-place exported LINKS onto verified ../cq-assets/{commands,agents}/ and reuses checkLinks; ordering T179→T180→T181 and same-file serialization (T180 dependsOn T179, T181 dependsOn T180) hold."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G17"]
+- sessionLogs: ["docs/logs/20260605-190853-aaf37e9557710bdc2.md"]

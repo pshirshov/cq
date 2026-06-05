@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 87
+  item: 96
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -43,6 +43,11 @@ archives:
     path: ./archive/questions/M33.md
     summary: "G6 #4A work milestone — COMPLETE. Formal defect-lifecycle states (open/wip/root-caused/inconclusive/resolved/wontfix) landed in @cq/ledger CANONICAL_LEDGERS + investigate/plan/implement flow prompts; live open-defect migration done; tasks + reviews terminal. Auto-archived by the /advance whole-ledger sweep."
     title: "G6 #4A — formal defect-lifecycle states (root-caused/inconclusive) across schema + flow prompts"
+    status: done
+  - id: M52
+    path: ./archive/questions/M52.md
+    summary: "Investigation of D29 (empty-answer-accepted) complete: H19 (backend gap) + H20 (frontend gap) confirmed against source, root cause pinned, fix file-and-deferred to G16 and resolved this run. Q94 pointer withdrawn (fulfilled)."
+    title: "Investigate: empty-answer-accepted"
     status: done
 ---
 
@@ -246,3 +251,109 @@ archives:
 - recommendation: "Populated by the command that writes the log, in the SAME update_item that records the work outcome (it holds the agent-id↔item mapping); frontends render sessionLogs as a PLAIN display field (a labeled list of paths) this round, NON-clickable. Opening a log in-app would require a new MCP read-file tool (the web app cannot read docs/ directly per the pure-client rule) — that is worth a separate decision and should NOT be bundled into F3. So: link + display now; in-app log viewer deferred unless you want it scoped in."
 - ledgerRefs: ["goals:G11"]
 - answer: "as recommended but: let's make them clickable and show popups rendering the content of the logs"
+
+## M51
+
+### Q88 — answered
+
+- createdAt: 2026-06-05T18:11:54.531Z
+- updatedAt: 2026-06-05T18:13:16.992Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 1 — which explorer-RW design do you want planned? (a) grant the explorer write/Bash tools directly with a 'avoid writing unless necessary' instruction; (b) the explorer RETURNS a structured RW-permission request and the orchestrator RE-RUNS it with extended permissions; or (c) my proposed third option — a TWO-TIER explorer: keep the default read-only explorer exactly as-is, and add a SECOND agent definition (an 'investigate-prober' with Bash + an isolated git WORKTREE) that the orchestrator dispatches ONLY when an explorer's returned JSON sets a new `needsRW`/`probeRequest` field, with all writes confined to a throwaway worktree the orchestrator discards after harvesting evidence?"
+- context: "Grounding: investigate-explorer.md sets `disallowedTools: Write,Edit,MultiEdit,NotebookEdit,Bash,Agent` and the body explicitly states it 'shares the main checkout (no worktree isolation) because you change nothing'. The orchestrator (commands/investigate/advance.md) re-validates EVERY returned citation against source before trusting it — the read-only + no-worktree invariant is load-bearing for that trust model. Option (a) breaks both invariants (an explorer running Bash in the shared main checkout can mutate the very files later explorers cite, and there is no worktree to contain it). Option (b) already has a clean seam: the explorer returns a fenced-json block {hypothesisId, evidence[], lean, notes} that the orchestrator parses — adding a permission-request field is a minimal, in-contract extension. Option (c) is (b) plus isolation: it preserves the read-only explorer untouched and adds a separate, worktree-isolated prober so RW probing never contaminates the evidence checkout. This choice drives whether we edit ONE agent file or add a SECOND, and how much of investigate/advance.md changes."
+- suggestions: ["(c) two-tier: read-only explorer unchanged + a new worktree-isolated investigate-prober dispatched on a returned needsRW request; writes confined to a throwaway worktree","(b) single explorer returns an RW-permission request; orchestrator re-runs the SAME explorer with extended tools (decide whether in the shared checkout or a fresh worktree)","(a) grant the existing explorer Bash/write directly with an 'avoid unless necessary' instruction (simplest, but breaks the read-only + no-worktree trust invariants)"]
+- recommendation: "(c) two-tier with a worktree-isolated prober. It keeps the read-only explorer and the orchestrator's citation-revalidation trust model intact, and confines any write/Bash side effects to a throwaway worktree the orchestrator discards — so RW probing can never mutate files that other explorers cite in the shared checkout. The probe trigger reuses the EXISTING json return seam (a new field like `probeRequest`), mirroring how implement-flow already dispatches worktree-isolated workers. If you prefer minimal surface area, (b) is acceptable but should still run the re-run in a fresh worktree, not the shared main checkout. (a) I recommend against: it silently breaks the invariant that makes explorer evidence trustworthy."
+- ledgerRefs: ["goals:G15"]
+- answer: "(c) two-tier: read-only explorer unchanged + a new worktree-isolated investigate-prober dispatched on a returned needsRW request; writes confined to a throwaway worktree"
+
+### Q89 — answered
+
+- createdAt: 2026-06-05T18:12:06.181Z
+- updatedAt: 2026-06-05T18:13:48.554Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 1 scope — WHICH flows get explorer RW, and is a real write to the repo ever allowed, or is the probe strictly read-plus-execute (run commands/builds/tests to OBSERVE) with all writes confined to a discardable worktree? Also: should an RW probe ever be allowed to touch the network (curl/git fetch), or only the local repo?"
+- context: "The goal names only the investigate:* flow. Within it, the legitimate need is usually to RUN something to gather evidence (execute a repro script, run `bun test`, `git log`/`git diff`, build) rather than to PERMANENTLY edit tracked files — the actual fix is always file-and-deferred to plan/implement, never done by the explorer. Pinning 'read + execute-in-a-throwaway-worktree, no persisted repo edits' keeps the explorer's evidence reproducible and keeps the fix boundary clean. Network access is a separate axis (some repros need a fetch; most don't) and affects sandbox/permission wiring."
+- suggestions: ["investigate:* only; probe = read + EXECUTE (bash/tests/build/git) inside a throwaway worktree; NO persisted edits to the main checkout; local-only, no network by default","investigate:* only; allow real edits too, but ONLY inside the throwaway worktree (discarded after evidence harvest)","broader: also let plan/implement reviewers request execute access (out of scope for this goal — defer)","allow network (curl/git fetch) during a probe when the repro needs it"]
+- recommendation: "investigate:* only; the probe is READ + EXECUTE (run repros, tests, builds, git inspection) inside a throwaway worktree, with NO persisted edits to the main checkout and local-only (no network) by default. This covers the real need ('I must RUN this to see what happens') without weakening the file-and-defer fix boundary or the citation-revalidation trust model. Network and real persisted edits can be follow-up goals if a concrete case demands them."
+- ledgerRefs: ["goals:G15"]
+- answer: as recommended
+
+### Q90 — answered
+
+- createdAt: 2026-06-05T18:12:37.175Z
+- updatedAt: 2026-06-05T18:16:19.246Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 2 invocation mechanism — confirm HOW a non-Claude reviewer is launched. Claude reviewers are NATIVE Agent-tool subagents (subagent_type: plan-reviewer / implement-reviewer). `pi` and `codex` have no Agent/subagent mechanism — they are separate CLI harnesses. So a `pi:grok-build` or `pi:gpt-5.5` reviewer = the orchestrator shells out via Bash to `pi -p <prompt>` / `codex exec <prompt>` (selecting model via the CLI's flags) in a read-only checkout, capturing the same structured-JSON review contract on stdout. Is that the intended model, and is `pi`/`codex` actually invocable non-interactively from inside a Claude-Code orchestrator session in this sandbox?"
+- context: "Grounding (nix/hm/dev-llm.nix): programs.{claude-code,codex,pi} are three independent CLI harnesses. pi is wrapped (piWrapped) with provider/search keys, defaults to provider+model grok-build, and also has openai-codex/openai/openrouter providers; codex defaults to gpt-5.5. The reviewer subagents return STRUCTURED JSON (implement-reviewer: a fenced json {verdict,criticism,questions,defects,...}; plan-reviewer writes a reviews item) that the orchestrator parses. For a pi/codex process to participate in reconciliation it must emit the SAME json contract on stdout, which means the reviewer PROMPT must be delivered to pi/codex (they already receive mergedCommands as prompt templates / ~/.codex/prompts, but the AGENT definitions are Claude-only — agents are intentionally not materialized for codex/pi). This determines whether we (i) ship the reviewer instructions as a shared PROMPT both CLIs can run, and (ii) whether the orchestrator can spawn these CLIs at all from within its session (sandbox/nesting/auth constraints)."
+- suggestions: ["Yes: orchestrator shells out via Bash to `pi`/`codex` non-interactively (e.g. pi -p / codex exec) with a shared reviewer PROMPT, captures the json contract on stdout; Claude reviewers stay native Agent subagents","Same, but ALSO materialize the reviewer instructions as a shared command/prompt for pi/codex (since agent defs are Claude-only today)","pi/codex cannot be invoked from inside the orchestrator session here — reviewers must all be Claude models for now (descope the pi/codex half)","Unsure — first task should be a spike to verify `pi -p`/`codex exec` run non-interactively and return parseable output in this sandbox"]
+- recommendation: Yes — the orchestrator shells out via Bash to `pi`/`codex` non-interactively with a SHARED reviewer prompt and parses the same structured-JSON contract from stdout, while Claude reviewers remain native Agent subagents. Because the existing reviewer instructions live in Claude-only AGENT files, the plan should also extract the reviewer rubric into a shared prompt/command both CLIs can run. I recommend the FIRST planned task be a small spike that confirms `pi -p <prompt>` and `codex exec` actually run non-interactively in this sandbox and emit parseable JSON — the whole feature's task shape depends on that being true, so we should de-risk it before planning the reconciliation tasks.
+- ledgerRefs: ["goals:G15"]
+- answer: "as recommended, we use shell. But you misunderstood me: I don't want to use codex cli directly. I have codex (gpt-5.5 provided by openai-codex) (already configured in pi, same as grok (grok-build provided by grok-build. We can stick with just using pi."
+
+### Q91 — answered
+
+- createdAt: 2026-06-05T18:12:47.768Z
+- updatedAt: 2026-06-05T18:16:33.935Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 2 reconciliation semantics — when N reviewers run in parallel and disagree, how does the orchestrator decide the single verdict that gates the flow? Reviewers emit a verdict (plan: go-ahead/revise; implement: approve/disapprove) plus criticism[]/questions[]/defects[]. Options: (i) STRICTEST-WINS — any reviewer's 'revise'/'disapprove' blocks, and the UNION of all reviewers' criticism/questions/defects is recorded; (ii) MAJORITY vote on the verdict, union of findings; (iii) a designated PRIMARY reviewer decides the verdict and the others are advisory (their findings appended). Which?"
+- context: "This is the core behavioural decision of the feature and is underspecified by 'reconciles their outputs'. The downstream loops act on the recorded findings: plan-flow's planner reads the latest review's criticism/new_questions/defects; implement-flow's criticism loop fixes criticism[] and parks on questions[]. If findings are UNIONed, a single reviews item must aggregate multiple reviewers' outputs (and provenance — which reviewer said what). Strictest-wins maximizes safety (no real defect is dropped because one model missed it) and composes cleanly with the existing 'revise requires non-empty criticism/new_questions' invariant. Majority/primary risks dropping a valid finding a minority reviewer alone caught."
+- suggestions: ["(i) Strictest-wins verdict + UNION of all findings, each finding tagged with its source reviewer; one aggregated reviews item per round","(ii) Majority vote on verdict, union of findings","(iii) Primary reviewer decides verdict; others advisory (findings appended)","Record EACH reviewer's output as a separate reviews item and let the planner/criticism-loop consume all of them (no orchestrator-side merge)"]
+- recommendation: "(i) Strictest-wins on the verdict + UNION of all reviewers' criticism/questions/defects, with each finding tagged by its source reviewer (e.g. a `[pi:grok-build]` prefix or a reviewer field), aggregated into the single reviews item the round records. This preserves the existing state-machine invariants (a 'revise'/'disapprove' from ANY reviewer keeps the loop iterating; go-ahead requires unanimity), never drops a real defect a minority model alone caught, and keeps provenance auditable. De-duplicate near-identical findings across reviewers where obvious, but bias toward keeping rather than merging."
+- ledgerRefs: ["goals:G15"]
+- answer: ""
+
+### Q92 — answered
+
+- createdAt: 2026-06-05T18:13:06.230Z
+- updatedAt: 2026-06-05T18:21:24.887Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 2 — cq.toml location, schema, and WHO reads it. (a) Is `cq.toml` per-REPO (committed at the repo root, read by the orchestrator command at the start of each review) or per-USER (home dir)? (b) Does the same reviewer set apply to BOTH plan-flow and implement-flow reviews, or do you want per-flow keys (e.g. `[reviewers] plan = [...] implement = [...]`)? (c) Is the whole feature OFF unless cq.toml exists (default = today's single Claude reviewer), so absence is a no-op?"
+- context: "There is NO cq.toml today and no code that reads one — it's net-new. The orchestrators are prompt files (commands/*/advance.md) with `allowed-tools: ... Bash, Read`, so 'read cq.toml' means a Read/Bash step at the top of the review phase, not new MCP/TS code (unless you want a typed parser in @cq/ledger). Per-repo+committed makes the reviewer set travel with the project and be diffable; per-user makes it a personal default. Defaulting the feature OFF when cq.toml is absent preserves today's exact behaviour (one native Claude reviewer) for repos that don't opt in. The token format `claude:opus` / `pi:grok-build` / `pi:gpt-5.5` already encodes `<harness>:<model>`; confirm that's the canonical schema and that `claude:<model>` maps to the native Agent subagent path while `pi:*`/`codex:*` map to the CLI-shellout path."
+- suggestions: ["Per-REPO cq.toml at repo root, committed","ONE `reviewers = [...]` list shared by plan+implement","feature OFF (single native Claude reviewer) when the file/key is absent, Per-repo cq.toml, but PER-FLOW keys ([reviewers] plan=[...] implement=[...]) so the sets can differ, Per-USER cq.toml (home dir) as a personal default, overridable per-repo, Read by a typed parser in @cq/ledger (TS), not just a prompt-side Read step"]
+- recommendation: "Per-REPO `cq.toml` at the repo root, committed, with a single `reviewers = [\"<harness>:<model>\", ...]` list shared across plan- and implement-flow, and the feature OFF (exactly today's single native Claude reviewer) whenever the file or key is absent — so non-opted-in repos are unaffected. Token schema `<harness>:<model>`: `claude:*` → native Agent subagent; `pi:*`/`codex:*` → CLI shellout. Keep it prompt-side (a Read step at the top of the review phase) rather than new TS, unless you want validation; per-flow keys can be a later refinement if a real need appears. This keeps the surface small and the default behaviour identical to today."
+- ledgerRefs: ["goals:G15"]
+- answer: "per-repo cq.toml but we should provide a separate mcp endpoint (cq-config or smth like that). Also, I think we need two things in the config: 1) mapping alias->model name, e.g. aliases=[codex=\"pi:gpt-5.5\", grok=\"pi:grok-build\", opus=\"claude:opus-4.8[1M]\"], and then reviewers=[\"codex\", \"grok\", \"opus\"]"
+
+### Q93 — answered
+
+- createdAt: 2026-06-05T18:13:19.987Z
+- updatedAt: 2026-06-05T18:17:44.075Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "FEATURE 2 — the on-the-fly ACTIVE reviewer set: where is the override stored and how long does it persist? cq.toml is the DEFAULT; a `/cq:reviewers use grok and opus only` command changes the ACTIVE set. Since each `/plan:advance` or `/implement:advance` is a FRESH orchestrator session (no in-memory state survives between runs), the active override must live in DURABLE storage the next orchestrator run reads. Where: (i) a gitignored runtime file (e.g. `.cq/active-reviewers` or `cq.local.toml`); (ii) a decisions/config ledger item; or (iii) the override is session-only (the user re-states it each run)? And does `/cq:reviewers` parse natural language ('grok and opus only') into harness:model tokens?"
+- context: "This is the subtlest part: 'on the fly' implies the override outlives the single command that set it, but the orchestrators are stateless across invocations (each /plan:advance is a new process). So 'active set' = a durable override the orchestrator reads at review time, falling back to cq.toml's default when absent. A gitignored local file keeps a personal/transient override out of git (so it doesn't get committed by accident) and is trivially Read-able. A ledger item is queryable and provenance-tracked but heavier. The natural-language mapping ('grok and opus only' → [pi:grok-build, claude:opus]) needs a small alias table (grok→pi:grok-build, opus→claude:opus, gpt→pi:gpt-5.5 or codex:gpt-5.5)."
+- suggestions: ["Override in a GITIGNORED local file (e.g. cq.local.toml or .cq/active-reviewers); /cq:reviewers writes it, every orchestrator run reads it (falling back to cq.toml); cleared by `/cq:reviewers reset`","Override as a decisions/config ledger item (queryable, provenance-tracked, survives across sessions)","Session-only: the override applies only within the current chained run; the user re-states it each fresh /plan:advance","/cq:reviewers maps natural-language ('grok and opus') to harness:model tokens via a documented alias table"]
+- recommendation: "Store the active override in a GITIGNORED local file (e.g. `cq.local.toml`, added to .gitignore) that `/cq:reviewers` writes and every orchestrator run reads at review time, falling back to committed cq.toml's default when the file is absent; add `/cq:reviewers reset` to delete it. Gitignored keeps a transient/personal override from being accidentally committed while still surviving across the stateless orchestrator invocations. `/cq:reviewers` should map natural-language aliases ('grok and opus only') to canonical harness:model tokens via a small documented alias table (grok→pi:grok-build, opus→claude:opus, gpt-5.5→pi:gpt-5.5), and confirm/echo the resulting set. A ledger item is the alternative if you want the override queryable in the TUI; I lean toward the file for simplicity."
+- ledgerRefs: ["goals:G15"]
+- answer: "Session-only: the override applies only within the current chained run; the user re-states it each fresh /plan:advance"
+
+### Q95 — answered
+
+- createdAt: 2026-06-05T18:55:15.520Z
+- updatedAt: 2026-06-05T20:20:23.117Z
+- author: user
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: "Multi-reviewer disagreement reconciliation (Q91): confirm the intended semantics is STRICTEST-WINS verdict + UNION-of-findings-with-source-tags, versus an alternative (majority-vote, or a designated-primary reviewer whose verdict wins)?"
+- context: "Q91 was left empty by the user, so the planner adopted recommendation (i): STRICTEST-WINS verdict (any reviewer's revise/disapprove blocks the round; go-ahead/approve requires UNANIMITY) + UNION of all reviewers' new_questions/criticism/defects, each finding prefixed with its source reviewer (e.g. [grok], [opus]), aggregated into the SINGLE reviews item the round records. This is the conservative, safety-maximizing default and composes with the existing 'revise/disapprove requires non-empty findings' invariant. Plan review R169 flagged that this core behavioural decision remains unconfirmed and asked to confirm it before T175/T176 implement the reconciliation. The alternatives are: majority-vote (verdict = the majority of reviewers' verdicts), or designated-primary (one reviewer's verdict is authoritative, others advisory)."
+- suggestions: ["Strictest-wins + union-with-source-tags (planner's recommendation i; safest, unanimity required to pass)","Majority-vote verdict (the majority of reviewers decides go-ahead vs revise)","Designated-primary reviewer (one reviewer's verdict wins; others contribute findings only)"]
+- recommendation: Strictest-wins + union-with-source-tags — maximizes safety (any reviewer can block), preserves all findings, and needs no tie-break rule.
+- ledgerRefs: ["goals:G15"]
+- answer: Strictest-wins + union-with-source-tags (planner's recommendation i; safest, unanimity required to pass)
+
+## M57
+
+### Q96 — withdrawn
+
+- createdAt: 2026-06-05T19:00:17.499Z
+- updatedAt: 2026-06-05T20:12:08.169Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- question: Root cause of D30 confirmed; defect-seeded goal G17 is ready to plan. (Traceability pointer.)
+- context: "AUTO-LAUNCHED inside /plan:advance (chained under /advance), so no manual `/plan:advance G17` is needed — the parent plan session auto-resumes G17 this same run. Root cause: link-prompts.ts + cq-assets/README.md still reference the removed `llm/` asset root (assets moved to nix/pkg/cq-assets/), and the symlink loop never stats the target, so `bun run link-prompts` silently creates dangling .claude/** symlinks. Forward-reference, not a blocker."
+- ledgerRefs: ["defects:D30","goals:G17"]
+- answer: "Withdrawn: fulfilled traceability pointer. D30 was auto-resumed under this /advance run — goal G17 planned and fix tasks T179/T180/T181 built+merged; D30 resolved. No user action was required."
