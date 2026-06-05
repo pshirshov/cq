@@ -113,7 +113,10 @@ for (const factory of [fsFactory, inMemFactory]) {
           status: "open",
           fields: { question: "why?", ledgerRefs: [`goals:${goalId}`] },
         });
-        await store.updateItem(QUESTIONS_LEDGER, q.id, { status: "answered" });
+        await store.updateItem(QUESTIONS_LEDGER, q.id, {
+          status: "answered",
+          fields: { answer: "because" },
+        });
         const updated = await store.updateItem(GOALS_LEDGER, goalId, {
           status: "planning",
         });
@@ -335,6 +338,7 @@ for (const factory of [fsFactory, inMemFactory]) {
         });
         await store.updateItem(QUESTIONS_LEDGER, answered.id, {
           status: "answered",
+          fields: { answer: "yes" },
         });
         await store.createItem(QUESTIONS_LEDGER, m.id, {
           status: "open",

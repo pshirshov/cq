@@ -716,6 +716,44 @@ const GOALS_PLANNED_STATUS = "planned";
 const QUESTIONS_OPEN_STATUS = "open";
 /** Status a `locked` decision carries. */
 const DECISIONS_LOCKED_STATUS = "locked";
+/** Terminal status a `questions` item carries once it has a usable answer. */
+const QUESTIONS_ANSWERED_STATUS = "answered";
+
+/**
+ * D29 — server-enforced precondition on a `questions` item's transition INTO
+ * `answered`. Mirrors `assertGoalPhasePreconditions`: a goal-/ledger-specific
+ * business rule embedded in the generic store layer so no client can bypass it.
+ * Pure — the stores wire it via the `StatusChangePrecondition` hook so it runs
+ * AFTER the F1 transition guard.
+ *
+ * Rule (evaluated only when a `questions` item's status actually changes INTO
+ * `answered` from some other status): the EFFECTIVE answer — the answer in the
+ * patch if present, else the answer already on the item — must be a present,
+ * non-whitespace string. An `answered` question that carries no usable answer
+ * violates the planner/orchestrator's consume-the-answer contract.
+ *
+ * `effectiveAnswer` is resolved by the caller as `patch.fields?.answer ??
+ * item.fields.answer` so this helper does not need the item or patch: it sees
+ * only the value the transition would leave on the item. Any non-string (e.g.
+ * the field absent → `undefined`) fails the check.
+ */
+export function assertQuestionAnswerPrecondition(
+  itemId: string,
+  fromStatus: string,
+  toStatus: string,
+  effectiveAnswer: FieldValue | undefined,
+): void {
+  if (
+    toStatus === QUESTIONS_ANSWERED_STATUS &&
+    fromStatus !== QUESTIONS_ANSWERED_STATUS
+  ) {
+    if (typeof effectiveAnswer !== "string" || effectiveAnswer.trim() === "") {
+      throw new SchemaValidationError(
+        `question ${itemId} cannot enter "${QUESTIONS_ANSWERED_STATUS}" without a non-empty answer`,
+      );
+    }
+  }
+}
 
 /**
  * Soft cross-ledger ref to a goal, using the established

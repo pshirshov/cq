@@ -1091,7 +1091,10 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
           await store.updateItem("defects", d1.id, { status: "resolved" });
           await store.updateItem("defects", d2.id, { status: "resolved" });
           await store.updateItem("defects", d3.id, { status: "resolved" });
-          await store.updateItem("questions", q1.id, { status: "answered" });
+          await store.updateItem("questions", q1.id, {
+            status: "answered",
+            fields: { answer: "yes, very" },
+          });
           await store.updateItem(WIDGETS, w1.id, { status: "resolved" });
           await store.updateMilestone(m.id, { status: "done" });
           await store.archiveMilestone(m.id, "snap archived");

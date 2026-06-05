@@ -80,6 +80,8 @@ export const HYPOTHESIS_LEDGER = "hypothesis" as const;
 export const QUESTIONS_LEDGER = "questions" as const;
 export const DECISIONS_LEDGER = "decisions" as const;
 export const GOALS_LEDGER = "goals" as const;
+/** The `questions` field whose content gates the `answered` transition (D29). */
+export const QUESTIONS_ANSWER_FIELD = "answer" as const;
 export const REVIEWS_LEDGER = "reviews" as const;
 export const HANDOFFS_LEDGER = "handoffs" as const;
 

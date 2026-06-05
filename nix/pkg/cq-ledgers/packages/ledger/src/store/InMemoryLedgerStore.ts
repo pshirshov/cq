@@ -34,11 +34,13 @@ import {
   assertGoalPhasePreconditions,
   assertMilestoneActive,
   assertPrefixUnique,
+  assertQuestionAnswerPrecondition,
   findItem,
   resolveMilestoneView,
   searchItems,
   validateSchema,
 } from "./core.js";
+import type { StatusChangePrecondition } from "./core.js";
 import type {
   ArchiveContent,
   CreateItemInit,
@@ -68,6 +70,7 @@ import {
   MILESTONES_ACTIVE_GROUP_TITLE,
   MILESTONES_AMBIENT_ID,
   MILESTONES_LEDGER,
+  QUESTIONS_ANSWER_FIELD,
   QUESTIONS_LEDGER,
 } from "../constants.js";
 
@@ -297,24 +300,43 @@ export class InMemoryLedgerStore implements LedgerStore {
     return item;
   }
 
+  /**
+   * Build the optional `StatusChangePrecondition` for an `updateItem`. Same
+   * contract and rule wiring as `FsLedgerStore.statusChangePrecondition`,
+   * evaluated against the same in-memory source of truth via the same hook so
+   * the two adapters cannot drift (F2 goal-phase + D29 questions-answer).
+   */
+  private statusChangePrecondition(
+    ledgerId: string,
+    ledger: Ledger,
+    itemId: string,
+    patch: UpdateItemPatch,
+  ): StatusChangePrecondition | undefined {
+    if (ledgerId === GOALS_LEDGER) {
+      return (from: string, to: string): void =>
+        assertGoalPhasePreconditions(
+          itemId,
+          from,
+          to,
+          this.ledgers.get(QUESTIONS_LEDGER),
+          this.ledgers.get(DECISIONS_LEDGER),
+        );
+    }
+    if (ledgerId === QUESTIONS_LEDGER) {
+      return (from: string, to: string): void => {
+        const { item } = findItem(ledger, itemId);
+        const effectiveAnswer =
+          patch.fields?.[QUESTIONS_ANSWER_FIELD] ?? item.fields[QUESTIONS_ANSWER_FIELD];
+        assertQuestionAnswerPrecondition(itemId, from, to, effectiveAnswer);
+      };
+    }
+    return undefined;
+  }
+
   async updateItem(ledgerId: string, itemId: string, patch: UpdateItemPatch): Promise<Item> {
     const item = await this.withLock(ledgerId, async () => {
       const ledger = this.getLedger(ledgerId);
-      // F2: cross-ledger goal-phase preconditions, evaluated against the same
-      // in-memory source of truth as the FS adapter and via the same hook so
-      // they run AFTER the F1 transition guard. The rule logic lives in
-      // core.ts::assertGoalPhasePreconditions — not duplicated here.
-      const precondition =
-        ledgerId === GOALS_LEDGER
-          ? (from: string, to: string): void =>
-              assertGoalPhasePreconditions(
-                itemId,
-                from,
-                to,
-                this.ledgers.get(QUESTIONS_LEDGER),
-                this.ledgers.get(DECISIONS_LEDGER),
-              )
-          : undefined;
+      const precondition = this.statusChangePrecondition(ledgerId, ledger, itemId, patch);
       return cloneItem(applyUpdateItem(ledger, itemId, patch, this.now(), precondition));
     });
     this.fireMutation(ledgerId, "update");
