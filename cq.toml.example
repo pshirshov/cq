@@ -7,6 +7,11 @@
 #   [aliases]        — table mapping alias names to reviewer tokens
 #   reviewers = [...] — top-level array of alias names to activate as reviewers
 
+# reviewers — List of ALIAS NAMES (keys from [aliases] below) to activate as reviewers.
+# Each alias is resolved through [aliases] to its reviewer token at runtime.
+# The reviewers will be invoked in plan-flow and implement-flow review steps.
+reviewers = ["codex", "grok", "opus"]
+
 # [aliases] — Define reviewer instances as <harness>:<model> tokens.
 # Harnesses: "claude" (Claude API), "pi" (Pi/Pika API)
 # Models: e.g., opus-4.8[1m], haiku-4.5, sonnet-4, grok-build, etc.
@@ -14,8 +19,3 @@
   codex = "pi:grok-build"
   grok = "pi:grok-build"
   opus = "claude:opus-4.8[1m]"
-
-# reviewers — List of ALIAS NAMES (keys from [aliases] above) to activate as reviewers.
-# Each alias is resolved through [aliases] to its reviewer token at runtime.
-# The reviewers will be invoked in plan-flow and implement-flow review steps.
-reviewers = ["codex", "grok", "opus"]
