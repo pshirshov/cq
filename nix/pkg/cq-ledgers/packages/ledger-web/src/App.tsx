@@ -785,11 +785,22 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
     [client, ledger, reload],
   );
 
+  // Visual order: 'questions' first (if present), then other ledgers in their
+  // original array order. Both the render and the keyboard cursor use this
+  // ordering so that cursor index == visual position at all times.
+  const visualLedgers = useMemo<LedgerSummary[]>(
+    () => [
+      ...ledgers.filter((l) => l.name === QUESTIONS_LEDGER),
+      ...ledgers.filter((l) => l.name !== QUESTIONS_LEDGER),
+    ],
+    [ledgers],
+  );
+
   // Reset cursors when their underlying lists change.
   useEffect(() => setHitCursor(0), [hits]);
   useEffect(
-    () => setLedgerCursor(Math.max(0, ledgers.findIndex((l) => l.name === (ledger ?? "")))),
-    [ledger, ledgers],
+    () => setLedgerCursor(Math.max(0, visualLedgers.findIndex((l) => l.name === (ledger ?? "")))),
+    [ledger, visualLedgers],
   );
 
   // ---- keyboard navigation ----------------------------------------------
@@ -875,14 +886,14 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
     if (navZone === "sidebar") {
       if (down) {
         e.preventDefault();
-        setLedgerCursor((c) => Math.min(ledgers.length - 1, c + 1));
+        setLedgerCursor((c) => Math.min(visualLedgers.length - 1, c + 1));
       } else if (up) {
         e.preventDefault();
         setLedgerCursor((c) => Math.max(0, c - 1));
       } else if (e.key === "ArrowRight" || e.key === "l") {
         if (view !== null) setNavZone("main");
       } else if (enter) {
-        const sel = ledgers[ledgerCursor];
+        const sel = visualLedgers[ledgerCursor];
         if (sel !== undefined) {
           void openLedger(sel.name);
           setNavZone("main");
@@ -1024,12 +1035,12 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
         <nav className="lw-sidebar" data-testid="ledger-list">
           {/* Section 1: the 'questions' ledger (if present), then the Q&A
               batch-answer button. */}
-          {ledgers.map((l, i) => {
+          {visualLedgers.map((l, vi) => {
             if (l.name !== QUESTIONS_LEDGER) return null;
             const cls = [
               "lw-ledger",
               l.name === ledger ? "lw-ledger-active" : "",
-              navZone === "sidebar" && i === ledgerCursor ? "lw-ledger-cursor" : "",
+              navZone === "sidebar" && vi === ledgerCursor ? "lw-ledger-cursor" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -1039,7 +1050,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
                 data-testid={`ledger-${l.name}`}
                 className={cls}
                 onClick={() => {
-                  setLedgerCursor(i);
+                  setLedgerCursor(vi);
                   setNavZone("main");
                   void openLedger(l.name);
                 }}
@@ -1063,12 +1074,12 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
           {/* Visual divider between the Q&A section and the other ledgers. */}
           <hr className="lw-sidebar-divider" data-testid="sidebar-divider" />
           {/* Section 2: all ledgers except 'questions', in their original order. */}
-          {ledgers.map((l, i) => {
+          {visualLedgers.map((l, vi) => {
             if (l.name === QUESTIONS_LEDGER) return null;
             const cls = [
               "lw-ledger",
               l.name === ledger ? "lw-ledger-active" : "",
-              navZone === "sidebar" && i === ledgerCursor ? "lw-ledger-cursor" : "",
+              navZone === "sidebar" && vi === ledgerCursor ? "lw-ledger-cursor" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -1078,7 +1089,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
                 data-testid={`ledger-${l.name}`}
                 className={cls}
                 onClick={() => {
-                  setLedgerCursor(i);
+                  setLedgerCursor(vi);
                   setNavZone("main");
                   void openLedger(l.name);
                 }}
