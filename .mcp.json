@@ -3,10 +3,6 @@
     "ledger": {
       "command": "nix",
       "args": ["run", ".#ledger-mcp", "--"]
-    },
-    "cq-config": {
-      "command": "nix",
-      "args": ["run", ".#cq-config-mcp", "--"]
     }
   }
 }
