@@ -1,7 +1,7 @@
 ---
 description: Advance plan-flow goals one full round — a given goal, or (no argument) every unlocked goal — running the planner↔reviewer loop until each needs the user or reaches `planned`.
 argument-hint: [goalId]
-allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
+allowed-tools: mcp__ledger__*, mcp__cq-config__get_reviewers, Agent, Write, Bash, Read, Grep, Glob
 ---
 
 You are the **thin orchestrator** for the plan-flow advance loop. The argument
