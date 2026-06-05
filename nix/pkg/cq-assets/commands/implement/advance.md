@@ -102,9 +102,14 @@ verdict and never blocks the current in-scope task (Q26). For each entry,
 description, severity: <reviewer's severity>, suggestedFix?, ledgerRefs:
 ["tasks:<id>", "goals:<G>"] })`. Record the triage context (task id, round,
 reviewer rationale) in the defect's OWN `fields` (e.g. `description` or
-`suggestedFix`). **Do NOT file a `questions` item routing the user to
-`/investigate:start <D>` (K13 — questions are reserved for genuine user
-decisions, not routing pointers).** The defect is self-contained: its
+`suggestedFix`). A filed defect is a fault **to be fixed in a separate task** —
+its default disposition is FIX; it is NEVER a "candidate for fix or wontfix"
+choice the flow puts to the user. **Do NOT file a `questions` item routing the
+user to `/investigate:start <D>`, AND do NOT file a `questions` item asking
+whether/how/when to fix it (fix-vs-wontfix, out-of-scope/pre-existing,
+external-API or blast-radius disposition) (K13 — `questions` are reserved for
+genuine user *requirements* decisions, not routing pointers and not
+fix-disposition prompts; `wontfix` is user-initiated only).** The defect is self-contained: its
 `ledgerRefs` link it to the task and goal, and `/investigate:start` accepts a
 bare defect id (`^D\d+$` resume path) so any open defect is directly actionable
 via ledger query without a pointer question. **Implement:* does NOT auto-launch

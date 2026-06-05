@@ -42,19 +42,28 @@ Verify with evidence, against the actual diff and repo — not the worker's clai
 - **`criticism`** — objective defects the worker can fix autonomously WITHOUT the
   user: a failing/missing test, a logic error, unhandled boundary, scope creep to
   revert, an unmet acceptance clause. These feed the autonomous criticism loop.
-- **`questions`** — genuine ambiguities or decisions ONLY the user can resolve: an
-  underspecified requirement, a product/UX choice, a tradeoff the task text does
+- **`questions`** — genuine **requirements** ambiguities ONLY the user can
+  resolve: an underspecified requirement, a product/UX choice, a tradeoff about
+  WHAT the code should do / HOW the system must behave that the task text does
   not settle. Phrase each as a direct question. These STOP the task and go to the
   user. Be strict: if a competent engineer could resolve it from the task + repo,
-  it is `criticism`, not a `question`.
+  it is `criticism`, not a `question`. **NEVER** phrase a disposition as a
+  question: "should this be fixed / fixed now or later", "fix vs wontfix", "this
+  is out of scope / pre-existing", "this changes a versioned/external/public API
+  or has wide blast radius", or magnitude/cost are NOT `questions` — a confirmed
+  fault is always fixed (file it as a `defect`, below), never put to the user as
+  a whether-to-fix decision.
 - **`defects`** — OUT-OF-SCOPE or pre-existing faults you noticed while reviewing
   the diff: a fault NOT caused by, and NOT fixable within, the current task (e.g.
   a latent defect in adjacent code the diff merely touched or revealed). Do NOT
   put these in `criticism` — fixing them is out of scope this round, so they must
-  not block the verdict on this task. You still write NOTHING to the ledger; the
-  /implement:advance orchestrator files each as a `defects` ledger item. Each
-  entry is an object — `{ headline, description, severity, suggestedFix? }` —
-  where `severity` is REQUIRED.
+  not block the verdict on this task. Frame each as a fault **to be fixed in a
+  separate task** — a fix intent, NEVER a "candidate for fix or wontfix"
+  disposition for the flow to solicit; the default disposition of every filed
+  defect is FIX, and `wontfix` is a user-initiated decision the flow never asks
+  for. You still write NOTHING to the ledger; the /implement:advance orchestrator
+  files each as a `defects` ledger item. Each entry is an object — `{ headline,
+  description, severity, suggestedFix? }` — where `severity` is REQUIRED.
 
 ## Output contract
 Emit the **Session summary** section (below), then return a single fenced `json`

@@ -32,7 +32,11 @@ durable ledger state left off. **ONE invocation = ONE research round.**
 - **The defect LIFECYCLE lives on the defect's STATUS, not on free-text
   markers.** The `defects` ledger status is `open → wip → {root-caused |
   inconclusive} → resolved | wontfix` (T116; terminal: `resolved`/`wontfix`;
-  `root-caused`/`inconclusive` are non-terminal and re-openable to `wip`). The
+  `root-caused`/`inconclusive` are non-terminal and re-openable to `wip`).
+  **`wontfix` is USER-INITIATED ONLY** — the autonomous flow NEVER transitions a
+  defect to `wontfix` and NEVER asks for that disposition; its only terminal
+  target is `resolved` (via a fix), and the default disposition of every
+  non-terminal defect is FIX. The
   investigate flow drives the NON-terminal part of that lifecycle by calling
   `update_item("defects", D, status: …)` — it NEVER encodes the lifecycle as
   `UNKNOWN`/`CONFIRMED`/`GROUNDED` tokens inside the `rootCause` field. The
@@ -218,14 +222,38 @@ context (K12):
   that this investigation was auto-launched and the goal will be auto-resumed.
 
 ### 6. NEEDS user input → file an open question and STOP (resumable)
-If the investigation cannot proceed without the user (ambiguous repro, missing
-access, a decision only the user can make, or no hypothesis is adjudicable from
-available evidence), `create_item("questions", <defectMilestone>, status: "open",
-fields: { question: "<the blocking question>", context: "<the tree state, what
-evidence is missing, what you tried>", ledgerRefs: ["defects:<D>"] })` and STOP.
-Leave the `hypothesis` tree INTACT (durable). The user answers in the TUI/web,
-then re-runs `/investigate:advance D` — step 1 folds the answer back in and the
-loop resumes exactly where it left off.
+File a step-6 question ONLY when the investigation literally cannot proceed
+without the user. The legitimate triggers are NARROW:
+- **ambiguous/contradictory requirements** — the *intended behaviour* (WHAT the
+  code should do / HOW the system must behave) is genuinely undetermined, so no
+  root cause can be adjudicated until the user resolves the requirement;
+- **a reproduction that cannot be produced from the repo** (needs data/state the
+  repo doesn't contain);
+- **missing external access/credentials** the investigation needs to proceed.
+
+These are NOT step-6 questions — **CONTINUE** (and, on a confirmed cause,
+file-and-defer per step 5) instead of filing one:
+- **fix-vs-wontfix / whether-to-fix** a confirmed or known defect — the default
+  disposition is ALWAYS FIX; never park a defect on a disposition question;
+- **"out of scope" / "pre-existing"** — file the fix as a separate task, do not ask;
+- **"this changes a versioned/external/public API"**, "wide blast radius",
+  outward-facing, or hard-to-reverse — none of these is a user decision in an
+  autonomous flow; fix it;
+- **magnitude / proportion / cost** of the fix.
+
+`wontfix` is a **user-INITIATED terminal status only**: the investigate flow
+never transitions a defect to `wontfix` and never asks for it. A confirmed root
+cause is ALWAYS file-and-deferred to a fix (step 5) — never parked on a
+disposition question. "A decision only the user can make" means a *requirements*
+decision (the first bullet above), NOT a disposition/scope/blast-radius decision.
+
+When a legitimate trigger holds: `create_item("questions", <defectMilestone>,
+status: "open", fields: { question: "<the blocking requirements/repro/access
+question>", context: "<the tree state, what evidence is missing, what you
+tried>", ledgerRefs: ["defects:<D>"] })` and STOP. Leave the `hypothesis` tree
+INTACT (durable). The user answers in the TUI/web, then re-runs
+`/investigate:advance D` — step 1 folds the answer back in and the loop resumes
+exactly where it left off.
 
 ---
 

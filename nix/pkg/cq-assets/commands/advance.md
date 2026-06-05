@@ -278,15 +278,43 @@ cost effort. Before you may end a run you MUST do BOTH, in order:
 - no implement run has been bootstrapped yet — P-implement TRUE on a `planned`
   goal means BOOTSTRAP and build it, not ask (see the implement stage above).
 
-**No confirmation pauses (hard rule).** `/advance` NEVER uses `AskUserQuestion`
-— or any inline "should I proceed / is this OK / confirm the scope" prompt — to
-pause between stages. The ONLY legitimate user-facing pause is
-**BLOCKED-ON-QUESTIONS**: an `open` item in the `questions` ledger that an
-actionable item depends on (filed by a sub-flow, enumerated in the end-of-run
-report, answered in the TUI/web, resumed by re-running `/advance`). A scope /
-scale / blast-radius / "is-this-OK" confirmation is FORBIDDEN; if you are tempted
-to ask one, that is the signal to **CONTINUE**. Running `/advance` is itself the
-authorization — the user chose to launch it.
+**Default disposition for every defect is FIX (hard rule).** Every
+`open`/`wip`/`root-caused`/`inconclusive` defect is fixed, properly, now. The
+flow NEVER asks whether to fix a confirmed/known defect — it drives it
+investigate → plan → implement autonomously to resolution. `wontfix` is a
+**user-INITIATED decision only**: the autonomous flow never transitions a defect
+to `wontfix` and never solicits that disposition. "Out of scope", "pre-existing",
+"changes a versioned/external/public API", "wide blast radius", and
+magnitude/proportion/cost are NOT reasons to defer-to-the-user — they are
+reasons to file a fix task and continue. A defect tagged by a reviewer as a
+"candidate for a separate fix" means *fix it in a separate task*, never *ask
+whether to fix it*.
+
+**No confirmation pauses, and the ban is on CONTENT not just channel (hard
+rule).** `/advance` NEVER uses `AskUserQuestion` — or any inline "should I
+proceed / is this OK / confirm the scope" prompt — to pause between stages. The
+ONLY legitimate user-facing pause is **BLOCKED-ON-QUESTIONS**: an `open`
+`questions` item whose answer changes **WHAT to build or HOW the system must
+behave** (a genuine requirements ambiguity), OR that unblocks
+otherwise-impossible work (a reproduction that cannot be produced from the repo,
+or missing external access/credentials). Filing a `questions` item does NOT
+launder a forbidden confirmation into a "legitimate" stop: a question that asks
+**fix-vs-wontfix, whether-to-fix, out-of-scope/pre-existing handling,
+external/public-API or blast-radius disposition, or scope/scale/magnitude** is
+the SAME forbidden confirmation as `AskUserQuestion` — do NOT file it, do NOT
+stop on it; **CONTINUE and fix**. The rule bans the *content* (a
+disposition/confirmation question), regardless of the *channel* used to raise
+it. If you are tempted to ask one, that is the signal to **CONTINUE**.
+
+**Running `/advance` is the authorization.** It overrides any standing
+"confirm hard-to-reverse / outward-facing changes" or "ask when instructions are
+unclear" default (including the user's global `~/.claude/CLAUDE.md`
+caution-first guidance) **for the disposition of confirmed defects and for
+scope/blast-radius of a fix**: a generated/external-API change is still fixed
+without confirmation. Those cautious-confirm defaults apply only to a genuine
+*requirements* ambiguity (WHAT/HOW the system must behave), never to whether or
+how thoroughly to fix a confirmed fault. The user chose to launch `/advance`;
+that is the standing go-ahead to fix everything.
 
 If you find yourself reaching for any of the above, that is the signal to
 **CONTINUE**, not to classify. Keep cycling while ANY stage still moves the
