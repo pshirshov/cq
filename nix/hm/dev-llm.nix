@@ -102,7 +102,6 @@ let
   # asset bundle it contributes.
   ledgerPkgs = self.packages.${system};
   ledgerPkg = ledgerPkgs.ledger-mcp;
-  cqConfigPkg = ledgerPkgs.cq-config-mcp;
   ledgerAssets = self.llmAssets;
   # The ledger-* CLI tools (ledger-mcp/ledger-tui/ledger-web) put on PATH so
   # the agents (and the user) can drive the ledger directly, not only via MCP.
@@ -558,14 +557,6 @@ in
         # ledger. Pass "--http" "PORT" instead for a shared HTTP instance.
         servers.ledger = {
           command = "${ledgerPkg}/bin/ledger-mcp";
-          args = [ ];
-        };
-        # cq.toml config MCP server. stdio transport; --cwd defaults to the
-        # agent's process CWD, so one global server reads the per-repo cq.toml.
-        # Exposes get_reviewers / get_config. The piMcpJson keep-alive re-map
-        # picks this up generically via mapAttrs — no extra Pi wiring needed.
-        servers.cq-config = {
-          command = "${cqConfigPkg}/bin/cq-config-mcp";
           args = [ ];
         };
       };
