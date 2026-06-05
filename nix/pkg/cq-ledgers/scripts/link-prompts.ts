@@ -42,6 +42,7 @@ export const LINKS: readonly PromptLink[] = [
   { link: ".claude/commands/investigate/start.md", source: "../cq-assets/commands/investigate/start.md" },
   { link: ".claude/commands/investigate/advance.md", source: "../cq-assets/commands/investigate/advance.md" },
   { link: ".claude/agents/investigate-explorer.md", source: "../cq-assets/agents/investigate-explorer.md" },
+  { link: ".claude/agents/investigate-prober.md", source: "../cq-assets/agents/investigate-prober.md" },
   { link: ".claude/commands/advance.md", source: "../cq-assets/commands/advance.md" },
 ];
 

@@ -28,6 +28,11 @@ Current assets:
 | `agents/implement-worker.md`      | subagent — implements one task in an isolated worktree |
 | `agents/implement-reviewer.md`    | subagent — adversarial per-task reviewer           |
 | `agents/implement-conflict-resolver.md` | subagent — resolves rebase conflicts on merge-back |
+| `commands/investigate/start.md`   | slash command — start a root-cause investigation   |
+| `commands/investigate/advance.md` | slash command — the investigate orchestrator loop   |
+| `agents/investigate-explorer.md`  | subagent — read-only hypothesis explorer           |
+| `agents/investigate-prober.md`    | subagent — execution-capable evidence gatherer     |
+| `commands/advance.md`             | shared prompt — unified multi-flow advance coordinator |
 
 Edit the files in this directory, never a symlink or a consumer's copy.
 
@@ -48,6 +53,11 @@ Edit the files in this directory, never a symlink or a consumer's copy.
    | `.claude/agents/implement-worker.md`    | `../cq-assets/agents/implement-worker.md`    |
    | `.claude/agents/implement-reviewer.md`  | `../cq-assets/agents/implement-reviewer.md`  |
    | `.claude/agents/implement-conflict-resolver.md` | `../cq-assets/agents/implement-conflict-resolver.md` |
+   | `.claude/commands/investigate/start.md`   | `../cq-assets/commands/investigate/start.md`   |
+   | `.claude/commands/investigate/advance.md` | `../cq-assets/commands/investigate/advance.md` |
+   | `.claude/agents/investigate-explorer.md`  | `../cq-assets/agents/investigate-explorer.md`  |
+   | `.claude/agents/investigate-prober.md`    | `../cq-assets/agents/investigate-prober.md`    |
+   | `.claude/commands/advance.md`             | `../cq-assets/commands/advance.md`             |
 
 2. **Codex** (`.codex/prompts/*`) — committed symlinks into this tree; a fresh
    clone works with no extra step.
