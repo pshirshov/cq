@@ -10,18 +10,23 @@ You are the **thin orchestrator** for the plan-flow advance loop. The argument
 > $ARGUMENTS
 
 Subagents cannot spawn other subagents, so the planner↔reviewer LOOP lives here
-in the main session. During the **primary planning round** you do NOT mutate the
-ledger yourself — the `plan-advance` subagent makes every state change, the
-`plan-reviewer` subagent writes every review. Your job is to drive that loop,
-then run the **auto-investigate phase** (below) on any defects the round filed,
-and relay the outcome.
+in the main session. During the **primary planning round** the `plan-advance`
+subagent makes every goal/plan state change. The **review** step is pluggable
+(step 2): in the **single-reviewer fallback** the native `plan-reviewer`
+subagent writes the one review itself (you write nothing); in the **configured
+multi-reviewer** path you, the orchestrator, write the SINGLE aggregated
+`reviews` item that reconciles all reviewers' verdicts (the native reviewers
+return JSON and write nothing). Your job is to drive that loop, then run the
+**auto-investigate phase** (below) on any defects the round filed, and relay the
+outcome.
 
 > The auto-investigate phase runs `/investigate:advance` **inline** (per K12 —
 > a *command* may chain another command; a *subagent* still cannot). That phase,
-> following llm/commands/investigate/advance.md, is the only place this
-> orchestrator writes the ledger (the investigate loop's own writes), and the
-> broadened `allowed-tools` (`mcp__ledger__*`, `Read`/`Grep`/`Glob`) exists to
-> support it. The planning round itself stays read-only-to-you.
+> following llm/commands/investigate/advance.md, writes the ledger (the
+> investigate loop's own writes), and the broadened `allowed-tools`
+> (`mcp__ledger__*`, `Read`/`Grep`/`Glob`) supports it. The only OTHER ledger
+> write you make is the configured-mode aggregated `reviews` item (step 2b-iii);
+> the single-reviewer fallback round stays read-only-to-you.
 
 ## Select the target goal(s)
 
@@ -61,13 +66,89 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
      `done`; `building→done` is always the user's action.
    - `noop` — nothing to do in the current state. **Stop.**
 
-2. **Spawn the reviewer** (only on `review-requested`). Use the `Agent` tool
-   with `subagent_type: "plan-reviewer"`, passing the goal id. It adversarially
-   judges the emitted plan and WRITES a verdict item into the `reviews` ledger
-   (`go-ahead` or `revise`). It returns a one-line pointer to the review id.
-   Then **continue the loop** — the next `plan-advance` call reads that latest
-   review and acts on it (revise the plan, ask new questions, or lock the
-   decision and reach `planned`).
+2. **Review the plan** (only on `review-requested`). The review step is
+   **pluggable**: a configurable set of reviewers may judge the plan in parallel
+   and have their verdicts reconciled into ONE `reviews` item. Resolve which
+   reviewers run, run them, reconcile, then continue the loop.
+
+   1. **Resolve the active reviewer set.** Call the `cq-config` MCP
+      `get_reviewers` tool (registered in `.mcp.json`; returns
+      `{ configured: boolean, reviewers: [{ harness, model, alias }] }`,
+      `harness` ∈ {`claude`, `pi`}).
+      - If the tool is **absent** (server not registered) or it returns
+        `configured: false` (no `cq.toml`), take the **single-reviewer
+        fallback** (sub-step 2a).
+      - If it returns `configured: true`, take the **multi-reviewer path**
+        (sub-step 2b), AND honor any **session-only reviewer override** the user
+        stated this run via `/cq:reviewers` (T177): an in-memory override
+        supersedes the `cq.toml` default for THIS run only (it is never
+        persisted) — use the overridden active set in place of `get_reviewers`'
+        `reviewers` when one is in effect.
+
+   2a. **Single-reviewer fallback** (unconfigured / tool absent — UNCHANGED
+      behaviour). Use the `Agent` tool with `subagent_type: "plan-reviewer"`,
+      passing the goal id. In this mode the native `plan-reviewer` (T173) runs in
+      its **fallback mode** and WRITES the verdict item into the `reviews` ledger
+      itself (`go-ahead` or `revise`) — exactly today's path; the orchestrator
+      writes NO reviews item. It returns a one-line pointer to the review id.
+      Then go to **sub-step 2c** (continue the loop). EXACTLY ONE `reviews` item
+      is written this round (by the reviewer).
+
+   2b. **Multi-reviewer path** (configured). Launch ALL active reviewers **in
+      parallel** and collect each one's verdict JSON. In this mode NO reviewer
+      writes the ledger — the orchestrator writes the single aggregated item
+      (sub-step 2b-iii).
+      - **i. Per-reviewer launch.** For each active reviewer token:
+        - `claude:<model>` → an `Agent` tool call with
+          `subagent_type: "plan-reviewer"`, passing the goal id AND instructing
+          it to run in **configured mode** per T173: it RETURNS its verdict JSON
+          and writes **NOTHING** to the `reviews` ledger (in configured mode the
+          native reviewer is one of several, so it never writes — the only
+          ledger writer is the orchestrator, sub-step 2b-iii). Capture the
+          returned `{ summary, verdict, new_questions, criticism, defects }`.
+        - `pi:<model>` → shell out via `Bash` to the `pi` CLI using the
+          confirmed **non-interactive** invocation from the **T169 spike (K30)**:
+          `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+          (the combined `--model <P>/<M>` form also works; default
+          `--mode text` emits the bare reply on stdout). Concrete provider/model
+          pairs from K30: grok-build → `--provider grok-build --model grok-build`;
+          gpt-5.5 → `--provider openai-codex --model gpt-5.5`. Both providers are
+          OAuth-pre-authenticated. Feed it the **shared `/cq:plan-review` rubric
+          prompt** (`commands/cq/plan-review.md`, T173) plus the goal/plan
+          context (the goal's title/description/grounding, its Q&A history, and
+          the emitted work-milestone tasks — the same material the native
+          reviewer reads). Its stdout-json contract is the rubric's:
+          `{ summary, verdict: "go-ahead"|"revise", new_questions: [],
+          criticism: [], defects: [...] }`. **Strip any code fence** before
+          parsing — `pi` may wrap the JSON in a triple-backtick ` ```json `
+          block. Capture the parsed object.
+      - **ii. Reconcile (Q91) — STRICTEST-WINS + tagged UNION.** Combine all
+        reviewers' verdicts into one:
+        - **Verdict:** `revise` if ANY reviewer returned `revise`; `go-ahead`
+          ONLY if ALL reviewers returned `go-ahead`.
+        - **Findings:** UNION every reviewer's `new_questions`, `criticism`, and
+          `defects`. **Prefix each finding with its source reviewer's alias**
+          (e.g. `[grok] …`, `[opus] …`) so provenance survives the merge.
+          De-duplicate obvious near-identical findings across reviewers, but bias
+          to KEEP — when in doubt, retain both. (For `defects` objects, tag the
+          `headline`.)
+      - **iii. Orchestrator writes the ONE aggregated `reviews` item.** YOU (the
+        orchestrator), not any reviewer, write the single reconciled verdict:
+        `create_item("reviews", M, status: <reconciled verdict>, fields: {
+        summary: "<one-line reconciled verdict>", new_questions: [<tagged
+        union>], criticism: [<tagged union>], defects: [<tagged union>],
+        ledgerRefs: ["goals:<G>"] })` (M = the goal's coordination milestone).
+        **Preserve the invariant:** a `revise` must carry non-empty
+        `new_questions` and/or `criticism` (those are what `revise` acts on);
+        STRICTEST-WINS guarantees this because any reviewer that voted `revise`
+        contributed at least one such finding. Stamp `author`/`session`. This is
+        the SINGLE `reviews` item for the round.
+
+   2c. **Continue the loop.** Either way — fallback (2a) or reconciled (2b) —
+      EXACTLY ONE `reviews` item now exists for this round (no double-write).
+      **Continue the loop**: the next `plan-advance` call reads that latest
+      review and acts on it (revise the plan, ask new questions, or lock the
+      decision and reach `planned`).
 
 3. If the planner returned anything other than `review-requested`, **break**.
 
@@ -199,17 +280,29 @@ a durable trace (the subagents are read-only and write nothing themselves):
      `update_item("goals", G, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
      to record the log path on the goal item. This keeps the goal's session
      provenance without a separate pass.
-   - **After the reviewer returns** and you have written its log file, call
-     `update_item("reviews", <reviewId>, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
-     — the reviewer subagent creates the review item, but you, the orchestrator,
-     attach the log path to it immediately after writing the file (you have the
-     review id from the reviewer's returned summary). Use the review id the
-     reviewer reported (or look it up via `fts_search` on the reviews ledger for
-     the just-created verdict).
+   - **After the review step completes** — single-reviewer fallback (2a) or
+     multi-reviewer reconciliation (2b) — attach the log path(s) to the ONE
+     `reviews` item the round produced:
+     `update_item("reviews", <reviewId>, fields: { sessionLogs: [<log path(s)>] })`.
+     - In the **fallback (2a)** the native reviewer subagent created the review
+       item; use the review id it reported (or look it up via `fts_search` on
+       the reviews ledger for the just-created verdict), with the one
+       `claude`-subagent log path.
+     - In the **configured (2b)** path YOU created the aggregated review item
+       (sub-step 2b-iii), so you already have its id; attach the log paths for
+       **every** reviewer that ran this round (one `claude`-subagent log file per
+       `claude:*` reviewer, plus one `pi`-stdout log file per `pi:*` reviewer).
 
-Do this for the planner AND the reviewer on every iteration — one log file per
-spawned subagent. The inline `/investigate:advance` pass logs its own
-`investigate-explorer` subagents per llm/commands/investigate/advance.md
+   For each **`pi:*` reviewer** (no `Agent` result, so no returned agent id),
+   write a log file the same way: `<timestamp>-pi-<alias>.md` under `docs/logs/`,
+   containing a short header (which goal, the reviewer alias + `pi` provider/model,
+   the parsed verdict) and the **verbatim captured stdout** (including the raw,
+   pre-fence-strip text). This makes each pi reviewer's reply a durable trace
+   exactly like the subagent summaries.
+
+Do this for the planner AND every reviewer on every iteration — one log file per
+spawned subagent and per pi shellout. The inline `/investigate:advance` pass logs
+its own `investigate-explorer` subagents per llm/commands/investigate/advance.md
 (§Session logs) — follow that command's logging rule while running it.
 
 ## Report to the user
