@@ -192,6 +192,16 @@ export class FsLedgerStore implements LedgerStore {
   }
 
   /**
+   * The resolved filesystem root this store is bound to (the server `--cwd`).
+   * Exposed read-only so a host (e.g. `@cq/ledger-mcp` buildServer) can bind a
+   * root-scoped capability — the cq.toml config root — to the SAME directory
+   * the store reads its ledgers from, without re-resolving CWD precedence.
+   */
+  get rootDir(): string {
+    return this.root;
+  }
+
+  /**
    * Invoke the user-supplied `onMutation` hook with the given
    * (ledgerId, op) pair. Synchronous; never throws — if the user hook
    * throws, the error is written to stderr so the write path completes

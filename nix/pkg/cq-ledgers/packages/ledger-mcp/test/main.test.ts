@@ -194,3 +194,118 @@ describe("buildServer project display name", () => {
     }
   });
 });
+
+/**
+ * End-to-end cq.toml config capability over the STDIO binary (T2 / G18).
+ *
+ * These assert the wiring lands on the SAME surface the standalone binary and
+ * the embedded TUI/web hosts use (buildServer → registerLedgerStdioTools 4th
+ * arg) — NOT merely on the in-process tool() factory. The binary is spawned
+ * with `--cwd <root>`; the config root IS that ledger root (Q99), so the
+ * capability reads `<root>/cq.toml` on each call.
+ */
+async function withClientAtRoot(
+  root: string,
+  fn: (client: Client) => Promise<void>,
+): Promise<void> {
+  const { command, args } = resolveBinPath();
+  const transport = new StdioClientTransport({
+    command,
+    args: [...args, "--cwd", root],
+    stderr: "inherit",
+  });
+  const client = new Client(
+    { name: "ledger-mcp-test", version: "0.0.1" },
+    { capabilities: {} },
+  );
+  await client.connect(transport);
+  try {
+    await fn(client);
+  } finally {
+    await client.close();
+  }
+}
+
+describe("ledger-mcp stdio config capability (cq.toml)", () => {
+  it("surfaces get_reviewers + get_config on the stdio binary", async () => {
+    // The default tmpRoot has no cq.toml, so the tools are still listed.
+    await withClientAtRoot(tmpRoot, async (client) => {
+      const list = await client.listTools();
+      const names = list.tools.map((t) => t.name);
+      expect(names).toContain("get_reviewers");
+      expect(names).toContain("get_config");
+    });
+  });
+
+  it("returns configured:false when no cq.toml at the store root", async () => {
+    const noCfgRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-nocfg-"));
+    try {
+      const store = new FsLedgerStore({ root: noCfgRoot });
+      await store.init();
+      await store.dispose();
+      await withClientAtRoot(noCfgRoot, async (client) => {
+        const reviewers = decode<{ configured: boolean; reviewers: unknown[] }>(
+          await client.callTool({ name: "get_reviewers", arguments: {} }),
+        );
+        expect(reviewers.configured).toBe(false);
+        expect(reviewers.reviewers).toEqual([]);
+
+        const config = decode<{ configured: boolean; aliases: object; reviewers: unknown[] }>(
+          await client.callTool({ name: "get_config", arguments: {} }),
+        );
+        expect(config.configured).toBe(false);
+        expect(config.aliases).toEqual({});
+        expect(config.reviewers).toEqual([]);
+      });
+    } finally {
+      await fs.rm(noCfgRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("returns the resolved reviewer set when a fixture cq.toml is present", async () => {
+    const cfgRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-cfg-"));
+    try {
+      const store = new FsLedgerStore({ root: cfgRoot });
+      await store.init();
+      await store.dispose();
+      // Config root IS the ledger root: write cq.toml at <root>/cq.toml.
+      await fs.writeFile(
+        path.join(cfgRoot, "cq.toml"),
+        [
+          'reviewers = ["codex", "opus"]',
+          "",
+          "[aliases]",
+          '  codex = "pi:grok-build"',
+          '  opus = "claude:opus-4.8[1m]"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await withClientAtRoot(cfgRoot, async (client) => {
+        const reviewers = decode<{
+          configured: boolean;
+          reviewers: Array<{ harness: string; model: string; alias: string }>;
+        }>(await client.callTool({ name: "get_reviewers", arguments: {} }));
+        expect(reviewers.configured).toBe(true);
+        expect(reviewers.reviewers).toEqual([
+          { harness: "pi", model: "grok-build", alias: "codex" },
+          { harness: "claude", model: "opus-4.8[1m]", alias: "opus" },
+        ]);
+
+        const config = decode<{
+          configured: boolean;
+          aliases: Record<string, { harness: string; model: string }>;
+          reviewers: string[];
+        }>(await client.callTool({ name: "get_config", arguments: {} }));
+        expect(config.configured).toBe(true);
+        expect(config.reviewers).toEqual(["codex", "opus"]);
+        expect(config.aliases).toEqual({
+          codex: { harness: "pi", model: "grok-build" },
+          opus: { harness: "claude", model: "opus-4.8[1m]" },
+        });
+      });
+    } finally {
+      await fs.rm(cfgRoot, { recursive: true, force: true });
+    }
+  });
+});

@@ -40,8 +40,10 @@ import {
   type LedgerStore,
   type ResetSummary,
   type ReadLogCapability,
+  type ConfigCapability,
   registerLedgerStdioTools,
 } from "@cq/ledger";
+import { createConfigCapability } from "./configCapability.js";
 import { startLedgerWatcher } from "./watcher.js";
 
 // Re-export so in-process hosts (ledger-tui embedded, ledger-web embedded) can
@@ -244,7 +246,17 @@ export function buildServer(store: LedgerStore, displayName: string): McpServer 
   // then throws the documented not-implemented error.
   const readLog: ReadLogCapability | undefined =
     store instanceof FsLedgerStore ? (p) => store.readLog(p) : undefined;
-  registerLedgerStdioTools(server, store, readLog);
+  // cq.toml config capability (R193 / G18 / T2). The config root IS the ledger
+  // root (Q99): bind it to the SAME resolved store root buildServer's callers
+  // already resolved (--cwd > $LEDGER_ROOT > CWD), re-reading cq.toml on every
+  // call (createConfigCapability closes over the root with no caching). Wired
+  // here so it reaches the standalone stdio binary, the HTTP transport, AND the
+  // embedded TUI/web hosts — all funnel through buildServer. An in-memory store
+  // (tests) supplies no capability; get_reviewers/get_config then throw the
+  // documented not-implemented error.
+  const configCapability: ConfigCapability | undefined =
+    store instanceof FsLedgerStore ? createConfigCapability(store.rootDir) : undefined;
+  registerLedgerStdioTools(server, store, readLog, configCapability);
   return server;
 }
 
