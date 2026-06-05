@@ -791,6 +791,7 @@ button:hover {
   cursor: pointer;
   user-select: none;
   touch-action: none;
+  border-color: #e0a341;
 }
 .lw-holdbtn:disabled {
   cursor: default;
