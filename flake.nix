@@ -114,7 +114,7 @@
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
           # Refresh after dependency changes (see README § Nix).
-          outputHash = "sha256-HYLVNboRS1Zn9/+8UPLrfvZH4CEWRLaTcyaQAdEKf8g=";
+          outputHash = "sha256-Ymy9b5It+yQLP9J0WtCFMgVk70ZD9NJYiZ7TOYmJGDw=";
         };
 
         # ------------------------------------------------------------------ #
