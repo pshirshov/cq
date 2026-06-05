@@ -59,6 +59,12 @@ function barTitle(el: HTMLElement | null): string {
   return el.getAttribute("title") ?? "";
 }
 
+function barLabel(el: HTMLElement | null): string {
+  if (el === null) throw new Error("element not found");
+  const lbl = el.querySelector(".lw-progress-label");
+  return lbl?.textContent ?? "";
+}
+
 beforeEach(() => {
   localStorage.clear();
   container = document.createElement("div");
@@ -200,7 +206,9 @@ describe("header progress bars (T3)", () => {
 
     const bar = testid("progress-questions");
     expect(fillWidth(bar)).toBeCloseTo(3 / 12);
-    expect(barTitle(bar)).toBe("3/12");
+    expect(barTitle(bar)).toBe("questions: 3/12");
+    // Visible prefixed label so the three bars are distinguishable.
+    expect(barLabel(bar)).toBe("Q: 3/12");
   });
 
   it("tasks bar reflects terminal-based completedCount (NOT answered special case)", async () => {
@@ -218,7 +226,8 @@ describe("header progress bars (T3)", () => {
 
     const bar = testid("progress-tasks");
     expect(fillWidth(bar)).toBeCloseTo(4 / 10);
-    expect(barTitle(bar)).toBe("4/10");
+    expect(barTitle(bar)).toBe("tasks: 4/10");
+    expect(barLabel(bar)).toBe("T: 4/10");
   });
 
   it("defects bar fill fraction = completedCount/itemCount", async () => {
@@ -234,7 +243,8 @@ describe("header progress bars (T3)", () => {
 
     const bar = testid("progress-defects");
     expect(fillWidth(bar)).toBeCloseTo(6 / 8);
-    expect(barTitle(bar)).toBe("6/8");
+    expect(barTitle(bar)).toBe("defects: 6/8");
+    expect(barLabel(bar)).toBe("D: 6/8");
   });
 
   it("itemCount=0 renders a 0% bar without error", async () => {
@@ -253,7 +263,7 @@ describe("header progress bars (T3)", () => {
     expect(fillWidth(testid("progress-tasks"))).toBe(0);
     expect(fillWidth(testid("progress-defects"))).toBe(0);
     // Title shows 0/0 — server's view.
-    expect(barTitle(testid("progress-questions"))).toBe("0/0");
+    expect(barTitle(testid("progress-questions"))).toBe("questions: 0/0");
   });
 
   it("missing completedCount degrades to 0% bar without throwing", async () => {
@@ -273,7 +283,7 @@ describe("header progress bars (T3)", () => {
     expect(fillWidth(testid("progress-tasks"))).toBe(0);
     expect(fillWidth(testid("progress-defects"))).toBe(0);
     // Title shows 0/<total>.
-    expect(barTitle(testid("progress-questions"))).toBe("0/7");
+    expect(barTitle(testid("progress-questions"))).toBe("questions: 0/7");
   });
 
   it("bars update after a simulated 'changed' refresh", async () => {
@@ -310,6 +320,6 @@ describe("header progress bars (T3)", () => {
     await flush();
 
     expect(fillWidth(testid("progress-questions"))).toBeCloseTo(6 / 12);
-    expect(barTitle(testid("progress-questions"))).toBe("6/12");
+    expect(barTitle(testid("progress-questions"))).toBe("questions: 6/12");
   });
 });

@@ -1387,14 +1387,17 @@ function LedgerProgressBar({
   const total = summary?.itemCount ?? 0;
   const done = summary?.completedCount ?? 0;
   const pct = total > 0 ? (done / total) * 100 : 0;
+  // Short prefix so the three bars are distinguishable at a glance: Q/T/D.
+  const short = label.charAt(0).toUpperCase();
   return (
     <div
       className="lw-progress-bar"
       data-testid={testid}
-      title={`${done}/${total}`}
-      aria-label={`${label} progress`}
+      title={`${label}: ${done}/${total}`}
+      aria-label={`${label}: ${done} of ${total}`}
     >
       <div className="lw-progress-fill" style={{ width: `${pct}%` }} />
+      <span className="lw-progress-label">{`${short}: ${done}/${total}`}</span>
     </div>
   );
 }

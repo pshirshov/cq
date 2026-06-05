@@ -89,20 +89,40 @@ body {
   align-items: center;
   gap: 8px;
 }
-/* Small ledger progress bar track + fill. */
+/* Small ledger progress bar track + fill, with an overlaid Q/T/D: done/total
+   label so the three bars are distinguishable and readable. */
 .lw-progress-bar {
-  width: 48px;
-  height: 6px;
+  position: relative;
+  min-width: 58px;
+  height: 16px;
   background: var(--line);
   border-radius: 3px;
   overflow: hidden;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .lw-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
   height: 100%;
   background: var(--lw-status-done);
   border-radius: 3px;
   transition: width 0.2s ease;
+}
+.lw-progress-label {
+  position: relative; /* paint above the fill */
+  z-index: 1;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  /* keep the text legible over both the dark track and the colored fill */
+  text-shadow: 0 0 2px var(--bg), 0 0 2px var(--bg);
+  padding: 0 5px;
+  white-space: nowrap;
 }
 .lw-settings {
   position: relative;
