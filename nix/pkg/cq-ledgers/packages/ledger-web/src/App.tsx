@@ -21,6 +21,7 @@ import type { ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, 
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
+import { computeStateMachine, type StateMachineModel } from "./stateMachine.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
 import { HoldButton, type HoldClock } from "./HoldButton.js";
@@ -1007,7 +1008,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
         </div>
         </div>
       </header>
-      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} client={client} />}
       {batchOpen && batchSchema !== null && (
         <BatchAnswerModal
           rows={batchRows}
@@ -1439,28 +1440,167 @@ const SHORTCUTS: ReadonlyArray<[string, string]> = [
   ["?", "Show / hide this help"],
 ];
 
-function HelpOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
+/** A named ledger schema, paired for the state-machine tab. */
+interface NamedSchema {
+  ledger: string;
+  schema: LedgerSchema;
+}
+
+/**
+ * Tabbed help dialog (T5). Tab 1 is the unchanged keyboard-shortcut reference;
+ * tab 2 renders one inline-SVG state-machine diagram per ledger, colored by the
+ * same status→bucket palette as the badges. The per-ledger schemas are fetched
+ * lazily — a single batched fetch on first open of tab 2 — and cached for the
+ * lifetime of the dialog.
+ */
+function HelpOverlay({
+  onClose,
+  client,
+}: {
+  onClose: () => void;
+  client: LedgerClient | null;
+}): React.ReactElement {
+  const [tab, setTab] = useState<"shortcuts" | "statemachines">("shortcuts");
+  const [schemas, setSchemas] = useState<NamedSchema[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  // Batched, cached fetch of every ledger's schema — runs once, the first time
+  // the state-machines tab is shown.
+  useEffect(() => {
+    if (tab !== "statemachines" || schemas !== null || client === null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const summaries = await client.enumerateLedgers();
+        const fetched = await Promise.all(
+          summaries.map(async (s) => ({ ledger: s.name, schema: (await client.fetchLedger(s.name)).schema })),
+        );
+        if (!cancelled) setSchemas(fetched);
+      } catch (e) {
+        if (!cancelled) setLoadErr(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, schemas, client]);
+
   return (
     <div className="lw-help-backdrop" data-testid="help-overlay" onClick={onClose}>
-      <div className="lw-help" role="dialog" aria-label="keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
+      <div className="lw-help" role="dialog" aria-label="help" onClick={(e) => e.stopPropagation()}>
         <div className="lw-help-head">
-          <strong>Keyboard shortcuts</strong>
+          <div className="lw-help-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "shortcuts"}
+              className={`lw-help-tab${tab === "shortcuts" ? " lw-help-tab-active" : ""}`}
+              data-testid="help-tab-shortcuts"
+              onClick={() => setTab("shortcuts")}
+            >
+              Keyboard shortcuts
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "statemachines"}
+              className={`lw-help-tab${tab === "statemachines" ? " lw-help-tab-active" : ""}`}
+              data-testid="help-tab-statemachines"
+              onClick={() => setTab("statemachines")}
+            >
+              State machines
+            </button>
+          </div>
           <button type="button" className="lw-close" data-testid="help-close" onClick={onClose}>
             ✕
           </button>
         </div>
-        <dl className="lw-help-list">
-          {SHORTCUTS.map(([keys, what]) => (
-            <React.Fragment key={keys}>
-              <dt>
-                <kbd>{keys}</kbd>
-              </dt>
-              <dd>{what}</dd>
-            </React.Fragment>
-          ))}
-        </dl>
+        {tab === "shortcuts" ? (
+          <dl className="lw-help-list" data-testid="help-shortcuts">
+            {SHORTCUTS.map(([keys, what]) => (
+              <React.Fragment key={keys}>
+                <dt>
+                  <kbd>{keys}</kbd>
+                </dt>
+                <dd>{what}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        ) : (
+          <div className="lw-help-statemachines" data-testid="help-statemachines">
+            {loadErr !== null ? (
+              <p className="lw-empty">(could not load schemas: {loadErr})</p>
+            ) : schemas === null ? (
+              <p className="lw-empty">(loading…)</p>
+            ) : (
+              schemas.map(({ ledger, schema }) => (
+                <section key={ledger} className="lw-statemachine" data-testid={`help-statemachine-${ledger}`}>
+                  <h4>{ledger}</h4>
+                  <StateMachineDiagram ledger={ledger} schema={schema} />
+                </section>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Inline-SVG state-machine diagram for a single ledger (T5). Nodes are the
+ * schema's statuses filled by their bucket color (SVG `fill` can't resolve a
+ * CSS class, so we read BUCKET_HEX directly — same as DagView); directed edges
+ * are the `transitions` pairs. Terminal statuses get a thicker outline but keep
+ * their bucket fill.
+ */
+function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: LedgerSchema }): React.ReactElement {
+  const model: StateMachineModel = useMemo(() => computeStateMachine(schema), [schema]);
+  return (
+    <svg
+      className="lw-statemachine-svg"
+      data-testid={`help-statemachine-svg-${ledger}`}
+      width={model.width}
+      height={model.height}
+      viewBox={`0 0 ${model.width} ${model.height}`}
+    >
+      <defs>
+        <marker id="lw-sm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#566" />
+        </marker>
+      </defs>
+      {model.edges.map((e) => {
+        const midX = (e.x1 + e.x2) / 2;
+        const d = `M${e.x1},${e.y1} C${midX},${e.y1} ${midX},${e.y2} ${e.x2},${e.y2}`;
+        return (
+          <path
+            key={`${e.from}->${e.to}`}
+            data-testid={`help-sm-edge-${ledger}-${e.from}-${e.to}`}
+            d={d}
+            fill="none"
+            stroke="#566"
+            strokeWidth={1.5}
+            markerEnd="url(#lw-sm-arrow)"
+          />
+        );
+      })}
+      {model.nodes.map((n) => (
+        <g key={n.status} data-testid={`help-sm-node-${ledger}-${n.status}`} transform={`translate(${n.x},${n.y})`}>
+          <rect
+            data-testid={`help-sm-rect-${ledger}-${n.status}`}
+            width={n.w}
+            height={n.h}
+            rx={n.terminal ? 4 : 14}
+            fill={n.fill}
+            stroke="#171a21"
+            strokeWidth={n.terminal ? 2.5 : 1}
+          />
+          <text x={n.w / 2} y={n.h / 2 + 4} fill="#171a21" fontSize={12} fontWeight={700} textAnchor="middle">
+            {n.status}
+          </text>
+        </g>
+      ))}
+    </svg>
   );
 }
 

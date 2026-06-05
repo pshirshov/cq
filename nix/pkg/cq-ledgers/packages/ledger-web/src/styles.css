@@ -175,6 +175,42 @@ body {
   padding: 1px 6px;
   white-space: nowrap;
 }
+/* Tabbed help dialog (T5): tab strip in the head, scrollable diagram body. */
+.lw-help-tabs {
+  display: flex;
+  gap: 6px;
+}
+.lw-help-tab {
+  background: transparent;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 6px 6px 0 0;
+  padding: 4px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.lw-help-tab-active {
+  color: var(--fg);
+  background: #0c0e12;
+  border-bottom-color: transparent;
+}
+.lw-help-statemachines {
+  max-height: 70vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lw-statemachine h4 {
+  margin: 0 0 4px;
+}
+.lw-statemachine-svg {
+  display: block;
+  max-width: 100%;
+}
+.lw-statemachine-svg text {
+  user-select: none;
+}
 /* Batch-answer modal (Q33): a wider HelpOverlay-style popup with focused font,
    stepping through open questions one at a time. Sized larger to accommodate
    longer question content; font reduced to 0.95rem for better readability. */
