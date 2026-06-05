@@ -51,6 +51,14 @@ Each subagent ends its reply with a `### Session summary` block. After each
 returned status/verdict) plus the verbatim summary block. Subagents write no
 file; you do.
 
+For a `pi:*` reviewer (§3b) there is no `Agent` id, so key its log by reviewer
+alias: `Write docs/logs/<timestamp>-pi-<alias>-<taskId>.md` — a header (task id,
+role `implement-reviewer (pi:<harness>:<model>)`, parsed verdict) plus the
+reviewer's VERBATIM stdout (the raw, possibly fence-wrapped json). Capture this
+even when its stdout was unparseable (so a failed external reviewer leaves a
+trace). Include these `pi` log paths alongside the native reviewer logs in the
+task's `sessionLogs` (§Record, §7.3).
+
 ---
 
 ## The pass (repeat until no task is ready)
@@ -85,13 +93,74 @@ the task id + verbatim `headline`/`description`/`acceptance`, the branch
 `criticism[]`. Issue the batch's `Agent` calls in ONE message so they run
 concurrently. Write each worker's session log on return (§Session logs).
 
-### 3. Review each finished worker
-For every worker that returned `status: "pass"`, dispatch an `implement-reviewer`
-(`subagent_type: "implement-reviewer"`, at the most-capable model — `opus`)
-against that task's worktree diff (`base..HEAD`), passing the task acceptance,
-the worker's structured result, and the round number. A worker that returned
-`status: "fail"` skips review and goes straight to the criticism loop (its
-`blockedReason` is treated as round-0 criticism).
+### 3. Review each finished worker (multi-reviewer panel, reconciled)
+For every worker that returned `status: "pass"`, run the **reviewer panel** for
+that task (below) against its worktree diff (`base..HEAD`), passing the task
+acceptance, the worker's structured result, the latest `bun run check` output,
+and the round number. A worker that returned `status: "fail"` skips review and
+goes straight to the criticism loop (its `blockedReason` is treated as round-0
+criticism).
+
+**3a. Resolve the reviewer panel (cq-config, T172).** ONCE per pass, query
+cq-config's `get_reviewers` (a `Bash` shellout to the cq-config CLI — no new
+allowed-tools grant; `Bash` is already present). It returns `{ configured,
+reviewers: [{ harness, model, alias }] }`. Apply any session-only override
+already in effect. Then:
+- **`configured` is false (absent / unconfigured)** → the panel is the SINGLE
+  native `implement-reviewer` Agent, exactly as before (`subagent_type:
+  "implement-reviewer"`, most-capable model — `opus`). It already returns the
+  terminal json the orchestrator records; nothing else changes. Skip 3b/3c.
+- **`configured` is true** → the panel is the listed active reviewers; run them
+  in PARALLEL per task (3b) and RECONCILE their verdicts (3c).
+
+**3b. Launch the panel in PARALLEL (one batch per task).** For each active
+reviewer in the resolved list, dispatch in a SINGLE message so they run
+concurrently, keyed by `harness`:
+- **`claude:*`** → native `implement-reviewer` Agent (`subagent_type:
+  "implement-reviewer"`, model from the reviewer's `model`, else most-capable
+  `opus`). It returns its structured json (the contract below) and writes
+  nothing to the ledger.
+- **`pi:*`** → `Bash` shellout to the `pi` CLI (T169 invocation, decision K30):
+  `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+  (grok-build → `--provider grok-build --model grok-build`; gpt-5.5 →
+  `--provider openai-codex --model gpt-5.5`; map from the reviewer's
+  `harness`/`model`/`alias`). The `<prompt>` feeds the SHARED `/cq:implement-review`
+  rubric (`commands/cq/implement-review.md`, T174) PLUS the task acceptance, the
+  worktree diff (`base..HEAD`), and the latest `bun run check` output. `pi` runs
+  in default text mode; parse the (possibly fence-wrapped) json from its stdout.
+
+Every reviewer — native `implement-reviewer` and the shared `/cq:implement-review`
+rubric driving `pi` — returns the SAME byte-identical contract: `{ taskId,
+verdict: "approve" | "disapprove", criticism: [], questions: [], defects: [...],
+rationale, summary }`. Tag each parsed result with its source reviewer
+(`harness:model`/`alias`) for the reconciliation step. If a `pi` shellout fails
+to run or yields unparseable stdout, treat that reviewer as `disapprove` with a
+`criticism` entry naming the failure (so a flaky external reviewer parks rather
+than silently approves), and log its raw stdout (§Session logs).
+
+**3c. RECONCILE the panel — STRICTEST-WINS + UNION (Q91).** Fold the panel's
+per-reviewer json into ONE reconciled verdict that drives the criticism loop
+(§4), the success gate (§6), and the single recorded `reviews` item (§Record):
+- **Verdict (strictest-wins):** ANY reviewer `disapprove` → the reconciled
+  verdict is `disapprove`. The reconciled verdict is `approve` ONLY when ALL
+  reviewers `approve` AND the worker's latest `bun run check` is green.
+- **Findings (union, source-tagged):** the reconciled `criticism[]`,
+  `questions[]`, and `defects[]` are the UNION across all reviewers, each entry
+  tagged with its source reviewer (`harness:model`/`alias`); dedup byte-identical
+  entries from different reviewers into one entry that lists all its sources.
+- **Routing is unchanged on the reconciled result:** the unioned `questions[]`
+  drive §5 (park the task as `blocked`); the unioned `criticism[]` (with empty
+  reconciled `questions[]`) drives §4 (autonomous criticism loop); the unioned
+  `defects[]` are file-and-defer below — INDEPENDENT of the verdict.
+- **Invariants preserved on the RECONCILED result** (same as the single-reviewer
+  case): an `approve` REQUIRES empty reconciled `criticism` + empty reconciled
+  `questions` + green check; a `disapprove` REQUIRES non-empty reconciled
+  `criticism` and/or `questions`. (A bare strictest-wins `disapprove` whose union
+  is empty cannot occur, since the dissenting reviewer's own `disapprove` carries
+  non-empty findings by its contract.)
+
+Everywhere below, "the reviewer verdict" / "the reviewer's `criticism`" /
+"the reviewer's `questions`" refer to this **reconciled** result.
 
 **File the reviewer's `defects[]` (Q22/Q26, file-and-defer, K13).** A reviewer
 return may carry a non-empty `defects[]` — OUT-OF-SCOPE or pre-existing faults
@@ -151,8 +220,11 @@ resume (step 1 re-opens the task).
 
 ### 6. Success gate
 A task SUCCEEDS only when BOTH hold: its worker's last `bun run check` was green
-AND the reviewer verdict is `approve` (empty criticism and questions). Only
-succeeded tasks proceed to merge-back.
+AND the RECONCILED reviewer verdict (§3c) is `approve` (empty unioned criticism
+and questions). With a multi-reviewer panel this means EVERY active reviewer
+approved AND the check is green (strictest-wins); a single dissenting
+`disapprove` keeps the task out of merge-back. Only succeeded tasks proceed to
+merge-back.
 
 ### 7. Merge-back (sequential, DAG order, rebase-before-merge)
 Process succeeded tasks ONE AT A TIME, in dependency order (a task merges only
@@ -191,18 +263,24 @@ just-merged ones become ready. Continue passes until the ready-set is empty.
 ---
 
 ## Record the terminal review (one per task)
-The reviewer writes NOTHING to the ledger. YOU record exactly ONE terminal
-`reviews` item per task once it reaches a terminal review outcome (approved, or
-blocked-on-question): `create_item("reviews", <taskMilestone>, status:
-"go-ahead" | "revise", fields: { summary: "<reviewer's summary field, or
-'<verdict>: <first line of rationale, truncated to ~80 chars>' if omitted>",
-criticism: [...], new_questions: [...], ledgerRefs: ["tasks:<id>",
-"goals:<G>"], sessionLogs: ["docs/logs/<ts>-<reviewer-agent-id>.md"] })`.
-Include the reviewer's session-log path (the log file written for this
-reviewer call) in the SAME `create_item` — do NOT defer it to a separate
-update. Use the reviewer's `summary` when present; otherwise synthesize
-`'<verdict>: <first line of rationale, truncated to ~80 chars>'`.
-This keeps the ledger to one review per task instead of one per criticism round.
+The reviewers write NOTHING to the ledger. YOU record exactly ONE terminal
+`reviews` item per task — from the RECONCILED verdict (§3c), NOT one per reviewer
+— once it reaches a terminal review outcome (approved, or blocked-on-question):
+`create_item("reviews", <taskMilestone>, status:
+"go-ahead" | "revise", fields: { summary: "<reconciled summary, or
+'<reconciled-verdict>: <first line of rationale, truncated to ~80 chars>' if
+omitted>", criticism: [...], new_questions: [...], ledgerRefs: ["tasks:<id>",
+"goals:<G>"], sessionLogs: ["docs/logs/<ts>-<reviewer-agent-id>.md", ...] })`.
+The `criticism`/`new_questions` are the source-tagged UNION across the panel
+(§3c); the `status` follows the reconciled verdict (`go-ahead` only when ALL
+reviewers approved + green check, else `revise`). Include EVERY reviewer's
+session-log path written for this task (the native-Agent logs and the `pi`
+stdout logs, §Session logs) in the SAME `create_item` — do NOT defer them to a
+separate update. With a single configured/unconfigured reviewer this collapses
+to the prior behaviour. Use the reconciled `summary` when present; otherwise
+synthesize `'<reconciled-verdict>: <first line of rationale, truncated to ~80
+chars>'`. This keeps the ledger to one review per task instead of one per
+reviewer or one per criticism round.
 
 ## Milestone completion
 `archive_milestone(<id>)` requires ALL items under the milestone to be terminal —
