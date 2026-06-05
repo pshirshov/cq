@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 18-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 20-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. This is the stdio counterpart to `createLedgerMcpTools`
  * (the in-process Claude-SDK `tool()` factory in `./ledgerTools.ts`): both
@@ -28,6 +28,10 @@ import {
   ReadLogNotImplementedError,
   type ReadLogCapability,
 } from "./readLog.js";
+import {
+  ConfigNotImplementedError,
+  type ConfigCapability,
+} from "./configCapability.js";
 
 // ---------------------------------------------------------------------------
 // Shared Zod fragments (mirror ./ledgerTools.ts)
@@ -145,17 +149,23 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 18 ledger tools on the given MCP server. Identical
+ * Register the 20 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  *
  * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
  * R137 #6). When omitted (the factory wired over an in-memory store), the
  * `read_log` tool throws `ReadLogNotImplementedError`.
+ *
+ * `configCapability` is the injected cq.toml config capability (R193 / G18),
+ * constructed in `@cq/ledger-mcp` over `@cq/config` (T2). When omitted (no
+ * cq.toml-capable config root), `get_reviewers`/`get_config` throw
+ * `ConfigNotImplementedError`.
  */
 export function registerLedgerStdioTools(
   server: McpServer,
   store: LedgerStore,
   readLog?: ReadLogCapability,
+  configCapability?: ConfigCapability,
 ): void {
   // ---- Item / ledger surface (9) -----------------------------------------
 
@@ -543,6 +553,41 @@ ${QUERY_LANGUAGE_HELP}`,
     async (args) => {
       if (readLog === undefined) throw new ReadLogNotImplementedError();
       return jsonResult(await readLog(args.path));
+    },
+  );
+
+  // ---- Config capability (2) ---------------------------------------------
+
+  server.registerTool(
+    "get_reviewers",
+    {
+      description:
+        "Resolve the reviewer set from the repo's cq.toml. Returns " +
+        "{ configured, reviewers: [{ harness, model, alias }] }. " +
+        "configured=false (no cq.toml or empty list) => use the single native " +
+        "Claude reviewer. Only available when the server has a cq.toml-capable " +
+        "config root; otherwise returns a not-implemented error.",
+      inputSchema: {},
+    },
+    () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeReviewers());
+    },
+  );
+
+  server.registerTool(
+    "get_config",
+    {
+      description:
+        "Return the full parsed cq.toml: { configured, aliases, reviewers } " +
+        "where reviewers is the raw list of alias names. configured=false " +
+        "when no cq.toml is present. Only available when the server has a " +
+        "cq.toml-capable config root; otherwise returns a not-implemented error.",
+      inputSchema: {},
+    },
+    () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeConfig());
     },
   );
 }

@@ -15,6 +15,7 @@
     }
   },
   "dependencies": {
+    "@cq/config": "workspace:*",
     "@cq/ledger": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0"
   },

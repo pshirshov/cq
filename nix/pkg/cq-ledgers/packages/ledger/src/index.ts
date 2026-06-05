@@ -65,6 +65,13 @@ export {
   ReadLogNotImplementedError,
 } from "./mcp/readLog.js";
 export type { ReadLogCapability, ReadLogResult } from "./mcp/readLog.js";
+export { ConfigNotImplementedError } from "./mcp/configCapability.js";
+export type {
+  ConfigCapability,
+  ResolvedReviewer,
+  GetReviewersResult,
+  GetConfigResult,
+} from "./mcp/configCapability.js";
 export { LedgerSearchIndex } from "./search/LedgerSearchIndex.js";
 export type { FtsSearchOpts, FtsSearchHit } from "./search/LedgerSearchIndex.js";
 export {

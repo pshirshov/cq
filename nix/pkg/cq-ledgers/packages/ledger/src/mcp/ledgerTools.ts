@@ -4,7 +4,7 @@
  * Returns an array of `tool()` instances ready to be passed to
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
  *
- * Tool surface (18 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item + read_log):
+ * Tool surface (20 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item + read_log + get_reviewers + get_config):
  *
  * Item / ledger surface (9):
  *  - enumerate_ledgers, fetch_ledger, fetch_ledger_archive,
@@ -31,6 +31,12 @@
  *    Requires an explicit FS-store `readLog` capability (Q87 / R137 #6); when
  *    the factory is wired over an in-memory store it throws not-implemented.
  *
+ * Config capability (2) — R193 / G18:
+ *  - get_reviewers() — the RESOLVED reviewer set from the repo's cq.toml.
+ *  - get_config() — the full parsed cq.toml (aliases + raw reviewer names).
+ *    Both require an injected `configCapability` (constructed in @cq/ledger-mcp
+ *    over @cq/config); absent it they throw `ConfigNotImplementedError`.
+ *
  * Each handler turns the validated input into a single LedgerStore call,
  * serialises the result as JSON, and returns it as a text content block.
  * Errors are surfaced via thrown Error (the SDK reports them as tool errors).
@@ -51,6 +57,10 @@ import {
   ReadLogNotImplementedError,
   type ReadLogCapability,
 } from "./readLog.js";
+import {
+  ConfigNotImplementedError,
+  type ConfigCapability,
+} from "./configCapability.js";
 
 /**
  * The SDK's `tools?:` field on createSdkMcpServer is typed as
@@ -188,6 +198,7 @@ const safeIdSchema = z
 export function createLedgerMcpTools(
   store: LedgerStore,
   readLog?: ReadLogCapability,
+  configCapability?: ConfigCapability,
 ): AnyTool[] {
   // ---- Item / ledger surface (8) -----------------------------------------
 
@@ -571,6 +582,35 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
+  // ---- Config capability (2) ---------------------------------------------
+
+  const getReviewers = tool(
+    "get_reviewers",
+    "Resolve the reviewer set from the repo's cq.toml. Returns " +
+      "{ configured, reviewers: [{ harness, model, alias }] }. " +
+      "configured=false (no cq.toml or empty list) => use the single native " +
+      "Claude reviewer. Only available when the server has a cq.toml-capable " +
+      "config root; otherwise returns a not-implemented error.",
+    {} as Record<string, never>,
+    async () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeReviewers());
+    },
+  );
+
+  const getConfig = tool(
+    "get_config",
+    "Return the full parsed cq.toml: { configured, aliases, reviewers } " +
+      "where reviewers is the raw list of alias names. configured=false " +
+      "when no cq.toml is present. Only available when the server has a " +
+      "cq.toml-capable config root; otherwise returns a not-implemented error.",
+    {} as Record<string, never>,
+    async () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeConfig());
+    },
+  );
+
   return [
     enumerateLedgers,
     fetchLedger,
@@ -590,6 +630,8 @@ ${QUERY_LANGUAGE_HELP}`,
     reopenItem,
     unarchiveItem,
     readLogTool,
+    getReviewers,
+    getConfig,
   ] as unknown as AnyTool[];
 }
 
@@ -613,4 +655,6 @@ export const LEDGER_TOOL_NAMES = [
   "reopen_item",
   "unarchive_item",
   "read_log",
+  "get_reviewers",
+  "get_config",
 ] as const;
