@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "types": ["bun-types"],
+    "paths": {
+      "@cq/ledger": ["../ledger/src/index.ts"]
+    }
+  },
+  "references": [{ "path": "../ledger" }],
+  "include": ["src", "test"]
+}
