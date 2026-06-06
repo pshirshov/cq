@@ -159,13 +159,20 @@ body {
   background: rgba(0, 0, 0, 0.5);
 }
 .lw-help {
-  min-width: 440px;
-  max-width: 90vw;
+  width: min(900px, 92vw);
+  height: min(80vh, 720px);
   padding: 16px 18px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+.lw-help-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .lw-help-head {
   display: flex;
@@ -215,8 +222,6 @@ body {
   border-bottom-color: transparent;
 }
 .lw-help-statemachines {
-  max-height: 70vh;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;

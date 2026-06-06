@@ -1545,33 +1545,35 @@ function HelpOverlay({
             ✕
           </button>
         </div>
-        {tab === "shortcuts" ? (
-          <dl className="lw-help-list" data-testid="help-shortcuts">
-            {SHORTCUTS.map(([keys, what]) => (
-              <React.Fragment key={keys}>
-                <dt>
-                  <kbd>{keys}</kbd>
-                </dt>
-                <dd>{what}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-        ) : (
-          <div className="lw-help-statemachines" data-testid="help-statemachines">
-            {loadErr !== null ? (
-              <p className="lw-empty">(could not load schemas: {loadErr})</p>
-            ) : schemas === null ? (
-              <p className="lw-empty">(loading…)</p>
-            ) : (
-              schemas.map(({ ledger, schema }) => (
-                <section key={ledger} className="lw-statemachine" data-testid={`help-statemachine-${ledger}`}>
-                  <h4>{ledger}</h4>
-                  <StateMachineDiagram ledger={ledger} schema={schema} />
-                </section>
-              ))
-            )}
-          </div>
-        )}
+        <div className="lw-help-body">
+          {tab === "shortcuts" ? (
+            <dl className="lw-help-list" data-testid="help-shortcuts">
+              {SHORTCUTS.map(([keys, what]) => (
+                <React.Fragment key={keys}>
+                  <dt>
+                    <kbd>{keys}</kbd>
+                  </dt>
+                  <dd>{what}</dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          ) : (
+            <div className="lw-help-statemachines" data-testid="help-statemachines">
+              {loadErr !== null ? (
+                <p className="lw-empty">(could not load schemas: {loadErr})</p>
+              ) : schemas === null ? (
+                <p className="lw-empty">(loading…)</p>
+              ) : (
+                schemas.map(({ ledger, schema }) => (
+                  <section key={ledger} className="lw-statemachine" data-testid={`help-statemachine-${ledger}`}>
+                    <h4>{ledger}</h4>
+                    <StateMachineDiagram ledger={ledger} schema={schema} />
+                  </section>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
