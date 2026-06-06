@@ -18,20 +18,20 @@ Current assets:
 | File                              | Role                                               |
 |-----------------------------------|----------------------------------------------------|
 | `commands/cq/plan.md`             | slash command — start a goal, file first questions |
-| `commands/plan/advance.md`        | slash command — thin planner↔reviewer loop         |
-| `commands/plan/follow-up.md`      | slash command — add scope to an existing goal, re-clarify |
+| `commands/cq/plan/advance.md`        | slash command — thin planner↔reviewer loop         |
+| `commands/cq/plan/follow-up.md`      | slash command — add scope to an existing goal, re-clarify |
 | `agents/plan-advance.md`          | subagent — the planner (one state step)            |
 | `agents/plan-reviewer.md`         | subagent — the adversarial reviewer (mode-gated write) |
 | `commands/cq/plan-review.md`      | shared prompt — canonical plan-review rubric (Claude/Codex/Pi) |
 | `commands/cq/implement-review.md` | shared prompt — canonical implement-review rubric (Claude/Codex/Pi) |
 | `commands/cq/reviewers.md`        | session-only reviewer-set override command |
-| `commands/implement/start.md`     | slash command — resolve scope, hand to advance loop |
-| `commands/implement/advance.md`   | slash command — the implement orchestrator loop    |
+| `commands/cq/implement/start.md`     | slash command — resolve scope, hand to advance loop |
+| `commands/cq/implement/advance.md`   | slash command — the implement orchestrator loop    |
 | `agents/implement-worker.md`      | subagent — implements one task in an isolated worktree |
 | `agents/implement-reviewer.md`    | subagent — adversarial per-task reviewer           |
 | `agents/implement-conflict-resolver.md` | subagent — resolves rebase conflicts on merge-back |
 | `commands/cq/investigate.md`      | slash command — start a root-cause investigation   |
-| `commands/investigate/advance.md` | slash command — the investigate orchestrator loop   |
+| `commands/cq/investigate/advance.md` | slash command — the investigate orchestrator loop   |
 | `agents/investigate-explorer.md`  | subagent — read-only hypothesis explorer           |
 | `agents/investigate-prober.md`    | subagent — execution-capable evidence gatherer     |
 | `commands/cq/advance.md`          | shared prompt — unified multi-flow advance coordinator |
@@ -46,17 +46,17 @@ Edit the files in this directory, never a symlink or a consumer's copy.
    | Claude link                          | → source                                   |
    |--------------------------------------|-------------------------------------------|
    | `.claude/commands/cq/plan.md`        | `../cq-assets/commands/cq/plan.md`        |
-   | `.claude/commands/plan/advance.md`   | `../cq-assets/commands/plan/advance.md`   |
-   | `.claude/commands/plan/follow-up.md` | `../cq-assets/commands/plan/follow-up.md` |
+   | `.claude/commands/cq/plan/advance.md`   | `../cq-assets/commands/cq/plan/advance.md`   |
+   | `.claude/commands/cq/plan/follow-up.md` | `../cq-assets/commands/cq/plan/follow-up.md` |
    | `.claude/agents/plan-advance.md`     | `../cq-assets/agents/plan-advance.md`     |
    | `.claude/agents/plan-reviewer.md`    | `../cq-assets/agents/plan-reviewer.md`    |
-   | `.claude/commands/implement/start.md`   | `../cq-assets/commands/implement/start.md`   |
-   | `.claude/commands/implement/advance.md` | `../cq-assets/commands/implement/advance.md` |
+   | `.claude/commands/cq/implement/start.md`   | `../cq-assets/commands/cq/implement/start.md`   |
+   | `.claude/commands/cq/implement/advance.md` | `../cq-assets/commands/cq/implement/advance.md` |
    | `.claude/agents/implement-worker.md`    | `../cq-assets/agents/implement-worker.md`    |
    | `.claude/agents/implement-reviewer.md`  | `../cq-assets/agents/implement-reviewer.md`  |
    | `.claude/agents/implement-conflict-resolver.md` | `../cq-assets/agents/implement-conflict-resolver.md` |
    | `.claude/commands/cq/investigate.md`      | `../cq-assets/commands/cq/investigate.md`      |
-   | `.claude/commands/investigate/advance.md` | `../cq-assets/commands/investigate/advance.md` |
+   | `.claude/commands/cq/investigate/advance.md` | `../cq-assets/commands/cq/investigate/advance.md` |
    | `.claude/agents/investigate-explorer.md`  | `../cq-assets/agents/investigate-explorer.md`  |
    | `.claude/agents/investigate-prober.md`    | `../cq-assets/agents/investigate-prober.md`    |
    | `.claude/commands/cq/advance.md`          | `../cq-assets/commands/cq/advance.md`          |

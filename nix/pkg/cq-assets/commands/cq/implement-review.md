@@ -68,7 +68,7 @@ Verify with evidence, against the actual diff and repo — not the worker's clai
   separate task** — a fix intent, NEVER a "candidate for fix or wontfix"
   disposition for the flow to solicit; the default disposition of every filed
   defect is FIX, and `wontfix` is a user-initiated decision the flow never asks
-  for. You still write NOTHING to the ledger; the /implement:advance orchestrator
+  for. You still write NOTHING to the ledger; the /cq:implement:advance orchestrator
   files each as a `defects` ledger item. Each entry is an object — `{ headline,
   description, severity, suggestedFix? }` — where `severity` is REQUIRED.
 

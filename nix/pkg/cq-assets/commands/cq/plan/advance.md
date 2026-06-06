@@ -28,9 +28,9 @@ return JSON and write nothing). Your job is to drive that loop, then run the
 **auto-investigate phase** (below) on any defects the round filed, and relay the
 outcome.
 
-> The auto-investigate phase runs `/investigate:advance` **inline** (per K12 —
+> The auto-investigate phase runs `/cq:investigate:advance` **inline** (per K12 —
 > a *command* may chain another command; a *subagent* still cannot). That phase,
-> following llm/commands/investigate/advance.md, writes the ledger (the
+> following llm/commands/cq/investigate/advance.md, writes the ledger (the
 > investigate loop's own writes), and the broadened `allowed-tools`
 > (`mcp__ledger__*`, `Read`/`Grep`/`Glob`) supports it. The OTHER ledger writes
 > you make are: the **configured multi-planner** synthesized plan (step 1's
@@ -367,17 +367,17 @@ summary — is the auto-investigate worklist for G.
 
 ### For each defect D in the worklist
 
-Run **`/investigate:advance D` INLINE** in this same main session, exactly per
-llm/commands/investigate/advance.md — **do NOT duplicate or re-implement that
+Run **`/cq:investigate:advance D` INLINE** in this same main session, exactly per
+llm/commands/cq/investigate/advance.md — **do NOT duplicate or re-implement that
 logic; RUN it** (form/extend the hypothesis tree, dispatch read-only explorers,
 validate citations, adjudicate). A *command* running another command's loop is
 legal under K12; the subagents-cannot-spawn-subagents rule is preserved because
 ONLY this orchestrator (a command) does the chaining — the `plan-advance` /
 `plan-reviewer` subagents only FILE defects (T73), they never run
-`/investigate:advance`.
+`/cq:investigate:advance`.
 
 **When the defect reaches `status == root-caused`** (the READY-TO-SEED gate —
-the inline `/investigate:advance` pass sets that status when it adjudicates the
+the inline `/cq:investigate:advance` pass sets that status when it adjudicates the
 defect's root cause, superseding the former rootCause-marker prose gate), that
 pass performs its own file-and-defer handoff: it writes
 `defects.rootCause`/`suggestedFix` and **seeds or extends a defect-seeded goal**
@@ -395,7 +395,7 @@ When the primary round for G ended **`awaiting-answers`** (the reviewer's
 `defects[]` were filed**, the two are **ORTHOGONAL**: the filed defects concern
 code correctness, NOT G's clarification. Therefore:
 
-- **STILL auto-investigate** the filed defects — run `/investigate:advance D`
+- **STILL auto-investigate** the filed defects — run `/cq:investigate:advance D`
   for each, exactly as above. The pending user questions on G do not block
   investigating D.
 - **Do NOT auto-resume PLANNING** on a goal parked in `clarifying`. Whether that
@@ -415,7 +415,7 @@ predicates below. **When ANY predicate holds, STOP auto-relaunching, file an
 relevant), and report it** — these predicates REPLACE the numeric cap:
 
 (a) **Once per round.** Each filed defect D is auto-investigated **AT MOST ONCE
-    per `/plan:advance` round.** Do not re-launch `/investigate:advance D` a
+    per `/cq:plan:advance` round.** Do not re-launch `/cq:investigate:advance D` a
     second time within the same round.
 
 (b) **No new evidence ⇒ no relaunch.** Do NOT re-launch on D if its `hypothesis`
@@ -495,8 +495,8 @@ a durable trace (the subagents are read-only and write nothing themselves):
 
 Do this for the planner step (the fallback subagent, or every candidate planner +
 the synthesis step in the multi-planner path) AND every reviewer on every
-iteration — one log file per spawned subagent and per pi shellout. The inline `/investigate:advance` pass logs
-its own `investigate-explorer` subagents per llm/commands/investigate/advance.md
+iteration — one log file per spawned subagent and per pi shellout. The inline `/cq:investigate:advance` pass logs
+its own `investigate-explorer` subagents per llm/commands/cq/investigate/advance.md
 (§Session logs) — follow that command's logging rule while running it.
 
 ## Report to the user
@@ -507,7 +507,7 @@ summary line (when run with no argument, one line for each goal advanced):
 - the goal's id + current phase (`clarifying` / `planning` / `planned` / …);
 - what the user must do next:
   - `awaiting-answers` → "answer the N open questions for goal G in the TUI/web,
-    then run `/plan:advance G` again" (list the question ids);
+    then run `/cq:plan:advance G` again" (list the question ids);
   - `completed` → "plan approved and locked; goal G is now `planned`" (point to
     the milestones/tasks and the locked decision); if the goal was already
     `building` or `done` when the planner ran (no planning step needed), report
@@ -520,12 +520,12 @@ covering its outcome and the next action:
 - **root-caused → seeded goal** — defect reached `status == root-caused`;
   defect-seeded goal G′ created/extended (ledgerRef `defects:<D>`). If G′ was
   auto-resumed and reached `planned`, say so (point to the fix tasks); else:
-  "run `/plan:advance G′`".
+  "run `/cq:plan:advance G′`".
 - **parked on a question** — a stop predicate (d)/(e) or step-6 block fired; an
   `open` question was filed. "Answer question Qn in the TUI/web, then re-run."
 - **no-new-evidence-stopped** — predicate (b): the tree gained no new
   `confirmed`/`[correct]` evidence, so D was not relaunched; another
-  `/investigate:advance D` round is warranted only if new leads emerge.
+  `/cq:investigate:advance D` round is warranted only if new leads emerge.
 - **ill-loop-stopped** — predicate (a)/(c)/(d)/(e)/(f) bounded the pass; state
   which predicate held and the filed question.
 
@@ -554,7 +554,7 @@ the executing agent, run both this command and (when chained) the wrapping
 `/cq:advance` command in the SAME inline session, so you already KNOW which
 context you are in.
 
-- **Run STANDALONE** (the user invoked `/plan:advance` directly, with no
+- **Run STANDALONE** (the user invoked `/cq:plan:advance` directly, with no
   wrapping flow command): after the §Report, write ONE `handoffs` record for
   this stop — `create_item("handoffs", <milestone>, <status>, <fields>)` —
   mapping your end-of-round classification (across BOTH axes) to the handoff
@@ -599,7 +599,7 @@ ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`,
 gitignored; NEVER code):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /plan:advance — <stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan:advance — <stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```

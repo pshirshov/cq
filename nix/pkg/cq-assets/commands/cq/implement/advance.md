@@ -215,7 +215,7 @@ bare defect id (`^D\d+$` resume path) so any open defect is directly actionable
 via ledger query without a pointer question. **Implement:* does NOT auto-launch
 investigate inline (Q43) — that is plan:*'s responsibility, since implement:* is
 an execution flow, not a planning flow. The filed defect will be triaged by the
-next /plan:advance cycle's auto-investigate phase, or by a direct user
+next /cq:plan:advance cycle's auto-investigate phase, or by a direct user
 /cq:investigate <D>.** Do NOT block, fail, or re-dispatch the current task on
 a filed defect, and do NOT add it to the criticism loop — it is tracked
 separately. Filing a defect is idempotent: on a re-run, skip entries already
@@ -246,7 +246,7 @@ an ill loop: for each open issue create
 history, last criticism, last check failure>", ledgerRefs: ["tasks:<id>",
 "goals:<G>"] })`, then `update_item("tasks", <id>, status: "blocked")`. Leave
 the worktree INTACT (do not remove it) so the work survives until the user
-answers. The user answers in the TUI/web, then re-runs `/implement:advance` to
+answers. The user answers in the TUI/web, then re-runs `/cq:implement:advance` to
 resume (step 1 re-opens the task).
 
 ### 6. Success gate
@@ -374,7 +374,7 @@ gitignored; NEVER code, which lands on task branches) — at TWO points:
 Mechanism (run from the ledger root):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /implement:advance — <Mxx archived | stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — <Mxx archived | stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -391,7 +391,7 @@ Summarize the pass concisely:
 - whether goal `G` is **ready to close** (all work milestones archived) —
   instruct the user to close it in the TUI/web (set status to `done`);
 - the next action: if anything is `blocked`, "answer the listed questions in the
-  TUI/web, then run `/implement:advance` to resume"; if all done, say so.
+  TUI/web, then run `/cq:implement:advance` to resume"; if all done, say so.
 
 ---
 
@@ -414,7 +414,7 @@ the executing agent, run both this command and (when chained) the wrapping
 `/cq:advance` command in the SAME inline session, so you already KNOW which
 context you are in.
 
-- **Run STANDALONE** (the user invoked `/implement:advance` directly, with no
+- **Run STANDALONE** (the user invoked `/cq:implement:advance` directly, with no
   wrapping flow command): after the §Report, write ONE `handoffs` record for
   this stop — `create_item("handoffs", <milestone>, <status>, <fields>)` —
   mapping your end-of-pass classification to the handoff `status`:

@@ -11,7 +11,7 @@ You are starting a **plan-flow goal**. The user's goal is:
 This command does the one-time **bootstrap** only — create the coordination
 milestone and the goal — then hands off to the `plan-advance` planner for the
 first clarifying questions. It owns NO question or plan logic of its own: that
-all lives in the `plan-advance` subagent (the same planner `/plan:advance`
+all lives in the `plan-advance` subagent (the same planner `/cq:plan:advance`
 drives), so the question-generation logic exists in exactly one place.
 
 ## Provenance (every ledger write)
@@ -30,7 +30,7 @@ goal: file it on the `defects` ledger via **`/cq:investigate <defect
 description>`** instead. That flow investigates the fault, confirms a root cause,
 and (per the file-and-defer handoff, K8) seeds a *defect-seeded* plan-flow goal —
 linked `defects:<D>` with the confirmed root cause embedded — which
-`/plan:advance` then turns into reviewed FIX TASKS (tasks remain the only
+`/cq:plan:advance` then turns into reviewed FIX TASKS (tasks remain the only
 executable unit; the defect itself stays a problem record). So: fix request →
 `/cq:investigate`; new capability → `/cq:plan` (here). If `$ARGUMENTS`
 plainly describes a fault to repair, tell the user to use `/cq:investigate`
@@ -73,7 +73,7 @@ report its id and stop instead of creating a new one.
    goal item — do NOT defer this to a separate pass.
 
 5. **Auto-investigate filed defects (conditional — K12).** This mirrors the
-   same phase in `/plan:advance` (see that command's §Auto-investigate filed
+   same phase in `/cq:plan:advance` (see that command's §Auto-investigate filed
    defects for the full logic) — this step is a pointer to it, not a
    re-derivation.
 
@@ -89,10 +89,10 @@ report its id and stop instead of creating a new one.
    `clarifying` with open questions and no filed defects; the
    defect-seeded-goal path (investigate→plan) is the main case.
 
-   For each defect **D** in the worklist, run **`/investigate:advance D`
+   For each defect **D** in the worklist, run **`/cq:investigate:advance D`
    inline** in this same main session, exactly per
-   `/investigate:advance` — do NOT duplicate or re-implement
-   that logic; run it. Inherit the stop predicates from `/plan:advance`'s
+   `/cq:investigate:advance` — do NOT duplicate or re-implement
+   that logic; run it. Inherit the stop predicates from `/cq:plan:advance`'s
    auto-investigate phase (predicates a–f, per K12). A command chaining
    another command's loop is legal under **K12**; the
    subagents-cannot-spawn-subagents rule is preserved because only this
@@ -102,22 +102,22 @@ report its id and stop instead of creating a new one.
    - the goal id **G** and milestone **M**;
    - the questions the planner filed (from its returned summary);
    - that they should answer the questions in the TUI or web client (set each to
-     `answered` with a non-empty `answer`), then run **`/plan:advance G`** to
+     `answered` with a non-empty `answer`), then run **`/cq:plan:advance G`** to
      continue;
    - if step 5 ran: for each defect D in the worklist, one line covering its
      auto-investigate outcome (confirmed→seeded goal, parked on a question, or
-     stopped by a K12 predicate) — same format as `/plan:advance`'s §Report
+     stopped by a K12 predicate) — same format as `/cq:plan:advance`'s §Report
      auto-investigate lines.
 
 7. **Handoff record.** This command is the outermost wrapper for this
    invocation (the user ran `/cq:plan`), so **this command** writes the ONE
-   `handoffs` record at this step. Use the field schema from `/plan:advance`'s
+   `handoffs` record at this step. Use the field schema from `/cq:plan:advance`'s
    §Handoff record, STANDALONE branch — the goal is left in
    `clarifying`/`awaiting-answers` with the first questions filed, so the stop
    classification is `answers-required` (`flow` = `plan`; `ledgerRefs`
    `goals:<G>`; `blockingQuestions` the filed question ids; `sessionLogs` the
    step-4 path). Do not restate the field mapping here. The conditional step-5
-   auto-investigate sub-round writes NO handoff of its own — `/investigate:advance`
+   auto-investigate sub-round writes NO handoff of its own — `/cq:investigate:advance`
    suppresses its handoff when chained by this command (per its CHAINED section:
    `/<flow>:start` is listed as a suppress-context; this command owns the single
    authoritative write).
@@ -135,5 +135,5 @@ report its id and stop instead of creating a new one.
    The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed.
 
 Do not file questions, transition the goal, or emit any plan yourself — the
-`plan-advance` planner and `/plan:advance` own everything after the goal is
+`plan-advance` planner and `/cq:plan:advance` own everything after the goal is
 created.

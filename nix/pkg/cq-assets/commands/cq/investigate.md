@@ -1,5 +1,5 @@
 ---
-description: Start an investigate-flow run — defect intake + bootstrap, then run the /investigate:advance pass inline.
+description: Start an investigate-flow run — defect intake + bootstrap, then run the /cq:investigate:advance pass inline.
 argument-hint: <defect description | defectId>
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
@@ -9,9 +9,9 @@ You are **bootstrapping an investigate-flow run**. The argument is:
 > $ARGUMENTS
 
 This command does the one-time **intake and bootstrap** only, then hands off to the
-`/investigate:advance` pass inline. It owns NO research or loop logic of its own — the
+`/cq:investigate:advance` pass inline. It owns NO research or loop logic of its own — the
 entire pass (hypothesis formation, explorer dispatch, citation validation, adjudication,
-handoff) lives in `/investigate:advance`, so that logic exists in exactly ONE place.
+handoff) lives in `/cq:investigate:advance`, so that logic exists in exactly ONE place.
 
 ## No confirmation checkpoints — just run (hard rule)
 This flow is **fully autonomous by default**. Do NOT pause to ask the user to confirm
@@ -99,18 +99,18 @@ Note the chosen severity and why (one line) in the report.
 
 ### 3. Hand off to the advance pass
 
-Now execute the `/investigate:advance` pass for defect **D** — follow the full loop spec
-in `/investigate:advance` (READ state → FORM hypotheses → DISPATCH
+Now execute the `/cq:investigate:advance` pass for defect **D** — follow the full loop spec
+in `/cq:investigate:advance` (READ state → FORM hypotheses → DISPATCH
 explorers → VALIDATE citations → adjudicate → CONFIRMED handoff or NEEDS-USER-INPUT
 park, plus its session-log writing and provenance rules). Do NOT restate or duplicate
-that logic here; run it. Then produce `/investigate:advance`'s end-of-round report.
+that logic here; run it. Then produce `/cq:investigate:advance`'s end-of-round report.
 
 This command is the outermost wrapper for this invocation (the user ran
-`/cq:investigate`), so the inline `/investigate:advance` pass **SUPPRESSES
-its own handoff write** (per `/investigate:advance`'s CHAINED section —
+`/cq:investigate`), so the inline `/cq:investigate:advance` pass **SUPPRESSES
+its own handoff write** (per `/cq:investigate:advance`'s CHAINED section —
 `/<flow>:start` is listed as a suppress-context), and **this command** writes
 the ONE `handoffs` record at the stop. Use the field schema from
-`/investigate:advance`'s §Handoff record, STANDALONE branch (do not restate the
+`/cq:investigate:advance`'s §Handoff record, STANDALONE branch (do not restate the
 mapping here). **Then commit the ledger** — this command is the outermost
 wrapper, so it owns the single run-stop ledger commit; immediately after the
 handoff write, persist ONLY the ledger (`docs/*.md` + `docs/archive` +
@@ -124,7 +124,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed.
 
 The run is resumable: after the user answers any registered questions, they re-run
-**`/investigate:advance D`** (no need to re-run `/cq:investigate`).
+**`/cq:investigate:advance D`** (no need to re-run `/cq:investigate`).
 
 ---
 
@@ -132,4 +132,4 @@ The run is resumable: after the user answers any registered questions, they re-r
 After the advance pass completes, prepend a brief intake summary:
 - **Defect:** `<D>` — `<headline>` (severity: `<severity>`, milestone: `<M>`)
 - **Action:** created new defect (intake path) **or** resumed existing defect (resume path)
-- Then the full `/investigate:advance` round report.
+- Then the full `/cq:investigate:advance` round report.

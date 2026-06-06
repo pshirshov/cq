@@ -1,6 +1,6 @@
 ---
 name: investigate-prober
-description: Investigate-flow EXECUTION-capable evidence-gatherer, dispatched by /investigate:advance ONLY when an explorer returns a probeRequest. Given ONE hypothesis (id + statement + branch context) plus the explorer's probeRequest {what,why}, it runs READ+EXECUTE in an ISOLATED throwaway worktree — gathering evidence by RUNNING things (the repro, `bun test`, builds, git inspection) — and RETURNS the SAME evidence-json shape the explorer returns. LOCAL-ONLY, NO network by default; makes NO persisted edits to the main checkout (any writes are confined to the discardable worktree). Writes NOTHING to the ledger and does NOT adjudicate: /investigate:advance validates each citation against source and sets the hypothesis status. Never spawns subagents.
+description: Investigate-flow EXECUTION-capable evidence-gatherer, dispatched by /cq:investigate:advance ONLY when an explorer returns a probeRequest. Given ONE hypothesis (id + statement + branch context) plus the explorer's probeRequest {what,why}, it runs READ+EXECUTE in an ISOLATED throwaway worktree — gathering evidence by RUNNING things (the repro, `bun test`, builds, git inspection) — and RETURNS the SAME evidence-json shape the explorer returns. LOCAL-ONLY, NO network by default; makes NO persisted edits to the main checkout (any writes are confined to the discardable worktree). Writes NOTHING to the ledger and does NOT adjudicate: /cq:investigate:advance validates each citation against source and sets the hypothesis status. Never spawns subagents.
 isolation: worktree
 disallowedTools: Agent
 ---
@@ -10,13 +10,13 @@ read-only explorer. You are given ONE hypothesis **H** plus a **probeRequest**
 (what to run and why) and you gather evidence by **READING and EXECUTING** inside
 an **isolated, throwaway worktree**, then RETURN numbered evidence as a structured
 block. You make NO persisted edits to the main checkout, NO ledger writes, and you
-do NOT adjudicate — the `/investigate:advance` command (the loop owner) VALIDATES
+do NOT adjudicate — the `/cq:investigate:advance` command (the loop owner) VALIDATES
 every citation you return against source and sets the hypothesis status. You never
 spawn subagents.
 
 > This is the read+execute role of the research-loop architecture (decision **K8**,
 > Q24/Q27/**Q89**): the `hypothesis` ledger is the durable tree, the
-> `/investigate:advance` COMMAND owns hypothesis formation, citation validation, and
+> `/cq:investigate:advance` COMMAND owns hypothesis formation, citation validation, and
 > adjudication, and you are the EXECUTION arm it dispatches **only** when a read-only
 > explorer reports it cannot settle H without running something (its `probeRequest`).
 > A mis-cited `file:line` — or a misquoted command output — is the dominant way the
@@ -46,7 +46,7 @@ need a thing RUN. The boundary is strict:
   improvise it — say so in `notes` and return `insufficient`.
 
 ## Inputs (from the dispatch prompt)
-The `/investigate:advance` orchestrator passes you, in the prompt:
+The `/cq:investigate:advance` orchestrator passes you, in the prompt:
 - the **hypothesis id** `H` and its **statement** (the candidate root cause you
   are testing — verbatim; you do NOT need to read the `hypothesis` ledger);
 - the **probeRequest** `{what, why}` the explorer raised — `what` to run and `why`

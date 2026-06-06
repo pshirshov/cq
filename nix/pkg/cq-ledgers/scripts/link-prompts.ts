@@ -30,23 +30,24 @@ export interface PromptLink {
 /** Single source of truth for all Claude symlinks. Exported for tests and --check mode. */
 export const LINKS: readonly PromptLink[] = [
   { link: ".claude/commands/cq/plan.md", source: "../cq-assets/commands/cq/plan.md" },
-  { link: ".claude/commands/plan/advance.md", source: "../cq-assets/commands/plan/advance.md" },
-  { link: ".claude/commands/plan/follow-up.md", source: "../cq-assets/commands/plan/follow-up.md" },
+  { link: ".claude/commands/cq/plan/advance.md", source: "../cq-assets/commands/cq/plan/advance.md" },
+  { link: ".claude/commands/cq/plan/follow-up.md", source: "../cq-assets/commands/cq/plan/follow-up.md" },
   { link: ".claude/agents/plan-advance.md", source: "../cq-assets/agents/plan-advance.md" },
   { link: ".claude/agents/plan-reviewer.md", source: "../cq-assets/agents/plan-reviewer.md" },
-  { link: ".claude/commands/implement/start.md", source: "../cq-assets/commands/implement/start.md" },
-  { link: ".claude/commands/implement/advance.md", source: "../cq-assets/commands/implement/advance.md" },
+  { link: ".claude/commands/cq/implement/start.md", source: "../cq-assets/commands/cq/implement/start.md" },
+  { link: ".claude/commands/cq/implement/advance.md", source: "../cq-assets/commands/cq/implement/advance.md" },
   { link: ".claude/agents/implement-worker.md", source: "../cq-assets/agents/implement-worker.md" },
   { link: ".claude/agents/implement-reviewer.md", source: "../cq-assets/agents/implement-reviewer.md" },
   { link: ".claude/agents/implement-conflict-resolver.md", source: "../cq-assets/agents/implement-conflict-resolver.md" },
   { link: ".claude/commands/cq/investigate.md", source: "../cq-assets/commands/cq/investigate.md" },
-  { link: ".claude/commands/investigate/advance.md", source: "../cq-assets/commands/investigate/advance.md" },
+  { link: ".claude/commands/cq/investigate/advance.md", source: "../cq-assets/commands/cq/investigate/advance.md" },
   { link: ".claude/agents/investigate-explorer.md", source: "../cq-assets/agents/investigate-explorer.md" },
   { link: ".claude/agents/investigate-prober.md", source: "../cq-assets/agents/investigate-prober.md" },
   { link: ".claude/commands/cq/advance.md", source: "../cq-assets/commands/cq/advance.md" },
   { link: ".claude/commands/cq/plan-review.md", source: "../cq-assets/commands/cq/plan-review.md" },
   { link: ".claude/commands/cq/implement-review.md", source: "../cq-assets/commands/cq/implement-review.md" },
   { link: ".claude/commands/cq/reviewers.md", source: "../cq-assets/commands/cq/reviewers.md" },
+  { link: ".claude/commands/cq/planners.md", source: "../cq-assets/commands/cq/planners.md" },
 ];
 
 /** A link whose target does not resolve on disk. */

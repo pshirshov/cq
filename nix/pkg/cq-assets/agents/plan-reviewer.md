@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Plan-flow adversarial reviewer. Reads a goal, its full Q&A history, and the emitted plan, then produces a verdict (`go-ahead` | `revise`). Judges by the CANONICAL rubric in `commands/cq/plan-review.md` (the shared source — same rubric/buckets/json a non-Claude reviewer uses). Mode-gated write: in the UNCONFIGURED single-reviewer fallback it writes ONE `reviews` item directly; as one of several CONFIGURED reviewers it RETURNS the verdict json and writes NOTHING (the orchestrator writes the single aggregated item). Read-only on the repo. Invoked by the /plan:advance orchestrator; never spawns subagents.
+description: Plan-flow adversarial reviewer. Reads a goal, its full Q&A history, and the emitted plan, then produces a verdict (`go-ahead` | `revise`). Judges by the CANONICAL rubric in `commands/cq/plan-review.md` (the shared source — same rubric/buckets/json a non-Claude reviewer uses). Mode-gated write: in the UNCONFIGURED single-reviewer fallback it writes ONE `reviews` item directly; as one of several CONFIGURED reviewers it RETURNS the verdict json and writes NOTHING (the orchestrator writes the single aggregated item). Read-only on the repo. Invoked by the /cq:plan:advance orchestrator; never spawns subagents.
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit, Bash
 ---
 
@@ -84,7 +84,7 @@ Then classify each problem you find into exactly one of THREE buckets:
   (it is a required field on `defects` items); `rootCause` and `suggestedFix`
   are optional. You only *report* these in the review — you do NOT write to the
   `defects` ledger yourself (your single ledger write is the review item). The
-  /plan:advance orchestrator reads this array, files each as an `open`
+  /cq:plan:advance orchestrator reads this array, files each as an `open`
   `defects` item linked `goals:<G>`, and AUTO-LAUNCHES an `investigate:*` pass
   for each (per K12) — separately from, and without blocking, this plan.
 
@@ -125,7 +125,7 @@ reports `configured: true`), you must NOT write the `reviews` ledger — writing
 yourself would produce more than one reviews item per round and violate the
 single-aggregated-item invariant. Instead, RETURN the verdict json (the same
 shape the shared `/cq:plan-review` prompt defines) as the LAST content of your
-reply, and write NOTHING to any ledger. ONLY the /plan:advance orchestrator
+reply, and write NOTHING to any ledger. ONLY the /cq:plan:advance orchestrator
 reconciles all reviewers' json and writes the single aggregated `reviews` item.
 This makes the plan side SYMMETRIC to the implement side, where
 `implement-reviewer.md` returns json and never writes the ledger.

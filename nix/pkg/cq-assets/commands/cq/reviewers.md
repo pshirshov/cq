@@ -17,8 +17,8 @@ Your job:
 3. **Echo** the resolved active reviewer set in human-readable and token form.
 4. **State** clearly that the override is SESSION-ONLY — it applies ONLY to the
    current chained run (the conversation context in which you issue this command)
-   and reverts to the cq.toml default on the next fresh `/plan:advance` or
-   `/implement:advance` invocation.
+   and reverts to the cq.toml default on the next fresh `/cq:plan:advance` or
+   `/cq:implement:advance` invocation.
 
 You write **NOTHING durable** — no file, no ledger item, no gitignored state.
 The Write tool is not in your allowed-tools and must not be used.
@@ -104,7 +104,7 @@ Canonical tokens: <harness1>:<model1>, <harness2>:<model2>, ...
 
 SESSION-ONLY: this override lives in the conversation context of the current
 chained run. It is NOT written to any file or ledger. The next fresh
-/plan:advance or /implement:advance invocation (in a new session) will revert
+/cq:plan:advance or /cq:implement:advance invocation (in a new session) will revert
 to the reviewer set declared in cq.toml (or the single native Claude reviewer
 if cq.toml is absent / unconfigured).
 
@@ -113,11 +113,11 @@ To make this permanent, edit cq.toml [reviewers] in the repo root.
 
 ## How the override is carried
 
-Because each `/plan:advance` and `/implement:advance` orchestrator invocation
+Because each `/cq:plan:advance` and `/cq:implement:advance` orchestrator invocation
 is a fresh session, the override lives **in the conversation context of the
 current chained run**:
 - The user states `/cq:reviewers use grok and opus only` in the same session
-  BEFORE or WHILE running `/plan:advance` or `/implement:advance`.
+  BEFORE or WHILE running `/cq:plan:advance` or `/cq:implement:advance`.
 - Those orchestrators READ the stated active set from the run context when
   deciding which reviewers to dispatch.
 - When NO override has been stated in the current run context, those
@@ -125,7 +125,7 @@ current chained run**:
   single native Claude reviewer if unconfigured).
 
 This means:
-- **Override applies now**: the current `/plan:advance` or `/implement:advance`
+- **Override applies now**: the current `/cq:plan:advance` or `/cq:implement:advance`
   chained in this same session will use the stated reviewer set.
 - **Override does NOT persist**: a brand-new session (user opens a fresh Claude
   Code window, or runs the slash command cold) has no memory of this override
@@ -133,9 +133,9 @@ This means:
 - **No file is written**: there is no `.cq-reviewers-override`, no gitignored
   state, no ledger item recording the override.
 
-## Consistency with /plan:advance and /implement:advance
+## Consistency with /cq:plan:advance and /cq:implement:advance
 
-The orchestrators (`commands/plan/advance.md`, `commands/implement/advance.md`)
+The orchestrators (`commands/cq/plan/advance.md`, `commands/cq/implement/advance.md`)
 select reviewers as follows when T175/T176 are live:
 
 > **Session override present?** If the user stated a reviewer set in this run

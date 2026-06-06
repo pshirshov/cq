@@ -1,6 +1,6 @@
 ---
 name: implement-worker
-description: Implement-flow worker. Implements EXACTLY ONE task end-to-end inside an isolated git worktree, runs `bun run check`, commits on the task branch, and returns a STRUCTURED result. Never mutates the ledger and never merges — the orchestrator owns ledger state and merge-back. Invoked by /implement:advance; never spawns subagents.
+description: Implement-flow worker. Implements EXACTLY ONE task end-to-end inside an isolated git worktree, runs `bun run check`, commits on the task branch, and returns a STRUCTURED result. Never mutates the ledger and never merges — the orchestrator owns ledger state and merge-back. Invoked by /cq:implement:advance; never spawns subagents.
 isolation: worktree
 disallowedTools: Agent
 ---

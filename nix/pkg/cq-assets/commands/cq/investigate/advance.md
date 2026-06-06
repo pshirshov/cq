@@ -67,12 +67,12 @@ durable ledger state left off. **ONE invocation = ONE research round.**
   MUST NOT re-implement or invoke the planner↔plan-reviewer loop yourself. **Two
   contexts (K12):**
   - *Standalone* (`/cq:investigate` run directly by the user): file the
-    open question pointing at `/plan:advance <G>` and STOP — the user resumes
+    open question pointing at `/cq:plan:advance <G>` and STOP — the user resumes
     manually.
   - *Auto-launched inside plan:*\*: this investigation was triggered by
-    `/plan:advance` (K12 auto-investigate). File the goal and STOP; the parent
+    `/cq:plan:advance` (K12 auto-investigate). File the goal and STOP; the parent
     plan-flow session automatically resumes `G` without requiring a fresh
-    user-run `/plan:advance`.
+    user-run `/cq:plan:advance`.
 
 ## Provenance (every ledger write)
 On every `create_item` / `update_item`, pass `author` = your OWN model class
@@ -104,7 +104,7 @@ existing `rootCause`/`suggestedFix`. Then derive the current tree:
 - read the linked `questions` (items whose `ledgerRefs` contain `defects:<D>`):
   if an `open` question is still unanswered, the loop is parked on the user —
   skip to **Report** (resumable: the user answers in the TUI/web, then re-runs
-  `/investigate:advance D`). If a previously-open question is now `answered`
+  `/cq:investigate:advance D`). If a previously-open question is now `answered`
   (non-empty `answer`), fold its answer into this round's framing and continue.
 
 **Move the defect to `wip` the moment investigation begins.** If the defect's
@@ -224,7 +224,7 @@ The **seed gate** for file-and-defer is the defect STATUS: perform this handoff
 more. You MUST NOT run, re-implement, or invoke the planner↔plan-reviewer loop
 inline; a command cannot run another command's loop, and inline duplication
 contradicts the file-and-defer principle (K8 point 3 / Q26). The subsequent
-USER-run `/plan:advance` round is what produces the reviewed fix tasks that
+USER-run `/cq:plan:advance` round is what produces the reviewed fix tasks that
 ledgerRef `defects:<D>` (Q25/Q26). Do this and STOP:
 
 (a) **Set the defect STATUS to `root-caused` and write its fields.**
@@ -259,13 +259,13 @@ prompt (T41) explicitly permits skipping clarification when a goal is
 the defect. Then STOP — this command does not advance G. The action depends on
 context (K12):
 - *Standalone* (`/cq:investigate` run directly): the question text instructs
-  the user to run **`/plan:advance <G>`**: `create_item("questions",
+  the user to run **`/cq:plan:advance <G>`**: `create_item("questions",
   <defectMilestone>, status: "open", fields: { question: "Root cause of <D>
-  confirmed and a defect-seeded goal G is ready — run `/plan:advance G` to
+  confirmed and a defect-seeded goal G is ready — run `/cq:plan:advance G` to
   produce the reviewed fix tasks.", context: "<root cause + suggestedFix
   summary>", ledgerRefs: ["defects:<D>", "goals:<G>"] })`.
 - *Auto-launched inside plan:*\* (K12): the parent plan session detects the
-  confirmed goal and resumes it automatically — a manual `/plan:advance G` is
+  confirmed goal and resumes it automatically — a manual `/cq:plan:advance G` is
   NOT needed. File the same question for traceability, but note in its `context`
   that this investigation was auto-launched and the goal will be auto-resumed.
 
@@ -300,7 +300,7 @@ status: "open", fields: { question: "<the blocking requirements/repro/access
 question>", context: "<the tree state, what evidence is missing, what you
 tried>", ledgerRefs: ["defects:<D>"] })` and STOP. Leave the `hypothesis` tree
 INTACT (durable). The user answers in the TUI/web, then re-runs
-`/investigate:advance D` — step 1 folds the answer back in and the loop resumes
+`/cq:investigate:advance D` — step 1 folds the answer back in and the loop resumes
 exactly where it left off.
 
 ---
@@ -317,14 +317,14 @@ Summarize the round concisely:
 - any node **confirmed** → the defect now `status == root-caused`, its
   `rootCause`/`suggestedFix`, the defect-seeded goal **G**, and the next action
   (K12):
-  - *Standalone*: **"run `/plan:advance G`"** (file-and-defer; this command does
+  - *Standalone*: **"run `/cq:plan:advance G`"** (file-and-defer; this command does
     NOT run it);
   - *Auto-launched inside plan:*\*: the parent plan session resumes G
     automatically — no user action needed;
 - whether the loop is **parked on a question** (id to answer) — if so, "answer it
-  in the TUI/web, then run `/investigate:advance D` to resume";
+  in the TUI/web, then run `/cq:investigate:advance D` to resume";
 - if the tree still has `uncertain`/`open` leaves and no question is pending, say
-  another round is warranted: "run `/investigate:advance D` again".
+  another round is warranted: "run `/cq:investigate:advance D` again".
 
 ---
 
@@ -346,7 +346,7 @@ invocation context — there is **no env var or process signal** to read. You,
 the executing agent, run both this command and (when chained) the wrapping flow
 command in the SAME inline session, so you already KNOW which context you are in.
 
-- **Run STANDALONE** (the user invoked `/investigate:advance` directly, with no
+- **Run STANDALONE** (the user invoked `/cq:investigate:advance` directly, with no
   wrapping flow command): after the §Report, write ONE `handoffs` record for
   this stop —
   `create_item("handoffs", <defectMilestone>, <status>, <fields>)` — mapping
@@ -372,12 +372,12 @@ command in the SAME inline session, so you already KNOW which context you are in
   investigate round never leaves the ledger uncommitted.
 
 - **Run CHAINED INLINE by any wrapping flow command** (`/cq:advance`,
-  `/plan:advance`, or a `/<flow>:start` / `/<flow>:follow-up` that runs this
+  `/cq:plan:advance`, or a `/<flow>:start` / `/<flow>:follow-up` that runs this
   pass inline): **SUPPRESS this handoff write** — AND suppress the at-stop ledger
   commit (the outermost wrapper owns both). The outermost wrapper owns the
   single authoritative run-level handoff and writes it once at its stop —
   `/cq:advance` per its §Provenance (it is the sole `handoffs` writer for the whole
-  run); `/plan:advance` writes its own standalone record covering the whole pass
+  run); `/cq:plan:advance` writes its own standalone record covering the whole pass
   including the chained investigate sub-round; a `/<flow>:start` or
   `/<flow>:follow-up` writes it directly in its own §Handoff record step. You
   can tell you are in this context because the wrapping command explicitly chains
@@ -391,7 +391,7 @@ ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`,
 gitignored; NEVER code):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /investigate:advance — <stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:investigate:advance — <stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```

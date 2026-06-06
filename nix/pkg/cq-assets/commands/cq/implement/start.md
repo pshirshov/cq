@@ -1,5 +1,5 @@
 ---
-description: Start an implement-flow run — resolve the target milestones (default: all open ones), validate their task DAG, then hand off to the /implement:advance loop.
+description: Start an implement-flow run — resolve the target milestones (default: all open ones), validate their task DAG, then hand off to the /cq:implement:advance loop.
 argument-hint: [milestoneId ...]   # optional; omit to target every open milestone
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
@@ -10,9 +10,9 @@ are:
 > $ARGUMENTS
 
 This command does the one-time **scope resolution** only, then hands off to the
-`/implement:advance` loop. It owns NO execution logic of its own — the entire
+`/cq:implement:advance` loop. It owns NO execution logic of its own — the entire
 pass (DAG-ready pickup, worktree dispatch, review, criticism loop, question
-registration, merge-back) lives in `/implement:advance`, so that logic exists in
+registration, merge-back) lives in `/cq:implement:advance`, so that logic exists in
 exactly ONE place (exactly as `/cq:plan` does the goal bootstrap and hands the
 round to `plan-advance`).
 
@@ -23,8 +23,8 @@ for confirmation:
 - **Scope** = the broadest applicable set. Empty `$ARGUMENTS` → ALL open
   milestones; an explicit list → exactly that list. Never ask "all or a subset?".
 - **Integration target** = the **current branch** (merge-back lands here, per
-  `/implement:advance`). Never ask "which branch / main or a feature branch?".
-- **Cadence** = run the whole `/implement:advance` loop to completion (everything
+  `/cq:implement:advance`). Never ask "which branch / main or a feature branch?".
+- **Cadence** = run the whole `/cq:implement:advance` loop to completion (everything
   done, or blocked on a genuine question). Never ask "one pass then pause?".
 
 A confirmation checkpoint is wasted latency and is forbidden. The ONLY legitimate
@@ -60,21 +60,21 @@ On any `create_item` / `update_item`, pass `author` = your OWN model class
 3. **Report the resolved scope.** State the target milestone ids, the count of
    tasks per target, and the initial ready-set (the tasks the first pass will
    pick up). No scope marker item is created — the ledger task states ARE the
-   durable scope; `/implement:advance` re-derives everything from them.
+   durable scope; `/cq:implement:advance` re-derives everything from them.
 
-4. **Hand off to the advance loop.** Now execute the `/implement:advance` pass
+4. **Hand off to the advance loop.** Now execute the `/cq:implement:advance` pass
    over the resolved target set — follow the full loop spec in
-   `llm/commands/implement/advance.md` (READY-SET → dispatch workers → review →
+   `llm/commands/cq/implement/advance.md` (READY-SET → dispatch workers → review →
    criticism loop → questions → success gate → merge-back, plus its session-log
    writing and provenance rules). Do NOT restate or duplicate that logic here;
-   run it. Then produce `/implement:advance`'s end-of-pass report.
+   run it. Then produce `/cq:implement:advance`'s end-of-pass report.
 
 This command is the outermost wrapper for this invocation (the user ran
-`/implement:start`), so the inline `/implement:advance` pass **SUPPRESSES its
+`/cq:implement:start`), so the inline `/cq:implement:advance` pass **SUPPRESSES its
 own handoff write** (per implement/advance.md's CHAINED section — `/<flow>:start`
 is listed as a suppress-context), and **this command** writes the ONE `handoffs`
 record at the stop. Use the field schema from implement/advance.md's §Handoff
 record, STANDALONE branch (do not restate the mapping here).
 
 The run is resumable: after the user answers any registered questions, they
-re-run **`/implement:advance`** (no need to re-run `/implement:start`).
+re-run **`/cq:implement:advance`** (no need to re-run `/cq:implement:start`).

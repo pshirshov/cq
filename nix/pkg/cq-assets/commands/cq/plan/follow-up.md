@@ -21,7 +21,7 @@ fresh clarifying round (clarify-first). It owns NO question or plan logic itself
 > fault to fix, not new capability — intake it on the `defects` ledger via
 > **`/cq:investigate <defect description>`** instead of folding it into this
 > goal. Investigation confirms the root cause and seeds a *defect-seeded*
-> plan-flow goal (linked `defects:<D>`) that `/plan:advance` turns into reviewed
+> plan-flow goal (linked `defects:<D>`) that `/cq:plan:advance` turns into reviewed
 > FIX TASKS — tasks remain the only executable unit; the defect stays a problem
 > record. If the request plainly describes a fault to repair, point the user at
 > `/cq:investigate` rather than re-opening this goal.
@@ -99,9 +99,9 @@ the Codex equivalent; omit if unavailable).
    `clarifying` with new questions and no filed defects on this round; the
    defect-seeded-goal path (investigate→plan) is the main case.
 
-   For each defect **D** in the worklist, run **`/investigate:advance D`
+   For each defect **D** in the worklist, run **`/cq:investigate:advance D`
    inline** in this same main session, exactly per
-   llm/commands/investigate/advance.md — do NOT duplicate or re-implement
+   llm/commands/cq/investigate/advance.md — do NOT duplicate or re-implement
    that logic; run it. Inherit the stop predicates from plan/advance.md's
    auto-investigate phase (predicates a–f, per K12). A command chaining
    another command's loop is legal under **K12**; the
@@ -110,14 +110,14 @@ the Codex equivalent; omit if unavailable).
 
 8. **Report.** Tell the user: the goal id **G** and its new phase (`clarifying`);
    the questions the planner filed; and that they should answer them in the
-   TUI/web, then run **`/plan:advance G`** to plan the added scope;
+   TUI/web, then run **`/cq:plan:advance G`** to plan the added scope;
    if step 7 ran: for each defect D in the worklist, one line covering its
    auto-investigate outcome (confirmed→seeded goal, parked on a question, or
    stopped by a K12 predicate) — same format as plan/advance.md's §Report
    auto-investigate lines.
 
 9. **Handoff record.** This command is the outermost wrapper for this
-   invocation (the user ran `/plan:follow-up`), so **this command** writes the
+   invocation (the user ran `/cq:plan:follow-up`), so **this command** writes the
    ONE `handoffs` record at this step. Use the field schema from
    plan/advance.md's §Handoff record, STANDALONE branch — the re-opened goal
    lands in `clarifying` with new questions filed, so the stop classification is
@@ -135,11 +135,11 @@ the Codex equivalent; omit if unavailable).
     `docs/ledgers.yaml`, gitignored; NEVER code):
     ```
     git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-    git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /plan:follow-up — goal G<n> re-opened (awaiting-answers)
+    git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan:follow-up — goal G<n> re-opened (awaiting-answers)
 
     Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
     ```
     The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed.
 
 Do not file questions, emit a plan, or lock decisions yourself — the
-`plan-advance` planner and `/plan:advance` own everything after the re-open.
+`plan-advance` planner and `/cq:plan:advance` own everything after the re-open.

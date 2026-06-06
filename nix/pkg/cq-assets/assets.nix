@@ -17,7 +17,7 @@
 { lib }:
 let
   # Recursively collect every *.md under `dir`, keyed by its path relative to
-  # `dir` with the `.md` stripped (so commands/plan/start.md → "plan/start").
+  # `dir` with the `.md` stripped (so commands/cq/plan/advance.md → "cq/plan/advance").
   collectMd = dir:
     lib.concatMapAttrs
       (name: type:

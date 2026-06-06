@@ -17,7 +17,7 @@ Your job:
 3. **Echo** the resolved active planner set in human-readable and token form.
 4. **State** clearly that the override is SESSION-ONLY — it applies ONLY to the
    current chained run (the conversation context in which you issue this command)
-   and reverts to the cq.toml default on the next fresh `/plan:advance`
+   and reverts to the cq.toml default on the next fresh `/cq:plan:advance`
    invocation.
 
 You write **NOTHING durable** — no file, no ledger item, no gitignored state.
@@ -104,7 +104,7 @@ Canonical tokens: <harness1>:<model1>, <harness2>:<model2>, ...
 
 SESSION-ONLY: this override lives in the conversation context of the current
 chained run. It is NOT written to any file or ledger. The next fresh
-/plan:advance invocation (in a new session) will revert to the planner set
+/cq:plan:advance invocation (in a new session) will revert to the planner set
 declared in cq.toml (or the single native Claude planner if cq.toml is
 absent / unconfigured).
 
@@ -113,10 +113,10 @@ To make this permanent, edit cq.toml [planners] in the repo root.
 
 ## How the override is carried
 
-Because each `/plan:advance` orchestrator invocation is a fresh session, the
+Because each `/cq:plan:advance` orchestrator invocation is a fresh session, the
 override lives **in the conversation context of the current chained run**:
 - The user states `/cq:planners use grok and opus only` in the same session
-  BEFORE or WHILE running `/plan:advance`.
+  BEFORE or WHILE running `/cq:plan:advance`.
 - The orchestrator READS the stated active set from the run context when
   deciding which planners to dispatch.
 - When NO override has been stated in the current run context, the orchestrator
@@ -124,7 +124,7 @@ override lives **in the conversation context of the current chained run**:
   Claude planner if unconfigured).
 
 This means:
-- **Override applies now**: the current `/plan:advance` chained in this same
+- **Override applies now**: the current `/cq:plan:advance` chained in this same
   session will use the stated planner set.
 - **Override does NOT persist**: a brand-new session (user opens a fresh Claude
   Code window, or runs the slash command cold) has no memory of this override
@@ -132,9 +132,9 @@ This means:
 - **No file is written**: there is no `.cq-planners-override`, no gitignored
   state, no ledger item recording the override.
 
-## Consistency with /plan:advance
+## Consistency with /cq:plan:advance
 
-The orchestrator (`commands/plan/advance.md`) selects planners as follows when
+The orchestrator (`commands/cq/plan/advance.md`) selects planners as follows when
 the planner-set override is live:
 
 > **Session override present?** If the user stated a planner set in this run

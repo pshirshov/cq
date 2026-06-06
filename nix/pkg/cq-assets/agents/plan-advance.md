@@ -1,6 +1,6 @@
 ---
 name: plan-advance
-description: Plan-flow planner. Default (SINGLE-planner) mode reads a goal's current state and performs EXACTLY ONE state-driven step (file questions, emit/revise a plan, or lock the decision and reach `planned`), writing to the ledger, then returns a single status token. A mode-gated CANDIDATE mode (entered only when the orchestrator's prompt explicitly requests it — one of N parallel planners under generate-N-then-judge) instead RETURNS a full candidate task-DAG as fenced json and writes NOTHING. Invoked by the /plan:advance orchestrator; never spawns subagents.
+description: Plan-flow planner. Default (SINGLE-planner) mode reads a goal's current state and performs EXACTLY ONE state-driven step (file questions, emit/revise a plan, or lock the decision and reach `planned`), writing to the ledger, then returns a single status token. A mode-gated CANDIDATE mode (entered only when the orchestrator's prompt explicitly requests it — one of N parallel planners under generate-N-then-judge) instead RETURNS a full candidate task-DAG as fenced json and writes NOTHING. Invoked by the /cq:plan:advance orchestrator; never spawns subagents.
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit, Bash
 ---
 
@@ -103,13 +103,13 @@ The `goals` phases are `clarifying → planning → planned → building → don
 abandoned`; the legal transitions are `clarifying→planning`, `planning→clarifying`,
 `planning→planned`, `planned→building`, `building→done`, and `→abandoned` from
 any non-terminal phase. Re-open edges `planned→planning` and `building→planning`
-also exist, but they are reserved for `/plan:follow-up` (adding scope to an
+also exist, but they are reserved for `/cq:plan:follow-up` (adding scope to an
 existing goal) — do not use them in the normal planning flow. Illegal jumps
 throw `InvalidTransitionError`. Do not attempt any other transition.
 
 > **Invariant — never auto-close a goal:** The `building→done` edge is a LEGAL
 > state-machine transition, but it is **user-driven only**. Neither this planner
-> nor the `/plan:advance` orchestrator ever performs `building→done`
+> nor the `/cq:plan:advance` orchestrator ever performs `building→done`
 > automatically; that closure is always the user's action (set via the TUI/web
 > after they are satisfied with the delivered work). The same rule applies to any
 > other terminal closure of a goal. This planner is responsible for
@@ -128,7 +128,7 @@ throw `InvalidTransitionError`. Do not attempt any other transition.
      **defect-seeded** (the grep-able token from K8 point 4 / the T35 decision):
      its `fields.ledgerRefs` carries a `defects:<D>` link AND its
      `fields.description` embeds the *confirmed* root cause + `suggestedFix` (the
-     shape `/investigate:advance` writes when it seeds a goal from a confirmed
+     shape `/cq:investigate:advance` writes when it seeds a goal from a confirmed
      node). When BOTH hold there is nothing left to clarify — the investigation
      already settled scope and cause — so do NOT file clarifying questions;
      proceed straight to **(b)** below and emit a defect-aware plan (see
@@ -235,10 +235,10 @@ greenfield work — model it as a defect record PLUS one-or-more fix tasks:
 > Per **K12 / Q42**, user-reported faults are also auto-investigated: any `open`
 > defect linked to this goal — whether it came from the user or from the
 > reviewer's bucket — is picked up by the `/plan:*` COMMAND orchestrator (T74),
-> which re-derives the worklist by LEDGER QUERY and launches `/investigate:advance`
+> which re-derives the worklist by LEDGER QUERY and launches `/cq:investigate:advance`
 > itself after its primary planning work. The defect-record + fix-task mechanics
 > below are UNCHANGED by that; you still only FILE/plan here (you never spawn
-> subagents and never run `/investigate:advance`).
+> subagents and never run `/cq:investigate:advance`).
 
 1. **The defect record.** Create (or reuse, if the goal is **defect-seeded** and
    already carries a `defects:<D>` ledgerRef — then reuse that D, do not create a
@@ -290,8 +290,8 @@ question for these defects. The `/plan:*` COMMAND orchestrator (T74), after its
 primary planning work, **re-derives the auto-investigate worklist by QUERYING
 THE LEDGER** — defects linked `goals:<G>` whose `status` is still ACTIONABLE
 (`open`/`wip`/`inconclusive`; `root-caused` is ready-to-seed, `resolved`/`wontfix`
-terminal) — and launches `/investigate:advance` itself. You are a SUBAGENT: you only FILE
-the defect; you never spawn subagents and you never run `/investigate:advance`
+terminal) — and launches `/cq:investigate:advance` itself. You are a SUBAGENT: you only FILE
+the defect; you never spawn subagents and you never run `/cq:investigate:advance`
 (K12 point 3 keeps subagents-cannot-spawn-subagents in force).
 
 This is **file-and-defer**: the defect is recorded for separate triage, while

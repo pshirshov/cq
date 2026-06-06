@@ -1,12 +1,12 @@
 ---
-description: Advance the WHOLE flow one cycle — chain /investigate:advance, /plan:advance, /implement:advance to quiescence, then report DRAINED / BLOCKED-ON-QUESTIONS / MIXED.
+description: Advance the WHOLE flow one cycle — chain /cq:investigate:advance, /cq:plan:advance, /cq:implement:advance to quiescence, then report DRAINED / BLOCKED-ON-QUESTIONS / MIXED.
 argument-hint:   # no argument; operates on the entire ledger
 allowed-tools: mcp__ledger__*, Read, Grep, Glob, Bash
 ---
 
 You are the **top-level flow sequencer**. You drive an end-to-end run by chaining
-the three existing per-flow advance commands — `/investigate:advance`,
-`/plan:advance`, `/implement:advance` — to quiescence. You are a
+the three existing per-flow advance commands — `/cq:investigate:advance`,
+`/cq:plan:advance`, `/cq:implement:advance` — to quiescence. You are a
 **command-of-commands** (decision **K12**: a *command* may chain another command;
 a *subagent* still cannot). This command runs in the **MAIN session** and
 **dispatches NO subagents of its own** (Q58). Every subagent (explorers, planner,
@@ -22,19 +22,19 @@ answering questions); it picks up exactly where the durable ledger state left of
 ## Conventions this command obeys (K12)
 - **Pure sequencer.** You do not re-implement any sub-flow's logic — you RUN the
   sub-command (chaining it inline in this same main session, exactly per its own
-  prompt: `/investigate:advance`, `/plan:advance`,
-  `/implement:advance`). The subagents-cannot-spawn-subagents rule is
+  prompt: `/cq:investigate:advance`, `/cq:plan:advance`,
+  `/cq:implement:advance`). The subagents-cannot-spawn-subagents rule is
   preserved because ONLY this command (a command) chains commands; the sub-flows'
   subagents still spawn nothing.
 - **No concurrency cap of this command's own (Q60).** /cq:advance introduces NO
   concurrency limit; each chained sub-flow keeps its OWN (implement-flow's `N = 8`
   worker batch, investigate's seed-parallel/drill-serial rule, etc.). You inherit
   whatever each sub-command enforces and add nothing.
-- **No double-triage of goal-linked defects (Q57).** `/plan:advance` OWNS the
+- **No double-triage of goal-linked defects (Q57).** `/cq:plan:advance` OWNS the
   auto-investigate of every defect linked to a goal it advances (its
   auto-investigate phase, keyed on defect STATUS). Therefore /cq:advance's
   investigate stage triages ONLY defects NOT already owned by a planning goal — it
-  does not re-run `/investigate:advance` on a defect that `/plan:advance` will pick
+  does not re-run `/cq:investigate:advance` on a defect that `/cq:plan:advance` will pick
   up. See the investigate predicate below.
 - **Ledger is the source of truth.** Detection is by LEDGER QUERY on item STATUS
   (the queryable lifecycles from T116/M33), never by parsing a sub-command's prose
@@ -162,7 +162,7 @@ Before each stage you run a LEDGER QUERY to decide whether that stage has work.
 All three read item STATUS using the queryable lifecycles (the NEW defect statuses
 from **T116/M33**); none parses prose.
 
-### P-investigate — is there a defect actionable by /investigate:advance?
+### P-investigate — is there a defect actionable by /cq:investigate:advance?
 TRUE iff there exists a **defect** D such that ALL hold:
 - D's `status` is **ACTIONABLE** — `open`, `wip`, or `inconclusive` (the new
   T116/M33 lifecycle; `root-caused` is READY-TO-SEED and handled by plan's
@@ -174,7 +174,7 @@ TRUE iff there exists a **defect** D such that ALL hold:
   actionable;
 - D is **NOT already owned by a planning goal** (Q57) — D is not linked
   (`ledgerRefs` `defects:<D>`) by any goal in a movable planning phase
-  (`clarifying`/`planning`). Those defects are `/plan:advance`'s to
+  (`clarifying`/`planning`). Those defects are `/cq:plan:advance`'s to
   auto-investigate; triaging them here would double-triage.
 
 (`root-caused` defects are NOT re-triaged here — plan's auto-investigate seeds the
@@ -193,7 +193,7 @@ do NOT make P-plan true.)
 ### P-implement — is there a DAG-ready task to implement?
 TRUE iff there exists a **goal** G in `planned` or `building` that has a
 **DAG-READY non-terminal task** — a task in the implement-flow READY-SET per
-`/implement:advance` §1: status non-terminal and NOT `blocked`; every
+`/cq:implement:advance` §1: status non-terminal and NOT `blocked`; every
 task in its `dependsOn` is `done`; its milestone's `dependsOn` milestones are
 satisfied; and it has NO linked `open` question. (A goal whose only remaining
 tasks are all `blocked` on open questions yields no ready task — P-implement is
@@ -210,23 +210,23 @@ you re-derive the predicates and continue.
 
 ### Cycle order: investigate → plan → implement, then RE-CHECK investigate
 1. **Investigate stage.** Evaluate **P-investigate**. If TRUE, for each defect D in
-   its worklist run **`/investigate:advance D` INLINE** — exactly per
-   `/investigate:advance` (do NOT re-implement it; RUN it). This
+   its worklist run **`/cq:investigate:advance D` INLINE** — exactly per
+   `/cq:investigate:advance` (do NOT re-implement it; RUN it). This
    triages only the NOT-owned-by-a-planning-goal defects (Q57); a defect already
    linked to a `clarifying`/`planning` goal is left for the plan stage's
    auto-investigate. If P-investigate is FALSE, skip this stage.
-2. **Plan stage.** Evaluate **P-plan**. If TRUE, run **`/plan:advance` INLINE**
+2. **Plan stage.** Evaluate **P-plan**. If TRUE, run **`/cq:plan:advance` INLINE**
    (no argument — it advances every unlocked goal) exactly per
-   `/plan:advance`. Note: **plan:advance OWNS auto-investigate** of
+   `/cq:plan:advance`. Note: **plan:advance OWNS auto-investigate** of
    its goal-linked defects (its own auto-investigate phase) — so /cq:advance does NOT
    double-triage them (Q57); the plan stage handles them as part of its own round.
    If P-plan is FALSE, skip this stage.
 3. **Implement stage.** Evaluate **P-implement**. If TRUE, run
-   **`/implement:advance` INLINE** (no argument) exactly per
-   `/implement:advance`. "Resume" INCLUDES a just-`planned` goal with
-   no prior implement pass: `/implement:advance` derives its ready-set from the
+   **`/cq:implement:advance` INLINE** (no argument) exactly per
+   `/cq:implement:advance`. "Resume" INCLUDES a just-`planned` goal with
+   no prior implement pass: `/cq:implement:advance` derives its ready-set from the
    planned tasks (every non-archived, non-terminal milestone with non-terminal
-   tasks), so a missing `/implement:start` or "no run bootstrapped yet" is NEVER a
+   tasks), so a missing `/cq:implement:start` or "no run bootstrapped yet" is NEVER a
    reason to skip the stage or to ask — bootstrap and build. Its reviewers may
    FILE new `open` defects (file-and-defer, K13). If P-implement is FALSE, skip
    this stage.
@@ -331,7 +331,7 @@ surfaced new work) means another cycle is warranted.
 After the loop reaches quiescence, run the **auto-close+archive sweep** over the
 entire `milestones` ledger. `/cq:advance` is the AUTHORITATIVE locus for this rule
 (it re-derives ledger state each run, so it also catches milestones whose goal
-the user closed between runs); `/implement:advance`'s milestone-completion step
+the user closed between runs); `/cq:implement:advance`'s milestone-completion step
 states the SAME factored predicate for the in-pass case — keep the two in sync,
 do not let them diverge.
 
@@ -395,7 +395,7 @@ committed at the point of archive.
 ## End-of-run report (Q59 — DRAINED / BLOCKED-ON-QUESTIONS / MIXED)
 
 When the loop stops, classify the run into exactly ONE of three categories and
-report it. Mirror `/implement:advance`'s end-of-pass report style
+report it. Mirror `/cq:implement:advance`'s end-of-pass report style
 (concise, id-listing, next-action-bearing).
 
 - **DRAINED** — nothing actionable remains anywhere: every defect terminal or

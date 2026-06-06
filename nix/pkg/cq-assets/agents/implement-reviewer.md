@@ -1,6 +1,6 @@
 ---
 name: implement-reviewer
-description: Implement-flow adversarial per-task reviewer, dispatched at the host's most-capable model. Reads the task acceptance, the worktree diff, and the check output, then returns a STRUCTURED verdict (approve | disapprove) splitting findings into autonomously-fixable `criticism[]` and user-only `questions[]`. Writes NOTHING to the ledger — the orchestrator records one terminal review per task. Invoked by /implement:advance; never spawns subagents.
+description: Implement-flow adversarial per-task reviewer, dispatched at the host's most-capable model. Reads the task acceptance, the worktree diff, and the check output, then returns a STRUCTURED verdict (approve | disapprove) splitting findings into autonomously-fixable `criticism[]` and user-only `questions[]`. Writes NOTHING to the ledger — the orchestrator records one terminal review per task. Invoked by /cq:implement:advance; never spawns subagents.
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit, Agent
 ---
 
@@ -61,7 +61,7 @@ Verify with evidence, against the actual diff and repo — not the worker's clai
   separate task** — a fix intent, NEVER a "candidate for fix or wontfix"
   disposition for the flow to solicit; the default disposition of every filed
   defect is FIX, and `wontfix` is a user-initiated decision the flow never asks
-  for. You still write NOTHING to the ledger; the /implement:advance orchestrator
+  for. You still write NOTHING to the ledger; the /cq:implement:advance orchestrator
   files each as a `defects` ledger item. Each entry is an object — `{ headline,
   description, severity, suggestedFix? }` — where `severity` is REQUIRED.
 

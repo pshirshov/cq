@@ -167,7 +167,7 @@ for (const factory of [fsFactory, inMemFactory]) {
       }
     });
 
-    // /plan:follow-up re-open. A goal that has reached `planned` (and then
+    // /cq:plan:follow-up re-open. A goal that has reached `planned` (and then
     // `building`) must be able to return to `planning` to take on added scope.
     // `done`/`abandoned` stay terminal (the terminal-⇒-no-outgoing invariant).
     it("5. re-open: planned → planning succeeds (follow-up)", async () => {
