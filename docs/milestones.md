@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 72
+  item: 73
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -392,3 +392,10 @@ archives:
 - createdAt: 2026-06-06T12:24:48.761Z
 - updatedAt: 2026-06-06T12:24:48.761Z
 - title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
+
+### M73 — open
+
+- createdAt: 2026-06-06T16:25:33.137Z
+- updatedAt: 2026-06-06T16:25:33.137Z
+- title: "Investigate: sm-diagram-alignment (blocked on env)"
+- description: "Tracks the unresolved right-alignment of the widest state-machine diagrams in the web help dialog. Blocked: cannot reproduce/diagnose without a browser-rendering environment (sandbox has no browser engine; test suite uses happy-dom which does no layout)."

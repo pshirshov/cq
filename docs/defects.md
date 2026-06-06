@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 32
+  item: 33
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -138,3 +138,38 @@ archives:
 - sessionLogs: ["docs/logs/20260605-185840-addf76024a26b2805.md"]
 - dependsOn: ["T179","T180","T181"]
 - fix: "Resolved across T179/T180/T181 (merged to main 24c1d51). T179: made link-prompts.ts import-safe (export LINKS+checkLinks, creation loop behind import.meta.main), added --check mode + reproduce-first test. T180: repointed all 14 LINKS sources llm/ -> ../cq-assets/{commands,agents}/ (all resolve) and hardened the loop to throw loud on a missing source (reuses checkLinks), flipped repro test to checkLinks(LINKS) toEqual([]). T181: de-staled cq-assets/README.md to the new layout. `bun run link-prompts` now produces 14 non-dangling symlinks; integrated bun run check green."
+
+## M73
+
+### D33 — open
+
+- createdAt: 2026-06-06T16:25:53.737Z
+- updatedAt: 2026-06-06T16:25:53.737Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "Help-dialog state-machine diagrams: the over-wide ones (goals/milestones/tasks) render right-aligned instead of left"
+- severity: low
+- description: |
+    In the web help dialog → 'State machines' tab, the three diagrams whose intrinsic width meets/exceeds the dialog inner width render RIGHT-aligned, while all narrower diagrams render LEFT-aligned. User-confirmed across two deploys:
+    - RIGHT: goals (intrinsic w=1032), milestones (856), tasks (856)
+    - LEFT (correct): defects (680), hypothesis (504), questions (328), decisions (328), reviews (152), handoffs (152, edgeless)
+    The split maps EXACTLY to intrinsic width vs the dialog inner width (~849px after the vertical scrollbar of .lw-help-body): only diagrams whose computed width >= container are affected. Cosmetic (the diagrams are fully legible; help-only feature) → severity low.
+    
+    Intrinsic widths were measured by feeding CANONICAL_LEDGERS schemas through computeStateMachine (debug script, since removed).
+    
+    SUB-ISSUE ALREADY FIXED: edgeless diagrams (e.g. handoffs) previously rendered with GIANT nodes because T195 set the svg to CSS width:100%, upscaling the narrow ~152px viewBox to full dialog width. Fixed in 47e8ff7 (restored intrinsic width/height attrs + max-width shrink-only) and confirmed by the user. Only the alignment remains.
+    
+    WHAT WAS TRIED (neither fixed alignment):
+    - 47e8ff7: intrinsic width/height attrs + CSS max-width:100%; height:auto; preserveAspectRatio=xMinYMid meet.
+    - 441d46c: CSS width:100% (hard-constrain to dialog so a wide diagram cannot overflow) + inline per-diagram max-width=intrinsic px (caps upscaling). User redeployed → NO change to alignment.
+    
+    ANALYSIS (why the obvious levers are ruled out):
+    - preserveAspectRatio=xMinYMid pins content to the LEFT inside the svg in every meet/slice/slack case, so the right-shift cannot originate from preserveAspectRatio.
+    - An HTML-level centering/auto-margin would mis-position the NARROW (uncapped) diagrams (the ones with free space), but those are the CORRECT/left ones — so external margin/justify is ruled out.
+    - Therefore the defect is specific to the over-wide (capped) diagrams. The overflow hypothesis (max-width:100% failing to shrink an svg whose width attr exceeds the container) was directly tested by 441d46c's width:100% hard-constraint and did NOT fix it — so that hypothesis is likely wrong or incomplete.
+    
+    FILES: nix/pkg/cq-ledgers/packages/ledger-web/src/App.tsx (StateMachineDiagram, ~L1589); src/styles.css (.lw-statemachine-svg, and the .lw-help / .lw-help-body / .lw-help-statemachines layout).
+    
+    BLOCKER (env): cannot reproduce or diagnose in this environment — the sandbox has no browser engine (no chromium/playwright), and the web test suite runs under happy-dom, which performs NO layout (getBoundingClientRect/computed width are not meaningful). A correct fix needs browser-rendered ground truth (see the linked open question). Two reasoned-but-unverified attempts already shipped; not shipping a third blind guess.
+- tags: ["web","help-dialog","css","blocked-on-env"]
+- ledgerRefs: ["goals:G22"]
