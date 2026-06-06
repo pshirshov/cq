@@ -1170,32 +1170,44 @@ describe("ledger-web sidebar layout (T4)", () => {
     expect(testid("batch-overlay")).not.toBeNull();
   });
 
-  it("keyboard nav: cursor follows visual order (questions=0, bugs=1, milestones=2)", async () => {
+  it("keyboard nav: cursor follows visual order (questions=0, milestones=1, tasks=2, reviews=3, bugs=4, plain=5)", async () => {
     await mount();
     // Initial cursor is on questions (visual index 0) — the first item in visual order.
     expect(testid("ledger-questions")?.className).toContain("lw-ledger-cursor");
-    // ArrowDown crosses the divider → bugs (visual index 1).
-    press("ArrowDown");
-    await flush();
-    expect(testid("ledger-bugs")?.className).toContain("lw-ledger-cursor");
-    // ArrowDown → milestones (visual index 2).
+    // ArrowDown crosses the group divider → milestones (visual index 1, group 2).
     press("ArrowDown");
     await flush();
     expect(testid("ledger-milestones")?.className).toContain("lw-ledger-cursor");
-    // Enter opens milestones.
-    press("Enter");
+    // ArrowDown → tasks (visual index 2, group 3).
+    press("ArrowDown");
     await flush();
-    expect(testid("item-M1")).not.toBeNull();
-  });
-
-  it("keyboard nav: ↓ from questions crosses divider to bugs; ↑ returns; ↑ from questions clamps; ↓ from last ledger clamps", async () => {
-    await mount();
-    // Confirm initial position: questions is at visual index 0.
-    expect(testid("ledger-questions")?.className).toContain("lw-ledger-cursor");
-    // ↓ crosses the divider → bugs (visual index 1, first non-questions ledger).
+    expect(testid("ledger-tasks")?.className).toContain("lw-ledger-cursor");
+    // ArrowDown → reviews (visual index 3, group 5).
+    press("ArrowDown");
+    await flush();
+    expect(testid("ledger-reviews")?.className).toContain("lw-ledger-cursor");
+    // ArrowDown → bugs (visual index 4, custom group).
     press("ArrowDown");
     await flush();
     expect(testid("ledger-bugs")?.className).toContain("lw-ledger-cursor");
+    // ArrowDown → plain (visual index 5, custom group).
+    press("ArrowDown");
+    await flush();
+    expect(testid("ledger-plain")?.className).toContain("lw-ledger-cursor");
+    // Enter opens plain, cursor index 5 == visual position 5.
+    press("Enter");
+    await flush();
+    expect(testid("item-P1")).not.toBeNull();
+  });
+
+  it("keyboard nav: ↓ from questions crosses divider to milestones; ↑ returns; ↑ from questions clamps; ↓ from last ledger clamps", async () => {
+    await mount();
+    // Confirm initial position: questions is at visual index 0.
+    expect(testid("ledger-questions")?.className).toContain("lw-ledger-cursor");
+    // ↓ crosses the group divider → milestones (visual index 1, first canonical group after questions).
+    press("ArrowDown");
+    await flush();
+    expect(testid("ledger-milestones")?.className).toContain("lw-ledger-cursor");
     // ↑ crosses back over the divider → questions (visual index 0).
     press("ArrowUp");
     await flush();
@@ -1204,18 +1216,18 @@ describe("ledger-web sidebar layout (T4)", () => {
     press("ArrowUp");
     await flush();
     expect(testid("ledger-questions")?.className).toContain("lw-ledger-cursor");
-    // Navigate to the last ledger (tasks, visual index 5 = bugs/milestones/plain/reviews/tasks).
-    press("ArrowDown"); // → bugs (1)
-    press("ArrowDown"); // → milestones (2)
-    press("ArrowDown"); // → plain (3)
-    press("ArrowDown"); // → reviews (4)
-    press("ArrowDown"); // → tasks (5)
+    // Navigate to the last ledger (plain, visual index 5 = milestones/tasks/reviews/bugs/plain).
+    press("ArrowDown"); // → milestones (1)
+    press("ArrowDown"); // → tasks (2)
+    press("ArrowDown"); // → reviews (3)
+    press("ArrowDown"); // → bugs (4)
+    press("ArrowDown"); // → plain (5)
     await flush();
-    expect(testid("ledger-tasks")?.className).toContain("lw-ledger-cursor");
-    // ↓ from the last item clamps (stays on tasks).
+    expect(testid("ledger-plain")?.className).toContain("lw-ledger-cursor");
+    // ↓ from the last item clamps (stays on plain).
     press("ArrowDown");
     await flush();
-    expect(testid("ledger-tasks")?.className).toContain("lw-ledger-cursor");
+    expect(testid("ledger-plain")?.className).toContain("lw-ledger-cursor");
   });
 });
 
@@ -1224,23 +1236,27 @@ describe("ledger-web keyboard navigation", () => {
     await mount();
     // sidebar focused, cursor on the first ledger in visual order (questions, visual index 0)
     expect(testid("ledger-questions")?.className).toContain("lw-ledger-cursor");
-    press("ArrowDown"); // → bugs (visual index 1)
-    await flush();
-    expect(testid("ledger-bugs")?.className).toContain("lw-ledger-cursor");
-    press("ArrowDown"); // → milestones (visual index 2)
+    press("ArrowDown"); // → milestones (visual index 1)
     await flush();
     expect(testid("ledger-milestones")?.className).toContain("lw-ledger-cursor");
-    press("ArrowUp"); // back → bugs
+    press("ArrowDown"); // → tasks (visual index 2)
     await flush();
-    expect(testid("ledger-bugs")?.className).toContain("lw-ledger-cursor");
-    press("Enter"); // open bugs
+    expect(testid("ledger-tasks")?.className).toContain("lw-ledger-cursor");
+    press("ArrowUp"); // back → milestones (visual index 1)
     await flush();
-    expect(testid("item-D1")).not.toBeNull();
+    expect(testid("ledger-milestones")?.className).toContain("lw-ledger-cursor");
+    press("Enter"); // open milestones
+    await flush();
+    expect(testid("item-M1")).not.toBeNull();
   });
 
   it("moves through items into the detail panel and Esc closes it", async () => {
     await mount();
-    press("ArrowDown"); // move to bugs (visual index 1)
+    // bugs is at visual index 4 in the new group order (milestones/tasks/reviews/bugs/plain).
+    press("ArrowDown"); // → milestones (1)
+    press("ArrowDown"); // → tasks (2)
+    press("ArrowDown"); // → reviews (3)
+    press("ArrowDown"); // → bugs (4)
     await flush();
     press("Enter"); // open bugs → main zone
     await flush();

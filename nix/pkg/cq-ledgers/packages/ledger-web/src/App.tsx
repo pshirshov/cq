@@ -72,6 +72,20 @@ const MILESTONES = "milestones";
 /** Provenance author stamped on writes made by a human through this editor. */
 const UI_AUTHOR = "user";
 
+/**
+ * Canonical sidebar group order (T193). Each inner array is one group;
+ * ledgers render in this order with <hr> splitters between non-empty groups.
+ * Any ledger not named here falls into the trailing "custom" group.
+ * The Q&A button is appended inline after the questions ledger (group 0).
+ */
+const SIDEBAR_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
+  ["questions"],
+  ["goals", "milestones"],
+  ["defects", "tasks"],
+  ["handoffs"],
+  ["decisions", "hypothesis", "reviews"],
+] as const;
+
 /** Debounce for as-you-type search (ms). */
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -782,16 +796,21 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
     [client, ledger, reload],
   );
 
-  // Visual order: 'questions' first (if present), then other ledgers in their
-  // original array order. Both the render and the keyboard cursor use this
-  // ordering so that cursor index == visual position at all times.
-  const visualLedgers = useMemo<LedgerSummary[]>(
-    () => [
-      ...ledgers.filter((l) => l.name === QUESTIONS_LEDGER),
-      ...ledgers.filter((l) => l.name !== QUESTIONS_LEDGER),
-    ],
-    [ledgers],
-  );
+  // Visual order: group-ordered per SIDEBAR_GROUPS, then custom ledgers.
+  // Both the render and the keyboard cursor use this ordering so that
+  // cursor index == visual position at all times.
+  const visualLedgers = useMemo<LedgerSummary[]>(() => {
+    const byName = new Map(ledgers.map((l) => [l.name, l]));
+    const canonical = new Set(SIDEBAR_GROUPS.flat());
+    const grouped = SIDEBAR_GROUPS.flatMap((group) =>
+      group.flatMap((name) => {
+        const l = byName.get(name);
+        return l !== undefined ? [l] : [];
+      }),
+    );
+    const custom = ledgers.filter((l) => !canonical.has(l.name));
+    return [...grouped, ...custom];
+  }, [ledgers]);
 
   // Reset cursors when their underlying lists change.
   useEffect(() => setHitCursor(0), [hits]);
@@ -1030,72 +1049,85 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
 
       <div className="lw-body">
         <nav className="lw-sidebar" data-testid="ledger-list">
-          {/* Section 1: 'questions' ledger (if present), then the Q&A button. */}
-          {visualLedgers.map((l, vi) => {
-            if (l.name !== QUESTIONS_LEDGER) return null;
-            const cls = [
-              "lw-ledger",
-              l.name === ledger ? "lw-ledger-active" : "",
-              navZone === "sidebar" && vi === ledgerCursor ? "lw-ledger-cursor" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <button
-                key={l.name}
-                data-testid={`ledger-${l.name}`}
-                className={cls}
-                onClick={() => {
-                  setLedgerCursor(vi);
-                  setNavZone("main");
-                  void openLedger(l.name);
-                }}
-              >
-                <span className="lw-ledger-name">{l.name}</span>
-                <span className="lw-ledger-count" data-testid={`ledger-count-${l.name}`}>
-                  {l.itemCount}
-                </span>
-              </button>
-            );
-          })}
-          {/* Batch-answer entry point (Q33). */}
-          <button
-            type="button"
-            className="lw-batch-open"
-            data-testid="batch-open"
-            onClick={() => void openBatch()}
-          >
-            Q&A
-          </button>
-          <hr className="lw-sidebar-divider" data-testid="sidebar-divider" />
-          {/* Section 2: all ledgers except 'questions', in their original order. */}
-          {visualLedgers.map((l, vi) => {
-            if (l.name === QUESTIONS_LEDGER) return null;
-            const cls = [
-              "lw-ledger",
-              l.name === ledger ? "lw-ledger-active" : "",
-              navZone === "sidebar" && vi === ledgerCursor ? "lw-ledger-cursor" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <button
-                key={l.name}
-                data-testid={`ledger-${l.name}`}
-                className={cls}
-                onClick={() => {
-                  setLedgerCursor(vi);
-                  setNavZone("main");
-                  void openLedger(l.name);
-                }}
-              >
-                <span className="lw-ledger-name">{l.name}</span>
-                <span className="lw-ledger-count" data-testid={`ledger-count-${l.name}`}>
-                  {l.itemCount}
-                </span>
-              </button>
-            );
-          })}
+          {/* Group-ordered render (T193): SIDEBAR_GROUPS order, then custom ledgers.
+              <hr> splitters appear between non-empty adjacent groups.
+              The Q&A button is inlined after the questions ledger (group 0). */}
+          {(() => {
+            const byName = new Map(visualLedgers.map((l) => [l.name, l]));
+            const canonical = new Set(SIDEBAR_GROUPS.flat());
+
+            // Build the rendered groups (only non-empty ones).
+            const canonicalGroups = SIDEBAR_GROUPS.map((group) =>
+              group.flatMap((name) => {
+                const l = byName.get(name);
+                return l !== undefined ? [l] : [];
+              }),
+            ).filter((g) => g.length > 0);
+            const customLedgers = visualLedgers.filter((l) => !canonical.has(l.name));
+            const renderedGroups = customLedgers.length > 0
+              ? [...canonicalGroups, customLedgers]
+              : canonicalGroups;
+
+            // Track running visual index to align with visualLedgers indices.
+            let vi = 0;
+            const elements: React.ReactNode[] = [];
+
+            for (let gi = 0; gi < renderedGroups.length; gi++) {
+              const group = renderedGroups[gi]!;
+              // Splitter before each group except the first.
+              if (gi > 0) {
+                elements.push(
+                  <hr
+                    key={`divider-${gi}`}
+                    className="lw-sidebar-divider"
+                    data-testid="sidebar-divider"
+                  />,
+                );
+              }
+              for (const l of group) {
+                const idx = vi++;
+                const cls = [
+                  "lw-ledger",
+                  l.name === ledger ? "lw-ledger-active" : "",
+                  navZone === "sidebar" && idx === ledgerCursor ? "lw-ledger-cursor" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                elements.push(
+                  <button
+                    key={l.name}
+                    data-testid={`ledger-${l.name}`}
+                    className={cls}
+                    onClick={() => {
+                      setLedgerCursor(idx);
+                      setNavZone("main");
+                      void openLedger(l.name);
+                    }}
+                  >
+                    <span className="lw-ledger-name">{l.name}</span>
+                    <span className="lw-ledger-count" data-testid={`ledger-count-${l.name}`}>
+                      {l.itemCount}
+                    </span>
+                  </button>,
+                );
+                // Q&A button appears inline after the questions ledger (group 0).
+                if (l.name === QUESTIONS_LEDGER) {
+                  elements.push(
+                    <button
+                      key="batch-open"
+                      type="button"
+                      className="lw-batch-open"
+                      data-testid="batch-open"
+                      onClick={() => void openBatch()}
+                    >
+                      Q&A
+                    </button>,
+                  );
+                }
+              }
+            }
+            return elements;
+          })()}
         </nav>
 
         <div className={`lw-workarea lw-workarea-${panel.orientation}`} ref={workareaRef}>
