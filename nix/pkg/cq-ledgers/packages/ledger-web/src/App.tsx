@@ -1594,6 +1594,10 @@ function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: Ledge
       data-testid={`help-statemachine-svg-${ledger}`}
       width={model.width}
       height={model.height}
+      // Cap upscaling at the diagram's intrinsic width: CSS width:100% fills the
+      // dialog (so wide diagrams can't overflow), this max-width keeps a narrow
+      // diagram (e.g. edgeless handoffs) at its natural size instead of stretched.
+      style={{ maxWidth: model.width }}
       viewBox={`0 0 ${model.width} ${model.height}`}
       preserveAspectRatio="xMinYMid meet"
     >

@@ -231,11 +231,15 @@ body {
 }
 .lw-statemachine-svg {
   display: block;
-  /* Render at the diagram's intrinsic size (set via width/height attrs) so every
-     diagram shares the same node size and a consistent left origin; only shrink
-     when a wide diagram would overflow the dialog. width:100% (T195) upscaled the
-     narrow edgeless diagrams (e.g. handoffs) to full width → giant nodes. */
-  max-width: 100%;
+  /* width:100% constrains every diagram to the dialog width so a wide diagram
+     (intrinsic width > dialog, e.g. goals/milestones/tasks) can never overflow
+     and be mispositioned — `max-width:100%` on an svg with a larger intrinsic
+     width attr fails to shrink it in some engines. The per-diagram max-width
+     (intrinsic px, set inline) caps UPSCALING, so a narrow diagram (e.g. the
+     edgeless handoffs) renders at its natural small size, not stretched giant.
+     height:auto + the viewBox keep the aspect ratio; the result is a block at a
+     consistent left origin for every diagram. */
+  width: 100%;
   height: auto;
 }
 .lw-statemachine-svg text {

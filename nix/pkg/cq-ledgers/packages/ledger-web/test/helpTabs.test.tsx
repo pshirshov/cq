@@ -128,16 +128,20 @@ describe("tabbed help dialog", () => {
     );
     expect(container.querySelector('[data-testid^="help-sm-edge-plain-"]')).toBeNull();
 
-    // Regression guard (giant-node defect): the svg carries explicit intrinsic
-    // width/height attrs so it renders at natural size (max-width:100% only
-    // shrinks) instead of being upscaled by a CSS width:100%. An edgeless ledger
-    // stacks its statuses in a single column, so the intrinsic width stays narrow.
-    const svg = testid("help-statemachine-svg-plain");
+    // Regression guard (giant-node + alignment defect): the svg carries explicit
+    // intrinsic width/height attrs AND an inline max-width = intrinsic width. CSS
+    // width:100% fills the dialog (wide diagrams can't overflow → no right-shift)
+    // while the inline max-width caps upscaling, so a narrow edgeless diagram
+    // renders at its natural small size. An edgeless ledger stacks its statuses
+    // in a single column, so the intrinsic width stays narrow.
+    const svg = testid("help-statemachine-svg-plain") as unknown as SVGElement | null;
     const w = Number(svg?.getAttribute("width"));
     const h = Number(svg?.getAttribute("height"));
     expect(w).toBeGreaterThan(0);
     expect(h).toBeGreaterThan(0);
     expect(w).toBeLessThan(200); // single-column edgeless diagram is narrow, never stretched wide
+    // Inline max-width pins upscaling to the intrinsic width (px).
+    expect((svg as HTMLElement | null)?.style.maxWidth).toBe(`${w}px`);
   });
 
   it("Esc still closes the dialog and help-overlay/help-close testids persist", async () => {
