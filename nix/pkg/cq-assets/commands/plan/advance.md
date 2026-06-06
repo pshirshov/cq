@@ -135,11 +135,26 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
           it to emit EXACTLY that shape and nothing else. **Strip any code fence**
           before parsing — `pi` may wrap the JSON in a triple-backtick ` ```json `
           block. Capture the parsed candidate object.
-        Collect the N candidate plans (one per active planner). If a candidate
-        comes back with empty `milestones`/`tasks` and a `rationale` explaining
-        the goal cannot be planned yet (still needs user clarification), treat
-        that as the planner's signal that this step should fall through to
-        `awaiting-answers` — see sub-step 1c.
+        Collect the candidate plans from the planners that returned a usable
+        candidate. **A planner that fails to return a usable candidate ABSTAINS**
+        — a `pi` shellout that exits non-zero, emits empty stdout, or yields
+        stdout that does not parse (after fence-strip) into the candidate
+        contract, OR a `claude:*` candidate planner that returns no / garbled
+        json — is DROPPED (logged with its alias + cause, §Session logs); the
+        synthesis (ii) proceeds over the SURVIVING candidates. **No wall-clock
+        timeout is imposed** (abstention keys ONLY on a RETURNED failure —
+        non-zero exit, empty, or unparseable; a genuinely hung shellout is an
+        operational stall to handle directly, never a silent abstention).
+        **Quorum floor:** if EVERY configured planner abstained, fall back to the
+        single-planner native path (sub-step 1a — the `plan-advance` subagent
+        writes the plan) and REPORT that the configured planner panel was
+        unavailable (which aliases abstained + why); the round never blocks on an
+        unavailable panel and never synthesizes from zero candidates.
+        Distinguish an abstention (a FAILURE to respond) from a deliberate empty
+        candidate: if a SURVIVING candidate comes back with empty
+        `milestones`/`tasks` and a `rationale` explaining the goal cannot be
+        planned yet (still needs user clarification), that is a VALID signal —
+        treat it as this step falling through to `awaiting-answers` (sub-step 1c).
       - **ii. JUDGE + SYNTHESIS (Q100 — fold-in, NOT pick-best-discard-rest).**
         Run a synthesis step — either inline as the orchestrator, or via a
         dedicated `plan-synthesizer` subagent (an `Agent` call) — over the N
@@ -258,11 +273,28 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
           criticism: [], defects: [...] }`. **Strip any code fence** before
           parsing — `pi` may wrap the JSON in a triple-backtick ` ```json `
           block. Capture the parsed object.
-      - **ii. Reconcile (Q91) — STRICTEST-WINS + tagged UNION.** Combine all
-        reviewers' verdicts into one:
-        - **Verdict:** `revise` if ANY reviewer returned `revise`; `go-ahead`
-          ONLY if ALL reviewers returned `go-ahead`.
-        - **Findings:** UNION every reviewer's `new_questions`, `criticism`, and
+        - **Abstention (no timeout).** A reviewer that fails to return a usable
+          verdict ABSTAINS — a `pi` shellout that exits non-zero / emits empty
+          stdout / yields stdout that does not parse (after fence-strip) into the
+          verdict contract, or a `claude:*` reviewer that returns no / garbled
+          json — is DROPPED from the panel (not counted `go-ahead`, not counted
+          `revise`), logged with its alias + cause (§Session logs). No wall-clock
+          timeout: abstention keys ONLY on a RETURNED failure; a hung shellout is
+          an operational stall, not a silent abstention. Reconcile (ii) over the
+          reviewers that DID return a usable verdict.
+      - **ii. Reconcile (Q91) — STRICTEST-WINS + tagged UNION, over SURVIVORS.**
+        Combine the SURVIVING reviewers' verdicts (abstainers excluded from BOTH
+        the verdict and the union) into one:
+        - **Quorum floor (all-abstain fallback):** if EVERY configured reviewer
+          abstained (zero usable verdicts), fall back to the **single-reviewer
+          path (sub-step 2a)** — the native `plan-reviewer` in its fallback mode
+          writes the verdict itself, so SKIP 2b-iii — and REPORT that the
+          configured panel was unavailable (which aliases abstained + why). The
+          round NEVER blocks on an unavailable panel and never writes a verdict
+          from zero usable reviews.
+        - **Verdict:** `revise` if ANY surviving reviewer returned `revise`;
+          `go-ahead` ONLY if ALL surviving reviewers returned `go-ahead`.
+        - **Findings:** UNION every surviving reviewer's `new_questions`, `criticism`, and
           `defects`. **Prefix each finding with its source reviewer's alias**
           (e.g. `[grok] …`, `[opus] …`) so provenance survives the merge.
           De-duplicate obvious near-identical findings across reviewers, but bias

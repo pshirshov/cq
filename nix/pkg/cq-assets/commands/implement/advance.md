@@ -134,17 +134,39 @@ Every reviewer — native `implement-reviewer` and the shared `/cq:implement-rev
 rubric driving `pi` — returns the SAME byte-identical contract: `{ taskId,
 verdict: "approve" | "disapprove", criticism: [], questions: [], defects: [...],
 rationale, summary }`. Tag each parsed result with its source reviewer
-(`harness:model`/`alias`) for the reconciliation step. If a `pi` shellout fails
-to run or yields unparseable stdout, treat that reviewer as `disapprove` with a
-`criticism` entry naming the failure (so a flaky external reviewer parks rather
-than silently approves), and log its raw stdout (§Session logs).
+(`harness:model`/`alias`) for the reconciliation step. **A reviewer that fails
+to return a usable verdict ABSTAINS** — a `pi` shellout that exits non-zero,
+emits empty stdout, or yields stdout that does not parse (after fence-strip)
+into the verdict contract, OR a native `claude:*` reviewer that returns no /
+garbled json — is DROPPED from the panel for this task: it is NOT counted as
+`approve` and NOT counted as `disapprove` (an abstention is a panel-membership
+change, not a vote). Log its raw stdout + the abstention reason (alias + cause)
+per §Session logs, and proceed to reconcile over the reviewers that DID return a
+usable verdict. **No wall-clock timeout is imposed** (decision: abstention keys
+ONLY on a RETURNED failure — non-zero exit, empty, or unparseable; a genuinely
+hung shellout surfaces as an operational stall to handle directly, never a
+silent abstention). A quota-exhausted / unauthorized / unavailable reviewer
+therefore drops out and the available reviewers still gate the task — it does
+NOT block a task the rest of the panel approved.
 
 **3c. RECONCILE the panel — STRICTEST-WINS + UNION (Q91).** Fold the panel's
 per-reviewer json into ONE reconciled verdict that drives the criticism loop
 (§4), the success gate (§6), and the single recorded `reviews` item (§Record):
-- **Verdict (strictest-wins):** ANY reviewer `disapprove` → the reconciled
-  verdict is `disapprove`. The reconciled verdict is `approve` ONLY when ALL
-  reviewers `approve` AND the worker's latest `bun run check` is green.
+- **Reconcile over SURVIVORS (abstainers excluded).** The panel for
+  reconciliation is the reviewers that returned a usable verdict in 3b; any that
+  ABSTAINED (failed / empty / unparseable) is excluded from BOTH the verdict and
+  the union — it is not a vote.
+- **Quorum floor (all-abstain fallback).** If EVERY configured reviewer
+  abstained (zero usable verdicts), fall back to the SINGLE native
+  `implement-reviewer` Agent (`subagent_type: "implement-reviewer"`, `opus`) —
+  the always-available default — and use its verdict as the reconciled result;
+  REPORT that the configured panel was unavailable this pass (which aliases
+  abstained + why). The flow NEVER blocks on an unavailable panel and NEVER
+  approves with zero successful reviewers.
+- **Verdict (strictest-wins, over survivors):** ANY surviving reviewer
+  `disapprove` → the reconciled verdict is `disapprove`. The reconciled verdict
+  is `approve` ONLY when ALL surviving reviewers `approve` AND the worker's
+  latest `bun run check` is green.
 - **Findings (union, source-tagged):** the reconciled `criticism[]`,
   `questions[]`, and `defects[]` are the UNION across all reviewers, each entry
   tagged with its source reviewer (`harness:model`/`alias`); dedup byte-identical
