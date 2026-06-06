@@ -1,7 +1,7 @@
 ---
 description: Advance plan-flow goals one full round — a given goal, or (no argument) every unlocked goal — running the planner↔reviewer loop until each needs the user or reaches `planned`.
 argument-hint: [goalId]
-allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
+allowed-tools: mcp__ledger__*, mcp__ledger__get_reviewers, mcp__ledger__get_planners, Agent, Write, Bash, Read, Grep, Glob
 ---
 
 You are the **thin orchestrator** for the plan-flow advance loop. The argument
@@ -10,9 +10,17 @@ You are the **thin orchestrator** for the plan-flow advance loop. The argument
 > $ARGUMENTS
 
 Subagents cannot spawn other subagents, so the planner↔reviewer LOOP lives here
-in the main session. During the **primary planning round** the `plan-advance`
-subagent makes every goal/plan state change. The **review** step is pluggable
-(step 2): in the **single-reviewer fallback** the native `plan-reviewer`
+in the main session. The **primary planning round** is itself **pluggable**
+(step 1's *resolve-planners* sub-step): in the **single-planner fallback** the
+native `plan-advance` subagent makes every goal/plan state change itself (you
+write nothing — today's path, UNCHANGED); in the **configured multi-planner**
+path you, the orchestrator, launch ALL active planners in parallel as
+candidate-emitters (claude `plan-advance` in CANDIDATE mode + `pi:*` shellouts —
+each RETURNS a candidate-plan JSON and writes nothing), run the **JUDGE+SYNTHESIS**
+step that folds the strongest candidate together with the valuable parts of the
+others into ONE synthesized plan, and then YOU — the orchestrator — are the ONLY
+writer that persists that one plan to the ledger. The **review** step is likewise
+pluggable (step 2): in the **single-reviewer fallback** the native `plan-reviewer`
 subagent writes the one review itself (you write nothing); in the **configured
 multi-reviewer** path you, the orchestrator, write the SINGLE aggregated
 `reviews` item that reconciles all reviewers' verdicts (the native reviewers
@@ -24,9 +32,13 @@ outcome.
 > a *command* may chain another command; a *subagent* still cannot). That phase,
 > following llm/commands/investigate/advance.md, writes the ledger (the
 > investigate loop's own writes), and the broadened `allowed-tools`
-> (`mcp__ledger__*`, `Read`/`Grep`/`Glob`) supports it. The only OTHER ledger
-> write you make is the configured-mode aggregated `reviews` item (step 2b-iii);
-> the single-reviewer fallback round stays read-only-to-you.
+> (`mcp__ledger__*`, `Read`/`Grep`/`Glob`) supports it. The OTHER ledger writes
+> you make are: the **configured multi-planner** synthesized plan (step 1's
+> JUDGE+SYNTHESIS → orchestrator-persist, sub-step 1b-v) and the **configured
+> multi-reviewer** aggregated `reviews` item (step 2b-iii). In the
+> **single-planner fallback** the `plan-advance` subagent writes the plan and in
+> the **single-reviewer fallback** the `plan-reviewer` subagent writes the
+> review, so an unconfigured round stays read-only-to-you.
 
 ## Select the target goal(s)
 
@@ -52,19 +64,143 @@ call toward a terminal phase) and, for the cross-command auto-investigate↔repl
 axis, by the **concrete stop predicates** in the auto-investigate phase (cite
 **K12**, which supersedes K8 pt3 and removed the former 4-iteration cap):
 
-1. **Spawn the planner.** Use the `Agent` tool with
-   `subagent_type: "plan-advance"`, passing the goal id (`$ARGUMENTS`) in the
-   prompt. It performs EXACTLY ONE state-driven step against the goal and
-   returns a single status token:
-   - `awaiting-answers` — it filed (or left) `open` questions; the user must
-     answer them. **Stop the loop.**
-   - `review-requested` — it emitted or revised a plan. **Run the reviewer**
-     (step 2), then continue the loop.
-   - `completed` — the goal reached `planned` (plan locked), or was already in a
-     post-planning phase (`building`/`done`) when the planner ran (no further
-     planning step possible). **Stop.** The planner never auto-closes a goal to
-     `done`; `building→done` is always the user's action.
-   - `noop` — nothing to do in the current state. **Stop.**
+1. **Advance the plan** (spawn the planner). The planner step is **pluggable**,
+   structurally mirroring the pluggable reviewer step (step 2) but with the
+   **Q100 generate-N-then-JUDGE+SYNTHESIS** reconciliation model (NOT the
+   reviewer's strictest-wins/union). Resolve which planners run, run them, and —
+   in the multi-planner path — synthesize one plan and persist it yourself. The
+   step yields the SAME single status token regardless of path; the loop reads
+   that token below.
+
+   1. **Resolve the active planner set.** Call the ledger MCP `get_planners`
+      tool (registered in `.mcp.json`; returns
+      `{ configured: boolean, planners: [{ harness, model, alias }] }`,
+      `harness` ∈ {`claude`, `pi`} — mirrors `get_reviewers`).
+      - If the tool is **absent** (server not registered) or it returns
+        `configured: false` (no `cq.toml`, or an empty `[planners]` list), take
+        the **single-planner fallback** (sub-step 1a — today's path, UNCHANGED).
+      - If it returns `configured: true`, take the **multi-planner path**
+        (sub-step 1b), AND honor any **session-only planner override** the user
+        stated this run via `/cq:planners` (T16): an in-memory override
+        supersedes the `cq.toml` default for THIS run only (it is never
+        persisted) — use the overridden active set in place of `get_planners`'
+        `planners` when one is in effect (exactly as `/cq:reviewers` overrides the
+        reviewer set for step 2).
+
+   1a. **Single-planner fallback** (unconfigured / tool absent — UNCHANGED
+      behaviour: this is today's default plan-advance subagent path). Use the
+      `Agent` tool with `subagent_type: "plan-advance"`, passing the goal id
+      (`$ARGUMENTS`) in the prompt. The native `plan-advance` runs in its DEFAULT
+      single-planner state-machine mode (it is NOT told it is a candidate): it
+      performs EXACTLY ONE state-driven step against the goal, **writes the
+      ledger itself** (files questions / emits or revises the plan / locks the
+      decision and reaches `planned`), and returns a single status token. The
+      orchestrator writes NOTHING for the plan this round. Take that returned
+      token and go to **sub-step 1c** (read the token, drive the loop).
+
+   1b. **Multi-planner path** (configured) — **generate-N-then-JUDGE+SYNTHESIS**
+      (Q100/Q101). Launch ALL active planners **in parallel** as
+      candidate-emitters (each RETURNS a candidate-plan JSON and writes NOTHING),
+      then synthesize ONE plan and persist it YOURSELF. The native planner
+      subagents and `pi:*` planners do **not** write the ledger in this path — the
+      ORCHESTRATOR is the only writer (Q101), so `pi:*` planners (which cannot call
+      MCP tools) participate fully as pure candidate-emitters.
+      - **i. Per-planner launch (fan-out).** For each active planner token,
+        dispatch it in CANDIDATE MODE and capture its candidate-plan JSON. The
+        shared candidate-JSON contract is the one in `agents/plan-advance.md`'s
+        **CANDIDATE mode** section: `{ milestones: [{ title, dependsOn? }], tasks:
+        [{ headline, description, acceptance, suggestedModel, milestone,
+        dependsOn?, ledgerRefs }], rationale }` (references are by
+        title/headline, and each task's `milestone` names the work-milestone it
+        attaches under). Every planner emits this SAME shape, so candidates are
+        directly comparable.
+        - `claude:<model>` → an `Agent` tool call with
+          `subagent_type: "plan-advance"`, passing the goal id AND **explicitly
+          requesting CANDIDATE mode** per T14 (state it is "one of N parallel
+          candidate planners" / "candidate mode" / "generate-N-then-judge"). In
+          that mode the native planner grounds itself read-only and RETURNS its
+          candidate-plan JSON as a fenced `json` block, writing **NOTHING** to any
+          ledger and emitting no status token. Capture the parsed candidate.
+        - `pi:<model>` → shell out via `Bash` to the `pi` CLI using the confirmed
+          **non-interactive** invocation from the **T169 spike (K30)**:
+          `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+          (the combined `--model <P>/<M>` form also works; default `--mode text`
+          emits the bare reply on stdout). Concrete provider/model pairs from K30:
+          grok-build → `--provider grok-build --model grok-build`; gpt-5.5 →
+          `--provider openai-codex --model gpt-5.5`. Both providers are
+          OAuth-pre-authenticated. Feed it the **goal context** (the goal's
+          title/description/grounding, its answered-question history, and any
+          existing work-milestone tasks — the same material the native candidate
+          planner reads) PLUS the **candidate-plan JSON contract** above, instructing
+          it to emit EXACTLY that shape and nothing else. **Strip any code fence**
+          before parsing — `pi` may wrap the JSON in a triple-backtick ` ```json `
+          block. Capture the parsed candidate object.
+        Collect the N candidate plans (one per active planner). If a candidate
+        comes back with empty `milestones`/`tasks` and a `rationale` explaining
+        the goal cannot be planned yet (still needs user clarification), treat
+        that as the planner's signal that this step should fall through to
+        `awaiting-answers` — see sub-step 1c.
+      - **ii. JUDGE + SYNTHESIS (Q100 — fold-in, NOT pick-best-discard-rest).**
+        Run a synthesis step — either inline as the orchestrator, or via a
+        dedicated `plan-synthesizer` subagent (an `Agent` call) — over the N
+        candidate plans. The judge **PICKS a strongest base candidate** (the one
+        whose decomposition, sequencing, and `rationale` best achieve the goal's
+        `description`) AND, **critically, FOLDS IN the valuable parts of the
+        non-best candidates**: where a non-best planner contributed a milestone, a
+        task, a sharper acceptance criterion, a better dependency edge, or a
+        consideration the base candidate missed, INCORPORATE it into the result.
+        The judge MUST NOT blindly discard the non-best candidates — when a
+        non-best planner contributed something important, it is folded in. The
+        output is ONE **synthesized plan** in the same candidate-JSON shape
+        (milestones + tasks with title/headline references + rationale),
+        reconciling milestone titles and task headlines, de-duplicating
+        overlapping tasks, and keeping the union of genuinely-distinct work.
+      - **iii. Orchestrator persists the ONE synthesized plan (Q101 — all writes
+        are the orchestrator's).** YOU (the orchestrator), not any planner, write
+        the synthesized plan to the ledger, exactly as the default single-planner
+        mode would persist a plan (so `pi:*` planners — which never touch MCP —
+        participate fully). Resolve the candidate's by-title/by-headline
+        references to real ids as you persist:
+        - `create_milestone(title, dependsOn?)` for each synthesized work
+          milestone (resolve `dependsOn` titles → the `W…` ids you just created),
+          and record those ids on the goal:
+          `update_item("goals", G, fields: { milestones: [...] })` (preserve any
+          ids already in `fields.milestones`, append the new ones).
+        - `create_item("tasks", Wᵢ, status: "planned", fields: { headline,
+          description, acceptance, suggestedModel, dependsOn?, ledgerRefs:
+          ["goals:<G>"] })` for each synthesized task under its named work
+          milestone `Wᵢ` (resolve `dependsOn` headlines → the `T…` ids). For a
+          DEFECT fix task carry `"defects:<D>"` in `ledgerRefs` too, and write the
+          bidirectional `defects.dependsOn` back-link, exactly as
+          `agents/plan-advance.md` **Defect-aware planning** prescribes.
+        - Transition the goal `update_item("goals", G, status: "planning")` (from
+          `clarifying`) so it enters review, and persist a short grounding summary
+          if the synthesis surfaced one. Stamp `author`/`session` on every write.
+        After persisting, the step's status token is `review-requested` (a plan
+        now exists and awaits the reviewer). Go to **sub-step 1c**.
+      - The synthesized plan now lives in the ledger exactly as a single-planner
+        plan would, so it enters the **SAME reviewer loop (step 2) UNCHANGED** —
+        the pluggable reviewer step judges it identically whether it came from the
+        single-planner fallback or this multi-planner synthesis.
+
+   1c. **Read the status token and drive the loop.** Whichever path ran — fallback
+      (1a, token from the subagent) or multi-planner synthesis (1b, token derived
+      from the persisted outcome: `review-requested` after a plan was written,
+      `awaiting-answers` if every candidate reported the goal still needs
+      clarification, `completed`/`noop` if no planning step was possible) — act on
+      the single status token:
+      - `awaiting-answers` — questions are `open` (filed by the fallback subagent,
+        or — when the multi-planner step could not yet plan — by a default
+        single-planner pass you run to file them; candidate-mode planners file
+        nothing). The user must answer them. **Stop the loop.**
+      - `review-requested` — a plan was emitted or revised (by the fallback
+        subagent, or by your multi-planner synthesis persist). **Run the reviewer**
+        (step 2), then continue the loop.
+      - `completed` — the goal reached `planned` (plan locked), or was already in a
+        post-planning phase (`building`/`done`) when the step ran (no further
+        planning step possible). **Stop.** The planner never auto-closes a goal to
+        `done`; `building→done` is always the user's action.
+      - `noop` — nothing to do in the current state. **Stop.**
 
 2. **Review the plan** (only on `review-requested`). The review step is
    **pluggable**: a configurable set of reviewers may judge the plan in parallel
@@ -276,10 +412,19 @@ a durable trace (the subagents are read-only and write nothing themselves):
 5. **Populate `sessionLogs` on the outcome items** — the orchestrator owns the
    goal's `sessionLogs` write (the planner subagent updates the goal's phase,
    but after its log is written you, the orchestrator, must attach the path):
-   - **After the planner returns** and you have written its log file, call
+   - **After the planner step returns** and you have written its log file(s),
+     call
      `update_item("goals", G, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
-     to record the log path on the goal item. This keeps the goal's session
+     to record the log path(s) on the goal item. This keeps the goal's session
      provenance without a separate pass.
+     - In the **single-planner fallback (1a)** there is ONE `plan-advance`
+       subagent log (the returned agent id) — record that path.
+     - In the **multi-planner path (1b)** record a log for EVERY candidate planner
+       that ran this round (one `claude`-subagent log file per `claude:*`
+       candidate planner, plus one `pi`-stdout log file per `pi:*` candidate
+       planner — same treatment as the multi-reviewer logs below), and a log for
+       the synthesis step if it ran as a `plan-synthesizer` subagent. Attach all
+       those paths to the goal's `sessionLogs`.
    - **After the review step completes** — single-reviewer fallback (2a) or
      multi-reviewer reconciliation (2b) — attach the log path(s) to the ONE
      `reviews` item the round produced:
@@ -293,15 +438,17 @@ a durable trace (the subagents are read-only and write nothing themselves):
        **every** reviewer that ran this round (one `claude`-subagent log file per
        `claude:*` reviewer, plus one `pi`-stdout log file per `pi:*` reviewer).
 
-   For each **`pi:*` reviewer** (no `Agent` result, so no returned agent id),
-   write a log file the same way: `<timestamp>-pi-<alias>.md` under `docs/logs/`,
-   containing a short header (which goal, the reviewer alias + `pi` provider/model,
-   the parsed verdict) and the **verbatim captured stdout** (including the raw,
-   pre-fence-strip text). This makes each pi reviewer's reply a durable trace
-   exactly like the subagent summaries.
+   For each **`pi:*` reviewer OR `pi:*` candidate planner** (no `Agent` result,
+   so no returned agent id), write a log file the same way:
+   `<timestamp>-pi-<alias>.md` under `docs/logs/`, containing a short header
+   (which goal, the alias + `pi` provider/model, and the parsed verdict for a
+   reviewer or "candidate plan emitted" for a planner) and the **verbatim
+   captured stdout** (including the raw, pre-fence-strip text). This makes each pi
+   shellout's reply a durable trace exactly like the subagent summaries.
 
-Do this for the planner AND every reviewer on every iteration — one log file per
-spawned subagent and per pi shellout. The inline `/investigate:advance` pass logs
+Do this for the planner step (the fallback subagent, or every candidate planner +
+the synthesis step in the multi-planner path) AND every reviewer on every
+iteration — one log file per spawned subagent and per pi shellout. The inline `/investigate:advance` pass logs
 its own `investigate-explorer` subagents per llm/commands/investigate/advance.md
 (§Session logs) — follow that command's logging rule while running it.
 
