@@ -229,148 +229,16 @@ archives:
     summary: "G20 FEATURE 2 (new `cq` CLI init/reset/erase) — COMPLETE. T188 (scaffold @cq/cli package + dispatcher + injectable ConfirmIo — 8f60e59) + T189 (cq init: idempotent FsLedgerStore.init-if-none, no cq.toml — da1aa82) + T190 (cq reset: relocate the wrapper off ledger-mcp via FsLedgerStore.reset+ConfirmIo, REMOVE --reset from ledger-mcp — 3d96f3c) + T191 (cq erase: bounded irreversible delete of <root>/docs + cq.toml, no path-escape, confirm-gated — e597b68) + T192 (closing gate: cqCli flake.nix derivation + apps.cq + node-modules FOD entry + consolidated hash refresh; nix build .#cq/.#node-modules/.#ledger-mcp/.#ledger-tui/.#ledger-web all green + cq bin init/reset/erase e2e — bdd2720). Reviews R218/R222/R224/R225/R226 go-ahead. bun run check green 986/0. main bdd2720."
     title: G20 FEATURE 2 — new `cq` CLI (init / reset / erase)
     status: done
+  - id: M71
+    path: ./archive/tasks/M71.md
+    summary: "G22 parts 1-3 (web UI): T193 sidebar group-ordered nav with splitters, T194 help dialog fixed large size with internal scroll, T195 state-machine SVGs uniformly left-aligned (xMinYMid meet + width:100%). All 3 tasks done, all reviews go-ahead, bun run check green (985/0)."
+    title: "G22 web UI: sidebar reorder + help fixed-size + SVG left-align (parts 1-3)"
+    status: done
+  - id: M72
+    path: ./archive/tasks/M72.md
+    summary: "G22 part 4 (cq: command renames): T196 git-mv'd advance/plan:start/investigate:start command files into commands/cq/{advance,plan,investigate}.md + rewrote in-file refs, T197 updated link-prompts.ts LINKS to cq/ paths, T198 swept all remaining cross-refs across nix/pkg (7 markdown files + 2 MCP tool-description strings) to cq:* names. All 3 tasks done, all reviews go-ahead, bun run check green (985/0)."
+    title: "G22 cq: command renames (part 4) — advance/plan:start/investigate:start → cq:*"
+    status: done
 ---
 
 # tasks
-
-## M71
-
-### T193 — planned
-
-- createdAt: 2026-06-06T12:28:53.555Z
-- updatedAt: 2026-06-06T12:28:53.555Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "Sidebar: group-ordered ledger nav with splitters (part 1)"
-- description: |
-    Reorganize the @cq/ledger-web left sidebar (packages/ledger-web/src/App.tsx, ~L785-1099) to the exact grouping with `<hr class="lw-sidebar-divider">` splitters between groups (top→bottom):
-      1. questions ledger + the existing `Q&A` button (`.lw-batch-open`, testid `batch-open`)  — splitter
-      2. goals, milestones  — splitter
-      3. defects, tasks  — splitter
-      4. handoffs  — splitter
-      5. decisions, hypothesis, reviews  — (splitter)
-      6. any CUSTOM ledgers (any ledger not named in groups 1-5), last.
-    
-    Mechanics: replace the two ad-hoc `visualLedgers.map` blocks (block A = questions+Q&A button; block B = all-others-in-original-order) with a single GROUP-ORDERED render driven by an explicit ordered group array of ledger ids. `Q&A` is NOT a ledger — it is the batch-answer trigger button; keep it directly after the `questions` ledger button within group 1. Rebuild the `visualLedgers` useMemo (~L788) so its order EXACTLY matches the new visual order (group order, then custom ledgers), because `ledgerCursor` keyboard nav indexes `visualLedgers` and the invariant cursor-index == visual-position MUST hold (verify ArrowUp/Down still walks the list in visual order). Any canonical ledger absent from the current connection is simply skipped; any non-canonical ledger falls into group 6. Do not drop any ledger. Add the splitter `<hr>` elements between rendered groups only (no trailing/leading splitter, and skip a splitter when an adjacent group renders empty). Reuse the existing `.lw-sidebar-divider` style (add it between the new groups; styles.css L266). Keep all existing `data-testid` attributes (`ledger-<name>`, `ledger-count-<name>`, `batch-open`, `sidebar-divider`) so existing tests keep resolving; if multiple dividers now render, ensure tests asserting a single `sidebar-divider` still pass or update them.
-- acceptance: "`bun test` passes (run from nix/pkg/cq-ledgers/, incl. ledger-web App tests); `bun run check` (tsc -b && eslint . && bun test) is green. In the rendered sidebar the ledger buttons appear in the order questions, (Q&A button), goals, milestones, defects, tasks, handoffs, decisions, hypothesis, reviews, then any custom ledgers, with horizontal-rule splitters between the groups. Keyboard ArrowDown from the top steps through the buttons in that exact visual order (cursor highlight follows visual position). No canonical or custom ledger is missing from the list."
-- suggestedModel: standard
-- ledgerRefs: ["goals:G22"]
-
-### T194 — planned
-
-- createdAt: 2026-06-06T12:29:08.577Z
-- updatedAt: 2026-06-06T12:29:08.577Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "Help popup: large constant size, no jump across tabs (part 2)"
-- description: |
-    Stop the help dialog (HelpOverlay, App.tsx ~L1453-1546; `.lw-help` styles.css L161-169) from resizing when switching between its two tabs ('Keyboard shortcuts' and 'State machines'). Currently `.lw-help` is content-driven (min-width:440px; max-width:90vw; no fixed height), so the box jumps per tab.
-    
-    Fix (primarily styles.css): give `.lw-help` a LARGE CONSTANT width AND height — a sensible default such as `width: min(900px, 92vw); height: min(80vh, 720px)` — and make the BODY region (everything below `.lw-help-head`) scroll internally so both tabs occupy the same fixed outer box. Use a flex column on `.lw-help` (head fixed, body `flex:1; min-height:0; overflow-y:auto`). If a body wrapper is needed for the scroll container, add a single wrapping `<div class="lw-help-body">` around the tab-content (the `<dl class=lw-help-list>` and the `.lw-help-statemachines` block) in HelpOverlay (App.tsx) and move overflow there; the existing `.lw-help-statemachines{max-height:70vh;overflow-y:auto}` should be reconciled so scrolling happens once (in the shared body), not nested. Keep `role=dialog`, the backdrop-dismiss, the tab strip, and all `data-testid`s (`help-overlay`, `help`, `help-tab-*`, `help-shortcuts`, `help-statemachines`, `help-close`) intact.
-    
-    Serialize after the sidebar task (shares App.tsx + styles.css).
-- acceptance: "`bun run check` green (tsc -b && eslint . && bun test from nix/pkg/cq-ledgers/). The help dialog presents at a fixed large size; switching between the 'Keyboard shortcuts' and 'State machines' tabs does NOT change the dialog's outer width or height (the box stays put; overflow scrolls inside the body). Existing HelpOverlay tests still pass (or are updated to the new body wrapper while preserving their assertions)."
-- suggestedModel: standard
-- dependsOn: ["T193"]
-- ledgerRefs: ["goals:G22"]
-
-### T195 — planned
-
-- createdAt: 2026-06-06T12:29:25.971Z
-- updatedAt: 2026-06-06T12:29:25.971Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "State-machine SVGs: normalise to consistent left alignment (part 3)"
-- description: |
-    Make every per-ledger state-machine diagram in the help dialog's 'State machines' tab present consistently LEFT-aligned. The alignment is INSIDE the SVG (StateMachineDiagram, App.tsx ~L1555-1603; layout from stateMachine.ts `computeStateMachine` → dagLayout.ts `computeDagLayout`; CSS `.lw-statemachine-svg` styles.css L227-233). Diagrams are GENERATED (not hand-authored): each `<svg width={model.width} viewBox='0 0 W H'>` has a per-ledger intrinsic width (more transition layers → wider). With `.lw-statemachine-svg{display:block;max-width:100%}`, wide SVGs scale down (centering content via default preserveAspectRatio xMidYMid) while narrow ones keep their small width — producing the inconsistent left/center/right look.
-    
-    Fix INSIDE the svg/its sizing (do NOT just wrap the HTML): give each `<svg>` an explicit `preserveAspectRatio="xMinYMid meet"` so when it scales to fit the container the content pins to the LEFT (xMin) rather than centering; and set a consistent presented width (e.g. `width: 100%` on `.lw-statemachine-svg` with `height:auto`, or render at a uniform max width) so all diagrams share the same left origin. The node layout already starts at `x = opts.pad` (left edge) in computeDagLayout, so left-pinning the viewBox mapping is the lever. Verify with the `help-statemachine-svg-<ledger>` testids that each diagram's left edge lines up across ledgers. Keep all node/edge testids and the bucket fills unchanged. Pure presentation change — no change to computeStateMachine/computeDagLayout math unless needed to expose a uniform width.
-    
-    Serialize after the help-size task (shares App.tsx + styles.css).
-- acceptance: "`bun run check` green (tsc -b && eslint . && bun test from nix/pkg/cq-ledgers/). In the 'State machines' help tab, every ledger's diagram is left-aligned with a consistent left edge (no diagram appears centered or right-shifted relative to others). The `<svg>` carries `preserveAspectRatio=\"xMinYMid meet\"` (or equivalent left-pinning) and a consistent presented width. Existing stateMachine/StateMachineDiagram tests pass (or are updated for the new svg attrs while keeping their node/edge assertions)."
-- suggestedModel: standard
-- dependsOn: ["T194"]
-- ledgerRefs: ["goals:G22"]
-
-## M72
-
-### T196 — planned
-
-- createdAt: 2026-06-06T12:29:44.201Z
-- updatedAt: 2026-06-06T12:35:37.354Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Relocate the 3 command files into commands/cq/ (git mv) + fix their own self-refs
-- description: |
-    Relocate (git mv, preserving history) the three renamed command files under nix/pkg/cq-assets/:
-      - commands/advance.md          → commands/cq/advance.md        (/advance → /cq:advance)
-      - commands/plan/start.md       → commands/cq/plan.md           (/plan:start → /cq:plan)
-      - commands/investigate/start.md → commands/cq/investigate.md   (/investigate:start → /cq:investigate)
-    
-    Do NOT move the per-flow *:advance / *:follow-up files — commands/plan/advance.md, commands/plan/follow-up.md, commands/implement/advance.md, commands/investigate/advance.md all KEEP their current paths and slash names. The /cq:* namespace already holds commands/cq/{plan-review,implement-review,reviewers,planners}.md — do not disturb them; just add the three new files alongside.
-    
-    Within EACH of the three relocated files, rewrite ALL references to ANY of the three renamed-FROM command names — NOT merely the file's own self-reference — applying the WHOLE rename mapping in-file:
-      /advance            → /cq:advance
-      /plan:start         → /cq:plan
-      /investigate:start  → /cq:investigate
-    This closes the cross-file gap the reviewer flagged (R227): e.g. the relocated commands/cq/plan.md (was commands/plan/start.md) mentions /investigate:start in its frontmatter `description` (~L2) and body (~L29, L35, L37); those must all become /cq:investigate here, because T198 explicitly EXCLUDES these three files from its sweep. After this task, the three relocated files contain NONE of the renamed-FROM tokens.
-    
-    This includes the `description:` frontmatter and any body prose. Update relative-path mentions of the moved files' own location if any (e.g. 'llm/commands/...').
-    
-    CRITICAL — do NOT touch the STAYING names: /plan:advance, /implement:advance, /investigate:advance, /plan:follow-up, /implement:start must remain verbatim. Use word-boundary-anchored matching: replacing '/advance' must not corrupt '/plan:advance' / '/implement:advance' / '/investigate:advance' (they end ':advance', not standalone '/advance'); replacing '/plan:start' / '/investigate:start' must not touch '/implement:start' or any '*:advance'/'*:follow-up' name. After the moves, the directory `commands/plan/` still contains advance.md + follow-up.md (non-empty), `commands/investigate/` still contains advance.md (non-empty).
-    
-    NOTE: assets.nix `collectMd` derives command keys from the directory tree, so this relocation alone re-keys the bundle (cq/advance → /cq:advance) — NO edit to assets.nix or dev-llm.nix is required.
-- acceptance: "The three files exist at commands/cq/{advance,plan,investigate}.md and no longer at their old paths; `git status`/`git log --follow` shows them as renames. commands/plan/ and commands/investigate/ still contain their *:advance/*:follow-up files. In EACH relocated file, every reference to a renamed-FROM command (its own old name AND any cross-reference to the other two) now uses the NEW cq: name; no reference to a staying command (/plan:advance, /implement:advance, /investigate:advance, /plan:follow-up, /implement:start) was altered. ACCEPTANCE GREP: `grep -rnE '/advance\\b|/plan:start\\b|/investigate:start\\b' nix/pkg/cq-assets/commands/cq/{advance,plan,investigate}.md` returns NO hits (the three relocated files contain none of the three renamed-FROM tokens) — note '/advance\\b' is word-boundary-anchored so it does not match ':advance'. The staying names still appear verbatim wherever they were."
-- suggestedModel: standard
-- ledgerRefs: ["goals:G22"]
-
-### T197 — planned
-
-- createdAt: 2026-06-06T12:29:58.746Z
-- updatedAt: 2026-06-06T12:29:58.746Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Update scripts/link-prompts.ts LINKS to the new cq/ paths
-- description: |
-    Update the LINKS array in nix/pkg/cq-ledgers/scripts/link-prompts.ts (L31-50) so the three relocated commands link from their NEW source paths to NEW .claude/ link paths under the cq namespace:
-      - { link: '.claude/commands/cq/advance.md',     source: '../cq-assets/commands/cq/advance.md' }   (was .claude/commands/advance.md ← ../cq-assets/commands/advance.md)
-      - { link: '.claude/commands/cq/plan.md',        source: '../cq-assets/commands/cq/plan.md' }      (was .claude/commands/plan/start.md ← ../cq-assets/commands/plan/start.md)
-      - { link: '.claude/commands/cq/investigate.md', source: '../cq-assets/commands/cq/investigate.md' } (was .claude/commands/investigate/start.md ← ../cq-assets/commands/investigate/start.md)
-    
-    Leave the *:advance / *:follow-up / agents / existing cq/* (plan-review, implement-review, reviewers) entries unchanged. The .claude link paths should mirror the slash command (/cq:advance → .claude/commands/cq/advance.md) so Claude discovers them in the cq namespace. Then run `bun run link-prompts -- --check` (or `bun link-prompts --check`) which `checkLinks` uses to assert every `source` resolves on disk — it must pass (depends on T196 having created the new source files). If any link-prompts test asserts the LINKS contents, update it to the new paths.
-    
-    Serialize after T196 (the relocation must land first so the new sources exist).
-- acceptance: "`bun run link-prompts -- --check` exits 0 (all targets present). The LINKS array references commands/cq/{advance,plan,investigate}.md as sources and .claude/commands/cq/{advance,plan,investigate}.md as links; no entry points at the old commands/advance.md, commands/plan/start.md, or commands/investigate/start.md paths. `bun run check` from nix/pkg/cq-ledgers/ is green (any link-prompts unit test updated to the new paths passes)."
-- suggestedModel: fast
-- dependsOn: ["T196"]
-- ledgerRefs: ["goals:G22"]
-
-### T198 — planned
-
-- createdAt: 2026-06-06T12:30:21.140Z
-- updatedAt: 2026-06-06T12:35:50.622Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "Sweep all cross-references to /advance, /plan:start, /investigate:start → cq:* (other bodies + README)"
-- description: |
-    Update every INTERNAL cross-reference to the three renamed-FROM command names across the REST of nix/pkg/, EXCLUDING the three files T196 already FULLY owns (commands/cq/{advance,plan,investigate}.md). Partition invariant: T196 owns ALL renamed-FROM refs INSIDE those three relocated files (its own name + cross-refs to the other two); T198 owns everything ELSE under nix/pkg/. No gap, no overlap. Targets:
-      - all OTHER files under nix/pkg/cq-assets/commands/ (e.g. plan/advance.md, plan/follow-up.md, implement/{start,advance}.md, investigate/advance.md, cq/{plan-review,implement-review,reviewers,planners}.md) and nix/pkg/cq-assets/agents/*.md;
-      - the cq-assets README (if present, e.g. nix/pkg/cq-assets/README.md) — update any command-name listing/table;
-      - any skill assets or flow prose under nix/pkg/ that say 're-run /advance', 'run /plan:start', 'kick off /investigate:start', etc. (e.g. SKILL.md set in nix/pkg/llm-skills, llm-contexts) — grep the whole nix/pkg tree, but skip the three relocated files.
-    
-    Rename mapping (WHOLE-token, careful):
-      /advance            → /cq:advance
-      /plan:start         → /cq:plan
-      /investigate:start  → /cq:investigate
-    
-    CRITICAL — do NOT touch the STAYING names: /plan:advance, /plan:follow-up, /implement:start, /implement:advance, /investigate:advance must remain verbatim. When replacing '/advance' use a word-boundary match so '/plan:advance', '/implement:advance', '/investigate:advance' are NOT corrupted (they end ':advance', not standalone '/advance'); when replacing '/plan:start' / '/investigate:start' do not touch '/implement:start' (it keeps its name). Also update any prose path mentions if the docs reference the old file locations (commands/advance.md, commands/plan/start.md, commands/investigate/start.md) → the new commands/cq/* paths.
-    
-    Grep to drive completeness: `grep -rn` for '/advance', '/plan:start', '/investigate:start' across nix/pkg, EXCLUDING commands/cq/{advance,plan,investigate}.md, then fix each remaining hit. Serialize after T197 (keep M72 edits linear).
-- acceptance: |
-    Acceptance is scoped to nix/pkg/ EXCLUDING the three relocated files T196 owns (commands/cq/{advance,plan,investigate}.md) — exclude them via `--exclude` / a pruning `grep -v` so the sweep is satisfiable independent of T196's in-file edits:
-      `grep -rn --exclude-dir=.git '/plan:start\|/investigate:start' nix/pkg/ | grep -v 'commands/cq/\(advance\|plan\|investigate\)\.md'` returns no hits.
-      `grep -rnE '(^|[^:])/advance\b' nix/pkg/ | grep -v 'commands/cq/\(advance\|plan\|investigate\)\.md'` (standalone /advance, not *:advance) returns no hits referring to the renamed command.
-    (T196's own acceptance grep covers the three excluded files; together the two tasks cover all of nix/pkg with no gap.) The staying names /plan:advance, /plan:follow-up, /implement:start, /implement:advance, /investigate:advance still appear unchanged where they were. The cq-assets README (if any) lists the three commands under their new cq: names. `bun run check` from nix/pkg/cq-ledgers/ stays green (no code touched; doc/markdown only). If a build of the nix asset bundle is feasible, `nix build` of the affected products / the dev-llm assertion (commandKeyToStem collision check) does not regress.
-- suggestedModel: standard
-- dependsOn: ["T197"]
-- ledgerRefs: ["goals:G22"]

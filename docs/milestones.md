@@ -279,6 +279,16 @@ archives:
     summary: "G20 FEATURE 2 (new `cq` CLI init/reset/erase) — COMPLETE. T188 (scaffold @cq/cli package + dispatcher + injectable ConfirmIo — 8f60e59) + T189 (cq init: idempotent FsLedgerStore.init-if-none, no cq.toml — da1aa82) + T190 (cq reset: relocate the wrapper off ledger-mcp via FsLedgerStore.reset+ConfirmIo, REMOVE --reset from ledger-mcp — 3d96f3c) + T191 (cq erase: bounded irreversible delete of <root>/docs + cq.toml, no path-escape, confirm-gated — e597b68) + T192 (closing gate: cqCli flake.nix derivation + apps.cq + node-modules FOD entry + consolidated hash refresh; nix build .#cq/.#node-modules/.#ledger-mcp/.#ledger-tui/.#ledger-web all green + cq bin init/reset/erase e2e — bdd2720). Reviews R218/R222/R224/R225/R226 go-ahead. bun run check green 986/0. main bdd2720."
     title: G20 FEATURE 2 — new `cq` CLI (init / reset / erase)
     status: done
+  - id: M71
+    path: ./archive/milestones/M71.md
+    summary: "G22 parts 1-3 (web UI): T193 sidebar group-ordered nav with splitters, T194 help dialog fixed large size with internal scroll, T195 state-machine SVGs uniformly left-aligned (xMinYMid meet + width:100%). All 3 tasks done, all reviews go-ahead, bun run check green (985/0)."
+    title: "G22 web UI: sidebar reorder + help fixed-size + SVG left-align (parts 1-3)"
+    status: done
+  - id: M72
+    path: ./archive/milestones/M72.md
+    summary: "G22 part 4 (cq: command renames): T196 git-mv'd advance/plan:start/investigate:start command files into commands/cq/{advance,plan,investigate}.md + rewrote in-file refs, T197 updated link-prompts.ts LINKS to cq/ paths, T198 swept all remaining cross-refs across nix/pkg (7 markdown files + 2 MCP tool-description strings) to cq:* names. All 3 tasks done, all reviews go-ahead, bun run check green (985/0)."
+    title: "G22 cq: command renames (part 4) — advance/plan:start/investigate:start → cq:*"
+    status: done
 ---
 
 # milestones
@@ -382,17 +392,3 @@ archives:
 - createdAt: 2026-06-06T12:24:48.761Z
 - updatedAt: 2026-06-06T12:24:48.761Z
 - title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
-
-### M71 — open
-
-- createdAt: 2026-06-06T12:28:29.582Z
-- updatedAt: 2026-06-06T12:28:29.582Z
-- title: "G22 web UI: sidebar reorder + help fixed-size + SVG left-align (parts 1-3)"
-- description: "Work milestone for G22 parts 1-3, all in packages/ledger-web/src/{App.tsx,styles.css}. Parts share App.tsx+styles.css so tasks serialize via dependsOn (R137/R138/R139 same-file precedent)."
-
-### M72 — open
-
-- createdAt: 2026-06-06T12:28:31.638Z
-- updatedAt: 2026-06-06T12:28:31.638Z
-- title: "G22 cq: command renames (part 4) — advance/plan:start/investigate:start → cq:*"
-- description: "Work milestone for G22 part 4: relocate commands/advance.md, commands/plan/start.md, commands/investigate/start.md into commands/cq/{advance,plan,investigate}.md; update link-prompts.ts LINKS, internal cross-refs, README. dev-llm.nix/assets.nix need NO change (directory-key-driven). Independent of the web-UI milestone (disjoint files)."

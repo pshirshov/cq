@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 9
+  item: 10
 archives: []
 ---
 
@@ -150,3 +150,15 @@ archives: []
 - flow: plan
 - ledgerRefs: ["goals:G22"]
 - sessionLogs: ["docs/logs/20260606-123129-a8ce7c10b6e8934ac.md","docs/logs/20260606-123129-a8e1f13516398ff6e.md","docs/logs/20260606-123129-ac2eb81beb46f6690.md"]
+
+### HO10 — drained
+
+- createdAt: 2026-06-06T14:06:46.312Z
+- updatedAt: 2026-06-06T14:06:46.312Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "/advance run DRAINED. Built G22 end-to-end across two work milestones (both now archived): M71 (web UI parts 1-3) + M72 (cq: command renames part 4). Six tasks merged to main (tip e23b1b2): T193 sidebar group-ordered nav with splitters (f838f1c); T194 help dialog fixed large size + internal scroll (df9aece); T195 state-machine SVGs uniformly left-aligned via xMinYMid meet + width:100% (5e5ff2a); T196 git-mv'd the 3 command files into commands/cq/{advance,plan,investigate}.md + rewrote in-file refs (c0a3431); T197 link-prompts.ts LINKS → cq/ paths (c84bc57); T198 swept all remaining /advance|/plan:start|/investigate:start cross-refs across nix/pkg → cq:* (7 markdown files: ad422b2; + 2 MCP snapshot tool-description strings on reviewer criticism: e23b1b2). All reviews go-ahead (T198 took one criticism round). bun run check green 985/0 (1 skip) on integrated main; link-prompts --check exit 0. Two worker stale-base anomalies (T197 + a wave-3 reset) were caught and corrected by the orchestrator (re-applied fully-specified edits directly; reviewer-verified). Gate after quiescence: P-investigate=FALSE (defects all resolved), P-plan=FALSE (all 13 goals planned, none clarifying/planning), P-implement=FALSE (no non-terminal tasks), 0 open questions → DRAINED. Goals G10-G22 are all `planned` and ready for the USER to close (goals never auto-close); their coordination milestones stay open by the guard."
+- flow: advance
+- ledgerRefs: ["goals:G22","tasks:T193","tasks:T194","tasks:T195","tasks:T196","tasks:T197","tasks:T198"]
+- blockingQuestions: []
+- sessionLogs: ["docs/logs/20260606-132514-a3f41dedaae858a46.md","docs/logs/20260606-132514-a67f6df9cbc15bc08.md","docs/logs/20260606-133953-a47fe4d2a49a01322.md","docs/logs/20260606-133953-a006d35b28a65f97c.md","docs/logs/20260606-133953-a17e08c7ec1209d6f.md","docs/logs/20260606-133953-a1493237cdef08a6d.md","docs/logs/20260606-135500-aac852fda6b2f1d07.md","docs/logs/20260606-135500-a5c5d2f2be632dfa3.md","docs/logs/20260606-135500-aa5100ddb50c7508e.md","docs/logs/20260606-135500-ab30781190843c0c3.md","docs/logs/20260606-135500-aeb65562937be3184.md"]
