@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 8
+  item: 9
 archives: []
 ---
 
@@ -137,3 +137,16 @@ archives: []
 - flow: advance
 - ledgerRefs: ["goals:G20","goals:G21","defects:D31"]
 - sessionLogs: ["docs/logs/20260606-105430-af751bea360049c4c.md","docs/logs/20260606-111249-a898bda7c81b5c1ac.md","docs/logs/20260606-113840-a10ea8a13d2c24d7b.md","docs/logs/20260606-121721-a01d3264adc34b351.md"]
+
+## M70
+
+### HO9 — drained
+
+- createdAt: 2026-06-06T12:39:38.675Z
+- updatedAt: 2026-06-06T12:39:38.675Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "/plan:start bootstrapped goal G22 (milestone M70) — four pre-large-project requests: (1) reorder the ledger-web left sidebar into the requested grouped order with splitters; (2) give the help popup a large CONSTANT size so it doesn't jump between tabs; (3) left-align the generated state-machine SVG diagrams; (4) rename the entry commands under cq: (/advance→cq:advance, /plan:start→cq:plan, /investigate:start→cq:investigate; the *:advance + *:follow-up names stay). Per the user's 'avoid obvious questions' directive, the planner found NOTHING genuinely ambiguous, FILED NO clarifying questions, and emitted the plan directly; it was then reviewed (one revise round R227→R228 closed a T196/T198 cross-file-rename coverage gap) and LOCKED (decision K35). G22 is `planned`, NOT awaiting any user input. Plan = M71 (web UI, parts 1-3): T193 sidebar reorder → T194 help fixed-size → T195 SVG left-align (serialized on App.tsx/styles.css); M72 (renames, part 4): T196 relocate the 3 command files + rewrite all renamed-from refs within them → T197 link-prompts.ts LINKS → T198 repo-wide cross-ref + README sweep (excluding the 3 relocated files). Key grounding: sidebar order is hardcoded in App.tsx visualLedgers.map (Q&A = the batch-answer trigger button, not a ledger); the SVGs are generated (fix = preserveAspectRatio xMinYMid + uniform width); command keys are pure directory-tree-derived so relocating files suffices (no assets.nix/dev-llm.nix edit); old command names removed outright (no aliases). NO blocking questions. NEXT: run `/advance` (or `/implement:advance`) to BUILD G22 — no user action is required first; the plan is locked and ready."
+- flow: plan
+- ledgerRefs: ["goals:G22"]
+- sessionLogs: ["docs/logs/20260606-123129-a8ce7c10b6e8934ac.md","docs/logs/20260606-123129-a8e1f13516398ff6e.md","docs/logs/20260606-123129-ac2eb81beb46f6690.md"]

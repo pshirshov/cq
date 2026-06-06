@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 69
+  item: 72
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -376,3 +376,23 @@ archives:
 - createdAt: 2026-06-06T10:55:16.471Z
 - updatedAt: 2026-06-06T10:55:16.471Z
 - title: "Plan: fix D31 (modal backdrop press-started-inside dismiss)"
+
+### M70 — open
+
+- createdAt: 2026-06-06T12:24:48.761Z
+- updatedAt: 2026-06-06T12:24:48.761Z
+- title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
+
+### M71 — open
+
+- createdAt: 2026-06-06T12:28:29.582Z
+- updatedAt: 2026-06-06T12:28:29.582Z
+- title: "G22 web UI: sidebar reorder + help fixed-size + SVG left-align (parts 1-3)"
+- description: "Work milestone for G22 parts 1-3, all in packages/ledger-web/src/{App.tsx,styles.css}. Parts share App.tsx+styles.css so tasks serialize via dependsOn (R137/R138/R139 same-file precedent)."
+
+### M72 — open
+
+- createdAt: 2026-06-06T12:28:31.638Z
+- updatedAt: 2026-06-06T12:28:31.638Z
+- title: "G22 cq: command renames (part 4) — advance/plan:start/investigate:start → cq:*"
+- description: "Work milestone for G22 part 4: relocate commands/advance.md, commands/plan/start.md, commands/investigate/start.md into commands/cq/{advance,plan,investigate}.md; update link-prompts.ts LINKS, internal cross-refs, README. dev-llm.nix/assets.nix need NO change (directory-key-driven). Independent of the web-UI milestone (disjoint files)."

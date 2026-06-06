@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 21
+  item: 22
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -416,3 +416,45 @@ archives:
     Linked defect: D31. Expected a small fix-task set (shared backdrop guard + apply to 3 overlays + reproduce-first test). NOTE coordination: App.tsx is also touched by an in-flight uncommitted comment-cleanup in the working tree — the fix worker branches off committed main so it sees the committed App.tsx; flag a possible later merge reconciliation.
 - milestones: ["M67"]
 - sessionLogs: ["docs/logs/20260606-105830-ab36178fd4866aa91.md","docs/logs/20260606-105830-aff36b6c061066121.md"]
+
+## M70
+
+### G22 — planned
+
+- createdAt: 2026-06-06T12:25:00.443Z
+- updatedAt: 2026-06-06T12:39:33.205Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: "Web sidebar reorder + help-popup fixed size + SVG left-align + cq: command renames"
+- description: |
+    Four more requests before the large project (all greenfield; the user asked to AVOID obvious questions — only ask if input is truly required):
+    
+    1) REORGANIZE the @cq/ledger-web left sidebar order again, with section splitters, to exactly this grouping (top→bottom):
+       - questions, Q&A  — splitter
+       - Goals, milestones  — splitter
+       - defects, tasks  — splitter
+       - handoffs  — splitter
+       - decisions, hypothesis, reviews  — (optional splitter)
+       - any custom ledgers
+    
+    2) The HELP popup resizes/jumps when the user switches between its tabs (inconvenient). Give it a LARGE CONSTANT size so it does not change size across tab switches.
+    
+    3) The state-machine diagrams render with inconsistent horizontal alignment (some left, some centered, some right). The alignment is INSIDE the SVG (not the HTML container). ALIGN THEM ALL TO THE LEFT if feasible.
+    
+    4) Improve command NAMING: everything under a `cq:` prefix. The top-level sequencer /advance → `cq:advance`. Convenient renames of the entry/bootstrap commands: plan:start → `cq:plan`, investigate:start → `cq:investigate`. The per-flow `*:advance` and `*:follow-up` commands REMAIN AS-IS (plan:advance, implement:advance, investigate:advance, plan:follow-up keep their names). (The /cq:* namespace already exists: cq:reviewers, cq:planners, cq:plan-review, cq:implement-review.)
+- grounding: |
+    Grounded all four parts read-only (no genuine ambiguity → skipped clarification, per user's avoid-obvious-questions instruction).
+    
+    PART 1 — sidebar (packages/ledger-web/src/App.tsx ~L785-1099, styles.css L261-337). Order is HARDCODED in two `visualLedgers.map` blocks, NOT derived from CANONICAL_LEDGERS: block A renders only the `questions` ledger then a `Q&A` button (`.lw-batch-open`, testid `batch-open`) + `<hr class=lw-sidebar-divider>`; block B renders all-other ledgers in their original enumerate order. `visualLedgers` (useMemo) = [questions, ...rest]. `Q&A` is NOT a ledger/pseudo-view — it is the batch-answer modal trigger button (openBatch fetches the `questions` ledger). The `ledgerCursor` keyboard nav indexes `visualLedgers` so cursor index MUST equal visual position — any reorder must rebuild `visualLedgers` to the new order AND keep cursor index aligned. Canonical ledgers (9): questions, goals, milestones, defects, tasks, hypothesis, decisions, reviews, handoffs; plus custom. Requested groups map 1:1 to these ids; the Q&A button stays grouped with `questions`. No ledger dropped. Fix = replace the two ad-hoc blocks with a GROUP-ORDERED array [['questions'(+Q&A btn)],['goals','milestones'],['defects','tasks'],['handoffs'],['decisions','hypothesis','reviews'],[<custom = any ledger not in the above]] with `<hr>` splitters between groups, preserving cursor-index==visual-position.
+    
+    PART 2 — help popup size (App.tsx HelpOverlay ~L1453-1546; .lw-help styles.css L161-169). `.lw-help` has min-width:440px; max-width:90vw but NO fixed height → content-driven, jumps between the 'Keyboard shortcuts' tab (a `<dl class=lw-help-list>`, no scroll) and 'State machines' tab (`.lw-help-statemachines` already max-height:70vh; overflow-y:auto). Tab switch via `setTab` swaps body content. Fix = give `.lw-help` a LARGE CONSTANT width+height (e.g. width:min(900px,90vw); height:min(80vh,720px)) with the BODY region scrolling internally (move overflow to a body wrapper so both tabs share one fixed box). CSS-only in styles.css (plus possibly a body wrapper div in HelpOverlay).
+    
+    PART 3 — SVG state-machine left-align (App.tsx StateMachineDiagram ~L1555-1603; stateMachine.ts; dagLayout.ts; .lw-statemachine-svg styles.css L227-233). Diagrams are GENERATED, not hand-authored: `computeStateMachine(schema)` → `computeDagLayout(statuses, transitionEdges, STATE_LAYOUT_OPTS)` lays nodes left→right by longest-path layering; each `<svg width={model.width} viewBox='0 0 W H'>`. `model.width` DIFFERS per ledger (more transition layers → wider svg). `.lw-statemachine-svg{display:block;max-width:100%}` — block is left-aligned, but `max-width:100%` scales DOWN any svg wider than the dialog, and a narrow svg keeps its small intrinsic width (left). The inconsistent left/center/right appearance comes from per-svg differing intrinsic width + scaling, NOT from HTML container alignment. Fix is INSIDE the svg/its sizing: normalise so every diagram presents left-aligned consistently — e.g. set svg width:100% with preserveAspectRatio='xMinYMid meet' (xMin = left-align content within the viewBox), or render each at a uniform width so the left edge (x=pad) lines up. Confirm via the help-statemachine-svg-<ledger> testids. No HTML wrapper change required beyond svg attrs/CSS.
+    
+    PART 4 — cq: command renames (cq-assets commands/, scripts/link-prompts.ts, nix/hm/dev-llm.nix, assets.nix). Command name derives from path: commands/<ns>/<name>.md → /<ns>:<name>; top-level commands/advance.md → /advance. Renames: commands/advance.md → commands/cq/advance.md (/cq:advance); commands/plan/start.md → commands/cq/plan.md (/cq:plan); commands/investigate/start.md → commands/cq/investigate.md (/cq:investigate). The *:advance and *:follow-up files STAY (plan/advance, implement/advance, investigate/advance, plan/follow-up unchanged). Existing /cq:* namespace already has commands/cq/{plan-review,implement-review,reviewers}.md (+ planners). RIPPLE: (a) scripts/link-prompts.ts LINKS array has 3 entries to update: '.claude/commands/plan/start.md'→'.claude/commands/cq/plan.md' (source ../cq-assets/commands/cq/plan.md), '.claude/commands/investigate/start.md'→'.claude/commands/cq/investigate.md', '.claude/commands/advance.md'→'.claude/commands/cq/advance.md'. (b) INTERNAL cross-refs in command/agent bodies to the renamed-FROM names: '/advance', '/plan:start', '/investigate:start' — grep cq-assets and update each occurrence to /cq:advance, /cq:plan, /cq:investigate. NOTE the staying names (/plan:advance, /implement:advance, /investigate:advance, /plan:follow-up) must NOT be touched — careful not to rename '/plan:advance' when fixing '/plan:start'. advance.md body references mostly the STAYING names; its prose 're-run /advance' references itself → becomes 're-run /cq:advance'. (c) dev-llm.nix mergedCommands fan-out is FULLY KEY-DRIVEN and directory-agnostic: assets.nix `collectMd` derives keys from the directory tree (commands/cq/advance.md → key 'cq/advance' → /cq:advance), Claude uses native `commands=mergedCommands`, Codex/Pi use `commandKeyToStem('/'→':')`. So MOVING the files is sufficient; NO edit to assets.nix or dev-llm.nix needed (the commandKeyToStem collision assertion stays satisfied: cq/advance, cq/plan, cq/investigate are distinct from existing cq/* keys). (d) cq-assets README — update any command-name listing. (e) handoff/flow prose ('re-run /advance' etc.) across cq-assets and any skill assets.
+    
+    DECISION (recorded, not asked): OLD names REMOVED OUTRIGHT (no deprecated aliases) — the user said 'renames' which means rename, and asked to avoid obvious questions; aliasing was not requested.
+    
+    SERIALIZATION (R137/R138/R139 same-file precedent): parts 1+2+3 all edit App.tsx + styles.css → MUST serialize via dependsOn. Part 4 has many cq-assets file edits + the single link-prompts.ts writer → serialize link-prompts.ts and any shared file.
+- milestones: ["M71","M72"]
+- sessionLogs: ["docs/logs/20260606-123129-a8ce7c10b6e8934ac.md","docs/logs/20260606-123129-ac2eb81beb46f6690.md"]
