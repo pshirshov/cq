@@ -21,6 +21,7 @@
  */
 
 import * as path from "node:path";
+import { FsLedgerStore, CANONICAL_LEDGERS } from "@cq/ledger";
 import {
   type ConfirmIo,
   defaultConfirmIo,
@@ -104,6 +105,7 @@ export interface DispatchOutcome {
 
 /** IO seam for the dispatcher so tests can capture usage output. */
 export interface DispatchIo {
+  out(line: string): void;
   err(line: string): void;
   /** Confirmation IO threaded to the destructive subcommand handlers. */
   confirm: ConfirmIo;
@@ -111,15 +113,21 @@ export interface DispatchIo {
 
 function defaultDispatchIo(): DispatchIo {
   return {
+    out: (line) => process.stdout.write(`${line}\n`),
     err: (line) => process.stderr.write(`${line}\n`),
     confirm: defaultConfirmIo(),
   };
 }
 
-// --- STUB subcommand handlers (filled by T189/T190/T191) ---------------------
+// --- Subcommand handlers -----------------------------------------------------
 
-export function runInit(_args: SubcommandArgs, _io: DispatchIo): Promise<DispatchOutcome> {
-  throw new Error("cq init: not implemented");
+export async function runInit(args: SubcommandArgs, io: DispatchIo): Promise<DispatchOutcome> {
+  const store = new FsLedgerStore({ root: args.cwd });
+  await store.init();
+  await store.dispose();
+  const ledgerNames = CANONICAL_LEDGERS.map((c) => c.name).join(", ");
+  io.out(`initialised ledgers at ${args.cwd} (${ledgerNames})`);
+  return { exitCode: 0 };
 }
 
 export function runReset(_args: SubcommandArgs, _io: DispatchIo): Promise<DispatchOutcome> {
