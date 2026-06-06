@@ -6,7 +6,7 @@
  * No MCP/transport concerns (that lands in T171).
  */
 
-export type { Harness, ReviewerToken, CqConfig } from "./types.js";
+export type { Harness, ReviewerToken, CqConfig, WebuiConfig } from "./types.js";
 export { HARNESSES, isHarness } from "./types.js";
 export {
   CQ_CONFIG_FILENAME,
@@ -17,5 +17,5 @@ export {
   resolvePlanners,
   loadConfig,
 } from "./config.js";
-export type { RawToml } from "./toml.js";
+export type { RawToml, RawWebui } from "./toml.js";
 export { parseToml } from "./toml.js";

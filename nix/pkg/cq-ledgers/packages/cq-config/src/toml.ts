@@ -1,17 +1,33 @@
 /**
- * Minimal TOML parser scoped to the cq.toml schema (T170).
+ * cq.toml parsing scoped to the cq.toml schema (T170, T185).
  *
- * Supports exactly what cq.toml needs and rejects everything else at the
- * boundary (fail fast):
- *  - line comments (`# ...`) and blank lines;
- *  - a single `[aliases]` table header;
- *  - `key = "value"` string assignments (basic double-quoted strings);
- *  - `reviewers = ["a", "b", ...]` single-line arrays of strings.
+ * Parsing is delegated to the maintained `smol-toml` library (pure TS, TOML
+ * 1.0, zero native deps, Bun-compatible). smol-toml accepts *any* valid TOML,
+ * so this module layers the cq.toml schema on top of it as a post-parse
+ * validation pass (fail fast at the boundary):
+ *  - only `[aliases]`, `reviewers`, `planners`, and `[webui]` are allowed;
+ *    any other top-level key/table throws;
+ *  - `aliases` is a table of `name = "value"` string assignments;
+ *  - `reviewers` / `planners` are arrays of strings;
+ *  - `webui` is a table with an optional string `host` and an optional
+ *    integer `port` in 1..65535.
  *
- * This intentionally does NOT implement full TOML (no nested tables, no
- * numbers/bools/dates, no multi-line strings). cq.toml is a small,
- * fixed-shape document; a focused parser keeps the package dependency-free.
+ * A malformed document (smol-toml's `TomlError`) is re-wrapped into the
+ * existing `TomlSyntaxError` style so the public surface is unchanged.
  */
+
+import { parse as parseSmolToml, TomlError } from "smol-toml";
+
+/**
+ * The raw `[webui]` table as produced by the parser: the `host` / `port`
+ * cells are left as smol-toml emitted them (unknown JS values) for the
+ * config layer to type-check and range-check at the boundary
+ * (`parseConfig` -> `CqConfigError`). Absent cells are `undefined`.
+ */
+export interface RawWebui {
+  readonly host: unknown;
+  readonly port: unknown;
+}
 
 /** The shape a cq.toml document parses into before schema validation. */
 export interface RawToml {
@@ -21,135 +37,100 @@ export interface RawToml {
   readonly reviewers: readonly string[] | null;
   /** The top-level `planners` array of strings, or null if absent. */
   readonly planners: readonly string[] | null;
+  /** The `[webui]` table, or null if absent. */
+  readonly webui: RawWebui | null;
 }
 
+/** Thrown when cq.toml is not valid TOML, or violates the cq.toml schema. */
 class TomlSyntaxError extends Error {
-  constructor(message: string, line: number) {
-    super(`cq.toml: ${message} (line ${line})`);
+  constructor(message: string) {
+    super(`cq.toml: ${message}`);
     this.name = "TomlSyntaxError";
   }
 }
 
-const KEY_RE = /^[A-Za-z0-9_-]+$/;
+/** The exact set of top-level keys/tables cq.toml permits. */
+const ALLOWED_TOP_LEVEL = new Set(["aliases", "reviewers", "planners", "webui"]);
 
-/** Strip an unescaped trailing comment (`# ...`) outside of a string. */
-function stripComment(line: string): string {
-  let inString = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      // Only a `\"` escape inside a string is a literal quote.
-      if (inString && line[i - 1] === "\\") continue;
-      inString = !inString;
-    } else if (ch === "#" && !inString) {
-      return line.slice(0, i);
-    }
-  }
-  return line;
+/** Narrow an unknown value to a record (TOML table). */
+function isTable(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Parse a single double-quoted TOML basic string (with \" and \\ escapes). */
-function parseString(token: string, line: number): string {
-  if (token.length < 2 || token[0] !== '"' || token[token.length - 1] !== '"') {
-    throw new TomlSyntaxError(`expected a double-quoted string, got ${token}`, line);
+/** Validate + coerce the `[aliases]` table into `name -> string`. */
+function parseAliases(value: unknown): Record<string, string> {
+  if (!isTable(value)) {
+    throw new TomlSyntaxError("[aliases] must be a table");
   }
-  const body = token.slice(1, -1);
-  let out = "";
-  for (let i = 0; i < body.length; i++) {
-    const ch = body[i];
-    if (ch === "\\") {
-      const next = body[i + 1];
-      if (next === '"') out += '"';
-      else if (next === "\\") out += "\\";
-      else throw new TomlSyntaxError(`unsupported escape \\${next ?? ""}`, line);
-      i++;
-    } else if (ch === '"') {
-      throw new TomlSyntaxError("unescaped quote inside string", line);
-    } else {
-      out += ch;
+  const aliases: Record<string, string> = {};
+  for (const [name, raw] of Object.entries(value)) {
+    if (typeof raw !== "string") {
+      throw new TomlSyntaxError(`alias "${name}" must be a string`);
     }
+    aliases[name] = raw;
   }
-  return out;
+  return aliases;
 }
 
-/** Parse a single-line `["a", "b"]` array of strings. */
-function parseStringArray(token: string, line: number): string[] {
-  if (token[0] !== "[" || token[token.length - 1] !== "]") {
-    throw new TomlSyntaxError(`expected an array, got ${token}`, line);
+/** Validate that `value` is an array of strings (for reviewers / planners). */
+function parseStringArray(key: string, value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new TomlSyntaxError(`${key} must be an array of strings`);
   }
-  const inner = token.slice(1, -1).trim();
-  if (inner === "") return [];
-  // Split on commas that are not inside a string.
-  const parts: string[] = [];
-  let current = "";
-  let inString = false;
-  for (let i = 0; i < inner.length; i++) {
-    const ch = inner[i];
-    if (ch === '"' && inner[i - 1] !== "\\") inString = !inString;
-    if (ch === "," && !inString) {
-      parts.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
+  return value.map((entry, i) => {
+    if (typeof entry !== "string") {
+      throw new TomlSyntaxError(`${key}[${i}] must be a string`);
+    }
+    return entry;
+  });
+}
+
+/**
+ * Structurally validate the `[webui]` table: it must be a table whose only
+ * keys are `host` / `port`. The host/port *values* are passed through
+ * untouched — `parseConfig` type-checks and range-checks them and raises a
+ * `CqConfigError` at the boundary.
+ */
+function parseWebui(value: unknown): RawWebui {
+  if (!isTable(value)) {
+    throw new TomlSyntaxError("[webui] must be a table");
+  }
+  for (const key of Object.keys(value)) {
+    if (key !== "host" && key !== "port") {
+      throw new TomlSyntaxError(`unexpected key "${key}" in [webui]`);
     }
   }
-  if (current.trim() !== "") parts.push(current.trim());
-  return parts.map((p) => parseString(p, line));
+  return { host: value.host, port: value.port };
 }
 
 /**
  * Parse a cq.toml document into its raw shape, or throw a precise
- * `TomlSyntaxError` on malformed input.
+ * `TomlSyntaxError` on malformed input or a schema violation.
  */
 export function parseToml(source: string): RawToml {
-  const aliases: Record<string, string> = {};
-  let reviewers: string[] | null = null;
-  let planners: string[] | null = null;
-  // null = top-level; "aliases" = inside [aliases]; other = unknown table.
-  let currentTable: string | null = null;
-
-  const lines = source.split("\n");
-  for (let idx = 0; idx < lines.length; idx++) {
-    const lineNo = idx + 1;
-    const raw = stripComment(lines[idx] ?? "").trim();
-    if (raw === "") continue;
-
-    if (raw.startsWith("[")) {
-      if (!raw.endsWith("]")) {
-        throw new TomlSyntaxError(`malformed table header ${raw}`, lineNo);
-      }
-      const name = raw.slice(1, -1).trim();
-      if (!KEY_RE.test(name)) {
-        throw new TomlSyntaxError(`invalid table name ${name}`, lineNo);
-      }
-      currentTable = name;
-      continue;
+  let doc: Record<string, unknown>;
+  try {
+    doc = parseSmolToml(source) as Record<string, unknown>;
+  } catch (err) {
+    if (err instanceof TomlError) {
+      throw new TomlSyntaxError(err.message);
     }
+    throw err;
+  }
 
-    const eq = raw.indexOf("=");
-    if (eq < 0) {
-      throw new TomlSyntaxError(`expected key = value, got ${raw}`, lineNo);
-    }
-    const key = raw.slice(0, eq).trim();
-    const value = raw.slice(eq + 1).trim();
-    if (!KEY_RE.test(key)) {
-      throw new TomlSyntaxError(`invalid key ${key}`, lineNo);
-    }
-
-    if (currentTable === "aliases") {
-      aliases[key] = parseString(value, lineNo);
-    } else if (currentTable === null) {
-      if (key === "reviewers") {
-        reviewers = parseStringArray(value, lineNo);
-      } else if (key === "planners") {
-        planners = parseStringArray(value, lineNo);
-      } else {
-        throw new TomlSyntaxError(`unexpected top-level key ${key}`, lineNo);
-      }
-    } else {
-      throw new TomlSyntaxError(`unexpected table [${currentTable}]`, lineNo);
+  // Whitelist: only the known top-level keys/tables are permitted.
+  for (const key of Object.keys(doc)) {
+    if (!ALLOWED_TOP_LEVEL.has(key)) {
+      throw new TomlSyntaxError(`unexpected top-level key ${key}`);
     }
   }
 
-  return { aliases, reviewers, planners };
+  const aliases = "aliases" in doc ? parseAliases(doc.aliases) : {};
+  const reviewers =
+    "reviewers" in doc ? parseStringArray("reviewers", doc.reviewers) : null;
+  const planners =
+    "planners" in doc ? parseStringArray("planners", doc.planners) : null;
+  const webui = "webui" in doc ? parseWebui(doc.webui) : null;
+
+  return { aliases, reviewers, planners, webui };
 }

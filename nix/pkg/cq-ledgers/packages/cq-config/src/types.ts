@@ -23,6 +23,17 @@ export interface ReviewerToken {
 }
 
 /**
+ * The `[webui]` table: optional bind host + port for the web UI.
+ *
+ * - `host`: the bind address string, or null if unset (caller picks a default).
+ * - `port`: the TCP port integer (1..65535), or null if unset.
+ */
+export interface WebuiConfig {
+  readonly host: string | null;
+  readonly port: number | null;
+}
+
+/**
  * The parsed cq.toml configuration.
  *
  * - `aliases`: the `[aliases]` table, each value parsed into a ReviewerToken.
@@ -30,11 +41,13 @@ export interface ReviewerToken {
  *   (not yet resolved — see `resolveReviewers`).
  * - `planners`: the top-level `planners = [...]` list of ALIAS names
  *   (not yet resolved — see `resolvePlanners`).
+ * - `webui`: the `[webui]` table (host + port), or null if absent.
  */
 export interface CqConfig {
   readonly aliases: Record<string, ReviewerToken>;
   readonly reviewers: readonly string[];
   readonly planners: readonly string[];
+  readonly webui: WebuiConfig | null;
 }
 
 /** Type guard: is `value` a known harness? */

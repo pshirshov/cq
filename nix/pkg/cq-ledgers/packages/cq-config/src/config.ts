@@ -7,11 +7,20 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
-import { parseToml } from "./toml.js";
-import { isHarness, type CqConfig, type ReviewerToken } from "./types.js";
+import { parseToml, type RawWebui } from "./toml.js";
+import {
+  isHarness,
+  type CqConfig,
+  type ReviewerToken,
+  type WebuiConfig,
+} from "./types.js";
 
 /** The cq.toml filename, resolved relative to a repo root. */
 export const CQ_CONFIG_FILENAME = "cq.toml";
+
+/** The lowest / highest valid TCP port number. */
+const MIN_PORT = 1;
+const MAX_PORT = 65535;
 
 /** Thrown when cq.toml is structurally valid TOML but violates the schema. */
 export class CqConfigError extends Error {
@@ -67,7 +76,39 @@ export function parseConfig(source: string): CqConfig {
 
   const reviewers = raw.reviewers ?? [];
   const planners = raw.planners ?? [];
-  return { aliases, reviewers, planners };
+  const webui = raw.webui === null ? null : parseWebui(raw.webui);
+  return { aliases, reviewers, planners, webui };
+}
+
+/**
+ * Type-check + range-check the raw `[webui]` table at the boundary.
+ *
+ * `host` (if present) must be a string; `port` (if present) must be an
+ * INTEGER in 1..65535. Throws a precise `CqConfigError` otherwise.
+ */
+function parseWebui(raw: RawWebui): WebuiConfig {
+  let host: string | null = null;
+  if (raw.host !== undefined) {
+    if (typeof raw.host !== "string") {
+      throw new CqConfigError("[webui] host must be a string");
+    }
+    host = raw.host;
+  }
+
+  let port: number | null = null;
+  if (raw.port !== undefined) {
+    if (typeof raw.port !== "number" || !Number.isInteger(raw.port)) {
+      throw new CqConfigError("[webui] port must be an integer");
+    }
+    if (raw.port < MIN_PORT || raw.port > MAX_PORT) {
+      throw new CqConfigError(
+        `[webui] port must be in ${MIN_PORT}..${MAX_PORT}, got ${raw.port}`,
+      );
+    }
+    port = raw.port;
+  }
+
+  return { host, port };
 }
 
 /**

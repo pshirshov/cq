@@ -18,6 +18,7 @@ import {
   resolvePlanners,
   parseConfig,
   parseReviewerToken,
+  CqConfigError,
   type ReviewerToken,
   type CqConfig,
 } from "../src/index.js";
@@ -188,6 +189,92 @@ planners = ["ghost"]
 [aliases]
 `);
     expect(() => resolvePlanners(config)).toThrow(/undefined alias.*ghost/i);
+  });
+});
+
+// T185: smol-toml swap + typed [webui] table (host string + integer port).
+
+const VALID_TOML_WITH_WEBUI = `
+reviewers = ["codex"]
+
+[aliases]
+codex = "pi:gpt-5-codex"
+
+[webui]
+host = "0.0.0.0"
+port = 5180
+`;
+
+describe("parseConfig with [webui]", () => {
+  it("parses host + integer port, port stays a number", () => {
+    const config = parseConfig(VALID_TOML_WITH_WEBUI);
+    expect(config.webui).toEqual({ host: "0.0.0.0", port: 5180 });
+    expect(typeof config.webui?.port).toBe("number");
+  });
+
+  it("defaults webui to null when absent", () => {
+    expect(parseConfig(VALID_TOML).webui).toBeNull();
+  });
+
+  it("allows a [webui] table with only host", () => {
+    expect(parseConfig(`[webui]\nhost = "127.0.0.1"\n`).webui).toEqual({
+      host: "127.0.0.1",
+      port: null,
+    });
+  });
+
+  it("allows a [webui] table with only port", () => {
+    expect(parseConfig(`[webui]\nport = 8080\n`).webui).toEqual({
+      host: null,
+      port: 8080,
+    });
+  });
+
+  it("throws on an unknown key inside [webui]", () => {
+    expect(() => parseConfig(`[webui]\nbogus = 1\n`)).toThrow(
+      /unexpected key "bogus" in \[webui\]/,
+    );
+  });
+
+  it("throws CqConfigError on a string port", () => {
+    expect(() => parseConfig(`[webui]\nport = "5180"\n`)).toThrow(
+      CqConfigError,
+    );
+  });
+
+  it("throws CqConfigError on a non-integer port", () => {
+    expect(() => parseConfig(`[webui]\nport = 5180.5\n`)).toThrow(
+      CqConfigError,
+    );
+  });
+
+  it("throws CqConfigError on an out-of-range port", () => {
+    expect(() => parseConfig(`[webui]\nport = 0\n`)).toThrow(CqConfigError);
+    expect(() => parseConfig(`[webui]\nport = 70000\n`)).toThrow(
+      CqConfigError,
+    );
+  });
+
+  it("throws CqConfigError on a non-string host", () => {
+    expect(() => parseConfig(`[webui]\nhost = 123\n`)).toThrow(CqConfigError);
+  });
+});
+
+describe("whitelist over smol-toml output", () => {
+  it("rejects an unknown top-level table", () => {
+    expect(() => parseConfig(`[bogus]\nx = 1\n`)).toThrow(
+      /unexpected top-level key bogus/,
+    );
+  });
+
+  it("rejects an unknown top-level key", () => {
+    expect(() => parseConfig(`bogus = []\n`)).toThrow(
+      /unexpected top-level key bogus/,
+    );
+  });
+
+  it("still throws on malformed TOML (wrapped TomlError)", () => {
+    expect(() => parseConfig(`[aliases\ncodex = "pi:x"`)).toThrow();
   });
 });
 
