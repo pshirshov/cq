@@ -122,10 +122,18 @@ concurrently, keyed by `harness`:
   `opus`). It returns its structured json (the contract below) and writes
   nothing to the ledger.
 - **`pi:*`** → `Bash` shellout to the `pi` CLI (T169 invocation, decision K30):
-  `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+  `env -u CODEX_COMPANION_SESSION_ID -u CLAUDE_PLUGIN_DATA pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>' </dev/null`
   (grok-build → `--provider grok-build --model grok-build`; gpt-5.5 →
   `--provider openai-codex --model gpt-5.5`; map from the reviewer's
-  `harness`/`model`/`alias`). The `<prompt>` feeds the SHARED `/cq:implement-review`
+  `harness`/`model`/`alias`). **The `env -u CODEX_COMPANION_SESSION_ID -u
+  CLAUDE_PLUGIN_DATA … </dev/null` wrapper is REQUIRED, not cosmetic:** launched
+  from inside this session pi inherits the codex-inline companion env and BLOCKS
+  INDEFINITELY on the companion handshake when that companion is down (a real,
+  output-less hang — verified); stripping that env and detaching stdin makes pi
+  run standalone and FAST-FAIL on real errors instead — a quota-exhausted /
+  unauthorized provider then exits non-zero with the error on stderr and empty
+  stdout (e.g. openrouter `402 Insufficient credits`, exit 1, ~2s), which the
+  abstention rule (3c) catches. The `<prompt>` feeds the SHARED `/cq:implement-review`
   rubric (`commands/cq/implement-review.md`, T174) PLUS the task acceptance, the
   worktree diff (`base..HEAD`), and the latest `bun run check` output. `pi` runs
   in default text mode; parse the (possibly fence-wrapped) json from its stdout.

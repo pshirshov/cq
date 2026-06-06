@@ -123,12 +123,21 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
           ledger and emitting no status token. Capture the parsed candidate.
         - `pi:<model>` → shell out via `Bash` to the `pi` CLI using the confirmed
           **non-interactive** invocation from the **T169 spike (K30)**:
-          `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+          `env -u CODEX_COMPANION_SESSION_ID -u CLAUDE_PLUGIN_DATA pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>' </dev/null`
           (the combined `--model <P>/<M>` form also works; default `--mode text`
           emits the bare reply on stdout). Concrete provider/model pairs from K30:
           grok-build → `--provider grok-build --model grok-build`; gpt-5.5 →
           `--provider openai-codex --model gpt-5.5`. Both providers are
-          OAuth-pre-authenticated. Feed it the **goal context** (the goal's
+          OAuth-pre-authenticated. **The `env -u CODEX_COMPANION_SESSION_ID -u
+          CLAUDE_PLUGIN_DATA … </dev/null` wrapper is REQUIRED, not cosmetic:**
+          launched from inside this session pi inherits the codex-inline
+          companion env and BLOCKS INDEFINITELY on the companion handshake when
+          that companion is down (a real, output-less hang — verified); stripping
+          that env and detaching stdin makes pi run standalone and FAST-FAIL on
+          real errors instead — a quota-exhausted / unauthorized provider then
+          exits non-zero with the error on stderr and empty stdout (e.g.
+          openrouter `402 Insufficient credits`, exit 1, ~2s), which the
+          abstention rule above catches. Feed it the **goal context** (the goal's
           title/description/grounding, its answered-question history, and any
           existing work-milestone tasks — the same material the native candidate
           planner reads) PLUS the **candidate-plan JSON contract** above, instructing
@@ -259,12 +268,18 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
           returned `{ summary, verdict, new_questions, criticism, defects }`.
         - `pi:<model>` → shell out via `Bash` to the `pi` CLI using the
           confirmed **non-interactive** invocation from the **T169 spike (K30)**:
-          `pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>'`
+          `env -u CODEX_COMPANION_SESSION_ID -u CLAUDE_PLUGIN_DATA pi -p --no-tools --no-session --provider <P> --model <M> '<prompt>' </dev/null`
           (the combined `--model <P>/<M>` form also works; default
           `--mode text` emits the bare reply on stdout). Concrete provider/model
           pairs from K30: grok-build → `--provider grok-build --model grok-build`;
           gpt-5.5 → `--provider openai-codex --model gpt-5.5`. Both providers are
-          OAuth-pre-authenticated. Feed it the **shared `/cq:plan-review` rubric
+          OAuth-pre-authenticated. **The `env -u CODEX_COMPANION_SESSION_ID -u
+          CLAUDE_PLUGIN_DATA … </dev/null` wrapper is REQUIRED** (same reason as
+          the planner shellout in sub-step 1b-i: pi otherwise blocks indefinitely
+          on the codex-inline companion handshake; stripping the env makes it
+          fast-fail on real errors — e.g. a quota-exhausted provider exits
+          non-zero with the error on stderr — which the abstention rule above
+          catches). Feed it the **shared `/cq:plan-review` rubric
           prompt** (`commands/cq/plan-review.md`, T173) plus the goal/plan
           context (the goal's title/description/grounding, its Q&A history, and
           the emitted work-milestone tasks — the same material the native
