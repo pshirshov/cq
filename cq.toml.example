@@ -1,16 +1,23 @@
 # cq.toml — optional configuration for the cq review orchestrator
 #
-# This file documents the schema for configuring reviewers in the cq review flows.
-# Absence of cq.toml means only the native Claude reviewer (feature off).
+# This file documents the schema for configuring reviewers and planners in the
+# cq review flows. Absence of cq.toml means only the native Claude reviewer
+# (feature off).
 #
 # Schema:
 #   [aliases]        — table mapping alias names to reviewer tokens
 #   reviewers = [...] — top-level array of alias names to activate as reviewers
+#   planners  = [...] — top-level array of alias names to activate as planners
 
 # reviewers — List of ALIAS NAMES (keys from [aliases] below) to activate as reviewers.
 # Each alias is resolved through [aliases] to its reviewer token at runtime.
 # The reviewers will be invoked in plan-flow and implement-flow review steps.
 reviewers = ["codex", "grok", "opus"]
+
+# planners — List of ALIAS NAMES to activate as planners. Planners MIRROR
+# reviewers: same alias-name list shape, resolved through the SAME shared
+# [aliases] table below.
+planners = ["opus", "grok"]
 
 # [aliases] — Define reviewer instances as <harness>:<model> tokens.
 # Harnesses: "claude" (Claude API), "pi" (Pi/Pika API)
