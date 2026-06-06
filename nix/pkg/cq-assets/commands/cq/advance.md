@@ -22,17 +22,17 @@ answering questions); it picks up exactly where the durable ledger state left of
 ## Conventions this command obeys (K12)
 - **Pure sequencer.** You do not re-implement any sub-flow's logic — you RUN the
   sub-command (chaining it inline in this same main session, exactly per its own
-  prompt: llm/commands/investigate/advance.md, llm/commands/plan/advance.md,
-  llm/commands/implement/advance.md). The subagents-cannot-spawn-subagents rule is
+  prompt: `/investigate:advance`, `/plan:advance`,
+  `/implement:advance`). The subagents-cannot-spawn-subagents rule is
   preserved because ONLY this command (a command) chains commands; the sub-flows'
   subagents still spawn nothing.
-- **No concurrency cap of this command's own (Q60).** /advance introduces NO
+- **No concurrency cap of this command's own (Q60).** /cq:advance introduces NO
   concurrency limit; each chained sub-flow keeps its OWN (implement-flow's `N = 8`
   worker batch, investigate's seed-parallel/drill-serial rule, etc.). You inherit
   whatever each sub-command enforces and add nothing.
 - **No double-triage of goal-linked defects (Q57).** `/plan:advance` OWNS the
   auto-investigate of every defect linked to a goal it advances (its
-  auto-investigate phase, keyed on defect STATUS). Therefore /advance's
+  auto-investigate phase, keyed on defect STATUS). Therefore /cq:advance's
   investigate stage triages ONLY defects NOT already owned by a planning goal — it
   does not re-run `/investigate:advance` on a defect that `/plan:advance` will pick
   up. See the investigate predicate below.
@@ -45,7 +45,7 @@ answering questions); it picks up exactly where the durable ledger state left of
 This command performs **EXACTLY ONE** ledger write of its own: a single
 **run-level `handoffs` record** at end-of-run (Q85 — the user picked option (b):
 each per-flow command writes its own handoff only when run STANDALONE, and
-suppresses it when chained under `/advance`, so `/advance` is the sole writer of
+suppresses it when chained under `/cq:advance`, so `/cq:advance` is the sole writer of
 the one authoritative run-level handoff). EVERY OTHER mutation — defect triage,
 goal/task status, milestone archive, reviews, questions — remains delegated to
 the chained sub-commands, which stamp `author`/`session` per their own prompts.
@@ -82,12 +82,12 @@ T137, now in `CANONICAL_LEDGERS`) carries this item shape:
 
 Stamp `author`/`session` on this write like any other. The handoff is
 APPEND-ONLY (written once at end-of-run, never updated). This single write is the
-ONLY ledger mutation `/advance` performs; all other ledger mutations remain
+ONLY ledger mutation `/cq:advance` performs; all other ledger mutations remain
 delegated to the chained sub-commands. (The §Commit the ledger `git commit`s are
 git operations on the already-written ledger files, not ledger writes.)
 
 **This write is the STOP GATE** (see §Stop condition). You may not conclude an
-`/advance` run without it, and you may only write it once the run genuinely maps
+`/cq:advance` run without it, and you may only write it once the run genuinely maps
 to one of the four statuses above — i.e. once the re-derived predicates show
 DRAINED or everything-blocked. If no status legitimately applies because a
 predicate is still TRUE and unblocked, the run has NOT reached a legal stop:
@@ -104,7 +104,7 @@ own §Session logs rule — follow each sub-command's logging rule while running
 
 ## Bootstrap recipe (T156 / Q79 — snapshot-first start)
 
-At the very start of each `/advance` run (and at the start of each cycle),
+At the very start of each `/cq:advance` run (and at the start of each cycle),
 derive **all three detection predicates** from **ONE tool call**:
 
 ```
@@ -193,7 +193,7 @@ do NOT make P-plan true.)
 ### P-implement — is there a DAG-ready task to implement?
 TRUE iff there exists a **goal** G in `planned` or `building` that has a
 **DAG-READY non-terminal task** — a task in the implement-flow READY-SET per
-llm/commands/implement/advance.md §1: status non-terminal and NOT `blocked`; every
+`/implement:advance` §1: status non-terminal and NOT `blocked`; every
 task in its `dependsOn` is `done`; its milestone's `dependsOn` milestones are
 satisfied; and it has NO linked `open` question. (A goal whose only remaining
 tasks are all `blocked` on open questions yields no ready task — P-implement is
@@ -211,19 +211,19 @@ you re-derive the predicates and continue.
 ### Cycle order: investigate → plan → implement, then RE-CHECK investigate
 1. **Investigate stage.** Evaluate **P-investigate**. If TRUE, for each defect D in
    its worklist run **`/investigate:advance D` INLINE** — exactly per
-   llm/commands/investigate/advance.md (do NOT re-implement it; RUN it). This
+   `/investigate:advance` (do NOT re-implement it; RUN it). This
    triages only the NOT-owned-by-a-planning-goal defects (Q57); a defect already
    linked to a `clarifying`/`planning` goal is left for the plan stage's
    auto-investigate. If P-investigate is FALSE, skip this stage.
 2. **Plan stage.** Evaluate **P-plan**. If TRUE, run **`/plan:advance` INLINE**
    (no argument — it advances every unlocked goal) exactly per
-   llm/commands/plan/advance.md. Note: **plan:advance OWNS auto-investigate** of
-   its goal-linked defects (its own auto-investigate phase) — so /advance does NOT
+   `/plan:advance`. Note: **plan:advance OWNS auto-investigate** of
+   its goal-linked defects (its own auto-investigate phase) — so /cq:advance does NOT
    double-triage them (Q57); the plan stage handles them as part of its own round.
    If P-plan is FALSE, skip this stage.
 3. **Implement stage.** Evaluate **P-implement**. If TRUE, run
    **`/implement:advance` INLINE** (no argument) exactly per
-   llm/commands/implement/advance.md. "Resume" INCLUDES a just-`planned` goal with
+   `/implement:advance`. "Resume" INCLUDES a just-`planned` goal with
    no prior implement pass: `/implement:advance` derives its ready-set from the
    planned tasks (every non-archived, non-terminal milestone with non-terminal
    tasks), so a missing `/implement:start` or "no run bootstrapped yet" is NEVER a
@@ -294,7 +294,7 @@ reasons to file a fix task and continue. A defect tagged by a reviewer as a
 whether to fix it*.
 
 **No confirmation pauses, and the ban is on CONTENT not just channel (hard
-rule).** `/advance` NEVER uses `AskUserQuestion` — or any inline "should I
+rule).** `/cq:advance` NEVER uses `AskUserQuestion` — or any inline "should I
 proceed / is this OK / confirm the scope" prompt — to pause between stages. The
 ONLY legitimate user-facing pause is **BLOCKED-ON-QUESTIONS**: an `open`
 `questions` item whose answer changes **WHAT to build or HOW the system must
@@ -309,14 +309,14 @@ stop on it; **CONTINUE and fix**. The rule bans the *content* (a
 disposition/confirmation question), regardless of the *channel* used to raise
 it. If you are tempted to ask one, that is the signal to **CONTINUE**.
 
-**Running `/advance` is the authorization.** It overrides any standing
+**Running `/cq:advance` is the authorization.** It overrides any standing
 "confirm hard-to-reverse / outward-facing changes" or "ask when instructions are
 unclear" default (including the user's global `~/.claude/CLAUDE.md`
 caution-first guidance) **for the disposition of confirmed defects and for
 scope/blast-radius of a fix**: a generated/external-API change is still fixed
 without confirmation. Those cautious-confirm defaults apply only to a genuine
 *requirements* ambiguity (WHAT/HOW the system must behave), never to whether or
-how thoroughly to fix a confirmed fault. The user chose to launch `/advance`;
+how thoroughly to fix a confirmed fault. The user chose to launch `/cq:advance`;
 that is the standing go-ahead to fix everything.
 
 If you find yourself reaching for any of the above, that is the signal to
@@ -329,9 +329,9 @@ surfaced new work) means another cycle is warranted.
 ## Milestone auto-close + archive sweep (end-of-run — placeholder, T128)
 
 After the loop reaches quiescence, run the **auto-close+archive sweep** over the
-entire `milestones` ledger. `/advance` is the AUTHORITATIVE locus for this rule
+entire `milestones` ledger. `/cq:advance` is the AUTHORITATIVE locus for this rule
 (it re-derives ledger state each run, so it also catches milestones whose goal
-the user closed between runs); implement/advance.md's milestone-completion step
+the user closed between runs); `/implement:advance`'s milestone-completion step
 states the SAME factored predicate for the in-pass case — keep the two in sync,
 do not let them diverge.
 
@@ -355,7 +355,7 @@ its coordination milestone open).
 **Goal-vs-milestone asymmetry (explicit):** **GOALS NEVER auto-close** — never
 transition a goal `building`→`done` (always the user's action; the G3-B / M16
 invariant). **MILESTONES ALWAYS may** auto-close+archive once eligible. So once
-the user closes a goal `G`, the next `/advance` sweep archives `G`'s
+the user closes a goal `G`, the next `/cq:advance` sweep archives `G`'s
 now-eligible coordination milestone automatically.
 
 ---
@@ -377,7 +377,7 @@ per-cwd runtime registry, which is gitignored; and NEVER code) — at TWO points
 Mechanism (run from the ledger root — the MCP `--cwd`, the repo root here):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /advance — <Mxx archived | run stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:advance — <Mxx archived | run stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -385,7 +385,7 @@ The `git diff --cached --quiet` guard makes the commit a NO-OP when nothing
 changed (idempotent — safe to repeat, never errors on an empty commit). Scope
 the `git add` to the ledger artifacts only; do NOT `git add -A` (code changes
 land on their own task branches; a ledger commit must contain only ledger
-files). **`/advance` is the SOLE at-stop committer for a full run** — chained
+files). **`/cq:advance` is the SOLE at-stop committer for a full run** — chained
 sub-flows SUPPRESS their own at-stop ledger commit (mirroring the handoff
 suppression), but a milestone archived inside a chained sub-flow's pass is still
 committed at the point of archive.
@@ -395,7 +395,7 @@ committed at the point of archive.
 ## End-of-run report (Q59 — DRAINED / BLOCKED-ON-QUESTIONS / MIXED)
 
 When the loop stops, classify the run into exactly ONE of three categories and
-report it. Mirror llm/commands/implement/advance.md's end-of-pass report style
+report it. Mirror `/implement:advance`'s end-of-pass report style
 (concise, id-listing, next-action-bearing).
 
 - **DRAINED** — nothing actionable remains anywhere: every defect terminal or
@@ -407,12 +407,12 @@ report it. Mirror llm/commands/implement/advance.md's end-of-pass report style
   parked on unanswered `open` questions. **Enumerate every blocking question** by
   id, each with its OWNING item (the `defects:<D>` / `goals:<G>` / `tasks:<id>` it
   ledgerRefs) and a one-line summary. Instruct the user: **answer the listed
-  questions in the TUI/web, then re-run `/advance`** to resume (the loop folds the
+  questions in the TUI/web, then re-run `/cq:advance`** to resume (the loop folds the
   answers back in and continues).
 - **MIXED** — progress was made this run AND some actionable items remain blocked
   on open questions. Report BOTH: (a) what landed (as in DRAINED), and (b) the
   remaining blocking question ids with owning items (as in BLOCKED-ON-QUESTIONS).
-  Next action: answer the listed questions, then re-run `/advance`.
+  Next action: answer the listed questions, then re-run `/cq:advance`.
 
 To build the report, re-derive the three predicates one final time from the
 ledger: if all three are FALSE and no `open` question gates any actionable item →
@@ -422,7 +422,7 @@ landed work). Always close with the concrete next action and (for the blocked
 categories) the exact list of question ids to answer.
 
 After emitting the report, persist it as the single run-level `handoffs` record
-— `/advance`'s one and only ledger write — mapping this classification to the
+— `/cq:advance`'s one and only ledger write — mapping this classification to the
 handoff `status` (DRAINED→`drained`, BLOCKED-ON-QUESTIONS→`answers-required`,
 MIXED→`mixed`, error/abort→`illness-detected`) and populating `summary`, `flow`,
 `ledgerRefs`, `blockingQuestions`, `handoffReasons` (for `mixed`), and

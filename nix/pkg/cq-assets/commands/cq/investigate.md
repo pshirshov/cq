@@ -100,31 +100,31 @@ Note the chosen severity and why (one line) in the report.
 ### 3. Hand off to the advance pass
 
 Now execute the `/investigate:advance` pass for defect **D** — follow the full loop spec
-in `llm/commands/investigate/advance.md` (READ state → FORM hypotheses → DISPATCH
+in `/investigate:advance` (READ state → FORM hypotheses → DISPATCH
 explorers → VALIDATE citations → adjudicate → CONFIRMED handoff or NEEDS-USER-INPUT
 park, plus its session-log writing and provenance rules). Do NOT restate or duplicate
 that logic here; run it. Then produce `/investigate:advance`'s end-of-round report.
 
 This command is the outermost wrapper for this invocation (the user ran
-`/investigate:start`), so the inline `/investigate:advance` pass **SUPPRESSES
-its own handoff write** (per investigate/advance.md's CHAINED section —
+`/cq:investigate`), so the inline `/investigate:advance` pass **SUPPRESSES
+its own handoff write** (per `/investigate:advance`'s CHAINED section —
 `/<flow>:start` is listed as a suppress-context), and **this command** writes
 the ONE `handoffs` record at the stop. Use the field schema from
-investigate/advance.md's §Handoff record, STANDALONE branch (do not restate the
+`/investigate:advance`'s §Handoff record, STANDALONE branch (do not restate the
 mapping here). **Then commit the ledger** — this command is the outermost
 wrapper, so it owns the single run-stop ledger commit; immediately after the
 handoff write, persist ONLY the ledger (`docs/*.md` + `docs/archive` +
 `docs/logs`; NEVER `docs/ledgers.yaml`, gitignored; NEVER code):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /investigate:start — defect D<n> <intake|resume> + first round
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:investigate — defect D<n> <intake|resume> + first round
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed.
 
 The run is resumable: after the user answers any registered questions, they re-run
-**`/investigate:advance D`** (no need to re-run `/investigate:start`).
+**`/investigate:advance D`** (no need to re-run `/cq:investigate`).
 
 ---
 

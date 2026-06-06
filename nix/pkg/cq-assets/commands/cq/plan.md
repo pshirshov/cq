@@ -26,14 +26,14 @@ On every `create_item` / `create_milestone`, pass:
 ## Defect vs goal — intake the right ledger
 Plan-flow goals are for **greenfield work** (build/change something). A
 user-reported **DEFECT** — an existing fault to fix — should NOT be intaked as a
-goal: file it on the `defects` ledger via **`/investigate:start <defect
+goal: file it on the `defects` ledger via **`/cq:investigate <defect
 description>`** instead. That flow investigates the fault, confirms a root cause,
 and (per the file-and-defer handoff, K8) seeds a *defect-seeded* plan-flow goal —
 linked `defects:<D>` with the confirmed root cause embedded — which
 `/plan:advance` then turns into reviewed FIX TASKS (tasks remain the only
 executable unit; the defect itself stays a problem record). So: fix request →
-`/investigate:start`; new capability → `/plan:start` (here). If `$ARGUMENTS`
-plainly describes a fault to repair, tell the user to use `/investigate:start`
+`/cq:investigate`; new capability → `/cq:plan` (here). If `$ARGUMENTS`
+plainly describes a fault to repair, tell the user to use `/cq:investigate`
 and stop instead of creating a goal.
 
 ## Before you start
@@ -73,7 +73,7 @@ report its id and stop instead of creating a new one.
    goal item — do NOT defer this to a separate pass.
 
 5. **Auto-investigate filed defects (conditional — K12).** This mirrors the
-   same phase in `plan/advance.md` (see that file's §Auto-investigate filed
+   same phase in `/plan:advance` (see that command's §Auto-investigate filed
    defects for the full logic) — this step is a pointer to it, not a
    re-derivation.
 
@@ -91,8 +91,8 @@ report its id and stop instead of creating a new one.
 
    For each defect **D** in the worklist, run **`/investigate:advance D`
    inline** in this same main session, exactly per
-   llm/commands/investigate/advance.md — do NOT duplicate or re-implement
-   that logic; run it. Inherit the stop predicates from plan/advance.md's
+   `/investigate:advance` — do NOT duplicate or re-implement
+   that logic; run it. Inherit the stop predicates from `/plan:advance`'s
    auto-investigate phase (predicates a–f, per K12). A command chaining
    another command's loop is legal under **K12**; the
    subagents-cannot-spawn-subagents rule is preserved because only this
@@ -106,18 +106,18 @@ report its id and stop instead of creating a new one.
      continue;
    - if step 5 ran: for each defect D in the worklist, one line covering its
      auto-investigate outcome (confirmed→seeded goal, parked on a question, or
-     stopped by a K12 predicate) — same format as plan/advance.md's §Report
+     stopped by a K12 predicate) — same format as `/plan:advance`'s §Report
      auto-investigate lines.
 
 7. **Handoff record.** This command is the outermost wrapper for this
-   invocation (the user ran `/plan:start`), so **this command** writes the ONE
-   `handoffs` record at this step. Use the field schema from plan/advance.md's
+   invocation (the user ran `/cq:plan`), so **this command** writes the ONE
+   `handoffs` record at this step. Use the field schema from `/plan:advance`'s
    §Handoff record, STANDALONE branch — the goal is left in
    `clarifying`/`awaiting-answers` with the first questions filed, so the stop
    classification is `answers-required` (`flow` = `plan`; `ledgerRefs`
    `goals:<G>`; `blockingQuestions` the filed question ids; `sessionLogs` the
    step-4 path). Do not restate the field mapping here. The conditional step-5
-   auto-investigate sub-round writes NO handoff of its own — investigate/advance.md
+   auto-investigate sub-round writes NO handoff of its own — `/investigate:advance`
    suppresses its handoff when chained by this command (per its CHAINED section:
    `/<flow>:start` is listed as a suppress-context; this command owns the single
    authoritative write).
@@ -128,7 +128,7 @@ report its id and stop instead of creating a new one.
    `docs/logs`; NEVER `docs/ledgers.yaml`, gitignored; NEVER code):
    ```
    git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-   git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /plan:start — goal G<n> bootstrapped (awaiting-answers)
+   git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan — goal G<n> bootstrapped (awaiting-answers)
 
    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
    ```

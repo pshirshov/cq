@@ -29,7 +29,7 @@ export interface PromptLink {
 
 /** Single source of truth for all Claude symlinks. Exported for tests and --check mode. */
 export const LINKS: readonly PromptLink[] = [
-  { link: ".claude/commands/plan/start.md", source: "../cq-assets/commands/plan/start.md" },
+  { link: ".claude/commands/plan/start.md", source: "../cq-assets/commands/cq/plan.md" },
   { link: ".claude/commands/plan/advance.md", source: "../cq-assets/commands/plan/advance.md" },
   { link: ".claude/commands/plan/follow-up.md", source: "../cq-assets/commands/plan/follow-up.md" },
   { link: ".claude/agents/plan-advance.md", source: "../cq-assets/agents/plan-advance.md" },
@@ -39,11 +39,11 @@ export const LINKS: readonly PromptLink[] = [
   { link: ".claude/agents/implement-worker.md", source: "../cq-assets/agents/implement-worker.md" },
   { link: ".claude/agents/implement-reviewer.md", source: "../cq-assets/agents/implement-reviewer.md" },
   { link: ".claude/agents/implement-conflict-resolver.md", source: "../cq-assets/agents/implement-conflict-resolver.md" },
-  { link: ".claude/commands/investigate/start.md", source: "../cq-assets/commands/investigate/start.md" },
+  { link: ".claude/commands/investigate/start.md", source: "../cq-assets/commands/cq/investigate.md" },
   { link: ".claude/commands/investigate/advance.md", source: "../cq-assets/commands/investigate/advance.md" },
   { link: ".claude/agents/investigate-explorer.md", source: "../cq-assets/agents/investigate-explorer.md" },
   { link: ".claude/agents/investigate-prober.md", source: "../cq-assets/agents/investigate-prober.md" },
-  { link: ".claude/commands/advance.md", source: "../cq-assets/commands/advance.md" },
+  { link: ".claude/commands/advance.md", source: "../cq-assets/commands/cq/advance.md" },
   { link: ".claude/commands/cq/plan-review.md", source: "../cq-assets/commands/cq/plan-review.md" },
   { link: ".claude/commands/cq/implement-review.md", source: "../cq-assets/commands/cq/implement-review.md" },
   { link: ".claude/commands/cq/reviewers.md", source: "../cq-assets/commands/cq/reviewers.md" },
