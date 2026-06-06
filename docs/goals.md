@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 20
+  item: 21
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -351,10 +351,10 @@ archives:
 
 ## M65
 
-### G20 — clarifying
+### G20 — planned
 
 - createdAt: 2026-06-06T10:37:42.559Z
-- updatedAt: 2026-06-06T10:42:01.567Z
+- updatedAt: 2026-06-06T11:15:54.409Z
 - author: "opus-4.8[1m]"
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - title: "cq.toml [webui] config + new cq CLI (init/reset/erase)"
@@ -372,20 +372,47 @@ archives:
     
     Both are described by the user as MINOR feature requests.
 - grounding: |
-    Grounded read-only against HEAD 32cfe43 (2026-06-06). Bun workspace = nix/pkg/cq-ledgers/packages/{ledger,ledger-mcp,ledger-web,ledger-tui,cq-config}. bun run check = tsc -b && eslint . && bun test (run from nix/pkg/cq-ledgers/). Nix bins packaged in repo-root flake.nix (.#ledger-mcp/.#ledger-tui/.#ledger-web) + node-modules FOD.
+    Grounded read-only against HEAD 32cfe43 (2026-06-06); ANSWERS Q105-Q111 folded in (v2).
     
-    === FEATURE 1 (cq.toml [webui] + port auto-increment) ===
-    - @cq/config (packages/cq-config/src/{toml,config,types}.ts) is a MINIMAL hand-rolled TOML parser, intentionally NOT full TOML. parseToml's table handling whitelists ONLY the [aliases] table and top-level keys reviewers/planners; ANY other top-level key OR table THROWS TomlSyntaxError ('unexpected table [..]' / 'unexpected top-level key ..'). Value parsing supports ONLY double-quoted STRINGS (parseString) and single-line arrays of strings (parseStringArray) — NO numbers/bools. => [webui] is a NEW table: BOTH parseToml (add a [webui] branch) AND the typed model (RawToml/CqConfig/parseConfig in toml.ts+config.ts+types.ts) must be extended; `port` being a NUMBER needs either integer support added to the parser or port kept as a quoted string. loadConfig(repoRoot) reads <repoRoot>/cq.toml, returns null if absent, and EAGERLY resolveReviewers+resolvePlanners (throws on dangling alias) — [webui] is orthogonal but shares this load path.
-    - ledger-web entrypoint = packages/ledger-web/src/serve.ts (bin 'ledger-web' -> ./src/serve.ts). parseArgs already handles --host (DEFAULT_HOST 127.0.0.1) / --port (DEFAULT_PORT 5180) / --mcp-url / --cwd; ledger root resolves --cwd > $LEDGER_ROOT > process.cwd(). Default mode is EMBEDDED MCP (co-hosts /mcp + /ws in-process via attachMcpHttp + createEmbeddedStore); --mcp-url switches to reverse-proxy. cq.toml root for [webui] = that resolved cwd (same root the embedded store/ledger MCP uses; matches G18 Q99 'config root IS the ledger root').
-    - Bun.serve binds opts.port directly and does NOT auto-increment on EADDRINUSE (it throws). The increment-until-free loop is NET-NEW. main() currently prints startup line to STDERR ('ledger-web: serving http://host:server.port/ -> backend'), using Bun's server.port (the actual bound port). Goal wants the actual host/port reported to STDOUT — that is a CHANGE of stream + possibly format. ledger-web does NOT read cq.toml today at all; threading loadConfig into serve.ts is new wiring.
+    Bun workspace = nix/pkg/cq-ledgers/packages/{ledger,ledger-mcp,ledger-web,ledger-tui,cq-config}. bun run check = tsc -b && eslint . && bun test (from nix/pkg/cq-ledgers/). Nix bins packaged in repo-root flake.nix + node-modules FOD.
     
-    === FEATURE 2 (cq CLI: init/reset/erase) ===
-    - NO `cq` bin exists today (net-new package/bin; would mirror ledger-mcp packaging in flake.nix + node-modules FOD).
-    - RESET already exists at TWO layers: (1) library FsLedgerStore.reset() in @cq/ledger (packages/ledger/src/store/FsLedgerStore.ts) — public operator-facing: counts items, drops non-canonical FTS, calls private backupAndReinit() which snapshots docs/*.md + docs/ledgers.yaml to docs/.backup/<sanitized-ISO>/ then rewrites the canonical empty set, reloads via init(); returns ResetSummary{backupDir, ledgers[]}. (2) CLI surface in packages/ledger-mcp/src/main.ts: parseArgs --reset/--yes(-y) + runReset() (ResetIo-injectable; confirmation policy: --yes => proceed; TTY no --yes => prompt y/N; non-TTY no --yes => REFUSE exit 2; backup to docs/.backup/) + main() short-circuit that exits WITHOUT serving. So 'relocate reset OUT of the MCP' = move the CLI WRAPPER (runReset + --reset parsing) to `cq reset`; FsLedgerStore.reset() library method STAYS in @cq/ledger (it's the reusable core). Removing --reset from ledger-mcp is a CLI-surface change (any script/Nix app invoking `ledger-mcp --reset` would break).
-    - INIT (create-if-none): store.init() (FsLedgerStore) bootstraps docs/ledgers.yaml (EMPTY_REGISTRY if missing) + every CANONICAL_LEDGER (milestones seeded with active group + M-AMBIENT; others empty) when files are absent; it is IDEMPOTENT and already runs on EVERY server start (ledger-mcp, embedded ledger-web). `cq init` ~= run init() (creates empty ledgers if none; no-op/leaves data if present).
-    - ERASE (destroy): NO existing implementation. reset() backs-up-then-reinits (data recoverable in docs/.backup/); erase = destroy WITHOUT reinit/backup — net-new + most destructive + most ambiguous (what exactly: docs/*.md only? docs/ entirely incl. archive/.backup/logs/.locks? leave dir empty vs re-init?). Needs a confirmation/safety policy (reuse ResetIo pattern).
-    - 'empty ledgers' = docs/ledgers.yaml registry + per-ledger docs/<name>.md files (milestones with bootstrap group + ambient milestone, others empty), under <root>/docs/.
+    === ANSWER-DRIVEN DECISIONS (authoritative; supersede v1 recommendations) ===
+    - Q105: the user REJECTS the hand-rolled cq-config TOML parser ('do we have a home-baked toml parser??? use a library'). => REPLACE packages/cq-config/src/toml.ts parseToml with a maintained TOML library (smol-toml — pure-TS, TOML 1.0, zero native deps, fits Bun + the FOD model). port MUST be a real integer (the library yields numbers natively). The typed model (config.ts/types.ts) stays; only parseToml's internals + RawToml shape adapt to the library output, keeping the SAME fail-fast boundary (precise error on malformed input / unexpected keys). [webui] = host (string) + port (integer) ONLY.
+    - Q106: per-field precedence CLI flag > cq.toml [webui] > built-in default, resolved INDEPENDENTLY for host and port (host default 127.0.0.1, port default 5180). Only PORT auto-increments; host is taken as-is.
+    - Q107: bounded port scan (cap ~64 tries) from the resolved port; ALWAYS-ON increment — applies even to an EXPLICIT --port (user: 'Explicit --port should increment too'); on exhausting the cap, fail loudly. Report the ACTUAL bound URL `http://<host>:<port>/` to STDOUT; KEEP the existing human stderr serving line too.
+    - Q108: NEW dedicated workspace package packages/cq-cli, bin literally `cq` -> src/main.ts; packaged in flake.nix exactly like ledger-mcp (own derivation + node-modules FOD entry + workspace symlinks for @cq/ledger); ledger root via --cwd > $LEDGER_ROOT > CWD.
+    - Q109: keep FsLedgerStore.reset() in @cq/ledger (reusable core); MOVE the CLI wrapper (runReset + ResetIo + ResetOutcome + defaultResetIo + --reset/--yes parsing + main() short-circuit) from packages/ledger-mcp/src/main.ts INTO `cq reset`; REMOVE --reset/--yes from the ledger-mcp binary (accepted breaking CLI change). Reuse the SAME confirmation policy (--yes proceed / TTY prompt / non-TTY refuse exit 2).
+    - Q110: init = FsLedgerStore.init()-if-none (idempotent, never overwrites existing data); reset = existing backup+reinit; erase = DESTROY EVERYTHING under the ledger root incl. docs/*.md + ledgers.yaml + archive/ + .backup/ + logs/ + .locks/ AND the cq.toml config file ('erase should erase everything including archives and config') — NO backup, NO reinit, leave nothing. Both destructive cmds (reset, erase) reuse the ResetIo confirmation policy.
+    - Q111: G20 EXPLICITLY DEPENDS ON G18 LANDING FIRST (not plan-against-HEAD). The @cq/config parser edits (FEATURE 1 W1) must be sequenced AFTER G18 PART 2 (work milestones M61/M62, currently `planned`) merges, because both edit toml.ts/config.ts/types.ts — and the library swap is a wholesale rewrite of toml.ts that would conflict with G18's planners-whitelist edits. `cq init` does NOT write cq.toml (config authoring stays the user's; consistent with loadConfig returning null when absent).
     
-    === COORDINATION ===
-    G18 PART 2 (status: planned, not yet built) extends THIS SAME @cq/config parser for `planners` (toml whitelist + CqConfig + resolvePlanners + get_planners tool). G20's [webui] touches the same parser files (toml.ts/config.ts/types.ts) — must coordinate/sequence to avoid conflicting edits. G15 already built the cq.toml [aliases]+reviewers parser; G18 PART1 merged cq-config into the ledger MCP (no standalone server).
-- sessionLogs: ["docs/logs/20260606-104144-a7535a8456c8bf94d.md"]
+    === FEATURE 1 surface (verified) ===
+    - @cq/config: parseToml(source)->RawToml{aliases,reviewers,planners} in toml.ts; parseConfig/resolveReviewers/resolvePlanners/loadConfig in config.ts; CqConfig/ReviewerToken in types.ts; barrel index.ts re-exports. loadConfig(repoRoot) reads <root>/cq.toml, returns null if absent, eagerly resolves reviewers+planners. Library swap: replace parseToml internals; add a typed `webui?: {host?:string; port?:number}` to RawToml + CqConfig + parseConfig (validate host is string, port is integer 1..65535 at the boundary). loadConfig path unchanged.
+    - ledger-web serve.ts: ServeOpts{host,port,mcpUrl,cwd,outdir}; parseArgs handles --host(127.0.0.1)/--port(5180)/--mcp-url/--cwd; root --cwd>$LEDGER_ROOT>cwd. serve() dispatches serveEmbedded (mcpUrl null) | serveProxy. BOTH call Bun.serve({hostname,port,...}) which THROWS on EADDRINUSE (no auto-increment). main() prints serving line to STDERR using server.port. ledger-web does NOT read cq.toml today. WIRING: in parseArgs/main, loadConfig(resolvedCwd); resolve effective host/port per-field (CLI flag tracked as 'explicitly set' vs default); add a port-scan helper that retries Bun.serve on EADDRINUSE up to N from the resolved port; print actual `http://<host>:<port>/` to STDOUT; keep stderr line. The scan must wrap the actual bind (serveEmbedded/serveProxy both take opts.port) — retry by catching the listen error and incrementing opts.port.
+    
+    === FEATURE 2 surface (verified) ===
+    - NO `cq` bin today. FsLedgerStore.init() (packages/ledger/src/store/FsLedgerStore.ts) idempotently bootstraps docs/ledgers.yaml + canonical ledgers when absent; FsLedgerStore.reset() backs up docs/*.md+ledgers.yaml to docs/.backup/<ts>/ then reinits empty, returns ResetSummary{backupDir,ledgers[]}. NO erase impl exists.
+    - Reset CLI wrapper lives ENTIRELY in ledger-mcp/src/main.ts: ParsedArgs.reset/.yes (parseArgs L120-126,L154), ResetIo/ResetOutcome interfaces (L410-429), defaultResetIo (L431-448), runReset (L463-500), main() short-circuit (L508-511). All move to cq-cli; ledger-mcp parseArgs/ParsedArgs/main lose reset/yes. Header comment L91-95 (the --reset doc) + tests referencing runReset/parseArgs reset must move/adjust.
+    - flake.nix: ledgerMcp derivation is the template for a new `cq` derivation (cp packages/ledger + packages/cq-cli, symlink @cq/ledger + runtime deps, makeWrapper bun run .../cq-cli/src/main.ts). Add packages.cq + apps.cq. node-modules FOD: add packages/cq-cli/package.json to the manifest fileset (L56-62) + the cq-cli node_modules copy (L99-107). FOD-hash refresh required (52 A's -> nix build .#node-modules -> paste got:). embedServerClosure unaffected (cq is a separate bin, not embedded).
+    
+    === COORDINATION (Q111) ===
+    G18 (goal, status planned) work milestones = M61, M62 (G18.fields.milestones). G20 W1 (parser edits) dependsOn those. G20 W2 (cq CLI) is INDEPENDENT of the parser and may proceed in parallel, EXCEPT the reset-relocation touches ledger-mcp/main.ts (not a G18 file) so no conflict. NOTE: on-disk toml.ts/types.ts already contain `planners` scaffolding locally, but G18 is not yet merged — treat G18's milestones as the gate per the user's explicit Q111 answer.
+- sessionLogs: ["docs/logs/20260606-104144-a7535a8456c8bf94d.md","docs/logs/20260606-110728-a7163c4a30f1e29ea.md","docs/logs/20260606-111249-a2465563287d28ef6.md","docs/logs/20260606-111249-a898e1f07c4675822.md"]
+- milestones: ["M68","M69"]
+
+## M66
+
+### G21 — planned
+
+- createdAt: 2026-06-06T10:55:35.127Z
+- updatedAt: 2026-06-06T11:02:55.935Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Fix D31 — modal backdrop must only dismiss on a press that STARTED on the backdrop
+- description: |
+    Defect-seeded goal (D31, confirmed root cause H24 — clarification skipped per K8 pt4). CONFIRMED ROOT CAUSE (verbatim from D31.rootCause): the @cq/ledger-web modal backdrop closes on ANY click whose common-ancestor is the backdrop, with NO guard that the press STARTED there. The batch overlay `<div className="lw-help-backdrop" data-testid="batch-overlay" onClick={onClose}>` (App.tsx) closes via onClose=setBatchOpen(false). Because the 'save & mark answered' HoldButton fires onConfirm on a HOLD_MS TIMER (not pointerup), batchSave advances to the next (shorter) question and the content-driven `.lw-batch` (no fixed height; backdrop is a centering flexbox) shrinks WHILE the user still presses; the still-held pointer ends over the backdrop; the release synthesizes a click with common-ancestor=backdrop → onClose → premature mid-queue dismiss (react-modal #466 class). The suite was green because batchModalClose.test.tsx never simulates a backdrop click (holdFull dispatches only pointerdown + clock advance) — vacuous coverage (cf. D24/H14). The SAME `onClick={onClose}` backdrop pattern is in HelpOverlay (~App.tsx:1485) and the log modal (~3021).
+    
+    SUGGESTED FIX (verbatim from D31.suggestedFix): gate backdrop dismissal on the press having STARTED on the backdrop — track onMouseDown/onPointerDown (target===currentTarget) on the backdrop and only call onClose() when BOTH the down-target AND the up/click target are the backdrop. Extract a small SHARED safe-backdrop wrapper/hook and apply to ALL THREE overlays (batch + help + log) so the whole class is fixed. REPRODUCE-FIRST (happy-dom): open the batch modal, dispatch pointerdown INSIDE the dialog (on the submit/hold button) then a `click` on data-testid="batch-overlay", assert the modal STAYS OPEN — FAILS today (modal closes). Keep the existing queue-drain close test green AND keep a genuine backdrop click (down+up both on backdrop) closing the modal. Escape-to-close unchanged. Gate: bun run check.
+    
+    Linked defect: D31. Expected a small fix-task set (shared backdrop guard + apply to 3 overlays + reproduce-first test). NOTE coordination: App.tsx is also touched by an in-flight uncommitted comment-cleanup in the working tree — the fix worker branches off committed main so it sees the committed App.tsx; flag a possible later merge reconciliation.
+- milestones: ["M67"]
+- sessionLogs: ["docs/logs/20260606-105830-ab36178fd4866aa91.md","docs/logs/20260606-105830-aff36b6c061066121.md"]

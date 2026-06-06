@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 32
+  item: 34
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -187,3 +187,27 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead (ref review R212): plan minimal, grounded, testable — single doc-only fix task T182, 0 criticisms, 0 new questions."
 - ledgerRefs: ["goals:G19"]
+
+## M66
+
+### K33 — locked
+
+- createdAt: 2026-06-06T11:02:18.698Z
+- updatedAt: 2026-06-06T11:02:18.698Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R214): plan fine-grained, correctly sequenced (RED T183 -> GREEN T184), operationally testable, grounded, minimal for confirmed root cause D31; 0 criticisms, 0 new questions."
+- ledgerRefs: ["goals:G21"]
+
+## M65
+
+### K34 — locked
+
+- createdAt: 2026-06-06T11:15:01.671Z
+- updatedAt: 2026-06-06T11:15:01.671Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R216): all 3 R215 criticisms resolved (cq-cli/main.ts serialized T189->T190->T191; T192 dependsOn T185 for single FOD refresh; @cq/config wired into ledger-web pkg + ledgerWeb derivation). DAG acyclic, all shared-file task pairs totally ordered, Q105-Q111 fidelity intact. G20 plan (M68: T185-T187; M69: T188-T192) approved for planned."
+- ledgerRefs: ["goals:G20"]

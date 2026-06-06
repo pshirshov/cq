@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 213
+  item: 226
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -238,6 +238,21 @@ archives:
     path: ./archive/reviews/M61.md
     summary: G18 PART 1 — Merge cq-config into ledger MCP + remove standalone server — COMPLETE. 11 tasks done + merged (T1 get_reviewers/get_config on BOTH ledger-MCP surfaces behind injected ConfigCapability; T2 buildServer wiring + e2e stdio; T3 count 18→20 + drift-guard; T4 delete cq-config-mcp package; T5 flake.nix removal + @cq/config symlink; T6 dev-llm.nix; T7 .mcp.json; T8/T9/T10 repoint reviewers.md/implement-advance/plan-advance to mcp__ledger__*; T11 FOD hash refresh + nix build .#ledger-mcp/.#ledger-tui/.#ledger-web green + .#cq-config-mcp attr-not-found). Reviews R195-R205 go-ahead. Out-of-scope defect D32 (README still referenced the removed server) auto-investigated→root-caused (H23)→defect-seeded G19→planned (K32/R212)→BUILT (T182, R213)→D32 RESOLVED in the same run; Q104 traceability withdrawn. bun run check green 931/0; main tip 418b641. @cq/config PARSER library retained.
     title: G18 PART 1 — Merge cq-config into ledger MCP + remove standalone server
+    status: done
+  - id: M67
+    path: ./archive/reviews/M67.md
+    summary: G21/D31 fix — COMPLETE. T183 (reproduce-first RED happy-dom test for the press-started-inside backdrop dismiss, d073a27) + T184 (shared useBackdropDismiss hook — closes only when target===currentTarget on BOTH pointerdown/mousedown and click — wired into all three overlays batch/help/log, 99576bc). Reviews R219/R220 go-ahead. D31 RESOLVED; bun run check green 977/0 at merge. main bdd2720.
+    title: G21/D31 fix — safe modal backdrop (press must start on backdrop to dismiss)
+    status: done
+  - id: M68
+    path: ./archive/reviews/M68.md
+    summary: G20 FEATURE 1 (cq.toml [webui] + ledger-web port auto-increment) — COMPLETE. T185 (swap @cq/config parser to smol-toml 1.6.1 + typed [webui] host/integer-port, whitelist preserved, G18 planners intact — 96b7031) + T186 (resolveWebOpts per-field CLI>cq.toml>default + bounded scanForPort MAX=64 EADDRINUSE-only host-immutable — f71f9b9) + T187 (main() wires loadConfig+resolveWebOpts+scanForPort, reports actual bound URL to STDOUT keeping the stderr line, + ledgerWeb @cq/config flake symlink — 0c21f43). Reviews R217/R221/R223 go-ahead (one plan revise round R215→R216). bun run check green; nix build .#ledger-web verified in T192.
+    title: G20 FEATURE 1 — cq.toml [webui] + ledger-web port auto-increment (depends on G18 landing)
+    status: done
+  - id: M69
+    path: ./archive/reviews/M69.md
+    summary: "G20 FEATURE 2 (new `cq` CLI init/reset/erase) — COMPLETE. T188 (scaffold @cq/cli package + dispatcher + injectable ConfirmIo — 8f60e59) + T189 (cq init: idempotent FsLedgerStore.init-if-none, no cq.toml — da1aa82) + T190 (cq reset: relocate the wrapper off ledger-mcp via FsLedgerStore.reset+ConfirmIo, REMOVE --reset from ledger-mcp — 3d96f3c) + T191 (cq erase: bounded irreversible delete of <root>/docs + cq.toml, no path-escape, confirm-gated — e597b68) + T192 (closing gate: cqCli flake.nix derivation + apps.cq + node-modules FOD entry + consolidated hash refresh; nix build .#cq/.#node-modules/.#ledger-mcp/.#ledger-tui/.#ledger-web all green + cq bin init/reset/erase e2e — bdd2720). Reviews R218/R222/R224/R225/R226 go-ahead. bun run check green 986/0. main bdd2720."
+    title: G20 FEATURE 2 — new `cq` CLI (init / reset / erase)
     status: done
 ---
 
@@ -477,3 +492,43 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G19","defects:D32","tasks:T182"]
 - sessionLogs: ["docs/logs/20260606-003711-a5fbe5076e58e816e.md"]
+
+## M66
+
+### R214 — go-ahead
+
+- createdAt: 2026-06-06T11:01:32.969Z
+- updatedAt: 2026-06-06T11:02:00.907Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: Plan for G21/D31 is fine-grained, correctly sequenced (RED T183 → GREEN T184 via dependsOn), operationally testable, fully grounded against App.tsx/HoldButton.tsx, and minimal for the confirmed root cause — go-ahead.
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G21","defects:D31","tasks:T183","tasks:T184"]
+- sessionLogs: ["docs/logs/20260606-105830-a50916ce5d3363686.md"]
+
+## M65
+
+### R215 — revise
+
+- createdAt: 2026-06-06T11:10:50.106Z
+- updatedAt: 2026-06-06T11:11:32.916Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Plan conforms to Q105-Q111 and is well-grounded against current main, but has 3 fixable defects: a same-file DAG-parallel collision (T189/T190/T191 all edit cq-cli/main.ts under only dependsOn:[T188]), a missing FOD-refresh prerequisite edge (T192 must dependsOn T185), and an unwired @cq/config dependency for ledger-web (T187/T192 never add it to ledger-web's package.json + the ledgerWeb Nix derivation symlinks)."
+- new_questions: []
+- criticism: ["SAME-FILE DAG-PARALLEL COLLISION (R137/R138 precedent): T189, T190, T191 each declare only dependsOn:[T188] yet ALL three edit packages/cq-cli/src/main.ts (the dispatcher routing + their respective subcommand handlers). They are concurrently DAG-ready and WILL collide when the implement loop dispatches them into separate worktrees and merges back. T190's own body even admits 'should be serialized by the implement loop if they collide' but does not encode it in dependsOn. Serialize them into a chain via dependsOn, e.g. T190 dependsOn [T189], T191 dependsOn [T190] (any total order works), so only one writer touches cq-cli/main.ts at a time.","MISSING FOD-REFRESH PREREQUISITE EDGE: T192 (flake.nix cq derivation + node-modules FOD hash refresh) declares dependsOn:[T188,T189,T190,T191] but NOT T185. T185 adds the smol-toml dependency to packages/cq-config/package.json (already in the FOD manifest fileset, flake.nix L56) and to bun.lock, which changes the node-modules FOD output hash. T192's own description states the smol-toml dep 'ALSO requires the same FOD refresh' and that T192 is 'the natural place to do the final FOD refresh' — but without a dependsOn:[T185] edge the DAG permits T192 to compute and paste the hash BEFORE T185 lands, yielding a hash that omits smol-toml and breaking nix build .#ledger-mcp / .#ledger-web (and a re-mismatch once T185 merges). Add T185 to T192.dependsOn so the single FOD refresh happens after BOTH bun.lock changes (smol-toml in T185 + cq-cli workspace pkg in T188) are present.","UNWIRED @cq/config DEPENDENCY FOR ledger-web: T187 wires loadConfig (from @cq/config) into packages/ledger-web/src/serve.ts, but ledger-web does not currently depend on @cq/config — it is absent from packages/ledger-web/package.json, and the ledgerWeb Nix derivation (flake.nix L341-358) only symlinks @cq/ledger-mcp, @cq/ledger and @cq/ledger-live into packages/ledger-web/node_modules; the shared embedServerClosure stages cq-config SOURCE but symlinks @cq/config ONLY under ledger-mcp's node_modules (L157-158), not ledger-web's. So workspace resolution under `bun run check` and especially `nix build .#ledger-web` (which T187 acceptance asserts 'succeeds') will fail to resolve @cq/config from serve.ts at runtime. Neither T187 nor T192 adds @cq/config to ledger-web's package.json nor adds an @cq/config symlink to the ledgerWeb installPhase. Add explicit steps: declare @cq/config in packages/ledger-web/package.json (T187) AND symlink packages/ledger-web/node_modules/@cq/config in the ledgerWeb derivation (T192, or a dedicated flake.nix edit), mirroring the ledger-mcp wiring at L221-225."]
+- ledgerRefs: ["goals:G20","tasks:T185","tasks:T186","tasks:T187","tasks:T188","tasks:T189","tasks:T190","tasks:T191","tasks:T192"]
+- sessionLogs: ["docs/logs/20260606-110728-ae88cb866d32b4470.md"]
+
+### R216 — go-ahead
+
+- createdAt: 2026-06-06T11:14:11.730Z
+- updatedAt: 2026-06-06T11:14:40.116Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Round-1 re-review: all 3 R215 criticisms resolved (cq-cli/main.ts now a total chain T189->T190->T191; T192.dependsOn includes T185 so the single FOD hash refresh follows the smol-toml bun.lock edit; T187 now declares @cq/config in ledger-web/package.json + symlinks it in the ledgerWeb derivation with acceptance (5)(6)(7) asserting it). The fix introduced no new same-file collision: T187's flake.nix edit is scoped to the ledgerWeb derivation and T192's to the cqCli derivation + bunNodeModules FOD + apps.cq, serialized via T192 dependsOn T187. DAG acyclic; every shared-file task pair totally ordered; Q105-Q111 fidelity intact. go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G20","tasks:T185","tasks:T186","tasks:T187","tasks:T188","tasks:T189","tasks:T190","tasks:T191","tasks:T192"]
+- sessionLogs: ["docs/logs/20260606-111249-a898bda7c81b5c1ac.md"]

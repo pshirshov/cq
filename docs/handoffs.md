@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 7
+  item: 8
 archives: []
 ---
 
@@ -119,3 +119,21 @@ archives: []
 - ledgerRefs: ["goals:G20"]
 - blockingQuestions: ["Q105","Q106","Q107","Q108","Q109","Q110","Q111"]
 - sessionLogs: ["docs/logs/20260606-104144-a7535a8456c8bf94d.md"]
+
+### HO8 — drained
+
+- createdAt: 2026-06-06T12:23:38.911Z
+- updatedAt: 2026-06-06T12:23:38.911Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: |
+    /advance run reached DRAINED quiescence. The user's two requests both landed end-to-end this run (main bdd2720; bun run check green 986/0; all nix products build incl. the new .#cq).
+    
+    LANDED:
+    • D31 (web BatchAnswerModal premature-close) — the user supplied a real repro (Q103) that FLIPPED the prior 'does not reproduce' conclusion. Investigate stage: H22 (suspected T163 regression) ruled WRONG; H24 CONFIRMED (validated against source) — the modal backdrop closed on any click whose common-ancestor was the backdrop, with NO guard the press STARTED there; a press-and-hold on 'save & mark answered' (HOLD_MS timer-fired) advanced to a shorter question, the content-driven dialog shrank WHILE still pressed, and the release over the backdrop dismissed it (react-modal #466 class; the suite was green only because no test clicked the backdrop — vacuous coverage cf. D24/H14). The SAME pattern existed in 2 other overlays (help, log). Defect-seeded G21→planned (K33/R214)→BUILT: T183 (reproduce-first RED happy-dom test) + T184 (shared useBackdropDismiss hook closing only when target===currentTarget on BOTH pointerdown/mousedown and click, applied to all 3 overlays). D31 RESOLVED; M60+M67 archived.
+    • G20 (the user's 2 feature requests) — clarified (Q105–Q111 answered), planned (K34; one plan revise round R215→R216 fixed a same-file cq-cli/main.ts collision + FOD-edge + the ledger-web @cq/config wiring), and fully BUILT across 8 tasks: FEATURE 1 (M68) — swapped the hand-rolled @cq/config TOML parser to smol-toml + typed [webui] (host string / integer port) (T185); per-field host/port resolution CLI>cq.toml>default + bounded always-on port auto-increment (T186); ledger-web main() loads cq.toml, scans for a free port, reports the ACTUAL bound URL to STDOUT (T187). FEATURE 2 (M69) — new `cq` CLI package: `cq init` (idempotent), `cq reset` (relocated off ledger-mcp — --reset REMOVED there, a deliberate breaking CLI change), `cq erase` (net-new bounded irreversible destroy of docs/+cq.toml), Nix-packaged (.#cq) with a consolidated node-modules FOD-hash refresh (T188–T192). M68+M69 archived.
+    
+    Gate at stop: P-investigate=FALSE (all defects resolved), P-plan=FALSE (all goals locked/planned), P-implement=FALSE (all tasks done/archived), no open questions. READY FOR THE USER TO CLOSE (goals never auto-close): G20 + G21 (this run) and the pre-existing planned G10–G19 — set each `done` in the TUI/web; their coordination milestones (M65/M66 + the older ones) auto-archive on the next /advance sweep. NOTE: a tiny non-blocking nit — the @cq/config symlink under the new cqCli derivation is unused dead weight (cq-cli has no @cq/config dep); harmless, optional cleanup. No user action REQUIRED to proceed; the run is complete.
+- flow: advance
+- ledgerRefs: ["goals:G20","goals:G21","defects:D31"]
+- sessionLogs: ["docs/logs/20260606-105430-af751bea360049c4c.md","docs/logs/20260606-111249-a898bda7c81b5c1ac.md","docs/logs/20260606-113840-a10ea8a13d2c24d7b.md","docs/logs/20260606-121721-a01d3264adc34b351.md"]
