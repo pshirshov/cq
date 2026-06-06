@@ -4,7 +4,7 @@
  * Asserts the routing contract without spawning the process:
  *   - no subcommand        => usage to stderr, exit 2, no handler invoked.
  *   - unknown subcommand   => usage to stderr, exit 2.
- *   - reset/erase          => route to their stub handlers (throw "not implemented").
+ *   - erase                => routes to its stub handler (throw "not implemented").
  *   - --cwd / $LEDGER_ROOT / CWD precedence for resolveRoot.
  */
 
@@ -47,11 +47,9 @@ describe("dispatch", () => {
     expect(io.errs.join("\n")).toBe(USAGE);
   });
 
-  it("routes reset/erase to their stub handlers (throw not-implemented)", async () => {
+  it("routes erase to its stub handler (throw not-implemented)", async () => {
     const io = recordingDispatchIo();
-    for (const cmd of ["reset", "erase"]) {
-      await expect(dispatch([cmd, "--cwd", "/tmp/x"], io)).rejects.toThrow(/not implemented/);
-    }
+    await expect(dispatch(["erase", "--cwd", "/tmp/x"], io)).rejects.toThrow(/not implemented/);
   });
 });
 

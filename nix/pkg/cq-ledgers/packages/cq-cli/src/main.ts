@@ -13,9 +13,9 @@
  * resolves its root as `--cwd > $LEDGER_ROOT > process CWD`; a relative value
  * resolves against the CWD.
  *
- * This module lands the package skeleton: the dispatcher, the shared
- * confirmation helper (see ./confirm.ts), and STUB subcommand handlers that
- * throw "not implemented". T189/T190/T191 fill `init`/`reset`/`erase`.
+ * This module hosts the dispatcher, the shared confirmation helper (see
+ * ./confirm.ts), and the subcommand handlers. `init` (T189) and `reset` (T190)
+ * are implemented; `erase` (T191) remains a STUB that throws "not implemented".
  *
  * Unknown or absent subcommand → usage to stderr + exit 2.
  */
@@ -25,6 +25,7 @@ import { FsLedgerStore, CANONICAL_LEDGERS } from "@cq/ledger";
 import {
   type ConfirmIo,
   defaultConfirmIo,
+  confirmDestructive,
 } from "./confirm.js";
 
 export { type ConfirmIo, type ConfirmOutcome, defaultConfirmIo, confirmDestructive } from "./confirm.js";
@@ -130,8 +131,44 @@ export async function runInit(args: SubcommandArgs, io: DispatchIo): Promise<Dis
   return { exitCode: 0 };
 }
 
-export function runReset(_args: SubcommandArgs, _io: DispatchIo): Promise<DispatchOutcome> {
-  throw new Error("cq reset: not implemented");
+/**
+ * `cq reset` (Q109): confirm via the shared destructive-op policy, then
+ * wipe-and-reinit the ledgers at `args.cwd` via the public
+ * {@link FsLedgerStore.reset}, print the backup dir + per-ledger summary, and
+ * return an exit code. The `reset()` method itself STAYS in @cq/ledger — this
+ * wrapper only owns confirmation, IO, and the exit code (relocated from the old
+ * ledger-mcp `--reset` short-circuit).
+ *
+ * Confirmation policy (shared with `erase`, see ./confirm.ts):
+ *   - `--yes`            → proceed unattended (no prompt).
+ *   - TTY, no `--yes`    → prompt; proceed only on a `y`/`Y` answer.
+ *   - non-TTY, no `--yes`→ REFUSE (exit 2) — never wipe a tree silently.
+ */
+export async function runReset(args: SubcommandArgs, io: DispatchIo): Promise<DispatchOutcome> {
+  const decision = await confirmDestructive(
+    args.yes,
+    `Reset ledgers at ${args.cwd}? Backup -> docs/.backup/ [y/N] `,
+    `cq reset: refusing to reset ledgers at ${args.cwd} without confirmation; ` +
+      `re-run with --yes to reset non-interactively.`,
+    io.confirm,
+  );
+  if (!decision.proceed) {
+    return { exitCode: decision.exitCode };
+  }
+
+  const store = new FsLedgerStore({ root: args.cwd });
+  await store.init();
+  try {
+    const summary = await store.reset();
+    io.out(`cq reset: reset ledgers at ${args.cwd}`);
+    io.out(`  backup: ${summary.backupDir}`);
+    for (const { name, itemCount } of summary.ledgers) {
+      io.out(`  ${name}: ${itemCount} item(s) backed up, reinitialised empty`);
+    }
+  } finally {
+    await store.dispose();
+  }
+  return { exitCode: 0 };
 }
 
 export function runErase(_args: SubcommandArgs, _io: DispatchIo): Promise<DispatchOutcome> {

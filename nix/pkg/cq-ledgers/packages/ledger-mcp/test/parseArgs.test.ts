@@ -41,23 +41,15 @@ describe("parseArgs ledger-root resolution", () => {
     expect(a.http).toEqual({ host: "127.0.0.1", port: 7777 });
   });
 
-  it("defaults reset/yes to false", () => {
+  it("no longer recognises --reset / --yes (relocated to `cq reset`, T190)", () => {
     delete process.env["LEDGER_ROOT"];
-    const a = parseArgs([]);
-    expect(a.reset).toBe(false);
-    expect(a.yes).toBe(false);
-  });
-
-  it("recognises --reset and honours --cwd root resolution", () => {
-    delete process.env["LEDGER_ROOT"];
-    const a = parseArgs(["--cwd", "sub/dir", "--reset"]);
-    expect(a.reset).toBe(true);
-    expect(a.yes).toBe(false);
+    // The reset CLI surface moved to the `cq` CLI; ParsedArgs carries only
+    // {cwd, http} now. parseArgs must NOT expose reset/yes, and the unknown
+    // --reset/--yes/-y tokens are ignored (root still resolves normally).
+    const a = parseArgs(["--cwd", "sub/dir", "--reset", "--yes"]);
+    expect(a).not.toHaveProperty("reset");
+    expect(a).not.toHaveProperty("yes");
     expect(a.cwd).toBe(path.resolve("sub/dir"));
-  });
-
-  it("recognises --yes and the -y alias", () => {
-    expect(parseArgs(["--reset", "--yes"]).yes).toBe(true);
-    expect(parseArgs(["--reset", "-y"]).yes).toBe(true);
+    expect(parseArgs(["--reset", "-y"])).not.toHaveProperty("yes");
   });
 });
