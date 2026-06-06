@@ -22,8 +22,9 @@ import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
 import { computeStateMachine } from "./stateMachine.js";
-import { layoutDiagram, type LaidOutDiagram } from "./diagramLayout.js";
+import { layoutDiagram, type LaidOutDiagram, type DiagramModel, type DiagramNode } from "./diagramLayout.js";
 import { DiagramSvg } from "./DiagramSvg.js";
+import { FLOWS, type FlowDefinition, type FlowNodeKind } from "./flowData.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
 import { HoldButton, type HoldClock } from "./HoldButton.js";
@@ -53,6 +54,7 @@ const GOALS_LEDGER = "goals";
 /** The `id[]` field on a goal holding its work-milestone ids (e.g. M12,M13). */
 const GOAL_MILESTONES_FIELD = "milestones";
 import {
+  BUCKET_HEX,
   statusBucket,
   isTerminal,
   statusMatchesFilter,
@@ -1491,7 +1493,7 @@ function HelpOverlay({
   onClose: () => void;
   client: LedgerClient | null;
 }): React.ReactElement {
-  const [tab, setTab] = useState<"shortcuts" | "statemachines">("shortcuts");
+  const [tab, setTab] = useState<"shortcuts" | "statemachines" | "flows">("shortcuts");
   const [schemas, setSchemas] = useState<NamedSchema[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
@@ -1542,6 +1544,16 @@ function HelpOverlay({
             >
               State machines
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "flows"}
+              className={`lw-help-tab${tab === "flows" ? " lw-help-tab-active" : ""}`}
+              data-testid="help-tab-flows"
+              onClick={() => setTab("flows")}
+            >
+              Flows
+            </button>
           </div>
           <button type="button" className="lw-close" data-testid="help-close" onClick={onClose}>
             ✕
@@ -1559,7 +1571,7 @@ function HelpOverlay({
                 </React.Fragment>
               ))}
             </dl>
-          ) : (
+          ) : tab === "statemachines" ? (
             <div className="lw-help-statemachines" data-testid="help-statemachines">
               {loadErr !== null ? (
                 <p className="lw-empty">(could not load schemas: {loadErr})</p>
@@ -1573,6 +1585,15 @@ function HelpOverlay({
                   </section>
                 ))
               )}
+            </div>
+          ) : (
+            <div className="lw-help-flows" data-testid="help-flows">
+              {FLOWS.map((flow) => (
+                <section key={flow.id} className="lw-flow" data-testid={`help-flow-${flow.id}`}>
+                  <h4>{flow.title}</h4>
+                  <FlowDiagram flow={flow} />
+                </section>
+              ))}
             </div>
           )}
         </div>
@@ -1610,6 +1631,69 @@ function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: Ledge
   }, [model]);
   if (laid === null) return <p className="lw-empty">(laying out…)</p>;
   return <DiagramSvg idPrefix={`help-statemachine-${ledger}`} model={laid} className="lw-statemachine-svg" />;
+}
+
+// FlowNodeKind → node fill, reusing the canonical BUCKET_HEX palette so a flow
+// node reads consistently with the status badges / state-machine diagrams:
+//   state    → start blue;   waiting → blocked red (parked on a user question);
+//   handoff  → ready purple (a cross-flow deferral/handoff);
+//   terminal → done green (also drawn with the thick terminal outline).
+const FLOW_KIND_FILL: Record<FlowNodeKind, string> = {
+  state: BUCKET_HEX.start,
+  waiting: BUCKET_HEX.blocked,
+  handoff: BUCKET_HEX.ready,
+  terminal: BUCKET_HEX.done,
+};
+
+/**
+ * Map one flow's `kind`-tagged nodes/edges to the generic {@link DiagramModel}
+ * the elk layer consumes: `kind` → `fill` (via {@link FLOW_KIND_FILL}) and
+ * `terminal`. A node may also carry an explicit `terminal` (the terminal-kind
+ * nodes do); honour either signal.
+ */
+function flowToModel(flow: FlowDefinition): DiagramModel {
+  return {
+    nodes: flow.nodes.map((n) => {
+      const fill = n.kind === undefined ? n.fill : FLOW_KIND_FILL[n.kind];
+      const node: DiagramNode = {
+        id: n.id,
+        label: n.label,
+        terminal: n.terminal === true || n.kind === "terminal",
+      };
+      if (fill !== undefined) node.fill = fill;
+      return node;
+    }),
+    edges: flow.edges.map((e) =>
+      e.label === undefined ? { from: e.from, to: e.to } : { from: e.from, to: e.to, label: e.label },
+    ),
+  };
+}
+
+/**
+ * Inline-SVG diagram for one cq: flow (T205, decision Q115). Mirrors
+ * {@link StateMachineDiagram}'s elk pattern: {@link flowToModel} maps the static
+ * {@link FlowDefinition} to the generic model (`kind` → fill/terminal),
+ * {@link layoutDiagram} positions it via elkjs (async — driven in a useEffect),
+ * then {@link DiagramSvg} renders it under the per-flow idPrefix
+ * `help-flow-${flow.id}` (svg `${idPrefix}-svg`, node `${idPrefix}-node-${id}`,
+ * edge `${idPrefix}-edge-${from}-${to}`, edge label `${idPrefix}-edge-label-…`).
+ * The data is static (no MCP fetch), so it lays out on first tab open.
+ */
+function FlowDiagram({ flow }: { flow: FlowDefinition }): React.ReactElement {
+  const model = useMemo(() => flowToModel(flow), [flow]);
+  const [laid, setLaid] = useState<LaidOutDiagram | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const out = await layoutDiagram(model);
+      if (!cancelled) setLaid(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [model]);
+  if (laid === null) return <p className="lw-empty">(laying out…)</p>;
+  return <DiagramSvg idPrefix={`help-flow-${flow.id}`} model={laid} className="lw-flow-svg" />;
 }
 
 /**

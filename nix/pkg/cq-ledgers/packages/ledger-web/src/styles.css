@@ -245,6 +245,24 @@ body {
 .lw-statemachine-svg text {
   user-select: none;
 }
+/* Flows help tab (T205): one section per flow, each an elk-laid-out DiagramSvg.
+   Same stacking + svg sizing rules as the State-machines tab. */
+.lw-help-flows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lw-flow h4 {
+  margin: 0 0 4px;
+}
+.lw-flow-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lw-flow-svg text {
+  user-select: none;
+}
 /* Batch-answer modal (Q33): a wider HelpOverlay-style popup with focused font,
    stepping through open questions one at a time. Sized larger to accommodate
    longer question content; font reduced to 0.95rem for better readability. */
