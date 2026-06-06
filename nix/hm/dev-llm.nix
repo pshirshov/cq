@@ -32,22 +32,24 @@ let
 
   codegraphPkg = inputs.codegraph.packages.${system}.default;
 
-  # nixpkgs' claude-code runs its inner binary via `exec ld.so --library-path … inner`,
-  # so Node's process.execPath is the dynamic loader. Claude exports that as
-  # CLAUDE_CODE_EXECPATH, and the grep/find shims it writes into its shell snapshot
-  # then invoke `ld.so -G …` / `ld.so -S …` → "error while loading shared libraries: -G".
-  # Make the inner binary self-contained (real glibc interp + rpath, taken from the
-  # wrapper's own --library-path so the glibc always matches) and exec it DIRECTLY, so
-  # execPath is the real binary and the bundled ugrep/bfs multiplex (keyed on argv0)
-  # works. Verified: `exec -a ugrep <inner> -G …` greps correctly once run directly.
   # codex pinned to the GitHub static-binary release (../pkg/codex), built
   # directly so the module does not depend on the consumer overriding
   # `pkgs.codex` via an overlay.
   codexPkg = pkgs.callPackage ../pkg/codex/package.nix { };
 
   # claude-code pinned to the local native-tarball build (../pkg/claude-code),
-  # built directly here so the module does not depend on the consumer's
-  # nixpkgs overlay overriding `pkgs.claude-code`.
+  # built directly so the module does not depend on a consumer overlay.
+  #
+  # claudeExecpathFixed: nixpkgs' claude-code runs its inner binary via
+  # `exec ld.so --library-path … inner`, so Node's process.execPath is the
+  # dynamic loader. Claude exports that as CLAUDE_CODE_EXECPATH, and the
+  # grep/find shims it writes into its shell snapshot then invoke `ld.so -G …`
+  # / `ld.so -S …` → "error while loading shared libraries: -G". Fix: make the
+  # inner binary self-contained (real glibc interp + rpath, taken from the
+  # wrapper's own --library-path so the glibc always matches) and exec it
+  # DIRECTLY, so execPath is the real binary and the bundled ugrep/bfs
+  # multiplex (keyed on argv0) works. Verified: `exec -a ugrep <inner> -G …`
+  # greps correctly once run directly.
   claudeBase = pkgs.callPackage ../pkg/claude-code/package.nix { };
   claudeExecpathFixed = claudeBase.overrideAttrs (old: {
     nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.patchelf ];
@@ -90,11 +92,10 @@ let
   rootlessPodmanSocketUri = config.smind.hm.dev.llm.podman.socketUri;
   rootlessPodmanEnabled = rootlessPodmanSocketPath != null;
 
-  # Prompt content lives in two sibling packages: pkg/llm-skills (the SKILL.md
-  # set + build-time validation) and pkg/llm-contexts (the general context and
-  # Pi's operating manual). Environment guidance is delivered as a skill for
-  # skill-aware agents; for skill-less agents (Copilot, Vibe) a pre-composed
-  # context file is built in the flake (llm-context-with-env).
+  # Prompt content lives in two sibling packages: pkg/llm-skills (SKILL.md set
+  # + build-time validation) and pkg/llm-contexts (general context + Pi's
+  # operating manual). Environment guidance is a skill for skill-aware agents;
+  # skill-less agents (Copilot, Vibe) get the pre-composed llm-context-with-env.
   llmSkills = pkgs.callPackage ../pkg/llm-skills/default.nix { };
   llmContexts = pkgs.callPackage ../pkg/llm-contexts/default.nix { };
 
@@ -111,10 +112,9 @@ let
     ledgerPkgs.ledger-web
   ];
 
-  # Canonical llmAssets bundle assembled from the two in-repo packages: skills
-  # from llm-skills, the general context fragment from llm-contexts. A
-  # first-class bundle contributor symmetric with ledger.llmAssets. (Commands
-  # and agents come from the ledger bundle; none ship here.)
+  # Canonical llmAssets bundle from the two in-repo packages: skills from
+  # llm-skills, general context from llm-contexts. Symmetric with
+  # ledger.llmAssets. (Commands/agents come from the ledger bundle; none here.)
   llmPromptsBundle = {
     skills = llmSkills.skills;
     commands = { };
@@ -134,12 +134,12 @@ let
 
   # Command bundles key entries as "<ns>/<name>" (e.g. "plan/advance").
   # Slash-prompt harnesses (Pi, Codex) discover templates from a flat,
-  # non-recursive directory and derive the command name from the filename
-  # stem, so "/" must be folded into a separator that survives as one token.
-  # ":" matches Claude's namespaced slash commands (/plan:advance) and keeps
-  # distinct keys distinct (plain baseNameOf collapses plan/advance,
-  # implement/advance, investigate/advance onto one "advance.md").
-  # Pi's harness applies the same transform internally (see mk-agent-harness).
+  # non-recursive directory and derive the command name from the filename stem,
+  # so "/" must fold into a separator surviving as one token. ":" matches
+  # Claude's namespaced slash commands (/plan:advance) and keeps distinct keys
+  # distinct (plain baseNameOf collapses plan/advance, implement/advance,
+  # investigate/advance onto one "advance.md"). Pi's harness applies the same
+  # transform internally (see mk-agent-harness).
   commandKeyToStem = key: lib.replaceStrings [ "/" ] [ ":" ] key;
   mergedContext = lib.concatMap (b: b.context) assetBundles;
 
@@ -154,9 +154,9 @@ let
   piXaiPatched = pkgs.callPackage ../pkg/pi-xai-patched/package.nix { };
 
   # Secret-keyed env injected into Pi at launch from agenix secret files (read
-  # only if present, so hosts without them degrade gracefully). Keeps tokens
-  # out of the Nix store and the at-rest environment — they live only in pi's
-  # process env at runtime. var -> agenix secret name under /run/agenix.
+  # only if present, so hosts without them degrade gracefully). Keeps tokens out
+  # of the Nix store and at-rest env — they live only in pi's process env at
+  # runtime. var -> agenix secret name under /run/agenix.
   piSecretEnv = {
     OPENROUTER_API_KEY = "openrouter";
     AI_GATEWAY_API_KEY = "vercel"; # Vercel AI Gateway
@@ -189,13 +189,12 @@ let
     baseUrls.searxng = "https://searx.web.7mind.io";
   };
 
-  # Pi has no native MCP; pi-mcp-adapter (in settings.packages via
-  # enableMcpIntegration) auto-reads ~/.config/mcp/mcp.json — but servers there
-  # are lazy (connect on first tool call). This Pi-only override (higher
-  # precedence than the shared file) re-declares the same servers with
-  # lifecycle="keep-alive" so Pi connects them at startup and auto-reconnects.
-  # Kept out of the shared programs.mcp registry so the `lifecycle` key doesn't
-  # leak into claude/codex's transformed MCP configs.
+  # Pi has no native MCP; pi-mcp-adapter (added via enableMcpIntegration)
+  # auto-reads ~/.config/mcp/mcp.json — but servers there are lazy (connect on
+  # first tool call). This Pi-only override (higher precedence than the shared
+  # file) re-declares the same servers with lifecycle="keep-alive" so Pi
+  # connects them at startup and auto-reconnects. Kept out of the shared
+  # programs.mcp registry so `lifecycle` doesn't leak into claude/codex configs.
   piMcpJson = jsonFormat.generate "pi-mcp.json" {
     mcpServers = lib.mapAttrs (_name: server: server // { lifecycle = "keep-alive"; }) (
       config.programs.mcp.servers
@@ -203,13 +202,12 @@ let
   };
 
   # Repo-agnostic operating manual appended INSIDE Pi's system prompt (via
-  # ~/.pi/agent/APPEND_SYSTEM.md, auto-discovered by the resource loader).
-  # Pi's built-in prompt is intentionally minimal (four core tools, no plan
-  # mode / sub-agents / permission prompts / TODO tool / persistent memory);
-  # this fills the harness-operating gap that Claude Code provides natively.
-  # Deliberately NOT project-specific — per-repo facts belong in AGENTS.md /
-  # CLAUDE.md (Pi discovers both as context). Content lives in
-  # pkg/llm-contexts/pi-context.md.
+  # ~/.pi/agent/APPEND_SYSTEM.md, auto-discovered by the resource loader). Pi's
+  # built-in prompt is intentionally minimal (four core tools, no plan mode /
+  # sub-agents / permission prompts / TODO tool / persistent memory); this fills
+  # the harness-operating gap Claude Code provides natively. Deliberately NOT
+  # project-specific — per-repo facts belong in AGENTS.md / CLAUDE.md (Pi
+  # discovers both). Content lives in pkg/llm-contexts/pi-context.md.
   piAppendSystemPrompt = llmContexts.pi;
 
   claudeMemoryText = lib.concatStringsSep "\n\n" config.smind.hm.dev.llm.memorySections;
@@ -225,13 +223,12 @@ let
     context = claudeMemoryText;
   };
 
-  # SessionStart hook: surfaces hostname and sandbox state to the agent on
-  # every session boot. Claude Code's harness-injected environment block
-  # lists OS/shell/cwd but not hostname, so without this the model has to
-  # guess (and tends to assume the wrong host). $SMIND_SANDBOXED is set by
-  # the yolo wrapper (pkg/yolo/yolo.sh) but the matching `environment`
-  # skill is passive — declaring sandbox state up-front avoids relying on
-  # the model to probe env vars.
+  # SessionStart hook: surfaces hostname and sandbox state on every session
+  # boot. Claude Code's injected environment block lists OS/shell/cwd but not
+  # hostname, so without this the model guesses (and tends to assume the wrong
+  # host). $SMIND_SANDBOXED is set by the yolo wrapper (pkg/yolo/yolo.sh) but
+  # the matching `environment` skill is passive — declaring sandbox state
+  # up-front avoids relying on the model to probe env vars.
   claudeSessionStartHook = pkgs.writeShellScript "claude-session-start-context" ''
     set -eu
     HOST="''${HOSTNAME:-$(hostname 2>/dev/null || echo unknown)}"
@@ -246,62 +243,6 @@ let
       "- $SANDBOX_LINE"
   '';
 
-  # Stop hook: enforce the vsm-loop "Stop conditions" contract by blocking
-  # turn-end while the active ledger still has open ([ ] or [~]) entries.
-  # The prompt-side discipline in pkg/llm-skills/skills/vsm-loop is
-  # advisory; this hook is what makes it load-bearing against the RLHF
-  # "courtesy checkpoint" reflex. No-op outside vsm-loop projects (gated
-  # on the Cycle marker the skill mandates at the top of tasks.md).
-  claudeVsmLoopStopGuard = pkgs.writeShellScript "claude-vsm-loop-stop-guard" ''
-    set -eu
-    input=$(cat)
-    # Avoid re-blocking when Claude is already responding to a prior block.
-    stop_hook_active=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.stop_hook_active // false' 2>/dev/null || echo false)
-    if [ "$stop_hook_active" = "true" ]; then
-      exit 0
-    fi
-    cwd=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.cwd // empty' 2>/dev/null || true)
-    if [ -z "$cwd" ]; then
-      cwd="$(pwd)"
-    fi
-    ledger=""
-    for candidate in "$cwd/tasks.md" "$cwd/docs/state/tasks.md"; do
-      if [ -f "$candidate" ]; then
-        ledger="$candidate"
-        break
-      fi
-    done
-    if [ -z "$ledger" ]; then
-      exit 0
-    fi
-    # vsm-loop ledgers always carry a Cycle marker; bail if it's absent so
-    # we don't fire on unrelated tasks.md files.
-    if ! ${pkgs.gnugrep}/bin/grep -qE '\bCycle\b' "$ledger" 2>/dev/null; then
-      exit 0
-    fi
-    # Open = planned [ ] or in-progress [~]. Blocked [!] and done [x] are
-    # valid leave-behind states (algedonic-raised or completed).
-    # `grep -c` exits 1 with output "0" on no-match; capture the count and
-    # only reset on actual command failure, otherwise `|| echo 0` would
-    # concatenate "0\n0".
-    open_count=$(${pkgs.gnugrep}/bin/grep -cE '^[[:space:]]*-[[:space:]]*\[[~ ]\]' "$ledger" 2>/dev/null) || open_count=0
-    if [ "$open_count" -gt 0 ]; then
-      printf '%s\n' \
-        "vsm-loop ledger \"$ledger\" has $open_count open entries ([ ] or [~])." \
-        "Courtesy checkpoint is not a valid stop condition — see the vsm-loop" \
-        "skill § \"Stop conditions\" for the closed list of valid stop triggers." \
-        "" \
-        "Choose one before stopping:" \
-        "  1. (default) Continue the next ledger entry. No user-facing preamble," \
-        "     no menu of options, no acknowledgement that a cycle finished." \
-        "  2. Raising algedonic? Flip the relevant entry to [!] in the ledger" \
-        "     and emit the escalation per the skill's algedonic contract." \
-        "  3. User explicitly asked to stop? Flip open entries to [!] with the" \
-        "     note \"user-stopped: <reason>\" before stopping." >&2
-      exit 2
-    fi
-    exit 0
-  '';
   copilotConfig = jsonFormat.generate "copilot-config.json" {
     alt_screen = false;
     banner = "never";
@@ -542,10 +483,9 @@ in
           }
         ];
 
-      # CodeGraph MCP server — declared once here and pulled into each
-      # agent CLI via its enableMcpIntegration option below. The server
-      # is started on-demand per project by the agent; building the
-      # per-project index is a manual `codegraph init -i` step.
+      # CodeGraph MCP server — declared once, pulled into each agent CLI via
+      # its enableMcpIntegration option below. Started on-demand per project by
+      # the agent; building the per-project index is a manual `codegraph init -i`.
       programs.mcp = {
         enable = true;
         servers.codegraph = {
@@ -562,9 +502,9 @@ in
       };
 
       programs.claude-code = sharedAgentWiring // {
-        # Bake DISABLE_AUTOUPDATER into the wrapper so it survives any
-        # downstream wrappers (yolo, bubblewrap, fresh-env exec) and
-        # prevents Claude Code from self-updating past the nix pin.
+        # Bake DISABLE_AUTOUPDATER into the wrapper so it survives downstream
+        # wrappers (yolo, bubblewrap, fresh-env exec) and Claude Code can't
+        # self-update past the nix pin.
         package = pkgs.symlinkJoin {
           name = "claude-code-no-autoupdate";
           paths = [ claudeExecpathFixed ];
@@ -613,19 +553,6 @@ in
                 ];
               }
             ];
-            # Enforce vsm-loop "Stop conditions" by blocking turn-end while
-            # the active ledger still has open entries. See
-            # claudeVsmLoopStopGuard above for rationale.
-            Stop = [
-              {
-                hooks = [
-                  {
-                    type = "command";
-                    command = "${claudeVsmLoopStopGuard}";
-                  }
-                ];
-              }
-            ];
           };
           statusLine = {
             "type" = "command";
@@ -653,9 +580,7 @@ in
       };
 
       programs.codex = sharedAgentWiring // {
-        # Vendored codex pinned to the GitHub static binary (../pkg/codex),
-        # built directly so the module does not rely on the consumer overriding
-        # `pkgs.codex` via an overlay.
+        # Vendored codex (see codexPkg above).
         package = codexPkg;
         settings = {
           model = "gpt-5.5";
@@ -697,8 +622,8 @@ in
           # available and can be selected at runtime or via env/API keys.
           defaultProvider = "grok-build";
           defaultModel = "grok-build";
-          # Requested via user: terminal progress (OSC 9;4) opt-in (off by default in 0.78+),
-          # steering/follow-up delivery modes, hide reasoning, and disable install telemetry.
+          # User-requested: terminal progress (OSC 9;4; off by default in 0.78+),
+          # steering/follow-up modes, hide reasoning, disable install telemetry.
           terminal = {
             showTerminalProgress = true;
           };
@@ -709,18 +634,19 @@ in
           # Pi packages (installed from npm on first run):
           # - rpiv-web-tools: web search/fetch (keys via piWrapped env, SearXNG
           #   default; config seeded at ~/.config/rpiv-web-tools/config.json).
-          # - pi-anthropic-auth: improves Claude Pro/Max OAuth compatibility;
-          #   activates only on Anthropic OAuth, passes everything else through
-          #   (use `/login anthropic`).
-          # - pi-xai: adds the xAI OAuth provider (`grok-build`) with Grok
-          #   models/tools (use `/login grok-build`). pi-mcp-adapter is added
-          #   separately by enableMcpIntegration. Vendored from a local store
-          #   path (piXaiPatched) rather than "npm:pi-xai" so the Grok Build
-          #   context window reads 256k instead of the stale hardcoded 128k;
-          #   Pi npm-installs the local package + its typebox dep on launch.
+          # - pi-anthropic-auth: Claude Pro/Max OAuth compat; activates only on
+          #   Anthropic OAuth, passes everything else through (`/login anthropic`).
+          # - pi-xai: xAI OAuth provider (`grok-build`) with Grok models/tools
+          #   (`/login grok-build`). Vendored from a local store path
+          #   (piXaiPatched) not "npm:pi-xai" so the Grok Build context window
+          #   reads 256k not the stale hardcoded 128k; Pi npm-installs the local
+          #   package + its typebox dep on launch.
+          # - pi-ollama-cloud: Ollama Cloud provider.
+          # (pi-mcp-adapter is added separately by enableMcpIntegration.)
           packages = [
             "npm:@juicesharp/rpiv-web-tools"
             "npm:@gotgenes/pi-anthropic-auth"
+            "npm:pi-ollama-cloud"
             "${piXaiPatched}"
           ];
           extensions = [
@@ -783,19 +709,17 @@ in
       ];
     })
     (lib.mkIf config.smind.hm.dev.llm.enable {
-      # Codex exposes no native commands/agents option (unlike claude-code),
-      # so deliver merged commands as ~/.codex/prompts/<stem>.md slash-prompts.
-      # Kept in a separate mkMerge element because the block above sets
-      # `home.file."<path>"` via attrpaths, which cannot coexist with a
-      # dynamic `home.file = <attrs>` in the same attribute set.
-      # Keys use "<ns>/<name>" (e.g. "plan/advance"). commandKeyToStem turns
-      # "/" into ":" so the file is plan:advance.md; Codex namespaces
-      # ~/.codex/prompts/*.md under its own "prompts:" prefix, so this surfaces
-      # as the slash prompt /prompts:plan:advance (the prompt name is the file
-      # stem verbatim — Codex applies no character filtering). Sharing
-      # commandKeyToStem with Pi's harness keeps the two deliveries in lockstep.
-      # Codex agents have no canonical markdown home and are intentionally
-      # not materialized for Codex (Claude receives them via its agents option).
+      # Codex exposes no native commands/agents option (unlike claude-code), so
+      # deliver merged commands as ~/.codex/prompts/<stem>.md slash-prompts.
+      # Separate mkMerge element because the block above sets attrpath
+      # `home.file."<path>"`, which can't coexist with a dynamic `home.file =
+      # <attrs>` in one attribute set.
+      # commandKeyToStem turns "plan/advance" into plan:advance.md; Codex
+      # namespaces ~/.codex/prompts/*.md under its own "prompts:" prefix (stem
+      # verbatim, no char filtering), so this surfaces as /prompts:plan:advance.
+      # Sharing commandKeyToStem with Pi keeps the two deliveries in lockstep.
+      # Codex agents have no canonical markdown home and are intentionally not
+      # materialized (Claude receives them via its agents option).
       home.file = lib.mapAttrs' (
         key: body: lib.nameValuePair ".codex/prompts/${commandKeyToStem key}.md" { text = body; }
       ) mergedCommands;
