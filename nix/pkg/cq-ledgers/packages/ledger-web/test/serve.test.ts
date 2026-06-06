@@ -82,6 +82,8 @@ beforeAll(async () => {
   web = await serve({
     host: "127.0.0.1",
     port: 0,
+    hostExplicit: true,
+    portExplicit: true,
     mcpUrl: `http://127.0.0.1:${mcpPort}/mcp`,
     cwd: tmpRoot, // ignored in proxy mode
     outdir,

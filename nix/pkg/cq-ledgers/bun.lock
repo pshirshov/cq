@@ -107,6 +107,7 @@
         "ledger-web": "./src/serve.ts",
       },
       "dependencies": {
+        "@cq/config": "workspace:*",
         "@cq/ledger-live": "workspace:*",
         "@cq/ledger-mcp": "workspace:*",
         "@modelcontextprotocol/sdk": "1.29.0",

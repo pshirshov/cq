@@ -9,6 +9,7 @@
     "outDir": "./dist",
     "types": ["bun-types", "react", "react-dom"],
     "paths": {
+      "@cq/config": ["../cq-config/src/index.ts"],
       "@cq/ledger": ["../ledger/src/index.ts"],
       "@cq/ledger/relationships": ["../ledger/src/relationships.ts"],
       "@cq/ledger/columns": ["../ledger/src/columns.ts"],
@@ -18,6 +19,7 @@
     }
   },
   "references": [
+    { "path": "../cq-config" },
     { "path": "../ledger" },
     { "path": "../ledger-live" },
     { "path": "../ledger-mcp" }

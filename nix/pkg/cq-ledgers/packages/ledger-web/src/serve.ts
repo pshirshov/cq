@@ -25,9 +25,17 @@ import {
   LEDGER_TOPIC,
   startLedgerWatcher,
 } from "@cq/ledger-mcp";
+import type { WebuiConfig } from "@cq/config";
 
 const DEFAULT_PORT = 5180;
 const DEFAULT_HOST = "127.0.0.1";
+
+/**
+ * Maximum number of consecutive ports the bind scan will try (Q107). Starting
+ * at the resolved port P, the scan probes P, P+1, …, P+MAX_PORT_SCAN-1 and
+ * throws if every one is occupied.
+ */
+const MAX_PORT_SCAN = 64;
 
 const WEB_SRC = path.resolve(import.meta.dir, "main.tsx");
 const DEFAULT_OUTDIR = path.resolve(import.meta.dir, "..", "dist");
@@ -35,6 +43,14 @@ const DEFAULT_OUTDIR = path.resolve(import.meta.dir, "..", "dist");
 export interface ServeOpts {
   host: string;
   port: number;
+  /**
+   * True when `--host` was passed EXPLICITLY on the command line (vs falling
+   * through to DEFAULT_HOST). Lets `resolveWebOpts` distinguish "user set it"
+   * from "default" so cq.toml [webui] can fill the gap (Q106).
+   */
+  hostExplicit: boolean;
+  /** True when `--port` was passed EXPLICITLY (vs DEFAULT_PORT). See above. */
+  portExplicit: boolean;
   /**
    * Upstream MCP URL to reverse-proxy to, or `null` to run the MCP server
    * EMBEDDED in this process (rooted at `cwd`) and host `/mcp` + `/ws` directly.
@@ -313,15 +329,25 @@ async function serveEmbedded(
 export function parseArgs(argv: readonly string[]): ServeOpts {
   let host = DEFAULT_HOST;
   let port = DEFAULT_PORT;
+  let hostExplicit = false;
+  let portExplicit = false;
   let mcpUrl: string | null = null; // omitted ⇒ embedded
   let cwd: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--port") port = Number(argv[++i]);
-    else if (a?.startsWith("--port=")) port = Number(a.slice("--port=".length));
-    else if (a === "--host") host = argv[++i] ?? host;
-    else if (a?.startsWith("--host=")) host = a.slice("--host=".length);
-    else if (a === "--mcp-url") mcpUrl = argv[++i] ?? mcpUrl;
+    if (a === "--port") {
+      port = Number(argv[++i]);
+      portExplicit = true;
+    } else if (a?.startsWith("--port=")) {
+      port = Number(a.slice("--port=".length));
+      portExplicit = true;
+    } else if (a === "--host") {
+      host = argv[++i] ?? host;
+      hostExplicit = true;
+    } else if (a?.startsWith("--host=")) {
+      host = a.slice("--host=".length);
+      hostExplicit = true;
+    } else if (a === "--mcp-url") mcpUrl = argv[++i] ?? mcpUrl;
     else if (a?.startsWith("--mcp-url=")) mcpUrl = a.slice("--mcp-url=".length);
     else if (a === "--cwd") cwd = argv[++i];
     else if (a?.startsWith("--cwd=")) cwd = a.slice("--cwd=".length);
@@ -335,7 +361,77 @@ export function parseArgs(argv: readonly string[]): ServeOpts {
   const chosen = fromArg ?? (fromEnv !== undefined && fromEnv !== "" ? fromEnv : undefined);
   const resolvedCwd = chosen !== undefined ? path.resolve(chosen) : process.cwd();
   const outdir = process.env["LEDGER_WEB_OUTDIR"] ?? DEFAULT_OUTDIR;
-  return { host, port, mcpUrl, cwd: resolvedCwd, outdir };
+  return { host, port, hostExplicit, portExplicit, mcpUrl, cwd: resolvedCwd, outdir };
+}
+
+/**
+ * Per-field host/port resolution (Q106). Resolves `host` and `port`
+ * INDEPENDENTLY with precedence:
+ *
+ *   explicit CLI flag  >  cq.toml [webui] value  >  built-in default.
+ *
+ * `args` carries the parsed CLI values plus `hostExplicit`/`portExplicit`
+ * flags that tell an explicitly-passed flag from one that fell through to
+ * DEFAULT_HOST/DEFAULT_PORT. `config` is the loaded `[webui]` table, or null
+ * when there is no cq.toml / no `[webui]` table. A null field WITHIN a present
+ * `[webui]` table is also treated as unset (the default fills it).
+ *
+ * Pure: no I/O, no socket binding — directly unit-testable.
+ */
+export function resolveWebOpts(
+  args: Pick<ServeOpts, "host" | "port" | "hostExplicit" | "portExplicit">,
+  config: WebuiConfig | null,
+): { host: string; port: number } {
+  const host = args.hostExplicit
+    ? args.host
+    : (config?.host ?? DEFAULT_HOST);
+  const port = args.portExplicit
+    ? args.port
+    : (config?.port ?? DEFAULT_PORT);
+  return { host, port };
+}
+
+/** Node's EADDRINUSE error shape (Bun.serve rethrows it synchronously). */
+function isAddrInUse(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "EADDRINUSE"
+  );
+}
+
+/**
+ * Bounded port auto-increment scan (Q107). Calls `bind(port)` starting at
+ * `startPort` and, on an address-in-use failure, retries `port + 1`, up to
+ * `MAX_PORT_SCAN` attempts total. Returns whatever `bind` returns for the
+ * first port that binds successfully.
+ *
+ * The host is NEVER part of the scan — it is `bind`'s concern and is taken
+ * as-is. Only EADDRINUSE is caught; any other error (e.g. EACCES, an invalid
+ * port) propagates immediately. When all `MAX_PORT_SCAN` consecutive ports are
+ * occupied, throws a precise cap error naming the exhausted range.
+ *
+ * `bind` is injected so this loop is testable without owning the Bun.serve
+ * call: callers pass a closure that runs `Bun.serve({ port, … })` and returns
+ * the server (or its bound port).
+ */
+export function scanForPort<T>(startPort: number, bind: (port: number) => T): T {
+  let lastErr: unknown;
+  for (let i = 0; i < MAX_PORT_SCAN; i++) {
+    const port = startPort + i;
+    try {
+      return bind(port);
+    } catch (err: unknown) {
+      if (!isAddrInUse(err)) throw err;
+      lastErr = err;
+    }
+  }
+  const lastPort = startPort + MAX_PORT_SCAN - 1;
+  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  throw new Error(
+    `ledger-web: no free port in ${startPort}..${lastPort} ` +
+      `(${MAX_PORT_SCAN} attempts, last error: ${msg})`,
+  );
 }
 
 export async function main(argv: readonly string[]): Promise<void> {
