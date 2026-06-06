@@ -1592,6 +1592,8 @@ function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: Ledge
     <svg
       className="lw-statemachine-svg"
       data-testid={`help-statemachine-svg-${ledger}`}
+      width={model.width}
+      height={model.height}
       viewBox={`0 0 ${model.width} ${model.height}`}
       preserveAspectRatio="xMinYMid meet"
     >

@@ -231,7 +231,11 @@ body {
 }
 .lw-statemachine-svg {
   display: block;
-  width: 100%;
+  /* Render at the diagram's intrinsic size (set via width/height attrs) so every
+     diagram shares the same node size and a consistent left origin; only shrink
+     when a wide diagram would overflow the dialog. width:100% (T195) upscaled the
+     narrow edgeless diagrams (e.g. handoffs) to full width → giant nodes. */
+  max-width: 100%;
   height: auto;
 }
 .lw-statemachine-svg text {
