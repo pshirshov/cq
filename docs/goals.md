@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 22
+  item: 23
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -458,3 +458,24 @@ archives:
     SERIALIZATION (R137/R138/R139 same-file precedent): parts 1+2+3 all edit App.tsx + styles.css → MUST serialize via dependsOn. Part 4 has many cq-assets file edits + the single link-prompts.ts writer → serialize link-prompts.ts and any shared file.
 - milestones: ["M71","M72"]
 - sessionLogs: ["docs/logs/20260606-123129-a8ce7c10b6e8934ac.md","docs/logs/20260606-123129-ac2eb81beb46f6690.md"]
+
+## M74
+
+### G23 — clarifying
+
+- createdAt: 2026-06-06T20:24:56.027Z
+- updatedAt: 2026-06-06T20:26:53.805Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Describe all flow state machines + add a Flows help tab
+- description: |
+    Build a description of the state machines of all the flows we have (the coding-agent harness flows — plan, investigate, implement, and the top-level advance sequencer), INCLUDING transitions. The orchestrator session has states such as waiting-for-user-input; input causes a transition into one of several states; the flow loops; at some point it performs a handoff and returns back to an original/parent state.
+    
+    Two phases, in order:
+    1) First, write a DOCUMENT describing these state machines (states + transitions for each flow).
+    2) Then, add a 3rd tab, "Flows", into the web help dialog (currently: Shortcuts + State machines) that RENDERS these state machines as diagrams.
+    
+    Context: the help dialog already has a "State machines" tab that renders per-LEDGER status state machines (status nodes + schema.transitions edges) via computeStateMachine/computeDagLayout. The NEW "Flows" tab is different: it renders the FLOW orchestration state machines (the advance/plan/investigate/implement control loops and their handoffs), not per-ledger status diagrams.
+    
+    User preference: avoid obvious questions; only ask if the user's input is truly required.
+- sessionLogs: ["docs/logs/20260606-202440-a09891b8378f4ac71.md"]

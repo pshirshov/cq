@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 73
+  item: 74
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -399,3 +399,9 @@ archives:
 - updatedAt: 2026-06-06T16:25:33.137Z
 - title: "Investigate: sm-diagram-alignment (blocked on env)"
 - description: "Tracks the unresolved right-alignment of the widest state-machine diagrams in the web help dialog. Blocked: cannot reproduce/diagnose without a browser-rendering environment (sandbox has no browser engine; test suite uses happy-dom which does no layout)."
+
+### M74 — open
+
+- createdAt: 2026-06-06T20:24:47.108Z
+- updatedAt: 2026-06-06T20:24:47.108Z
+- title: "Plan: flow state-machine docs + Flows help tab"

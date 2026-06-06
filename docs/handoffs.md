@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 10
+  item: 11
 archives: []
 ---
 
@@ -162,3 +162,17 @@ archives: []
 - ledgerRefs: ["goals:G22","tasks:T193","tasks:T194","tasks:T195","tasks:T196","tasks:T197","tasks:T198"]
 - blockingQuestions: []
 - sessionLogs: ["docs/logs/20260606-132514-a3f41dedaae858a46.md","docs/logs/20260606-132514-a67f6df9cbc15bc08.md","docs/logs/20260606-133953-a47fe4d2a49a01322.md","docs/logs/20260606-133953-a006d35b28a65f97c.md","docs/logs/20260606-133953-a17e08c7ec1209d6f.md","docs/logs/20260606-133953-a1493237cdef08a6d.md","docs/logs/20260606-135500-aac852fda6b2f1d07.md","docs/logs/20260606-135500-a5c5d2f2be632dfa3.md","docs/logs/20260606-135500-aa5100ddb50c7508e.md","docs/logs/20260606-135500-ab30781190843c0c3.md","docs/logs/20260606-135500-aeb65562937be3184.md"]
+
+## M74
+
+### HO11 — answers-required
+
+- createdAt: 2026-06-06T20:27:03.897Z
+- updatedAt: 2026-06-06T20:27:03.897Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "/cq:plan bootstrapped goal G23 (describe all flow state machines + add a Flows help tab). The planner filed the first clarifying batch and the goal is parked in clarifying awaiting user answers to Q114 (doc location/format + single source of truth), Q115 (diagram granularity: per-flow / combined / both), Q116 (reuse vs. extend the existing computeDagLayout/SVG renderer for labelled edges + self-loops). Answer in the TUI/web, then run /cq:plan:advance G23."
+- flow: plan
+- ledgerRefs: ["goals:G23"]
+- blockingQuestions: ["Q114","Q115","Q116"]
+- sessionLogs: ["docs/logs/20260606-202440-a09891b8378f4ac71.md"]
