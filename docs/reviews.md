@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 242
+  item: 246
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -268,6 +268,11 @@ archives:
     path: ./archive/reviews/M76.md
     summary: "G24 fix landed: computeDagLayout re-based to min-layer 0 (T199, commit e9bf762), reviewed (R239 go-ahead), bun run check green. Resolves D33's left-gap on cyclic state-machine diagrams."
     title: Fix D33 — re-base DAG layer numbering so cyclic state-machine diagrams left-align
+    status: done
+  - id: M78
+    path: ./archive/reviews/M78.md
+    summary: "G23 phase 2 complete: adopted elkjs, built the diagramLayout adapter + DiagramSvg renderer (T202), migrated the State-machines help tab off computeDagLayout onto elk (T203), authored the flow render-data module (T204), added the third Flows help tab (T205), and passed the end-to-end verification gate (T206: bun run check 1014/0, nix build .#node-modules + .#ledger-web both green, D33 left-alignment confirmed resolved, DagView unchanged). All 6 tasks merged, all reviews go-ahead."
+    title: G23 phase 2 — adopt diagram library, migrate State-machines tab, add Flows tab
     status: done
 ---
 
@@ -639,29 +644,3 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T200","goals:G23"]
 - sessionLogs: ["docs/logs/20260606-213541-ac51a9a79be8601ed.md"]
-
-## M78
-
-### R241 — go-ahead
-
-- createdAt: 2026-06-06T21:37:00.421Z
-- updatedAt: 2026-06-06T21:37:00.421Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "approve — T201 elkjs dependency + bundled-entry smoke land cleanly; verified by execution: nix build .#node-modules + .#ledger-web both EXIT=0 (FOD hash concretely refreshed), elkjs in package.json+bun.lock and the ledgerWeb symlink loop, src/elk.ts imports elkjs/lib/elk.bundled.js and typechecks, bun run check green."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T201","goals:G23"]
-- sessionLogs: ["docs/logs/20260606-213541-ac8524b4dcf023468.md"]
-
-### R242 — go-ahead
-
-- createdAt: 2026-06-06T22:10:54.851Z
-- updatedAt: 2026-06-06T22:10:54.851Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "T202 elk adapter + DiagramSvg renderer: code correct and bun run check green (999 pass) — layout pure-async elk (layered/RIGHT, self-loops, inline edge labels), faithful styling carry-over, clean idPrefix testid boundary, App.tsx/deps untouched. Round-1 raised ONE criticism (self-contradictory module-doc testid example, no behavioral effect); addressed in merge commit 599948c by applying the reviewer's exact correction (idPrefix=help-sm + id=<ledger>-<status>), re-verified green. Terminal: go-ahead."
-- criticism: ["[ADDRESSED] DiagramSvg module-doc testid example was self-contradictory (idPrefix=help-sm-<ledger> + id=<status> does not yield help-sm-node-<ledger>-<status>). Fixed in 599948c to idPrefix=help-sm + id=<ledger>-<status>. Comment-only; runtime testid scheme was already correct."]
-- new_questions: []
-- ledgerRefs: ["tasks:T202","goals:G23"]
-- sessionLogs: ["docs/logs/20260606-221023-a6e702c34e735176f.md"]

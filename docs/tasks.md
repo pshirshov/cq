@@ -244,6 +244,11 @@ archives:
     summary: "G24 fix landed: computeDagLayout re-based to min-layer 0 (T199, commit e9bf762), reviewed (R239 go-ahead), bun run check green. Resolves D33's left-gap on cyclic state-machine diagrams."
     title: Fix D33 — re-base DAG layer numbering so cyclic state-machine diagrams left-align
     status: done
+  - id: M78
+    path: ./archive/tasks/M78.md
+    summary: "G23 phase 2 complete: adopted elkjs, built the diagramLayout adapter + DiagramSvg renderer (T202), migrated the State-machines help tab off computeDagLayout onto elk (T203), authored the flow render-data module (T204), added the third Flows help tab (T205), and passed the end-to-end verification gate (T206: bun run check 1014/0, nix build .#node-modules + .#ledger-web both green, D33 left-alignment confirmed resolved, DagView unchanged). All 6 tasks merged, all reviews go-ahead."
+    title: G23 phase 2 — adopt diagram library, migrate State-machines tab, add Flows tab
+    status: done
 ---
 
 # tasks
@@ -264,96 +269,3 @@ archives:
 - resultCommit: e9bf762
 - completion: Authored nix/pkg/cq-assets/docs/flow-state-machines.md (all four flows + cross-flow handoff topology).
 - sessionLogs: ["docs/logs/20260606-213541-a45e9cbf3976acb05.md","docs/logs/20260606-213541-ac51a9a79be8601ed.md"]
-
-## M78
-
-### T201 — done
-
-- createdAt: 2026-06-06T20:59:57.550Z
-- updatedAt: 2026-06-06T21:37:04.063Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Add elkjs dependency to ledger-web, wire it through the Nix FOD + bundle closure, refresh the FOD hash
-- description: "Adopt the elkjs layout library (decision K37) and make it resolvable in BOTH the dev (bun) and Nix-packaged (ledger-web) builds. Steps: (1) add `elkjs` (latest stable, ^0.x current release — verify the exact current version on npm at implementation time) to dependencies in nix/pkg/cq-ledgers/packages/ledger-web/package.json; (2) run `bun install` from nix/pkg/cq-ledgers/ to update bun.lock; (3) refresh the FOD hash per CLAUDE.md §Build: set flake.nix bunNodeModules outputHash (line ~117) to 52 'A's, run `nix build .#node-modules` from the repo root, paste the reported got: hash back into outputHash; (4) add `elkjs` to the ledger-web browser-dep symlink loop in flake.nix (the `for dep in react react-dom react-markdown remark-gfm rehype-sanitize bun-types` line ~345 inside the ledgerWeb derivation) so Bun.build resolves it from the Nix closure at serve.ts startup. NOTE: elkjs's default entry pulls a web-worker file; use the main-thread/bundled entry (import ELK from 'elkjs/lib/elk.bundled.js') so it bundles cleanly under Bun.build with no worker asset — confirm the import path resolves both under bun dev and in the Nix bundle."
-- acceptance: "`elkjs` appears in packages/ledger-web/package.json dependencies and in bun.lock; `nix build .#node-modules` succeeds with the refreshed outputHash (no hash-mismatch error); `nix build .#ledger-web` succeeds; `elkjs` is present in the ledgerWeb derivation's `for dep` symlink list; a trivial `import ELK from 'elkjs/lib/elk.bundled.js'` in the ledger-web src typechecks (`bun run typecheck`) and bundles without an unresolved-worker error."
-- suggestedModel: standard
-- ledgerRefs: ["goals:G23"]
-- resultCommit: e9bf762
-- completion: Added elkjs 0.11.1 (bundled entry), wired through Nix FOD + ledger-web symlink closure, refreshed FOD outputHash; both nix builds green.
-- sessionLogs: ["docs/logs/20260606-213541-adb007e3bc921fd76.md","docs/logs/20260606-213541-ac8524b4dcf023468.md"]
-
-### T202 — done
-
-- createdAt: 2026-06-06T21:00:15.170Z
-- updatedAt: 2026-06-06T22:10:57.447Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Build the elk-based layout adapter + thin SVG diagram renderer (shared by both diagram tabs)
-- description: "Create the reusable diagram layer that both the State-machines tab and the new Flows tab render through, replacing the homegrown computeDagLayout path for these tabs (decision K37). Add nix/pkg/cq-ledgers/packages/ledger-web/src/diagramLayout.ts exposing a pure-ish async function that takes a generic graph model { nodes: {id,label,terminal?,fill?}[]; edges: {from,to,label?}[] } and runs elkjs (import ELK from 'elkjs/lib/elk.bundled.js') with a layered layout config (elk.algorithm=layered, direction LEFT->RIGHT to match the current look, edge-label placement enabled, self-loop support) and returns a laid-out model { nodes:{id,label,x,y,w,h,terminal,fill}[]; edges:{from,to,label?,points:{x,y}[],labelPos?:{x,y}}[]; width; height }. Add nix/pkg/cq-ledgers/packages/ledger-web/src/DiagramSvg.tsx — a React component that renders that laid-out model as inline SVG: rounded-rect nodes with the existing BUCKET_HEX/status fills + terminal thick-outline styling carried over from the current StateMachineDiagram, edges as polylines/beziers through elk's routing points WITH an arrowhead marker, and edge labels as <text> at labelPos. Preserve/emit the same data-testid scheme the current tests rely on (parameterised: data-testid `${idPrefix}-node-${id}`, `${idPrefix}-edge-${from}-${to}`, `${idPrefix}-rect-${id}`, and a new `${idPrefix}-edge-label-${from}-${to}` for labels) so structural happy-dom assertions remain possible. Because elk.layout() is async, the consumer computes the laid-out model in a useEffect and renders DiagramSvg when ready (with a loading placeholder). Add a unit test diagramLayout.test.ts asserting a small graph (incl. a self-loop and a labelled edge) yields nodes with finite x/y/w/h, an edge with >=2 routing points, and a label position — all WITHOUT any DOM (pure elk call under bun/happy-dom)."
-- acceptance: "src/diagramLayout.ts and src/DiagramSvg.tsx exist; diagramLayout.test.ts passes under `bun test` (happy-dom) and asserts: a graph with a self-loop edge and a labelled edge produces finite node coordinates, an edge with >=2 points, and a finite label position — with NO getBBox/ResizeObserver/DOMMatrix usage; DiagramSvg renders nodes/edges/edge-labels with the documented data-testid scheme; `bun run typecheck` and `bun run lint` pass."
-- suggestedModel: frontier
-- dependsOn: ["T201"]
-- ledgerRefs: ["goals:G23"]
-- resultCommit: 599948c
-- completion: Added src/diagramLayout.ts (async elk layered layout, self-loops + edge labels) + src/DiagramSvg.tsx (generic thin SVG renderer, parameterised testids) + diagramLayout.test.ts. Shared layer for both diagram tabs (T203/T205 consume it). bun run check green.
-- sessionLogs: ["docs/logs/20260606-221023-acd38b19b1b81ebba.md","docs/logs/20260606-221023-a6e702c34e735176f.md"]
-
-### T203 — planned
-
-- createdAt: 2026-06-06T21:00:31.901Z
-- updatedAt: 2026-06-06T21:07:05.350Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Migrate the existing 'State machines' help tab onto the elk renderer; retire computeStateMachine's homegrown layout
-- description: |
-    Re-point the existing State-machines tab (decision K37, Q116) at the new elk-based diagram layer (T202) so its diagrams stop using computeDagLayout. In App.tsx, replace the StateMachineDiagram component body (lines ~1589-1642) so it: (a) maps the ledger schema to the generic graph model — nodes = schema.statusValues with fill = BUCKET_HEX[statusBucket(status, schema)] and terminal = isTerminal(status, schema); edges = schema.transitions pairs (now ABLE to keep self-loops, which the old layout dropped); (b) computes the laid-out model via diagramLayout in a useEffect (async) and renders DiagramSvg with idPrefix `help-statemachine-${ledger}` so the per-ledger diagram container resolves as `help-statemachine-${ledger}`, the SVG as `help-statemachine-svg-${ledger}`, and nodes/edges as `${idPrefix}-node-${id}` / `${idPrefix}-edge-${from}-${to}` (the documented scheme from T202). Reduce src/stateMachine.ts to a thin schema->graph-model ADAPTER (the status/edge mapping above) OR remove it if the mapping is inlined; either way computeStateMachine must NO LONGER call computeDagLayout. Do NOT touch DagView.tsx / dagLayout.ts (milestone DAG keeps the homegrown layout — out of scope). Keep the lazy batched schema fetch and the loading/error states intact.
-    
-    TEST COVERAGE — this is NEW coverage, not an edit to an existing tab test. CORRECTION (R237 criticism 1): the repo today has NO happy-dom DOM test of the State-machines tab — app.test.tsx only opens the help overlay on the Shortcuts tab (L1296-1305) and never clicks help-tab-statemachines nor asserts any help-sm-* / help-statemachine-* id; the sole computeStateMachine coverage is the pure unit test test/stateMachine.test.ts. So do NOT frame this as 'updating existing tab tests'. ADD a NEW happy-dom render test (in packages/ledger-web/test/) that: (1) renders the app, opens the help overlay, clicks help-tab-statemachines, and awaits the async elk layout; (2) asserts the migrated DiagramSvg renders exactly one diagram per ledger using the documented data-testid scheme (help-statemachine-<ledger> container, help-statemachine-svg-<ledger> svg, and per-node / per-edge testids); (3) asserts that for a schema that HAS a self-loop transition, the corresponding self-loop edge testid is present (the behavior the elk migration newly ENABLES and the old computeDagLayout dropped). This test must run under happy-dom with NO getBBox/ResizeObserver/DOMMatrix dependence (elk layout is pure data). Regression safety for the migration must rest on THIS happy-dom test, not solely on T206's headless/manual smoke.
-    
-    D33 RECONCILIATION (R237 criticism 2): T203 rewrites the exact StateMachineDiagram SVG sizing/alignment code (width/height/viewBox, style maxWidth=model.width, preserveAspectRatio) that defect D33 concerns (right-alignment of wide diagrams). Current disposition: D33 has been ROOT-CAUSED this session — the cause is the homegrown computeDagLayout leaving layer 0 empty for cyclic graphs (NOT the CSS) — and goal G24 (task T199, already `planned`) will FIX computeDagLayout and resolve D33 for the homegrown renderer, which after this migration only serves DagView. Because the State-machines tab moves onto elkjs here, it no longer uses computeDagLayout at all, so it must NOT reintroduce D33's symptom: the elk-rendered diagrams must be LEFT-ALIGNED with no empty leading column. Do NOT create a new defect; just preserve left-alignment in the new renderer and rely on G24/T199 for the homegrown-renderer fix.
-- acceptance: "The State-machines tab renders one diagram per ledger via DiagramSvg (no computeDagLayout in the State-machines code path — grep confirms computeStateMachine no longer imports/calls computeDagLayout); node fills still match the status-bucket palette; DagView/dagLayout untouched (git diff shows no change to DagView.tsx or dagLayout.ts). NEW happy-dom render test (added by this task; there was no prior DOM tab test) PASSES under `bun test` and: (a) opens the help overlay, clicks help-tab-statemachines, awaits the async elk layout, and finds exactly one diagram per ledger under the documented testid scheme (help-statemachine-<ledger> container + help-statemachine-svg-<ledger> svg + per-node/per-edge testids); (b) asserts a schema with a self-loop transition renders its self-loop edge testid (previously dropped by computeDagLayout); (c) uses NO getBBox/ResizeObserver/DOMMatrix. LEFT-ALIGNMENT / D33 (criticism 2): the elk-rendered State-machines diagrams are left-aligned with no empty leading column — assert the minimum laid-out node x is flush-left (e.g. min node.x equals the diagram's left padding, no phantom empty layer-0 gap); this guards against reintroducing D33's right-alignment symptom in the new renderer (D33 itself is resolved for the homegrown renderer by G24/T199 — not re-filed here). `bun run check` (typecheck + lint + test) is green."
-- suggestedModel: frontier
-- dependsOn: ["T202"]
-- ledgerRefs: ["goals:G23"]
-
-### T204 — planned
-
-- createdAt: 2026-06-06T21:00:44.362Z
-- updatedAt: 2026-06-06T21:00:44.362Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Build the flow render-data module (states/edges/handoffs for plan, investigate, implement, advance)
-- description: "Create nix/pkg/cq-ledgers/packages/ledger-web/src/flowData.ts — a hand-authored TS data module holding the FLOW orchestration diagrams the Flows tab renders, mirroring (by hand, per Q114 — NOT a shared source of truth) the phase-1 doc T200. Export an ordered array of flow definitions, one per Q115 requirement: `plan`, `investigate`, `implement`, plus an `advance` top-level overview. Each flow = { id; title; nodes: {id,label,kind?:'state'|'waiting'|'handoff'|'terminal'}[]; edges: {from,to,label?}[] } in the SAME generic graph shape the diagramLayout/DiagramSvg layer (T202) consumes. Encode: plan's clarifying/planning/planned/building/done/abandoned states with labelled transitions (user answers, go-ahead, revise, plan locked) including the planning<->clarifying revise loop; investigate's hypothesis-tree round loop + confirmed-root-cause -> seed-goal-to-plan handoff; implement's pick-ready -> implement -> review -> fix/merge loop + user-question register; and the advance sequencer's investigate->plan->implement quiescence loop showing the cross-flow handoff edges (plan file-and-defer-defect->investigate; investigate seed-goal->plan; plan planned->implement). Use kind to drive distinct node styling (e.g. waiting-for-input vs handoff) in DiagramSvg. Add flowData.test.ts asserting: all four flows present and ordered; every edge endpoint references an existing node id in its flow; the advance flow contains the three named cross-flow handoff edges. NOTE: keep flowData.ts content consistent with T200's doc — reviewer will check the two agree."
-- acceptance: src/flowData.ts exports exactly the four flows (plan, investigate, implement, advance) in order; flowData.test.ts passes (`bun test`) asserting every edge's from/to resolves to a node in the same flow and the advance flow includes the file-defer-to-investigate, seed-goal-to-plan, and planned-to-implement handoff edges; the flow graph shape is exactly the generic model DiagramSvg consumes; `bun run typecheck`/`lint` pass; spot-check confirms flowData states/edges agree with docs/flow-state-machines.md (T200).
-- suggestedModel: frontier
-- dependsOn: ["T200","T202"]
-- ledgerRefs: ["goals:G23"]
-
-### T205 — planned
-
-- createdAt: 2026-06-06T21:01:00.659Z
-- updatedAt: 2026-06-06T21:01:00.659Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Add the third 'Flows' tab to the help dialog, rendering the flow diagrams via the elk renderer
-- description: "Add the new third tab to HelpOverlay in App.tsx (currently Shortcuts + State machines, lines ~1485-1580), per the goal + Q115. (1) Widen the tab state union to `'shortcuts' | 'statemachines' | 'flows'`; add a third tablist <button> (role=tab, data-testid `help-tab-flows`, label 'Flows', aria-selected wiring matching the other two). (2) Add the tab body: when tab==='flows', render one section per flow from flowData (T204) — plan, investigate, implement, then the advance overview — each with an <h4> title and a DiagramSvg (T202) of that flow, idPrefix `help-flow-${flow.id}`, with distinct node styling by `kind` (waiting-for-input vs handoff vs state vs terminal). Compute each flow's laid-out model via diagramLayout in an effect (async) and show the same loading/error placeholder pattern the State-machines tab uses. The Flows data is static (no MCP fetch needed) so it can lay out on first tab open. (3) Keep the existing keyboard capture (Esc/? close) and backdrop-dismiss behavior unchanged. Add tests in packages/ledger-web/test/ asserting: the third tab button exists (help-tab-flows) and is selectable; selecting it renders a section + DiagramSvg for each of the four flows (data-testid help-flow-<id>); a labelled handoff edge in the advance flow renders its edge-label text. Update the help dialog's CSS only as needed for a third tab + any new node-kind styling (styles.css), matching existing lw-help-* conventions."
-- acceptance: HelpOverlay shows three tabs; clicking 'Flows' (help-tab-flows) renders a diagram section for each of plan/investigate/implement/advance (help-flow-plan, -investigate, -implement, -advance), each via DiagramSvg; the advance overview renders its labelled cross-flow handoff edges (edge-label text present); new tests pass under `bun test`; Esc/? still close the dialog; `bun run check` green; `nix build .#ledger-web` succeeds and the served bundle includes the Flows tab.
-- suggestedModel: frontier
-- dependsOn: ["T203","T204"]
-- ledgerRefs: ["goals:G23"]
-
-### T206 — planned
-
-- createdAt: 2026-06-06T21:01:10.756Z
-- updatedAt: 2026-06-06T21:07:23.764Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "End-to-end verification: full check suite + Nix builds + manual render smoke of both diagram tabs"
-- description: |
-    Final integration gate for G23 phase 2. (1) Run `bun run check` (tsc -b + eslint + bun test) from nix/pkg/cq-ledgers/ — must be fully green, including the new diagramLayout/flowData/Flows-tab tests and the NEW State-machines tab happy-dom render test added by T203 (the migration's regression safety lives in that test, not in this smoke). (2) From the repo root run `nix build .#node-modules` (confirms the refreshed FOD hash is correct) and `nix build .#ledger-web` (confirms elkjs resolves in the Nix closure and the bundle builds with no unresolved-worker/module error). (3) Manual render smoke: launch the built ledger-web (or bun dev), open the help dialog, and confirm BOTH the State machines tab AND the new Flows tab render their diagrams via the elk renderer without console errors — nodes laid out, edges routed, labels visible, self-loops shown. Because happy-dom cannot do real layout, ground-truth the VISUAL output with the nixpkgs headless chromium (nix eval --raw nixpkgs#chromium.outPath, the same approach used for D33 this session) by screenshotting both diagram tabs.
-    
-    D33 / LEFT-ALIGNMENT verification (R237 criticism 2): in the headless-chromium screenshot of the State-machines tab, verify the elk-rendered diagrams are LEFT-ALIGNED — the leftmost diagram content is flush against the diagram's left edge with NO empty leading column (i.e. the elk migration does NOT reintroduce D33's right-alignment symptom). Record D33's disposition explicitly in the verification notes: D33 (homegrown computeDagLayout leaving layer 0 empty for cyclic graphs) is resolved for the homegrown renderer by G24/T199; after T203 the State-machines tab uses elk (not computeDagLayout), and this task confirms the elk renderer is left-aligned. Do NOT re-file or duplicate D33. (4) Confirm no regression to the milestone DagView (it still renders via the untouched computeDagLayout). Record any OTHER residual defect found via file-and-defer rather than expanding scope.
-- acceptance: "`bun run check` exits 0 (all tests pass, including the NEW T203 State-machines-tab happy-dom render test and the diagramLayout/flowData/Flows-tab tests); `nix build .#node-modules` and `nix build .#ledger-web` both succeed; manual (or headless-chromium) smoke confirms the State machines tab and the Flows tab both render diagrams (nodes/edges/labels/self-loops) with no console errors. D33/left-alignment: the headless-chromium screenshot of the State-machines tab shows the elk-rendered diagrams LEFT-ALIGNED with no empty leading column (the elk migration does not reintroduce D33's right-alignment symptom), and the verification notes record D33's disposition (resolved for the homegrown renderer by G24/T199; State-machines tab no longer uses computeDagLayout). D33 is NOT re-filed. The milestone DagView still renders unchanged. Any OTHER newly-discovered fault is filed as an open defect linked goals:G23, not silently fixed here."
-- suggestedModel: standard
-- dependsOn: ["T205"]
-- ledgerRefs: ["goals:G23"]

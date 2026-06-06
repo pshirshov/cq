@@ -299,6 +299,11 @@ archives:
     summary: "D33 investigated → root-caused (H25 confirmed via headless-chromium ground truth: computeDagLayout left layer 0 empty for cyclic graphs, not CSS) → resolved by G24/T199 (e9bf762). Q113 answered (use headless chromium)."
     title: "Investigate: sm-diagram-alignment (blocked on env)"
     status: done
+  - id: M78
+    path: ./archive/milestones/M78.md
+    summary: "G23 phase 2 complete: adopted elkjs, built the diagramLayout adapter + DiagramSvg renderer (T202), migrated the State-machines help tab off computeDagLayout onto elk (T203), authored the flow render-data module (T204), added the third Flows help tab (T205), and passed the end-to-end verification gate (T206: bun run check 1014/0, nix build .#node-modules + .#ledger-web both green, D33 left-alignment confirmed resolved, DagView unchanged). All 6 tasks merged, all reviews go-ahead."
+    title: G23 phase 2 — adopt diagram library, migrate State-machines tab, add Flows tab
+    status: done
 ---
 
 # milestones
@@ -421,11 +426,3 @@ archives:
 - updatedAt: 2026-06-06T20:58:45.337Z
 - title: G23 phase 1 — flow state-machine doc
 - description: "Phase 1 of G23: a single prose Markdown document under nix/pkg/cq-assets/docs/ describing the state machines (states + transitions + cross-flow handoffs) of all harness flows — plan, investigate, implement, and the top-level advance sequencer. Per Q114 this doc is human prose, kept SEPARATE from the Flows tab's render data."
-
-### M78 — open
-
-- createdAt: 2026-06-06T20:58:48.695Z
-- updatedAt: 2026-06-06T20:58:51.982Z
-- title: G23 phase 2 — adopt diagram library, migrate State-machines tab, add Flows tab
-- description: "Phase 2 of G23: adopt a third-party graph/state-machine layout library (proposed: elkjs, see decision), wire it through the Nix FOD, build a thin SVG renderer on top, MIGRATE the existing 'State machines' help tab onto it (retiring computeStateMachine's dependence on the homegrown computeDagLayout), then build the flow render-data and the new third 'Flows' help tab (per-flow diagrams for plan/investigate/implement + a top-level advance-sequencer overview, per Q115). Depends on phase 1 so the flow states/edges in the render data mirror the authored doc."
-- dependsOn: ["M77"]
