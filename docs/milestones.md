@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 80
+  item: 81
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -438,3 +438,10 @@ archives:
 - updatedAt: 2026-06-06T23:30:00.234Z
 - title: "Plan: retire legacy skills + clean cq references"
 - description: Coordination milestone for the goal of retiring four skills (research-loop, vsm-loop, vsm-node, question-batch), relocating them to ./docs/legacy-skills for future reference, and cleaning up the references to them in the cq flow assets.
+
+### M81 — open
+
+- createdAt: 2026-06-06T23:34:46.584Z
+- updatedAt: 2026-06-06T23:34:46.584Z
+- title: "Plan: render session logs as markdown in a popup"
+- description: Coordination milestone for the goal of changing how sessionLogs (and similar markdown content) on goals/handoffs ledger items are surfaced in the UI — from inline verbatim text to a popup/modal that renders the log markdown.

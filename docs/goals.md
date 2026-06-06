@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 25
+  item: 26
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -531,3 +531,20 @@ archives:
     
     Scope notes for the planner to clarify: (1) where these skills currently live (likely nix/pkg/cq-assets/skills/ or similar) and what 'move to ./docs/legacy-skills' means for the build/packaging (Nix) that ships them; (2) which cq flow assets reference them (commands/cq/*, agents/*, skill manifests) and what 'clean up references' should do — remove the references, or repoint them; (3) whether retiring implies they must no longer be installed/registered as invocable skills.
 - sessionLogs: ["docs/logs/20260606-233304-ab05488ed82cc7cad.md"]
+
+## M81
+
+### G26 — clarifying
+
+- createdAt: 2026-06-06T23:34:57.128Z
+- updatedAt: 2026-06-06T23:37:58.081Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- title: Render session-log markdown in a popup (not inline verbatim) for goals/handoffs items
+- description: |
+    User request (verbatim): "currently markdown of session logs in goals/handoffs ledger items is rendered inline verbatim. I think we should open popups for the logs and render as markdown"
+    
+    Intent: in the ledger UI, the `sessionLogs` field on goals (and handoffs) ledger items currently shows the log markdown inline as raw/verbatim text. Instead, surface each session log via a popup/modal (e.g. click a log entry to open) that renders the markdown properly.
+    
+    Scope notes for the planner to clarify: (1) which frontend(s) are in scope — ledger-web (React; already uses react-markdown/remark-gfm/rehype-sanitize), ledger-tui (ink), or both; (2) whether 'session logs' means specifically the `sessionLogs` field (a list of docs/logs/*.md PATHS) and how the UI obtains the file CONTENT to render (frontends are pure MCP clients per CLAUDE.md — they never read docs/ directly, so a render needs the content available over MCP, e.g. via read_log); (3) the interaction model (click-to-open popup, list of logs, close behavior) and whether it generalizes to other markdown fields beyond sessionLogs.
+- sessionLogs: ["docs/logs/20260606-233747-adda28120a7df8d0b.md"]

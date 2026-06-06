@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 120
+  item: 124
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -582,46 +582,100 @@ archives:
 
 ## M80
 
-### Q117 — open
+### Q117 — answered
 
 - createdAt: 2026-06-06T23:32:10.945Z
-- updatedAt: 2026-06-06T23:32:10.945Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T23:34:54.556Z
+- author: user
 - question: Does "retire" mean these four skills must no longer be installed/registered as invocable at all, or merely relocated out of the active source tree while references are scrubbed?
 - context: "The four skills live as directories under nix/pkg/llm-skills/skills/{research-loop,vsm-loop,vsm-node,question-batch}/, each a {meta.yaml,content.md} pair. llm-skills/default.nix auto-discovers skills via `builtins.readDir ./skills` — a directory's mere PRESENCE under skills/ IS its registration into the merged skill set that home-manager installs for Claude/Codex/Pi. So physically MOVING each skill dir to ./docs/legacy-skills (your stated request) automatically de-registers it from the Nix build with no manifest edit — relocation and de-registration are the same act here. This question confirms that is the intent (vs. wanting them kept registered but moved, which is not achievable given how readDir works — they'd have to stay under skills/)."
 - suggestions: ["Fully retire: move the dirs out of nix/pkg/llm-skills/skills/ to ./docs/legacy-skills, which de-registers them from the build — they are no longer installed/invocable.","Keep registered but relocate elsewhere (NOT possible with current readDir auto-discovery without also keeping them under skills/)."]
 - recommendation: Fully retire — move the four skill dirs out of nix/pkg/llm-skills/skills/ to ./docs/legacy-skills, which both archives the source and de-registers them from the installed skill set.
 - ledgerRefs: ["goals:G25"]
+- answer: as recommended
 
-### Q118 — open
+### Q118 — answered
 
 - createdAt: 2026-06-06T23:32:22.250Z
-- updatedAt: 2026-06-06T23:32:22.250Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T23:35:19.959Z
+- author: user
 - question: "For \"clean up the references\" in the cq flow: should each reference to a retired skill be DELETED outright, or REPOINTED to its surviving cq-flow successor where one exists?"
 - context: "The four legacy skills appear superseded by the cq flow, so most references read as vestigial mentions rather than runtime calls: (a) question-batch — the cq flow files clarifying questions directly as `questions` ledger items (this plan-advance agent does exactly that; cq/plan.md routes clarification through the planner, not question-batch), so its successor is the questions-ledger mechanism; (b) research-loop — overlapped by /cq:investigate(:advance) (defect intake + hypothesis-tree investigation); (c) vsm-loop / vsm-node — the meta-orchestration layer, broadly superseded by the /cq:advance + plan/implement/investigate flow. Whether a stray mention should be dropped vs. rewritten to name the cq successor changes every edit in the plan."
 - suggestions: ["Delete all references outright (simplest; leaves no pointer).","Repoint to the cq successor where one clearly exists (question-batch→questions ledger, research-loop→/cq:investigate, vsm→/cq:advance flow), delete only where no successor applies.","Per-skill decision (e.g. repoint research-loop→investigate, but just delete vsm mentions)."]
 - recommendation: "Repoint where a clear cq successor exists (research-loop→/cq:investigate, question-batch→questions-ledger flow), and delete the reference where no successor applies — so the docs stay self-consistent and don't dangle."
 - ledgerRefs: ["goals:G25"]
+- answer: as recommended
 
-### Q119 — open
+### Q119 — answered
 
 - createdAt: 2026-06-06T23:32:33.571Z
-- updatedAt: 2026-06-06T23:32:33.571Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T23:35:37.635Z
+- author: user
 - question: "In ./docs/legacy-skills, what form should each archived skill take — keep the original {meta.yaml, content.md} directory structure verbatim, or flatten into a single plain Markdown file per skill?"
 - context: "Today each skill is a directory with meta.yaml (front-matter: name + description/TRIGGER) plus content.md (the body). ./docs/legacy-skills is repo-root relative and does not yet exist (docs/ holds logs/, archive/, drafts/, etc.). Keeping the dir structure preserves the exact source for possible future revival; flattening to one .md (e.g. docs/legacy-skills/research-loop.md with the meta folded in as a header) is tidier for pure archival reading. This decides the move's target layout. Note: the skills cross-reference each other and review-loop via [[wikilinks]] (e.g. vsm-loop links research-loop, vsm-node, AND review-loop which is NOT being retired) — whatever layout, those intra-archive links and the link to the surviving review-loop skill will need handling."
 - suggestions: ["Keep each skill as its own {meta.yaml, content.md} directory under docs/legacy-skills/<name>/ (verbatim archive).","Flatten each to a single docs/legacy-skills/<name>.md with meta folded into a header.","Keep dir structure AND add a docs/legacy-skills/README.md noting these are retired and why."]
 - recommendation: "Keep each skill's {meta.yaml, content.md} directory verbatim under docs/legacy-skills/<name>/ and add a short README.md noting retirement + cq successors — lossless archive, easy revival."
 - ledgerRefs: ["goals:G25"]
+- answer: Flatten each to a single docs/legacy-skills/<name>.md with meta folded into a header.
 
-### Q120 — open
+### Q120 — answered
 
 - createdAt: 2026-06-06T23:32:44.087Z
-- updatedAt: 2026-06-06T23:32:44.087Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T23:35:55.663Z
+- author: user
 - question: review-loop is NOT in the retirement list but is tightly coupled to the retired skills (vsm-loop composes it; vsm-node and the legacy skills cross-link it). Is review-loop deliberately KEPT, and is the retirement list exactly these four (no other skills/docs follow)?
 - context: "vsm-loop's body explicitly composes [[review-loop]] for build cycles and [[research-loop]] for investigation; vsm-node is review-loop's recursion contract. Retiring research-loop/vsm-loop/vsm-node leaves review-loop as a survivor that references now-archived peers, and review-loop itself is arguably superseded by the cq plan/implement/review flow too. I want to confirm the boundary is exactly {research-loop, vsm-loop, vsm-node, question-batch} and that review-loop (and any other skill or doc) stays put — so the plan scopes the reference cleanup correctly and doesn't accidentally leave or break review-loop's links."
 - suggestions: ["Exactly these four; review-loop stays as-is (clean up its dangling links to the retired peers).","These four PLUS review-loop (retire the whole review/vsm family, since the cq flow supersedes it).","These four for now; review-loop reviewed separately later."]
 - recommendation: "Retire exactly these four and KEEP review-loop, but fix review-loop's now-dangling [[research-loop]] references as part of the reference cleanup (repoint to /cq:investigate or drop). Confirm no other skills/docs are in scope."
 - ledgerRefs: ["goals:G25"]
+- answer: These four PLUS review-loop (retire the whole review/vsm family, since the cq flow supersedes it).
+
+## M81
+
+### Q121 — open
+
+- createdAt: 2026-06-06T23:37:03.643Z
+- updatedAt: 2026-06-06T23:37:03.643Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- question: The popup already exists — is the actual ask just to render its content as markdown? In ledger-web, clicking a sessionLogs entry already opens a modal (SessionLogsPanel + LogModal, T152/Q87) that fetches the log via the read_log MCP tool. The ONLY gap vs. your request is that LogModal renders the content in a verbatim <pre> (lw-log-content) instead of through the existing Markdown component. Is the scope of this goal precisely "render the log content in the existing popup as rendered markdown (react-markdown/remark-gfm/rehype-sanitize) instead of preformatted text", or did you intend a larger change (e.g. a different/new popup, currently-unobserved inline rendering elsewhere)?
+- context: App.tsx already has SessionLogsPanel (links) -> LogModal (popup) -> client.readLog -> read_log tool. LogModal body uses <pre className="lw-log-content"> at the content line, not <Markdown>. The Markdown component (react-markdown + remark-gfm + rehype-sanitize) already exists and is used for other fields. So 'open popups for the logs' appears already done; 'render as markdown' is the unmet part. Confirming this pins the whole task to a small, surgical change.
+- suggestions: ["Yes — scope is exactly: render log content as markdown inside the existing LogModal popup (swap the <pre> for the Markdown component); nothing else","No — there is still verbatim INLINE rendering somewhere I'm seeing; please investigate that specific view first","Broader — I want a redesigned/different log viewer, not just markdown in the current modal"]
+- recommendation: Yes — render log content as markdown inside the existing popup; treat the rest (links, modal, read_log fetch) as already done.
+- ledgerRefs: ["goals:G26"]
+
+### Q122 — open
+
+- createdAt: 2026-06-06T23:37:10.758Z
+- updatedAt: 2026-06-06T23:37:10.758Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- question: "Which frontend(s) are in scope — ledger-web only, or ledger-tui too? The popup/markdown rendering described is a ledger-web (React) concept. ledger-tui (ink terminal UI) currently has NO log-content rendering at all: its LedgerClient does not even expose readLog, and a terminal UI has no modal/markdown renderer. Do you want this goal limited to ledger-web, or should ledger-tui also gain some form of log viewing (which would be a substantially larger, separate effort)?"
+- context: "ledger-web: full read_log/readLog/Markdown/modal infra exists. ledger-tui/src/mcpClient.ts LedgerClient import list has no ReadLogResult/readLog; the TUI shows sessionLogs (if at all) only as plain path strings. 'Popup' has no terminal analogue."
+- suggestions: ["ledger-web only","Both — also add some log-viewing affordance to ledger-tui (larger scope)"]
+- recommendation: ledger-web only — the request says 'popups', which is a web concept; leave ledger-tui out of this goal.
+- ledgerRefs: ["goals:G26"]
+
+### Q123 — open
+
+- createdAt: 2026-06-06T23:37:17.952Z
+- updatedAt: 2026-06-06T23:37:17.952Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- question: Which items/fields does the popup apply to? You named goals/handoffs, but the SessionLogsPanel renders the `sessionLogs` field for ANY selected item that has it (the panel is wired generically in DetailPanel for every non-draft item with onReadLog). Other ledgers (tasks, reviews, defects) can also carry sessionLogs. Should the markdown-popup behavior apply to the sessionLogs field on ALL ledger items uniformly (current behavior), or be restricted to goals + handoffs specifically? And does this concern ONLY the sessionLogs field, or also other markdown fields?
+- context: "DetailPanel renders <SessionLogsPanel item={row.item} onReadLog=...> for every non-draft item when onReadLog is provided, keyed off fields.sessionLogs. It is not goals/handoffs-specific today. Restricting it would be a deliberate narrowing."
+- suggestions: ["All items with a sessionLogs field, uniformly (keep current generic wiring; only the markdown rendering changes)","Restrict to goals + handoffs only","sessionLogs only (do not touch other markdown fields)"]
+- recommendation: Apply uniformly to the sessionLogs field on all items (keep the generic panel); only change the popup to render markdown. Treat goals/handoffs as the motivating example, not a restriction.
+- ledgerRefs: ["goals:G26"]
+
+### Q124 — open
+
+- createdAt: 2026-06-06T23:37:24.472Z
+- updatedAt: 2026-06-06T23:37:24.472Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- question: "Two presentation details for the markdown-in-popup rendering: (a) When a log file is large, the server truncates it (read_log returns truncated:true) and LogModal currently shows a '(log truncated…)' notice above a <pre>. With markdown rendering, should we keep that truncation notice and render the (possibly truncated) content as markdown? (b) Do you want a raw/verbatim fallback toggle (view rendered markdown vs. raw text) in the popup, or is rendered-markdown-only sufficient?"
+- context: LogModal already handles loading/error/truncated states and renders content in <pre>. Truncated markdown can render imperfectly (e.g. an unclosed code fence), which is the main edge case for switching <pre> -> Markdown. A raw toggle is optional polish.
+- suggestions: ["Keep the truncation notice; render content as markdown; no raw toggle (simplest)","Keep truncation notice AND add a 'raw / rendered' toggle in the popup","Rendered markdown only; drop the truncation notice"]
+- recommendation: Keep the existing truncation notice and render the content as markdown; no raw toggle (add one later only if requested).
+- ledgerRefs: ["goals:G26"]
