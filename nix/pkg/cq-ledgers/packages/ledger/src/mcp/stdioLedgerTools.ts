@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 20-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 21-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. This is the stdio counterpart to `createLedgerMcpTools`
  * (the in-process Claude-SDK `tool()` factory in `./ledgerTools.ts`): both
@@ -149,7 +149,7 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 20 ledger tools on the given MCP server. Identical
+ * Register the 21 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  *
  * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
@@ -157,9 +157,9 @@ function jsonResult(value: unknown): {
  * `read_log` tool throws `ReadLogNotImplementedError`.
  *
  * `configCapability` is the injected cq.toml config capability (R193 / G18),
- * constructed in `@cq/ledger-mcp` over `@cq/config` (T2). When omitted (no
- * cq.toml-capable config root), `get_reviewers`/`get_config` throw
- * `ConfigNotImplementedError`.
+ * constructed in `@cq/ledger-mcp` over `@cq/config` (T2/T13). When omitted (no
+ * cq.toml-capable config root), `get_reviewers`/`get_planners`/`get_config`
+ * throw `ConfigNotImplementedError`.
  */
 export function registerLedgerStdioTools(
   server: McpServer,
@@ -576,13 +576,31 @@ ${QUERY_LANGUAGE_HELP}`,
   );
 
   server.registerTool(
+    "get_planners",
+    {
+      description:
+        "Resolve the planner set from the repo's cq.toml. Returns " +
+        "{ configured, planners: [{ harness, model, alias }] }. " +
+        "configured=false (no cq.toml or empty list) => use the single native " +
+        "Claude planner. Only available when the server has a cq.toml-capable " +
+        "config root; otherwise returns a not-implemented error.",
+      inputSchema: {},
+    },
+    () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computePlanners());
+    },
+  );
+
+  server.registerTool(
     "get_config",
     {
       description:
-        "Return the full parsed cq.toml: { configured, aliases, reviewers } " +
-        "where reviewers is the raw list of alias names. configured=false " +
-        "when no cq.toml is present. Only available when the server has a " +
-        "cq.toml-capable config root; otherwise returns a not-implemented error.",
+        "Return the full parsed cq.toml: { configured, aliases, reviewers, " +
+        "planners } where reviewers/planners are the raw lists of alias names. " +
+        "configured=false when no cq.toml is present. Only available when the " +
+        "server has a cq.toml-capable config root; otherwise returns a " +
+        "not-implemented error.",
       inputSchema: {},
     },
     () => {

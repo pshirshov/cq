@@ -80,7 +80,7 @@ function decode<T>(result: unknown): T {
 }
 
 describe("ledger-mcp stdio binary", () => {
-  it("lists exactly the 20 ledger tools (no cq ask/submit tools)", async () => {
+  it("lists exactly the 21 ledger tools (no cq ask/submit tools)", async () => {
     await withClient(async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
@@ -227,12 +227,13 @@ async function withClientAtRoot(
 }
 
 describe("ledger-mcp stdio config capability (cq.toml)", () => {
-  it("surfaces get_reviewers + get_config on the stdio binary", async () => {
+  it("surfaces get_reviewers + get_planners + get_config on the stdio binary", async () => {
     // The default tmpRoot has no cq.toml, so the tools are still listed.
     await withClientAtRoot(tmpRoot, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name);
       expect(names).toContain("get_reviewers");
+      expect(names).toContain("get_planners");
       expect(names).toContain("get_config");
     });
   });
@@ -250,12 +251,22 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
         expect(reviewers.configured).toBe(false);
         expect(reviewers.reviewers).toEqual([]);
 
-        const config = decode<{ configured: boolean; aliases: object; reviewers: unknown[] }>(
-          await client.callTool({ name: "get_config", arguments: {} }),
+        const planners = decode<{ configured: boolean; planners: unknown[] }>(
+          await client.callTool({ name: "get_planners", arguments: {} }),
         );
+        expect(planners.configured).toBe(false);
+        expect(planners.planners).toEqual([]);
+
+        const config = decode<{
+          configured: boolean;
+          aliases: object;
+          reviewers: unknown[];
+          planners: unknown[];
+        }>(await client.callTool({ name: "get_config", arguments: {} }));
         expect(config.configured).toBe(false);
         expect(config.aliases).toEqual({});
         expect(config.reviewers).toEqual([]);
+        expect(config.planners).toEqual([]);
       });
     } finally {
       await fs.rm(noCfgRoot, { recursive: true, force: true });
@@ -273,6 +284,7 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
         path.join(cfgRoot, "cq.toml"),
         [
           'reviewers = ["codex", "opus"]',
+          'planners = ["opus"]',
           "",
           "[aliases]",
           '  codex = "pi:grok-build"',
@@ -292,13 +304,24 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
           { harness: "claude", model: "opus-4.8[1m]", alias: "opus" },
         ]);
 
+        const planners = decode<{
+          configured: boolean;
+          planners: Array<{ harness: string; model: string; alias: string }>;
+        }>(await client.callTool({ name: "get_planners", arguments: {} }));
+        expect(planners.configured).toBe(true);
+        expect(planners.planners).toEqual([
+          { harness: "claude", model: "opus-4.8[1m]", alias: "opus" },
+        ]);
+
         const config = decode<{
           configured: boolean;
           aliases: Record<string, { harness: string; model: string }>;
           reviewers: string[];
+          planners: string[];
         }>(await client.callTool({ name: "get_config", arguments: {} }));
         expect(config.configured).toBe(true);
         expect(config.reviewers).toEqual(["codex", "opus"]);
+        expect(config.planners).toEqual(["opus"]);
         expect(config.aliases).toEqual({
           codex: { harness: "pi", model: "grok-build" },
           opus: { harness: "claude", model: "opus-4.8[1m]" },

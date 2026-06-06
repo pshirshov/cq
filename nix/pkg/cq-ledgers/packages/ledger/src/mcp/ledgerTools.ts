@@ -4,7 +4,7 @@
  * Returns an array of `tool()` instances ready to be passed to
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
  *
- * Tool surface (20 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item + read_log + get_reviewers + get_config):
+ * Tool surface (21 tools: 13 msunify + fts_search + snapshot + reopen_item + unarchive_item + read_log + get_reviewers + get_planners + get_config):
  *
  * Item / ledger surface (9):
  *  - enumerate_ledgers, fetch_ledger, fetch_ledger_archive,
@@ -31,10 +31,11 @@
  *    Requires an explicit FS-store `readLog` capability (Q87 / R137 #6); when
  *    the factory is wired over an in-memory store it throws not-implemented.
  *
- * Config capability (2) — R193 / G18:
+ * Config capability (3) — R193 / G18:
  *  - get_reviewers() — the RESOLVED reviewer set from the repo's cq.toml.
- *  - get_config() — the full parsed cq.toml (aliases + raw reviewer names).
- *    Both require an injected `configCapability` (constructed in @cq/ledger-mcp
+ *  - get_planners() — the RESOLVED planner set from the repo's cq.toml.
+ *  - get_config() — the full parsed cq.toml (aliases + raw reviewer/planner names).
+ *    All require an injected `configCapability` (constructed in @cq/ledger-mcp
  *    over @cq/config); absent it they throw `ConfigNotImplementedError`.
  *
  * Each handler turns the validated input into a single LedgerStore call,
@@ -598,12 +599,27 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
+  const getPlanners = tool(
+    "get_planners",
+    "Resolve the planner set from the repo's cq.toml. Returns " +
+      "{ configured, planners: [{ harness, model, alias }] }. " +
+      "configured=false (no cq.toml or empty list) => use the single native " +
+      "Claude planner. Only available when the server has a cq.toml-capable " +
+      "config root; otherwise returns a not-implemented error.",
+    {} as Record<string, never>,
+    async () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computePlanners());
+    },
+  );
+
   const getConfig = tool(
     "get_config",
-    "Return the full parsed cq.toml: { configured, aliases, reviewers } " +
-      "where reviewers is the raw list of alias names. configured=false " +
-      "when no cq.toml is present. Only available when the server has a " +
-      "cq.toml-capable config root; otherwise returns a not-implemented error.",
+    "Return the full parsed cq.toml: { configured, aliases, reviewers, " +
+      "planners } where reviewers/planners are the raw lists of alias names. " +
+      "configured=false when no cq.toml is present. Only available when the " +
+      "server has a cq.toml-capable config root; otherwise returns a " +
+      "not-implemented error.",
     {} as Record<string, never>,
     async () => {
       if (configCapability === undefined) throw new ConfigNotImplementedError();
@@ -631,6 +647,7 @@ ${QUERY_LANGUAGE_HELP}`,
     unarchiveItem,
     readLogTool,
     getReviewers,
+    getPlanners,
     getConfig,
   ] as unknown as AnyTool[];
 }
@@ -656,5 +673,6 @@ export const LEDGER_TOOL_NAMES = [
   "unarchive_item",
   "read_log",
   "get_reviewers",
+  "get_planners",
   "get_config",
 ] as const;

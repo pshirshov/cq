@@ -53,17 +53,18 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (20 tools)", async () => {
+  it("exports the expected tool names (21 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(20);
+    expect(LEDGER_TOOL_NAMES.length).toBe(21);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
     expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
     expect(LEDGER_TOOL_NAMES).toContain("unarchive_item");
     expect(LEDGER_TOOL_NAMES).toContain("read_log");
     expect(LEDGER_TOOL_NAMES).toContain("get_reviewers");
+    expect(LEDGER_TOOL_NAMES).toContain("get_planners");
     expect(LEDGER_TOOL_NAMES).toContain("get_config");
   });
 

@@ -70,6 +70,8 @@ export type {
   ConfigCapability,
   ResolvedReviewer,
   GetReviewersResult,
+  ResolvedPlanner,
+  GetPlannersResult,
   GetConfigResult,
 } from "./mcp/configCapability.js";
 export { LedgerSearchIndex } from "./search/LedgerSearchIndex.js";
