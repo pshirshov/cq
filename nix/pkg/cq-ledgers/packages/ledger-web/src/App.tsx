@@ -25,6 +25,7 @@ import { computeStateMachine, type StateMachineModel } from "./stateMachine.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
 import { HoldButton, type HoldClock } from "./HoldButton.js";
+import { useBackdropDismiss } from "./useBackdropDismiss.js";
 // Leaf subpath: the @cq/ledger index pulls Node builtins (node:fs/os/path),
 // which must not enter the browser bundle. `./columns` is side-effect-free and
 // Node-free, mirroring the `./relationships` leaf import above.
@@ -1481,8 +1482,9 @@ function HelpOverlay({
     };
   }, [tab, schemas, client]);
 
+  const helpBackdropProps = useBackdropDismiss(onClose);
   return (
-    <div className="lw-help-backdrop" data-testid="help-overlay" onClick={onClose}>
+    <div className="lw-help-backdrop" data-testid="help-overlay" {...helpBackdropProps}>
       <div className="lw-help" role="dialog" aria-label="help" onClick={(e) => e.stopPropagation()}>
         <div className="lw-help-head">
           <div className="lw-help-tabs" role="tablist">
@@ -1639,8 +1641,9 @@ function BatchAnswerModal({
   const row = rows[index];
   const renderVal = (v: FieldValue): React.ReactNode =>
     Array.isArray(v) ? renderListField(v) : <Markdown text={v} />;
+  const batchBackdropProps = useBackdropDismiss(onClose);
   return (
-    <div className="lw-help-backdrop" data-testid="batch-overlay" onClick={onClose}>
+    <div className="lw-help-backdrop" data-testid="batch-overlay" {...batchBackdropProps}>
       <div
         className="lw-batch"
         role="dialog"
@@ -3012,13 +3015,14 @@ function LogModal({ state, onClose }: { state: LogModalState; onClose: () => voi
     return () => document.removeEventListener("keydown", handleKey);
   }, [state.kind, handleKey]);
 
+  const logBackdropProps = useBackdropDismiss(onClose);
   if (state.kind === "closed") return null;
 
   return (
     <div
       className="lw-modal-backdrop"
       data-testid="log-modal-backdrop"
-      onClick={onClose}
+      {...logBackdropProps}
     >
       <div
         className="lw-modal"

@@ -327,4 +327,34 @@ describe("BatchAnswerModal backdrop dismissal — D31 press-started-inside guard
     // ACTUAL (pre-fix / RED state): modal closes — this assertion FAILS.
     expect(testid("batch-overlay")).not.toBeNull();
   });
+
+  it("DOES close the modal when pointerdown AND click both land on the backdrop", async () => {
+    await mount();
+    click(testid("batch-open"));
+    await flush();
+    expect(testid("batch-overlay")).not.toBeNull();
+
+    const overlay = testid("batch-overlay");
+
+    // Both the down and the click originate on the backdrop itself.
+    act(() => {
+      overlay!.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      overlay!.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+    });
+    await flush();
+
+    act(() => {
+      overlay!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+    await flush();
+
+    // A genuine backdrop click (down AND up on the backdrop) must close the modal.
+    expect(testid("batch-overlay")).toBeNull();
+  });
 });
