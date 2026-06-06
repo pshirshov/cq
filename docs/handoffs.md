@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 11
+  item: 12
 archives: []
 ---
 
@@ -176,3 +176,22 @@ archives: []
 - ledgerRefs: ["goals:G23"]
 - blockingQuestions: ["Q114","Q115","Q116"]
 - sessionLogs: ["docs/logs/20260606-202440-a09891b8378f4ac71.md"]
+
+### HO12 — illness-detected
+
+- createdAt: 2026-06-06T21:40:29.485Z
+- updatedAt: 2026-06-06T21:40:29.485Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: |
+    /cq:advance run delivered a large verified increment, then stopped on a tooling impediment to autonomous continuation of the dependency-chained remainder (NOT a defect in the landed work). LANDED + MERGED (commit e9bf762, ledger 5af798f): (1) D33 root-caused via headless-chromium ground truth — the wide state-machine diagrams' right-shift was computeDagLayout leaving layer 0 empty for fully-cyclic status graphs, NOT the CSS (both prior CSS attempts correctly failed) — and FIXED (T199, layer re-base + 11 pure unit tests, reviewed go-ahead); D33 resolved; M73+M76 archived. (2) G23 planned+approved (elkjs adoption, K37 locked) and its first two tasks done: T200 flow-state-machine doc (nix/pkg/cq-assets/docs/flow-state-machines.md), T201 elkjs 0.11.1 wired through the Nix FOD + bundle (both nix builds green). bun run check green throughout.
+    
+    STOP CAUSE (illness = impediment, not a code defect): the remaining G23 tasks T202->T203->T204->T205->T206 are a strict dependency chain (T202 elk adapter/renderer needs T201's merged elkjs; T203 migrate State-machines tab needs T202; etc.). The Agent worktree-isolation base was observed pinned to the SESSION-START commit 224f69f (for all three workers this run, even after main advanced), so a worker dispatched now for T202 would get a worktree WITHOUT the merged elkjs/T199 code and could not implement correctly. Combined with single-session scope, autonomous continuation of the chain is not reliable this session.
+    
+    RESUMPTION: re-run /cq:advance in a FRESH session — its worktrees will branch from the updated main (5af798f, which includes elkjs + the layout fix), so T202-T206 will see their dependencies. The ledger is fully consistent (git + ledger aligned); the run is idempotent/resumable. P-implement is TRUE (T202 ready), P-investigate/P-plan FALSE, no open questions.
+    
+    ALSO: G24 (D33 fix) is building with all work done and M76 archived -> READY FOR USER TO CLOSE (goals never auto-close). G23 is building with T202-T206 remaining.
+- flow: advance
+- ledgerRefs: ["goals:G23","goals:G24","tasks:T202","tasks:T203","tasks:T204","tasks:T205","tasks:T206","defects:D33"]
+- handoffReasons: ["worktree-isolation base pinned to session-start commit blocks dependency-chained tasks T202-T206","single-session scope limit","T199/T200/T201 landed+merged+verified; D33 resolved"]
+- sessionLogs: ["docs/logs/20260606-204303-investigate-d33.md","docs/logs/20260606-210144-acec7ccba0d2b1f8c.md","docs/logs/20260606-213541-a190fcb2cd4e04e52.md","docs/logs/20260606-213541-a45e9cbf3976acb05.md","docs/logs/20260606-213541-adb007e3bc921fd76.md"]
