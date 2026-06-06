@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 15
+  item: 16
 archives: []
 ---
 
@@ -238,3 +238,17 @@ archives: []
 - flow: investigate
 - ledgerRefs: ["defects:D34","hypothesis:H26"]
 - sessionLogs: ["docs/logs/20260606-232140-a89c2213af28373de.md"]
+
+## M80
+
+### HO16 — answers-required
+
+- createdAt: 2026-06-06T23:33:36.377Z
+- updatedAt: 2026-06-06T23:33:36.377Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- summary: "ANSWERS-REQUIRED — /cq:plan bootstrapped goal G25 (retire research-loop/vsm-loop/vsm-node/question-batch, relocate to ./docs/legacy-skills, clean up cq references) and the planner filed its first clarifying batch (Q117-Q120). Goal is in clarifying/awaiting-answers. Key planner grounding: the four skills live as {meta.yaml,content.md} dirs under nix/pkg/llm-skills/skills/ auto-registered by builtins.readDir, so moving a dir out IS de-registration (no manifest edit); the cq flow does not CALL these skills at runtime (research-loop superseded by /cq:investigate, vsm-* by /cq:advance, question-batch by the direct questions-ledger path) — references are vestigial prose/wikilinks; review-loop (unlisted) cross-links the retired set and is the main coupling risk. Next: user answers Q117-Q120 in the TUI/web, then runs /cq:plan:advance G25."
+- flow: plan
+- ledgerRefs: ["goals:G25"]
+- blockingQuestions: ["Q117","Q118","Q119","Q120"]
+- sessionLogs: ["docs/logs/20260606-233304-ab05488ed82cc7cad.md"]

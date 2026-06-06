@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 79
+  item: 80
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -431,3 +431,10 @@ archives:
 - updatedAt: 2026-06-06T23:16:18.254Z
 - title: "Investigate: topbar-progress-undercount"
 - description: "Investigate why the top-bar progress indicator reads 38/39 at commit 6b057903c40e469a03f3511d0310c802e58ddece (no working changes) even though, per the user, all questions are answered. Working hypothesis to verify: the numerator counts only `answered` questions (38) while the denominator (39) includes the 1 `withdrawn` question — an off-by-one where a terminal-but-not-`answered` question inflates the total so the bar never reaches 100%."
+
+### M80 — open
+
+- createdAt: 2026-06-06T23:30:00.234Z
+- updatedAt: 2026-06-06T23:30:00.234Z
+- title: "Plan: retire legacy skills + clean cq references"
+- description: Coordination milestone for the goal of retiring four skills (research-loop, vsm-loop, vsm-node, question-batch), relocating them to ./docs/legacy-skills for future reference, and cleaning up the references to them in the cq flow assets.

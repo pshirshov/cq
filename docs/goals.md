@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 24
+  item: 25
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -514,3 +514,20 @@ archives:
 - grounding: "Confirmed against source. dagLayout.ts:120 sets x = opts.pad + l*(nodeWidth+hGap) with NO layer re-base; longest-path layering (layerOf, L87-98) can leave the minimum layer > 0 for fully-cyclic transition graphs (no source node), so every node shifts right by minLayer columns and width (L142) over-counts. stateMachine.ts:54-60 STATE_LAYOUT_OPTS.pad = 16 (matches the expected min-x for the help State-machines view); DEFAULT_LAYOUT_OPTS.pad = 24 (DagView). computeStateMachine (L78-113) delegates positioning entirely to computeDagLayout, so the single re-base fix in computeDagLayout corrects BOTH the help State-machines view and the milestone DagView. Fix: after layerOf loop (L98), compute minLayer = Math.min(...layer.values()) guarding empty nodeIds, then subtract minLayer from every layer value before the byLayer grouping/positioning at L101 onward. maxLayer/width then naturally shrink. 441d46c CSS is orthogonal (wide-diagram overflow guard) and stays."
 - milestones: ["M76"]
 - sessionLogs: ["docs/logs/20260606-204814-af0096580901e8192.md","docs/logs/20260606-205251-a653f75d24ada3419.md","docs/logs/20260606-205512-a3235695062a6ad45.md"]
+
+## M80
+
+### G25 — clarifying
+
+- createdAt: 2026-06-06T23:30:09.460Z
+- updatedAt: 2026-06-06T23:33:24.036Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- title: Retire legacy skills (research-loop, vsm-loop, vsm-node, question-batch) + clean up cq references
+- description: |
+    Retire the following four skills: research-loop, vsm-loop, vsm-node, question-batch. For future reference, MOVE them into ./docs/legacy-skills (do not delete outright). Our cq flow references these skills; we should clean up those references.
+    
+    User request (verbatim): "I think we should retire the following skills: research-loop, vsm-loop, vsm-node, question-batch. For future reference, move them into ./docs/legacy-skills ; our cq flow references these skills, we should cleanup the references"
+    
+    Scope notes for the planner to clarify: (1) where these skills currently live (likely nix/pkg/cq-assets/skills/ or similar) and what 'move to ./docs/legacy-skills' means for the build/packaging (Nix) that ships them; (2) which cq flow assets reference them (commands/cq/*, agents/*, skill manifests) and what 'clean up references' should do — remove the references, or repoint them; (3) whether retiring implies they must no longer be installed/registered as invocable skills.
+- sessionLogs: ["docs/logs/20260606-233304-ab05488ed82cc7cad.md"]
