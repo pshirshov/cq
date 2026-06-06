@@ -141,10 +141,10 @@ archives:
 
 ## M73
 
-### D33 — open
+### D33 — root-caused
 
 - createdAt: 2026-06-06T16:25:53.737Z
-- updatedAt: 2026-06-06T16:25:53.737Z
+- updatedAt: 2026-06-06T20:45:50.234Z
 - author: "opus-4.8[1m]"
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - headline: "Help-dialog state-machine diagrams: the over-wide ones (goals/milestones/tasks) render right-aligned instead of left"
@@ -172,4 +172,7 @@ archives:
     
     BLOCKER (env): cannot reproduce or diagnose in this environment — the sandbox has no browser engine (no chromium/playwright), and the web test suite runs under happy-dom, which performs NO layout (getBoundingClientRect/computed width are not meaningful). A correct fix needs browser-rendered ground truth (see the linked open question). Two reasoned-but-unverified attempts already shipped; not shipping a third blind guess.
 - tags: ["web","help-dialog","css","blocked-on-env"]
-- ledgerRefs: ["goals:G22"]
+- ledgerRefs: ["goals:G22","goals:G24"]
+- rootCause: "Confirmed via browser ground truth (chromium 148, real component + real styles.css) + the per-ledger layout computation. The right-shift is NOT a CSS/preserveAspectRatio defect and NOT box-level alignment: every svg BOX is left-aligned (leftOffset=0). The CONTENT of the wide diagrams is shifted right because computeDagLayout (dagLayout.ts) longest-path layering assigns a minimum layer > 0 for fully-cyclic graphs with no true source node (milestones/tasks/goals — every status has an incoming transition). Concretely, the milestones graph (open/postponed/blocked all mutually reachable, all->done) layers to blocked=1, postponed=2, open=3, done=4 — NO node on layer 0. Since x = pad + layer*(nodeWidth+hGap), the leftmost node sits at pad+176=192, leaving layer 0 (176px) empty at the left of the viewBox. preserveAspectRatio=xMinYMid faithfully pins that empty leading padding to the box left, so the content appears right-shifted. minNodeX per ledger: milestones/tasks/goals=192 (gap); defects/hypothesis/questions/decisions/reviews/handoffs=16 (flush) — an EXACT match to the user-confirmed census. The original 'intrinsic width >= container' correlation was a confound: the three cyclic graphs are also the three widest. This is why both prior CSS-only attempts (47e8ff7, 441d46c) failed."
+- suggestedFix: "Re-base layers so the minimum is 0 in computeDagLayout (dagLayout.ts): after `for (const id of nodeIds) layerOf(id);`, compute minLayer = Math.min(...layer.values()) (guard the empty-nodeIds case) and subtract it from every entry in the `layer` map before the byLayer grouping/positioning. Then x = pad + (layer)*(nodeWidth+hGap) starts the leftmost column at pad, and the width formula (uses maxLayer, now re-based) shrinks accordingly. Generic + correct for BOTH the help State-machines view and the milestone dependency-graph view (a layered DAG must not reserve empty leading columns). Add a pure unit test (no happy-dom needed): assert computeDagLayout / computeStateMachine over the milestones (and tasks/goals) schema yields min node x === pad. Leave the 441d46c CSS in place (it correctly prevents wide-diagram overflow); the layout fix is independent and complementary."
+- sessionLogs: ["docs/logs/20260606-204303-investigate-d33.md"]

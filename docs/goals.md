@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 23
+  item: 24
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -461,10 +461,10 @@ archives:
 
 ## M74
 
-### G23 — clarifying
+### G23 — planned
 
 - createdAt: 2026-06-06T20:24:56.027Z
-- updatedAt: 2026-06-06T20:26:53.805Z
+- updatedAt: 2026-06-06T21:11:01.139Z
 - author: "opus-4.8[1m]"
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - title: Describe all flow state machines + add a Flows help tab
@@ -478,4 +478,39 @@ archives:
     Context: the help dialog already has a "State machines" tab that renders per-LEDGER status state machines (status nodes + schema.transitions edges) via computeStateMachine/computeDagLayout. The NEW "Flows" tab is different: it renders the FLOW orchestration state machines (the advance/plan/investigate/implement control loops and their handoffs), not per-ledger status diagrams.
     
     User preference: avoid obvious questions; only ask if the user's input is truly required.
-- sessionLogs: ["docs/logs/20260606-202440-a09891b8378f4ac71.md"]
+- sessionLogs: ["docs/logs/20260606-202440-a09891b8378f4ac71.md","docs/logs/20260606-210144-acec7ccba0d2b1f8c.md","docs/logs/20260606-210741-a82e2a6032dd532c2.md","docs/logs/20260606-210916-a07e3591c62e34c2d.md","docs/logs/20260606-211046-ab19f78c2b46049f8.md"]
+- grounding: |
+    Repo grounding for G23 (web help-dialog flow diagrams + library migration):
+    
+    - WEB PKG: nix/pkg/cq-ledgers/packages/ledger-web; React 19.2 + react-dom 19.2, react-markdown/remark-gfm/rehype-sanitize; bundled at startup by Bun.build (serve.ts). deps in packages/ledger-web/package.json.
+    - HELP DIALOG: App.tsx HelpOverlay (lines ~1485-1580). Currently TWO tabs: state `tab: 'shortcuts'|'statemachines'`, tablist buttons (data-testid help-tab-shortcuts / help-tab-statemachines). State-machines tab lazily fetches every ledger's schema (one batched enumerateLedgers+fetchLedger) and renders one StateMachineDiagram per ledger.
+    - HOMEGROWN RENDERER: src/stateMachine.ts computeStateMachine(schema) -> StateMachineModel{nodes,edges,width,height,edgeless}. It delegates LAYOUT to src/dagLayout.ts computeDagLayout(ids,edges,opts) (left->right layered, straight/bezier edges, NO edge labels, DROPS self-loops). The SVG is StateMachineDiagram in App.tsx (inline <svg>, BUCKET_HEX fills from status.ts). dagLayout.computeDagLayout is ALSO used by DagView.tsx (milestone dependency DAG) and DEFAULT_LAYOUT_OPTS. Migration scope per Q116 = the two DIAGRAM TABS (State machines + new Flows); DagView/milestone-DAG is a separate concern and out of this goal's scope.
+    - TEST ENV: happy-dom (CLAUDE.md) — NO layout engine, no getBBox, no ResizeObserver, no DOMMatrix. Existing state-machine tab tests assert SVG/DOM STRUCTURE (data-testid help-sm-node/edge/rect-<ledger>-<status>) because the homegrown layout is pure JS. This is the load-bearing constraint for library choice.
+    - NIX: flake.nix bunNodeModules FOD (outputHash line ~117) + per-product symlink loops. The ledger-web browser-dep symlink loop is flake.nix line ~345 `for dep in react react-dom react-markdown remark-gfm rehype-sanitize bun-types`. A NEW runtime dep must be (a) added to packages/ledger-web/package.json, (b) bun.lock refreshed, (c) FOD outputHash refreshed (52 A's -> nix build .#node-modules -> paste got:), (d) added to that symlink `for dep` list so Bun.build can resolve it from the Nix closure.
+    - FLOW SPEC SOURCES (phase-1 doc): the flow control loops live as prose in nix/pkg/cq-assets/commands/cq/ (plan/*, investigate/*, implement/*, advance) + the plan-advance/plan-reviewer agent prompts. Phase-1 doc derives flow states+transitions+handoffs from these. Q114: doc is a SINGLE PROSE markdown file under nix/pkg/cq-assets/docs/ (or ./docs/), kept SEPARATE from the tab's render data (no single source of truth required).
+    - chromium resolvable from nixpkgs (nix eval --raw nixpkgs#chromium.outPath) for any headless ground-truth check (used for D33 this session).
+    
+    LIBRARY-CHOICE EVIDENCE (Q116, choice delegated to me): happy-dom (no real layout) eliminates libs whose layout needs live DOM measurement — mermaid (getBBox returns 0 outside real render tree), React Flow/@xyflow (needs container width/height + ResizeObserver/DOMMatrix mocks, large interactive-canvas bundle), cytoscape (DOM measurement). elkjs is a PURE layout engine: computes node/edge/LABEL/self-loop coords as plain data in Node/Bun with zero DOM, so the existing thin-SVG render + structural happy-dom tests are preserved while gaining edge labels + self-loops + layered routing that homegrown computeDagLayout lacks. PROPOSAL: adopt elkjs as the layout engine for BOTH diagram tabs, keep a thin in-repo SVG renderer, retire computeStateMachine's dependence on computeDagLayout. Recorded as a planning decision for adversarial review.
+- milestones: ["M77","M78"]
+
+## M75
+
+### G24 — planned
+
+- createdAt: 2026-06-06T20:44:52.063Z
+- updatedAt: 2026-06-06T20:55:23.935Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- title: Fix D33 — left-align cyclic state-machine diagrams (computeDagLayout layer re-base)
+- description: |
+    DEFECT-SEEDED goal (skips clarification; links defects:D33). Confirmed, browser-verified root cause (see defects:D33 + hypothesis:H25):
+    
+    computeDagLayout (nix/pkg/cq-ledgers/packages/ledger-web/src/dagLayout.ts) longest-path layering assigns a minimum layer > 0 for fully-cyclic graphs with no true source node (the milestones/tasks/goals lifecycles — every status has an incoming transition). E.g. milestones layers to blocked=1/postponed=2/open=3/done=4 with NO node on layer 0. Since x = pad + layer*(nodeWidth+hGap), the leftmost node sits at pad+176=192, leaving an empty leading column; preserveAspectRatio=xMinYMid renders that empty padding as a left gap so the content appears right-shifted. minNodeX: milestones/tasks/goals=192 (gap), all others=16 (flush) — exact match to the user census. CSS was never the cause (both prior attempts 47e8ff7 + 441d46c failed).
+    
+    SUGGESTED FIX (generic): in computeDagLayout, after computing all layers, re-base so the minimum layer is 0 — minLayer = Math.min(...layer.values()) (guard empty nodeIds), subtract from every node's layer before grouping/positioning. Correct for BOTH the help State-machines view AND the milestone dependency-graph DagView (a layered DAG must not reserve empty leading columns). The 441d46c CSS stays (prevents wide-diagram overflow); this layout fix is independent.
+    
+    ACCEPTANCE: (1) a pure unit test (no happy-dom) asserting computeDagLayout AND computeStateMachine over the milestones/tasks/goals schemas yield min node x === pad (16); existing flush-left ledgers unchanged. (2) bun run check green. (3) diagram widths shrink by the removed empty columns (regression-check the width formula). Verification artifact: re-render via headless chromium (chromium resolvable from nixpkgs) confirming all diagrams flush-left.
+- sourceRefs: ["defects:D33"]
+- grounding: "Confirmed against source. dagLayout.ts:120 sets x = opts.pad + l*(nodeWidth+hGap) with NO layer re-base; longest-path layering (layerOf, L87-98) can leave the minimum layer > 0 for fully-cyclic transition graphs (no source node), so every node shifts right by minLayer columns and width (L142) over-counts. stateMachine.ts:54-60 STATE_LAYOUT_OPTS.pad = 16 (matches the expected min-x for the help State-machines view); DEFAULT_LAYOUT_OPTS.pad = 24 (DagView). computeStateMachine (L78-113) delegates positioning entirely to computeDagLayout, so the single re-base fix in computeDagLayout corrects BOTH the help State-machines view and the milestone DagView. Fix: after layerOf loop (L98), compute minLayer = Math.min(...layer.values()) guarding empty nodeIds, then subtract minLayer from every layer value before the byLayer grouping/positioning at L101 onward. maxLayer/width then naturally shrink. 441d46c CSS is orthogonal (wide-diagram overflow guard) and stays."
+- milestones: ["M76"]
+- sessionLogs: ["docs/logs/20260606-204814-af0096580901e8192.md","docs/logs/20260606-205251-a653f75d24ada3419.md","docs/logs/20260606-205512-a3235695062a6ad45.md"]

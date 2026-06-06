@@ -536,50 +536,54 @@ archives:
 
 ## M73
 
-### Q113 — open
+### Q113 — answered
 
 - createdAt: 2026-06-06T16:26:05.054Z
-- updatedAt: 2026-06-06T16:26:05.054Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T20:30:03.962Z
+- author: user
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - question: "Browser ground truth needed to diagnose D33 (sm-diagram right-alignment). For ONE right-aligned diagram (e.g. goals) and ONE correct/left one (e.g. defects), in the deployed web app's help → State machines tab, please provide: (a) a screenshot of the tab showing both; and/or (b) from devtools, selecting each <svg class=\"lw-statemachine-svg\">: its computed width (px), its getBoundingClientRect().width and .left, and the parent .lw-statemachine / .lw-help-body width. Also: which browser + the window width. This pins whether the wide svg overflows, is capped-but-internally-shifted, or is narrow-and-pushed-right — which my headless environment cannot observe."
 - context: Blocker for D33. Sandbox has no browser engine and tests run under happy-dom (no layout), so width/alignment cannot be measured here. Two reasoned attempts (47e8ff7 size-fix worked; 441d46c alignment-fix did not). The width threshold (right iff intrinsic width >= ~849px dialog inner width) is established; what's unknown is the actual box geometry of a capped svg in the real engine.
 - ledgerRefs: ["defects:D33","goals:G22"]
+- answer: Can you try to use headless chromium/playwright etc? You have full nixpkgs at your disposal!
 
 ## M74
 
-### Q114 — open
+### Q114 — answered
 
 - createdAt: 2026-06-06T20:26:09.012Z
-- updatedAt: 2026-06-06T20:26:09.012Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T20:28:15.754Z
+- author: user
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - question: Where should the phase-1 state-machine DOCUMENT live, and in what form? The flows are currently described implicitly across the command specs in nix/pkg/cq-assets/commands/cq/. Phase 2 (the Flows tab) needs a structured source it can render from, so the document's format determines whether the doc and the tab share one source of truth.
 - context: The existing 'State machines' tab is data-driven (computeStateMachine reads schema.statusValues + schema.transitions). The flow orchestration state machines are NOT in any ledger schema — they live only as prose in the markdown command specs. So phase 1 must define an authoritative description that phase 2 can consume. I can default to authoring it, but the LOCATION and FORM are a deliverable choice that affects both phases.
 - suggestions: ["A single prose Markdown doc under nix/pkg/cq-assets/docs/ (or ./docs/) describing each flow's states+transitions, kept separate from the tab's render data","A structured data file (TS/JSON) of states+edges that BOTH the document generator and the Flows tab consume — single source of truth, doc rendered from it","A prose doc for humans PLUS a separate hand-authored TS data module for the tab (two artifacts, kept in sync manually)"]
 - recommendation: Single structured TS data module (states+edges per flow, plus cross-flow handoff edges) as the source of truth, co-located with the web package; the phase-1 'document' is that module plus a short prose Markdown overview rendered/derived from it. This keeps the tab and the doc from drifting.
 - ledgerRefs: ["goals:G23"]
+- answer: A single prose Markdown doc under nix/pkg/cq-assets/docs/ (or ./docs/) describing each flow's states+transitions, kept separate from the tab's render data
 
-### Q115 — open
+### Q115 — answered
 
 - createdAt: 2026-06-06T20:26:16.558Z
-- updatedAt: 2026-06-06T20:26:16.558Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T20:28:29.040Z
+- author: user
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - question: "What diagram granularity should the Flows tab render: one diagram per flow (plan / investigate / implement / advance), a single combined diagram showing all flows plus their cross-flow handoffs, or both?"
 - context: The goal stresses that flows 'perform a handoff and return back to an original/parent state' (e.g. advance sequences plan->investigate->implement; plan file-and-defers a confirmed defect to investigate; investigate seeds a goal back to plan). Per-flow diagrams keep each readable but hide the handoff topology; a combined diagram shows handoffs but is denser. This changes the data model and the layout work in phase 2.
 - suggestions: ["One diagram per flow (4 separate state machines), with handoffs shown as labelled exit/entry edges to named external states","A single combined diagram: all flow states in one graph with explicit cross-flow handoff edges","Both: per-flow diagrams as the primary view, plus one top-level 'advance sequencer' overview diagram showing the handoff topology"]
 - recommendation: Both — per-flow diagrams (one each for plan, investigate, implement) plus a top-level advance-sequencer overview that shows the handoff topology between them. The advance flow is inherently the cross-flow view, so it doubles as the combined diagram.
 - ledgerRefs: ["goals:G23"]
+- answer: as recommended
 
-### Q116 — open
+### Q116 — answered
 
 - createdAt: 2026-06-06T20:26:24.851Z
-- updatedAt: 2026-06-06T20:26:24.851Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-06T20:29:36.684Z
+- author: user
 - session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
 - question: Should the Flows tab REUSE the existing diagram renderer (computeDagLayout + the SVG state-machine renderer used by the 'State machines' tab), or do the flow diagrams need features the current renderer lacks (edge labels, self-loops, distinct node shapes for waiting-for-input vs handoff states, subgraph grouping)?
 - context: computeStateMachine/computeDagLayout produce a left->right layered layout with straight unlabelled edges and uniform boxes; the layout is cycle-tolerant but drops self-loops (e.g. an orchestrator 'loop until quiescent' edge) and renders no edge labels. Flow state machines centrally feature loops, self-transitions, labelled transitions ('user answers' / 'go-ahead' / 'handoff'), and a distinguished waiting-for-user-input state. Whether these are required determines if phase 2 extends the renderer or just feeds new data into it.
 - suggestions: ["Reuse the renderer as-is; accept unlabelled straight edges and no self-loops (model loops as edges between distinct named states)","Extend the shared renderer with edge labels + self-loop rendering, benefiting both tabs","Build a dedicated flow renderer for the Flows tab, leaving the State-machines renderer untouched"]
 - recommendation: Extend the shared renderer minimally to support edge labels and self-loops (both are genuinely needed to express flow loops and labelled transitions faithfully), and reuse it for the Flows tab. Avoid a second renderer unless the layout needs diverge substantially.
 - ledgerRefs: ["goals:G23"]
+- answer: I think you should try to find a good graph/diagram/state machine visualization library and use it for both tabs instead of continuing maintenance of our homegrown renderer

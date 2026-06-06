@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 74
+  item: 78
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -405,3 +405,31 @@ archives:
 - createdAt: 2026-06-06T20:24:47.108Z
 - updatedAt: 2026-06-06T20:24:47.108Z
 - title: "Plan: flow state-machine docs + Flows help tab"
+
+### M75 — open
+
+- createdAt: 2026-06-06T20:44:12.421Z
+- updatedAt: 2026-06-06T20:44:12.421Z
+- title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
+
+### M76 — open
+
+- createdAt: 2026-06-06T20:47:26.107Z
+- updatedAt: 2026-06-06T20:47:26.107Z
+- title: Fix D33 — re-base DAG layer numbering so cyclic state-machine diagrams left-align
+- description: "Work milestone for plan-flow goal G24 (defect-seeded from D33, hypothesis H25). One cohesive fix: re-base layer numbering in computeDagLayout (ledger-web) so the minimum layer is 0, eliminating empty leading columns in fully-cyclic transition graphs (milestones/tasks/goals state machines) and the milestone DagView; ships with a pure unit test. The 441d46c CSS overflow guard stays untouched."
+
+### M77 — open
+
+- createdAt: 2026-06-06T20:58:45.337Z
+- updatedAt: 2026-06-06T20:58:45.337Z
+- title: G23 phase 1 — flow state-machine doc
+- description: "Phase 1 of G23: a single prose Markdown document under nix/pkg/cq-assets/docs/ describing the state machines (states + transitions + cross-flow handoffs) of all harness flows — plan, investigate, implement, and the top-level advance sequencer. Per Q114 this doc is human prose, kept SEPARATE from the Flows tab's render data."
+
+### M78 — open
+
+- createdAt: 2026-06-06T20:58:48.695Z
+- updatedAt: 2026-06-06T20:58:51.982Z
+- title: G23 phase 2 — adopt diagram library, migrate State-machines tab, add Flows tab
+- description: "Phase 2 of G23: adopt a third-party graph/state-machine layout library (proposed: elkjs, see decision), wire it through the Nix FOD, build a thin SVG renderer on top, MIGRATE the existing 'State machines' help tab onto it (retiring computeStateMachine's dependence on the homegrown computeDagLayout), then build the flow render-data and the new third 'Flows' help tab (per-flow diagrams for plan/investigate/implement + a top-level advance-sequencer overview, per Q115). Depends on phase 1 so the flow states/edges in the render data mirror the authored doc."
+- dependsOn: ["M77"]

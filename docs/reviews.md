@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 234
+  item: 238
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -568,3 +568,55 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G22","tasks:T196","tasks:T197","tasks:T198","tasks:T193","tasks:T194","tasks:T195"]
 - sessionLogs: ["docs/logs/20260606-123129-a8e1f13516398ff6e.md"]
+
+## M75
+
+### R235 — revise
+
+- createdAt: 2026-06-06T20:51:16.852Z
+- updatedAt: 2026-06-06T20:52:01.348Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Fix + single-task granularity are correct and well-grounded (root cause = D33/H25, both consumers traced); two acceptance-completeness gaps keep it at revise: pin the test to the real @cq/ledger schema exports, and explicitly assert the DEFAULT_LAYOUT_OPTS (pad=24) DagView path."
+- new_questions: []
+- criticism: ["T199's unit-test instruction leaves a hand-fabricated-transition-map fallback ('if the schemas are not importable as plain data, drive computeDagLayout directly with the same statusValues/transitions') as an acceptable path. But @cq/ledger EXPORTS the canonical MILESTONES_SCHEMA / TASKS_SCHEMA / GOALS_SCHEMA (and CANONICAL_LEDGERS) as RUNTIME values (packages/ledger/src/constants.ts, re-exported from index.ts), and ledger-web already depends on @cq/ledger (src/types.ts imports from it). A copied transition map can silently drift from the canonical schema and pass while the real diagram regresses. Tighten the acceptance: the milestones/tasks/goals min-x===16 assertions MUST import and feed the actual @cq/ledger *_SCHEMA objects through computeStateMachine; remove/demote the hand-fabricate fallback.","T199's acceptance asserts min node x only for the STATE_LAYOUT_OPTS path (pad=16, the help State-machines view); it never asserts the DEFAULT_LAYOUT_OPTS / DagView path (pad=24), which the goal explicitly requires the single re-base to correct. DagView.tsx calls computeDagLayout(ids, data.edges) with DEFAULT_LAYOUT_OPTS and binds layout.width/height to the SVG, so the fix flows through it transitively, but the test only exercises the pad=24 opts via a width-shrink fixture, not a min-x assertion. Add to acceptance: (a) a minLayer>0 fixture driven through computeDagLayout(..., DEFAULT_LAYOUT_OPTS) asserting Math.min(node.x)===24; and (b) a no-op assertion that a graph WITH a real layer-0 source (as the milestone dependency DAG always has) is byte-identical pre/post re-base — proving the milestone DagView is never shifted and the re-base only moves content left when minLayer>0 (this is the risk that the re-base could disturb the dependency-graph view)."]
+- ledgerRefs: ["goals:G24"]
+- sessionLogs: ["docs/logs/20260606-205136-a7d92658324296b3e.md"]
+
+### R236 — go-ahead
+
+- createdAt: 2026-06-06T20:54:08.234Z
+- updatedAt: 2026-06-06T20:54:37.614Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Round-2 re-review: both R235 criticisms fully addressed in T199's revised acceptance — (A) pins min-x===16 to the real exported @cq/ledger *_SCHEMA objects and bans the hand-fabricated fallback; (C) adds the DEFAULT_LAYOUT_OPTS/pad=24 DagView coverage with a minLayer>0 min-x===24 fixture (c-i) and a byte-identical pre/post re-base invariance assertion on a real layer-0 source (c-ii). Acceptance is operationally complete and grounded; go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G24"]
+- sessionLogs: ["docs/logs/20260606-205422-a38374312bac9b4bd.md"]
+
+## M74
+
+### R237 — revise
+
+- createdAt: 2026-06-06T21:05:20.029Z
+- updatedAt: 2026-06-06T21:05:58.594Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: Architecturally sound elkjs pivot (library/async/Nix/DAG all verified); two planner-fixable tightenings before go-ahead.
+- new_questions: []
+- criticism: ["T203 under-tests the State-machines-tab migration. The grounding claims the tab has structural happy-dom tests asserting help-sm-rect/node/edge ids, but the actual repo has NO DOM test of that tab: app.test.tsx only opens the help overlay on the Shortcuts tab (L1296-1305) and never clicks help-tab-statemachines or asserts any help-sm-* / help-statemachine-svg id; the sole computeStateMachine coverage is the pure unit test in test/stateMachine.test.ts. Consequently T203's regression de-risking rests entirely on T206's manual/headless smoke. Tighten T203 acceptance to ADD a happy-dom render test that opens the State-machines tab and asserts the migrated DiagramSvg renders one diagram per ledger with the documented data-testid scheme AND now renders a self-loop edge for a schema that has one (the behavior the elk migration newly enables), rather than asserting parity only via T206 smoke. Also correct T203's wording that frames this as 'updating existing tab tests' since no such DOM tab test exists.","T203/T206 do not reconcile defect D33 (filed this session, commit 224f69f: sm-diagram right-alignment, blocked-on-env). T203 rewrites the exact StateMachineDiagram SVG sizing/alignment code (width/height/viewBox/style maxWidth=model.width, preserveAspectRatio) that D33 concerns. The plan must state whether migrating to elk's computed width/height RESOLVES, PRESERVES, or INVALIDATES D33's alignment behavior, and add a step (in T203 or T206) to update/close D33 accordingly so the elk pivot does not silently leave a stale or contradicted defect."]
+- ledgerRefs: ["goals:G23"]
+- sessionLogs: ["docs/logs/20260606-210544-a1873e95df9ec2c70.md"]
+
+### R238 — go-ahead
+
+- createdAt: 2026-06-06T21:09:02.581Z
+- updatedAt: 2026-06-06T21:09:30.613Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- summary: "Round-2 revision resolves both R237 criticisms: T203 adds a new happy-dom render test (testid scheme + self-loop) with corrected new-coverage framing, and T203/T206 reconcile D33 with an operational left-alignment assertion and recorded disposition (resolved for homegrown via G24/T199, not re-filed). Plan is go-ahead."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G23"]
+- sessionLogs: ["docs/logs/20260606-210916-a07e3591c62e34c2d.md"]

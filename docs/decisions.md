@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 35
+  item: 37
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -223,3 +223,29 @@ archives:
 - headline: "plan review: approved"
 - rationale: "Reviewer go-ahead (ref review R228): 0 criticisms, 0 new questions after one revise round (R227 cross-file rename gap resolved). Plan M71 (T193-T195) + M72 (T196-T198) approved for implementation."
 - ledgerRefs: ["goals:G22"]
+
+## M75
+
+### K36 — locked
+
+- createdAt: 2026-06-06T20:54:56.927Z
+- updatedAt: 2026-06-06T20:54:56.927Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (R236): plan for D33 left-align fix approved. computeDagLayout layer re-base (subtract minLayer so min layer is 0) corrects both the help State-machines view and the milestone DagView; task T199 under work milestone M76. Both R235 criticisms addressed in T199's acceptance."
+- ledgerRefs: ["goals:G24","defects:D33"]
+
+## M74
+
+### K37 — locked
+
+- createdAt: 2026-06-06T20:59:26.533Z
+- updatedAt: 2026-06-06T21:09:59.036Z
+- author: "opus-4.8[1m]"
+- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
+- headline: Adopt elkjs as the diagram layout engine for the help-dialog State-machines + new Flows tabs (retire homegrown computeDagLayout for those tabs)
+- rationale: "Q116 delegated the library choice to the planner and asked to stop maintaining the homegrown renderer. The single load-bearing constraint is the happy-dom test environment: it has NO layout (no getBBox, ResizeObserver, DOMMatrix). That eliminates libraries whose LAYOUT depends on live DOM measurement: mermaid (getBBox returns 0 outside a real render tree), @xyflow/react React Flow (needs a measured container width/height + ResizeObserver/DOMMatrix/getBBox mocks, large interactive-canvas bundle), and cytoscape.js (DOM measurement). elkjs is a PURE layout engine (the Eclipse Layout Kernel compiled to JS) — given a graph it returns node/edge/edge-LABEL/self-loop coordinates as plain data, running in Node/Bun with ZERO DOM. We keep a THIN in-repo SVG renderer over elkjs output, so: (1) happy-dom unit tests keep asserting SVG/DOM STRUCTURE exactly as the current State-machines tab tests do (the layout is still pure JS, just elk's instead of ours); (2) we gain the features the flow diagrams need and computeDagLayout lacks — labelled transitions, self-loops/loop edges, and proper layered routing (Q115/Q116); (3) elkjs is the layout engine React Flow itself documents/recommends, actively maintained (Eclipse/Kieler), permissive (EPL-2.0), and ships a single worker-less JS entry usable directly. Scope: the TWO diagram tabs only (State machines + Flows). DagView.tsx (milestone dependency DAG) keeps computeDagLayout and is OUT of scope. elkjs runs async (elk.layout() returns a Promise) — the tabs already fetch async, so the diagram model is produced in an effect and rendered when ready."
+- alternatives: "@xyflow/react (React Flow): richest interactive node-UI + native edge labels, but needs real-browser measurement (container size, ResizeObserver, DOMMatrix, getBBox) — heavy mocking to test under happy-dom, large bundle, and interactivity we don't need for a static help diagram. mermaid: purpose-built stateDiagram-v2 with native labelled transitions + self-loops, but its SVG layout depends on getBBox (returns 0 outside a real render tree) so it is unreliable/untestable under happy-dom without a headless chromium gate. dagre: also pure-JS layout (testable) but effectively in maintenance mode and weaker on edge labels / ports / self-loops than elk. cytoscape.js: canvas/DOM-measurement based, heavier, oriented at interactive graph exploration. Keep-homegrown-and-extend: rejected per Q116 (user explicitly asked to stop maintaining it)."
+- sourceRefs: ["Q116 answer: adopt a graph/state-machine viz library for both tabs, retire homegrown renderer","reactflow.dev/learn/layouting (elkjs is a pure layout engine; React Flow recommends it)","github.com/kieler/elkjs (EPL-2.0, Eclipse Layout Kernel ported to JS, computes positions only)","mermaid-js/mermaid#4180 (getBBox returns 0 when element not in render tree — happy-dom incompatibility)","xyflow/xyflow testing docs (mock ResizeObserver/DOMMatrix/getBBox; container needs width+height)"]
+- ledgerRefs: ["goals:G23"]
