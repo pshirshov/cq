@@ -3,7 +3,7 @@
  *
  * Spawns the standalone stdio binary as a subprocess, drives it through the
  * `@modelcontextprotocol/sdk` Client + StdioClientTransport pair, and asserts:
- *   1. tools/list returns exactly the 20-tool ledger surface.
+ *   1. tools/list returns exactly the 21-tool ledger surface.
  *   2. enumerate_ledgers reflects the bootstrapped + seeded ledgers.
  *   3. A full create → read → update → search round-trip works through the
  *      transport and persists to disk (verified with a fresh store).
