@@ -667,12 +667,12 @@ in
           #   (piXaiPatched) not "npm:pi-xai" so the Grok Build context window
           #   reads 256k not the stale hardcoded 128k; Pi npm-installs the local
           #   package + its typebox dep on launch.
-          # - pi-ollama-cloud: Ollama Cloud provider.
+          # - @0xkobold/pi-ollama: Ollama provider.
           # (pi-mcp-adapter is added separately by enableMcpIntegration.)
           packages = [
             "npm:@juicesharp/rpiv-web-tools"
             "npm:@gotgenes/pi-anthropic-auth"
-            "npm:pi-ollama-cloud"
+            "npm:@0xkobold/pi-ollama"
             "${piXaiPatched}"
           ];
           extensions = [
