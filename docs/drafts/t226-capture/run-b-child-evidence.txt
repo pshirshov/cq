@@ -1,0 +1,69 @@
+**Session summary**
+- **Did:** read lead files + supporting sources (dev-llm.nix full + targeted sections, cq-subagent-dispatch.ts, flake.nix, cq-assets/assets.nix + README + sample agent, programs-pi.nix); traced asset flow, piWrapped, home.file materialization, resolveAgentsDir, and env wiring; codegraph unavailable (no index) so relied on read + direct path inspection.
+- **Achieved:** 8 numbered evidence items; lean supports.
+- **Discovered:** Exact projection path `~/.pi/agent/cq-agents` + unconditional `CQ_AGENTS_DIR` export on the wrapped `pi` binary + TS resolve with env precedence + default + loadAgent usage; source agents come from cq-assets/agents via pure assets.nix `mergedAgents` → home-manager materialization (only under enable); matches H1 statement precisely with no contradictions in examined paths.
+- **Issues:** none (static sources sufficient; no execution needed for this H1).
+
+```json
+{
+  "hypothesisId": "H1",
+  "evidence": [
+    {
+      "n": 1,
+      "citation": "nix/hm/dev-llm.nix:175-182",
+      "excerpt": "piWrapped = pkgs.symlinkJoin {\n    name = \"pi-coding-agent-wrapped\";\n    paths = [ piBase ];\n    nativeBuildInputs = [ pkgs.makeWrapper ];\n    postBuild = ''\n      wrapProgram $out/bin/pi \\\n        --run ${lib.escapeShellArg piSecretsPrelude} \\\n        --set-default SEARXNG_URL https://searx.web.7mind.io \\\n        --run 'export CQ_AGENTS_DIR=\"$HOME/.pi/agent/cq-agents\"'\n    '';\n  };",
+      "relevance": "Directly defines the wrapped pi binary (used by programs.pi.package) and pins the exact CQ_AGENTS_DIR export to $HOME/.pi/agent/cq-agents; supports the 'pinned on the wrapped pi package' claim.",
+      "lean": "supports"
+    },
+    {
+      "n": 2,
+      "citation": "nix/hm/dev-llm.nix:765-776",
+      "excerpt": "(lib.mkIf config.smind.hm.dev.llm.enable {\n      # Project individual cq agent markdowns to ~/.pi/agent/cq-agents/<name>.md\n      # so the dispatch extension (T224) can discover them by reading the\n      # directory pointed to by $CQ_AGENTS_DIR (set on piWrapped above).\n      # Separate mkMerge element for the same reason as the Codex block above.\n      home.file = lib.mapAttrs' (\n        name: body: lib.nameValuePair \".pi/agent/cq-agents/${name}.md\" { text = body; }\n      ) mergedAgents;\n    })",
+      "relevance": "Shows the exact home.file projection of mergedAgents contents into ~/.pi/agent/cq-agents/*.md, with explicit comment tying it to $CQ_AGENTS_DIR and the dispatch extension; confirms WHERE the bundle is projected.",
+      "lean": "supports"
+    },
+    {
+      "n": 3,
+      "citation": "nix/hm/dev-llm.nix:50-60 (plus 140-145, 720-730)",
+      "excerpt": "ledgerAssets = self.llmAssets;\n...\nmergedAgents = mergeAttrField \"agents\";\n...\nsmind.hm.dev.llm.assetBundles = lib.mkBefore [ llmPromptsBundle ledgerAssets ];\n...\nprograms.pi = sharedAgentWiring // {\n        # ...\n        package = piWrapped;",
+      "relevance": "Traces the source of the agents bundle: self.llmAssets (from flake) → mergedAgents → home.file under .pi/agent/cq-agents; also confirms pi package is the wrapped one that receives the env var.",
+      "lean": "supports"
+    },
+    {
+      "n": 4,
+      "citation": "nix/pkg/pi-extensions/cq-subagent-dispatch.ts:48-52",
+      "excerpt": "const DISPATCH_TOOL_NAME = \"dispatch_agent\";\n\n// T222: the directory the cq agent markdowns are projected to. Pinned on\n// piWrapped in nix/hm/dev-llm.nix; default mirrors that wiring.\nconst AGENTS_DIR_ENV = \"CQ_AGENTS_DIR\";\nconst DEFAULT_AGENTS_DIR = path.join(os.homedir(), \".pi\", \"agent\", \"cq-agents\");",
+      "relevance": "TS side of the contract: defines AGENTS_DIR_ENV and DEFAULT_AGENTS_DIR exactly matching the Nix projection path, with comment referencing the piWrapped pinning (T222).",
+      "lean": "supports"
+    },
+    {
+      "n": 5,
+      "citation": "nix/pkg/pi-extensions/cq-subagent-dispatch.ts:70-74",
+      "excerpt": "/** Resolve the cq-agents directory (T222 wiring). */\nfunction resolveAgentsDir(): string {\n  const fromEnv = process.env[AGENTS_DIR_ENV];\n  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_AGENTS_DIR;\n}",
+      "relevance": "Exact runtime discovery logic: prefers $CQ_AGENTS_DIR env, falls back to DEFAULT_AGENTS_DIR (== ~/.pi/agent/cq-agents); used in execute() for loadAgent.",
+      "lean": "supports"
+    },
+    {
+      "n": 6,
+      "citation": "nix/pkg/pi-extensions/cq-subagent-dispatch.ts:280-285 (in execute)",
+      "excerpt": "async execute(_toolCallId, params, signal, _onUpdate, ctx): Promise<AgentToolResult<DispatchDetails>> {\n      const args = params as DispatchArgs;\n      const agentsDir = resolveAgentsDir();\n      const cqConfigPath = resolveCqConfigPath(ctx.cwd);\n\n      ...\n      const agent = loadAgent(agentsDir, args.agent);",
+      "relevance": "Shows dispatch extension calling resolveAgentsDir() at runtime then passing it to loadAgent (which does path.join(agentsDir, `${agentName}.md`) + fs.readFileSync); confirms HOW it discovers/locates the bundle.",
+      "lean": "supports"
+    },
+    {
+      "n": 7,
+      "citation": "flake.nix:50-55 (and 820-830)",
+      "excerpt": "llmAssets = import ./nix/pkg/cq-assets/assets.nix { lib = nixpkgs.lib; };\n...\n// System-agnostic LLM assets (prompts/skills) — see ./nix/pkg/cq-assets/assets.nix.\n      inherit llmAssets;\n...\nhomeManagerModules.dev-llm = {\n        imports = [\n          (import ./nix/hm/dev-llm.nix { inherit inputs self; })\n...",
+      "relevance": "Source of the bundle contents: assets.nix (pure read of ./agents/*.md) exposed as llmAssets and fed into dev-llm.nix as ledgerAssets/assetBundles for materialization only under Pi's wrapped path.",
+      "lean": "supports"
+    },
+    {
+      "n": 8,
+      "citation": "nix/pkg/cq-assets/assets.nix:35-42",
+      "excerpt": "in\n{\n  commands = collectMdIn ./commands;\n  agents = collectMdIn ./agents;\n  skills = lib.genAttrs skillNames mkSkill;\n  context = lib.optional (builtins.pathExists ./context.md) (builtins.readFile ./context.md);\n}",
+      "relevance": "Confirms the agents markdown bundle (e.g. investigate-explorer.md and siblings under agents/) is collected into the llmAssets shape that ultimately flows to ~/.pi/agent/cq-agents via the home-manager wiring.",
+      "lean": "supports"
+    }
+  ]
+}
+```

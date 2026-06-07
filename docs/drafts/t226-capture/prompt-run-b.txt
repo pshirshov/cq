@@ -1,0 +1,9 @@
+We are in /cq:investigate:advance, research round 1. DISPATCH a read-only investigate-explorer subagent (subagent_type: "investigate-explorer"; NO worktree, it changes nothing) to gather evidence for ONE hypothesis. The dispatch prompt MUST carry H's id + statement (verbatim), the branch context, and the specific leads. Per the investigate-explorer Output contract, the subagent MUST return its numbered evidence as a single fenced ```json block (fields: hypothesisId, evidence[] each with n/citation/excerpt/relevance, lean) as the LAST content of its reply, so the orchestrator can parse it.
+
+H1 statement: "The cq agent markdown bundle is projected to ~/.pi/agent/cq-agents and the dispatch extension reads it via the $CQ_AGENTS_DIR environment variable, which is pinned on the wrapped pi package."
+
+Branch context: defect under investigation is that a cq investigate-explorer dispatch under the Pi harness must locate the agent bundle at runtime; we want to confirm WHERE the bundle is projected and HOW the dispatch extension discovers it. No parent hypothesis; no sibling findings yet.
+
+Leads: nix/hm/dev-llm.nix (piWrapped, CQ_AGENTS_DIR), nix/pkg/pi-extensions/cq-subagent-dispatch.ts (AGENTS_DIR_ENV / DEFAULT_AGENTS_DIR / resolveAgentsDir).
+
+Dispatch the investigate-explorer subagent now with that task and return its structured evidence-json block exactly as the subagent emits it.
