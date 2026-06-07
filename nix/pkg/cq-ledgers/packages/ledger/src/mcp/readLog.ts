@@ -29,11 +29,13 @@ export interface ReadLogResult {
 export type ReadLogCapability = (relPath: string) => Promise<ReadLogResult>;
 
 /**
- * Maximum number of bytes `read_log` returns. A larger file is read up to this
- * bound and flagged `truncated: true` so the W3 sessionLogs popup viewer (T152)
- * cannot overflow the tool output.
+ * Maximum number of bytes `read_log` returns. Per decision K42 (Q124 'render
+ * everything'), this cap is relaxed from 256 KiB to 4 MiB to allow most real
+ * session logs to return complete. Files exceeding this bound are truncated and
+ * flagged `truncated: true` as a defensive fallback, so the W3 sessionLogs
+ * popup viewer (T152) cannot overflow the tool output.
  */
-export const MAX_READ_LOG_BYTES = 256 * 1024;
+export const MAX_READ_LOG_BYTES = 4 * 1024 * 1024;
 
 /**
  * Thrown when `read_log` is invoked on a factory wired over a store with no
