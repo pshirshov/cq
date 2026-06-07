@@ -40,6 +40,37 @@ session start; never rely on cross-session recall.
   /skill:<name>.
 - Prompt templates are /<name> slash commands for repeatable workflows.
 
+## Dispatching cq subagents
+The shared cq command prompts speak a harness-agnostic named-agent + task
+convention: they say things like "dispatch via the Agent tool with
+subagent_type: \"<agent-name>\"", "launch the <name> subagent with <task>",
+or "dispatch the <name> subagent with this task: …" (sometimes adding
+`+ isolation: \"worktree\"`). In this harness that convention maps onto the
+registered `dispatch_agent` tool.
+
+When a cq command instructs you to dispatch / launch a named subagent with a
+task — for example "dispatch the investigate-explorer subagent with this
+task: …", "launch the plan-reviewer subagent", or "subagent_type:
+plan-reviewer" — CALL the `dispatch_agent` tool rather than answering in
+prose:
+
+    dispatch_agent({ agent: "<name>", task: "<the task>" })
+
+and add `isolation: "worktree"` when the prompt asks for worktree isolation:
+
+    dispatch_agent({ agent: "<name>", task: "<the task>", isolation: "worktree" })
+
+Rules:
+- `agent` is the cq agent name / `subagent_type` named in the prompt (e.g.
+  `investigate-explorer`, `plan-reviewer`); `task` is the task text the prompt
+  hands you. `isolation` is optional and only `"worktree"` is recognized.
+- Emit the tool CALL — do not describe, paraphrase, or simulate the dispatch
+  in prose. The whole point of the convention is that you actually fire the
+  tool.
+- You cannot re-dispatch from within a child: a dispatched agent runs as an
+  isolated child turn with `dispatch_agent` excluded, so if you ARE that child
+  you do the task yourself instead of trying to dispatch again.
+
 ## Environment
 - If $SMIND_SANDBOXED is set you are inside a bubblewrap sandbox: writes
   persist only under the project directory and /tmp/exchange. For $HOME or
