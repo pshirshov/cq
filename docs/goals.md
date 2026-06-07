@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 27
+  item: 28
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -137,3 +137,24 @@ archives:
 ---
 
 # goals
+
+## M86
+
+### G28 — clarifying
+
+- createdAt: 2026-06-07T18:58:25.412Z
+- updatedAt: 2026-06-07T19:01:13.167Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- title: Enable subagent support in the pi agent harness for the cq flow
+- description: "We have our cq flow/MCP configured in the pi agent, but out of the box pi does not support subagents, and there are several extensions implementing them. What would be our best approach to fix that? Goal: determine and implement the best approach for giving the pi harness subagent capability so the cq flow (plan/investigate/implement) — which relies on dispatching subagents (explorers, reviewers, workers) — works correctly under pi, mirroring how it works under Claude Code."
+- grounding: |
+    Repo grounding (read-only, opus-4.8[1m]):
+    
+    - The harness is wired in nix/hm/dev-llm.nix. The cq asset bundle exposes three asset classes: `commands` (slash workflows, keyed `<ns>/<name>` e.g. plan/advance), `agents` (subagent definitions WITH name/description/tools frontmatter, the `mergedAgents` attr), and `skills`. Claude Code consumes `agents` natively via `programs.claude-code.agents` -> ~/.claude/agents/<name>.md, which is what the cq flow's `Task`-tool subagent dispatch (explorers/reviewers/workers) resolves to.
+    - Pi (programs.pi, vendored pi-coding-agent 0.78.0 wrapped as piWrapped) consumes `commands` as `promptTemplates` (-> prompts/<ns>:<name>.md) and `skills`, but DOES NOT consume `agents` at all. Pi's system prompt is intentionally minimal: pi-context.md (nix/pkg/llm-contexts/pi-context.md) states 'NO built-in plan mode, sub-agents, permission prompts, TODO tool, or persistent memory'. So under Pi the cq subagent-dispatch steps have no runtime mechanism.
+    - Pi is extensible three ways: pi packages (npm, listed in programs.pi.settings.packages), extensions (local .ts files, listed in programs.pi.settings.extensions, e.g. nix/pkg/pi-extensions/*.ts registered via pi.registerTool/registerProvider), and prompt templates/skills. MCP is bolted on via pi-mcp-adapter + ~/.pi/agent/mcp.json (piMcpJson, keep-alive).
+    - Candidate subagent approaches surfaced: (1) badlogic's own example subagent extension shipped in pi-mono examples/extensions (isolated-context child sessions, filtered tools); (2) third-party npm `nicobailon/pi-subagents` (async delegation, /chain + /parallel slash cmds, agent markdown files with YAML frontmatter for model/tools/skills, session sharing, AND a 'children do not register the subagent tool' boundary that mirrors cq's own 'subagents-cannot-spawn-subagents' invariant); (3) a bespoke in-repo pi.registerTool extension purpose-built to dispatch the existing `mergedAgents` definitions.
+    - Codex precedent: programs.codex.settings.features.multi_agent = true (Codex has its own native multi-agent), so cq already tolerates per-harness subagent mechanisms differing from Claude's Task tool.
+    - Key tension to resolve in planning: the cq `agents` bundle frontmatter shape (Claude's name/description/tools) vs whatever a chosen pi mechanism expects, and how the cq command prompts (which currently assume a Claude `Task`-style dispatch + a 'subagents cannot spawn subagents' rule) invoke subagents portably across harnesses.
+- sessionLogs: ["docs/logs/20260607-190101-adc3647f6e76fc771.md"]

@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 124
+  item: 129
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -112,3 +112,65 @@ archives:
 ---
 
 # questions
+
+## M86
+
+### Q125 — open
+
+- createdAt: 2026-06-07T19:00:04.930Z
+- updatedAt: 2026-06-07T19:00:04.930Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- question: "Which subagent mechanism should we adopt for Pi: (a) the third-party npm extension `nicobailon/pi-subagents`, (b) badlogic's own example subagent extension shipped in pi-mono's examples/extensions, or (c) a bespoke in-repo Pi extension (nix/pkg/pi-extensions/*.ts via pi.registerTool) purpose-built for the cq flow? Or do you want the plan to start with an evaluation/spike task that compares them and a follow-up to commit the choice?"
+- context: "Pi has no native subagents (pi-context.md says so explicitly). The flow needs to dispatch explorers/reviewers/workers. nicobailon/pi-subagents is the closest off-the-shelf match: it already uses agent markdown files with YAML frontmatter (model/tools/skills), /chain + /parallel slash commands, and a 'children do not register the subagent tool' boundary that mirrors our own 'subagents-cannot-spawn-subagents' invariant. The tradeoff is third-party-dependency risk + frontmatter-shape mismatch vs. our existing `mergedAgents` definitions, versus the control (and maintenance cost) of a bespoke extension. This choice determines essentially the entire task breakdown."
+- suggestions: ["Adopt nicobailon/pi-subagents (npm package), adapt our agent bundle to its frontmatter","Vendor/port badlogic's example subagent extension into nix/pkg/pi-extensions","Write a bespoke in-repo pi.registerTool extension driven by our existing mergedAgents","First task: spike/compare all three read-only, then a decision item picks one before implementation"]
+- recommendation: Start with a short spike comparing nicobailon/pi-subagents against a bespoke extension, but bias toward the bespoke in-repo extension if its frontmatter/dispatch contract diverges from our mergedAgents shape — it keeps the cross-harness dispatch contract under our control and avoids a third-party dependency in the unattended worker path.
+- ledgerRefs: ["goals:G28"]
+
+### Q126 — open
+
+- createdAt: 2026-06-07T19:00:14.387Z
+- updatedAt: 2026-06-07T19:00:14.387Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- question: "How portable must the cq command prompts (plan/investigate/implement *:advance) be once Pi gains subagents? Should the prompts dispatch subagents through a single harness-agnostic abstraction (so the SAME prompt text works on Claude's Task tool, Codex multi_agent, and Pi), or is it acceptable for the prompts to branch on harness ('if Pi, call the pi-subagents tool; if Claude, use Task')?"
+- context: The cq command prompts currently assume Claude Code's native `Task`-tool dispatch and encode rules like 'you never spawn subagents' / 'subagents cannot spawn subagents'. Codex already diverges (features.multi_agent). The portability target dictates whether this goal also requires editing the shared command prompts in nix/pkg/cq-assets, or only adds a Pi-side adapter that maps the existing dispatch convention onto Pi's mechanism. This is load-bearing for scope (touch shared prompts vs Pi-only).
+- suggestions: ["Single harness-agnostic dispatch abstraction; minimize/avoid harness-specific branches in prompts","Pi-side adapter only: keep prompts as-is, the Pi mechanism interprets the existing dispatch convention","Explicit per-harness branches in the prompts are acceptable"]
+- recommendation: Prefer a Pi-side adapter that interprets the EXISTING dispatch convention (the agent name + task the prompt already specifies), so the shared command prompts stay unchanged and Claude/Codex are unaffected; only fall back to prompt edits if the convention can't be expressed Pi-side.
+- ledgerRefs: ["goals:G28"]
+
+### Q127 — open
+
+- createdAt: 2026-06-07T19:00:23.389Z
+- updatedAt: 2026-06-07T19:00:23.389Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- question: Which model/provider should Pi subagents run under, and does each cq subagent role's `suggestedModel` tier (frontier/standard/fast) need to map to a concrete Pi provider+model? Pi's default is grok-build, but the cq agents carry Claude-oriented model hints.
+- context: Under Claude Code each subagent inherits a Claude model; the cq agent definitions and task `suggestedModel` tiers assume that resolution. Pi can route to grok-build, openrouter, ollama-cloud, minimax, anthropic-OAuth, etc. (see programs.pi packages). A subagent extension typically lets an agent's frontmatter pin a model. We need to know whether Pi subagents should (a) all inherit the parent's active Pi model, (b) map our frontier/standard/fast tiers to specific Pi providers, or (c) be left to the chosen extension's defaults. This affects whether the plan must add a tier->Pi-model mapping.
+- suggestions: ["Subagents inherit the parent Pi session's active model (simplest)","Map frontier/standard/fast tiers to specific Pi providers+models (e.g. frontier=grok-build or anthropic, fast=ollama/minimax)","Defer to the chosen extension's per-agent frontmatter defaults"]
+- recommendation: Have subagents inherit the parent Pi model for the first iteration (least new config, matches how Claude subagents inherit), and defer a tier->provider mapping to a follow-up unless you already want cost/latency tiering on day one.
+- ledgerRefs: ["goals:G28"]
+
+### Q128 — open
+
+- createdAt: 2026-06-07T19:00:32.369Z
+- updatedAt: 2026-06-07T19:00:32.369Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- question: "What is the acceptance/verification bar for this goal — how do we prove Pi subagents 'work correctly, mirroring Claude Code'? Specifically, which cq flow(s) must run end-to-end under Pi as the success criterion (e.g. a full /cq:plan:advance round dispatching candidate planners, or /cq:investigate:advance dispatching read-only explorers, or /cq:implement:advance dispatching workers+reviewers), and on what target repo?"
+- context: Per operationalism, 'works correctly under pi' needs a concrete, observable test. The cq flow uses subagents in distinct shapes per phase (read-only explorers in investigate, candidate planners + reviewers in plan, isolated-worktree workers + reviewers in implement). Knowing the minimum demonstrable flow (and whether it must run unattended in the yolo/bubblewrap sandbox) sets each task's `acceptance` field and bounds scope.
+- suggestions: ["A single phase end-to-end under Pi is sufficient acceptance (name which)","All three phases (plan/investigate/implement) must dispatch subagents successfully under Pi","Just the dispatch primitive working (spawn a child, get a structured result back) is enough; full-flow validation is a follow-up"]
+- recommendation: "Make the acceptance bar: one read-only explorer dispatch (investigate-style) AND one reviewer dispatch (plan-review-style) complete under Pi and return a parseable result, demonstrated on THIS repo in the normal (non-sandboxed) environment first; full unattended-sandbox + implement-worker validation as a follow-up goal."
+- ledgerRefs: ["goals:G28"]
+
+### Q129 — open
+
+- createdAt: 2026-06-07T19:00:41.311Z
+- updatedAt: 2026-06-07T19:00:41.311Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- question: If we adopt an npm-distributed extension (e.g. nicobailon/pi-subagents), is adding it to programs.pi.settings.packages (Pi's managed --legacy-peer-deps npm install on first run) acceptable, or must it be vendored/pinned into the Nix store like the codex-plugin-cc and pi-extensions are, for reproducibility on the unattended llm-worker hosts?
+- context: The existing Pi packages (rpiv-web-tools, pi-anthropic-auth, pi-ollama-cloud, minimax, pi-xai) are installed from npm at first run, NOT pinned in Nix — but the comments note self-containedness constraints around Pi's loader/jiti alias map. A subagent extension that spawns child Pi sessions and reads agent markdown is more load-bearing for the flow than a provider shim, so reproducibility/pinning policy matters. This determines whether a packaging task (vendor + FOD hash, like pkg/pi-coding-agent) is in scope.
+- suggestions: ["npm install via programs.pi.settings.packages is fine (matches existing providers)","Must be vendored/pinned in the Nix store for unattended-host reproducibility","Prefer a local extension (nix/pkg/pi-extensions/*.ts) precisely to avoid the npm-pinning question"]
+- recommendation: If we go with a third-party extension, vendor+pin it in the Nix store (it is load-bearing for the flow on unattended hosts); if that vendoring cost is high, that is itself an argument for the bespoke local nix/pkg/pi-extensions approach from Q1.
+- ledgerRefs: ["goals:G28"]

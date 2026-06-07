@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 85
+  item: 86
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -435,3 +435,10 @@ archives:
 - createdAt: 2026-06-01T19:15:33.341Z
 - updatedAt: 2026-06-01T19:15:33.341Z
 - title: ambient
+
+### M86 — open
+
+- createdAt: 2026-06-07T18:58:19.495Z
+- updatedAt: 2026-06-07T18:58:19.495Z
+- title: "Plan: pi-agent subagent support for cq flow"
+- description: Coordination milestone for the goal of enabling subagent support in the pi agent harness (which lacks it out of the box) so the cq flow/MCP can use subagents.

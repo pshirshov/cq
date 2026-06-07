@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 18
+  item: 19
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -65,3 +65,17 @@ archives:
 - flow: advance
 - ledgerRefs: ["goals:G25","goals:G26","goals:G27","defects:D34"]
 - sessionLogs: ["docs/logs/20260606-232140-a89c2213af28373de.md","docs/logs/20260606-235430-a48f559038353f730.md","docs/logs/20260606-235703-aa9bf7ba7fd4842b4.md","docs/logs/20260606-235758-a360792708a13fba4.md","docs/logs/20260606-233304-ab05488ed82cc7cad.md","docs/logs/20260607-000134-ab5f1116794648297.md","docs/logs/20260607-000447-a69e06dc96c2189ab.md","docs/logs/20260607-000637-aeb3128d2c2ae4474.md","docs/logs/20260607-000840-a743847f150e34c0a.md","docs/logs/20260607-000936-a5f137261337c70fc.md","docs/logs/20260606-233747-adda28120a7df8d0b.md","docs/logs/20260607-001319-a46779525c26687ff.md","docs/logs/20260607-001602-a437cb1196df33565.md","docs/logs/20260607-001655-a162a1c387e284ac0.md"]
+
+## M86
+
+### HO19 — answers-required
+
+- createdAt: 2026-06-07T19:01:25.013Z
+- updatedAt: 2026-06-07T19:01:25.013Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- summary: "ANSWERS-REQUIRED. /cq:plan bootstrapped goal G28 (\"Enable subagent support in the pi agent harness for the cq flow\") under coordination milestone M86. The planner grounded read-only in the harness wiring (nix/hm/dev-llm.nix, pi-context.md) and filed the first clarifying batch Q125-Q129, all linked to goals:G28. Goal left in `clarifying`/awaiting-answers. Key finding: Pi consumes the cq `commands`/`skills` bundles but NOT the `agents` bundle, and its prompt explicitly disclaims native subagents, so cq subagent-dispatch steps have no Pi runtime mechanism today. Three candidate approaches (npm nicobailon/pi-subagents; badlogic example extension; bespoke in-repo nix/pkg/pi-extensions registerTool). NEXT (user): answer Q125-Q129 in the TUI/web (set each `answered` with a non-empty answer), then run /cq:plan:advance G28."
+- flow: plan
+- ledgerRefs: ["goals:G28"]
+- blockingQuestions: ["Q125","Q126","Q127","Q128","Q129"]
+- sessionLogs: ["docs/logs/20260607-190101-adc3647f6e76fc771.md"]
