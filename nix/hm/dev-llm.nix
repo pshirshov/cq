@@ -684,6 +684,12 @@ in
             # models-only registerProvider override (replaces vendoring the
             # patched pi-xai source). See the extension header for the mechanism.
             "${../pkg/pi-extensions/patch-grok-build-context-window.ts}"
+            # cq subagent-dispatch: registers the `dispatch_agent` tool the cq
+            # shared prompts speak to. Reads the named agent markdown from
+            # $CQ_AGENTS_DIR (T222) and runs it as an isolated, tool-filtered
+            # child `pi -p` turn that cannot itself re-dispatch. See the
+            # extension header for the Route-A subprocess mechanism (T221/T224).
+            "${../pkg/pi-extensions/cq-subagent-dispatch.ts}"
           ];
         };
       };
