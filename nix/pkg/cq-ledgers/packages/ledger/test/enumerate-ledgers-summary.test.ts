@@ -1,6 +1,6 @@
 /**
- * Tests for the enumerate_ledgers handler's per-ledger statusCounts and
- * completedCount fields (T1).
+ * Tests for the enumerate_ledgers handler's per-ledger statusCounts,
+ * completedCount, and progressTotal fields (T1, T209).
  *
  * Seeds:
  *  - the questions ledger with items in `answered` and `open` statuses.
@@ -17,8 +17,13 @@
  *    positive completion).
  *  - completedCount for the tasks ledger counts items in terminalStatuses
  *    (`done`), NOT non-terminal items (`planned`, `wip`).
- *  - Both fields are optional on LedgerSummary (compile-time check: fields
- *    may be undefined and callers must handle that gracefully).
+ *  - progressTotal for the questions ledger excludes `withdrawn` items
+ *    (open + answered only), making it the correct denominator for the
+ *    progress bar (D34 regression check).
+ *  - progressTotal for non-questions ledgers equals itemCount.
+ *  - statusCounts, completedCount, and progressTotal are all optional on
+ *    LedgerSummary (compile-time check: fields may be undefined and callers
+ *    must handle that gracefully).
  */
 
 import { describe, it, expect } from "bun:test";
@@ -129,6 +134,10 @@ describe("enumerate_ledgers — statusCounts and completedCount (T1)", () => {
     // also terminal but does not represent a positive completion).
     expect(qs!.completedCount).toBe(2);
 
+    // progressTotal for questions = open + answered (4 total − 1 withdrawn = 3).
+    // D34 regression: withdrawn must not count toward the denominator.
+    expect(qs!.progressTotal).toBe(3);
+
     // ---- tasks ledger ----
     const ts = find(TASKS_LEDGER);
     expect(ts).toBeDefined();
@@ -141,6 +150,9 @@ describe("enumerate_ledgers — statusCounts and completedCount (T1)", () => {
 
     // completedCount for tasks = items in terminalStatuses; only "done" here.
     expect(ts!.completedCount).toBe(1);
+
+    // progressTotal for non-questions ledgers equals itemCount (all items count).
+    expect(ts!.progressTotal).toBe(ts!.itemCount);
   });
 
   it("completedCount uses terminalStatuses for non-questions ledgers (multiple terminal statuses)", async () => {
@@ -184,22 +196,25 @@ describe("enumerate_ledgers — statusCounts and completedCount (T1)", () => {
     expect(ts!.completedCount).toBe(2); // only the 2 "done" items
   });
 
-  it("statusCounts and completedCount are optional on LedgerSummary (type safety)", () => {
+  it("statusCounts, completedCount, and progressTotal are optional on LedgerSummary (type safety)", () => {
     // Compile-time test: a minimal LedgerSummary without the optional fields
     // must still satisfy the type. This catches any accidental change that makes
     // the fields required.
     const minimal: LedgerSummary = { name: "x", itemCount: 0 };
     expect(minimal.statusCounts).toBeUndefined();
     expect(minimal.completedCount).toBeUndefined();
+    expect(minimal.progressTotal).toBeUndefined();
 
-    // A full summary with both fields must also type-check.
+    // A full summary with all optional fields must also type-check.
     const full: LedgerSummary = {
       name: "y",
       itemCount: 5,
       statusCounts: { open: 3, done: 2 },
       completedCount: 2,
+      progressTotal: 5,
     };
     expect(full.statusCounts?.["done"]).toBe(2);
     expect(full.completedCount).toBe(2);
+    expect(full.progressTotal).toBe(5);
   });
 });
