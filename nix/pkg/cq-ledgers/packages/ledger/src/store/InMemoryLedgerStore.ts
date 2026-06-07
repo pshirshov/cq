@@ -505,9 +505,7 @@ export class InMemoryLedgerStore implements LedgerStore {
    * shape is uniform with `FsLedgerStore` and the dual-tests suite
    * can assert the no-op contract.
    */
-  async invalidate(_ledgerId: string): Promise<void> {
-    // intentional no-op
-  }
+  async invalidate(_ledgerId: string): Promise<void> {}
 
   // --- internals ---
   private bootstrapCanonicalLedgers(): void {

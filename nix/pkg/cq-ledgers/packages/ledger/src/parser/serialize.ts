@@ -124,15 +124,12 @@ function serializeItem(item: Item): string {
 }
 
 function serializeFieldLine(key: string, value: FieldValue): string {
-  // We render as a YAML key:value pair inside a `- ` list item.
-  // For strings with newlines we use the YAML block-scalar form.
-  // For arrays we emit JSON flow form (YAML.stringify with flow=true).
+  // Render each field as a `- key: value` list item; see per-branch handling.
   if (Array.isArray(value)) {
     // JSON-style flow array: ["a", "b"]
     const flow = JSON.stringify(value);
     return `- ${key}: ${flow}\n`;
   }
-  // string
   if (value.includes("\n")) {
     // Multi-line: use a YAML block scalar (|) indented under the list item.
     const indented = value

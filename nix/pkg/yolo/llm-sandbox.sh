@@ -102,7 +102,6 @@ for path in "${NIX_PATHS[@]}"; do
   fi
 done
 
-# System paths needed for executables
 # Note: /etc/profiles and ~/.nix-profile are symlinks into /nix/store,
 # they work automatically since both /etc and /nix/store are bound
 SYSTEM_RO_PATHS=(

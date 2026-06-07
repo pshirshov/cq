@@ -376,9 +376,7 @@
 
         # cq — the ledger-suite CLI (`cq init|reset|erase`). A standalone Bun
         # bin (NOT embedded — it constructs an FsLedgerStore directly), modelled
-        # on ledgerMcp: stage @cq/cli + @cq/ledger source, strip their
-        # node_modules, symlink @cq/ledger (+ its runtime deps from the shared
-        # FOD) + @cq/config under cq-cli/node_modules/@cq, makeWrapper bun.
+        # on ledgerMcp; see the numbered installPhase below for the staging steps.
         cqCli = pkgs.stdenv.mkDerivation {
           pname = "cq";
           version = "0.0.1";

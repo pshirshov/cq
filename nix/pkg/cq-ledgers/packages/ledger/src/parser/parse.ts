@@ -228,7 +228,6 @@ function extractMilestones(
     if (node.type === "heading") {
       const h = node as Heading;
       if (h.depth === 1) {
-        // ledger-level header, ignored
         continue;
       }
       if (h.depth === 2) {
@@ -284,7 +283,6 @@ function extractMilestones(
         };
         continue;
       }
-      // depth >= 4: ignored.
       continue;
     }
     if (node.type === "paragraph") {
@@ -299,7 +297,6 @@ function extractMilestones(
       applyItemFields(currentItem, node as List, source);
       continue;
     }
-    // Other node types are ignored.
     void (node as RootContent);
   }
   finalizeMilestone();

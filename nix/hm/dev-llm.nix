@@ -599,7 +599,6 @@ in
       };
 
       programs.codex = sharedAgentWiring // {
-        # Vendored codex (see codexPkg above).
         package = codexPkg;
         settings = {
           model = "gpt-5.5";
@@ -632,13 +631,10 @@ in
         promptTemplates = mergedCommands;
         settings = {
           theme = "dark";
-          # Default to the xAI Grok Build (Coding Plan) provider + model via the
-          # pi-xai extension. This uses the Responses API with Grok's highest
-          # (internal) reasoning effort; `grok-build` does not accept an explicit
-          # reasoningEffort / defaultThinkingLevel parameter (it always reasons
-          # at maximum depth). Authenticate once with `/login grok-build` (OAuth).
-          # Other providers (openai-codex, openai, openrouter, ...) remain
-          # available and can be selected at runtime or via env/API keys.
+          # xAI Grok Build (Coding Plan) via pi-xai (Responses API). grok-build
+          # always reasons at maximum depth — it rejects an explicit
+          # reasoningEffort / defaultThinkingLevel. `/login grok-build` (OAuth);
+          # other providers (openai-codex, openrouter, ...) stay selectable at runtime.
           defaultProvider = "grok-build";
           defaultModel = "grok-build";
           # User-requested: terminal progress (OSC 9;4; off by default in 0.78+),
