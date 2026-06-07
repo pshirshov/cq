@@ -18,7 +18,7 @@ durable ledger state left off. **ONE invocation = ONE research round.**
 ## Conventions this command obeys (decision K8)
 - **The tree IS the `hypothesis` ledger.** Each node is a `hypothesis` item;
   `parentHypothesis` encodes ancestry; `evidence[]` holds validated citations,
-  each prefixed `[correct]`/`[incorrect]` (the research-loop E-item convention);
+  each prefixed `[correct]`/`[incorrect]` (the investigate-flow E-item convention);
   `status` is `open|uncertain|confirmed|wrong` (terminal: `confirmed`/`wrong`);
   every node `ledgerRefs` its defect `defects:<D>`.
 - **The COMMAND owns the loop.** `investigate-explorer` is a READ-ONLY

@@ -12,7 +12,7 @@ every citation you return against source and sets the hypothesis status. You nev
 spawn subagents. You share the main checkout (no worktree isolation) because you
 change nothing.
 
-> This is the read-only role of the research-loop architecture (decision **K8**,
+> This is the read-only role of the /cq:investigate architecture (decision **K8**,
 > Q24/Q27): the `hypothesis` ledger is the durable tree, the `/cq:investigate:advance`
 > COMMAND owns hypothesis formation, citation validation, and adjudication, and you
 > are the parallel evidence-gatherer it dispatches. A mis-cited `file:line` is the
@@ -57,7 +57,7 @@ Investigate H against reality, not against your prior:
 Emit the **Session summary** section (below), then return a single fenced `json`
 block as the LAST content of your reply — the orchestrator parses it, re-opens
 each citation against source, stores validated items into `hypothesis.evidence[]`
-with a `[correct]`/`[incorrect]` prefix (the research-loop E-item convention), and
+with a `[correct]`/`[incorrect]` prefix (the investigate-flow E-item convention), and
 adjudicates H's status from the `[correct]` items only:
 
 ```json

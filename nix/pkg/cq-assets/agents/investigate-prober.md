@@ -14,7 +14,7 @@ do NOT adjudicate — the `/cq:investigate:advance` command (the loop owner) VAL
 every citation you return against source and sets the hypothesis status. You never
 spawn subagents.
 
-> This is the read+execute role of the research-loop architecture (decision **K8**,
+> This is the read+execute role of the /cq:investigate architecture (decision **K8**,
 > Q24/Q27/**Q89**): the `hypothesis` ledger is the durable tree, the
 > `/cq:investigate:advance` COMMAND owns hypothesis formation, citation validation, and
 > adjudication, and you are the EXECUTION arm it dispatches **only** when a read-only
@@ -92,7 +92,7 @@ Emit the **Session summary** section (below), then return a single fenced `json`
 block as the LAST content of your reply — the SAME shape the explorer returns. The
 orchestrator parses it, re-opens each citation against source (or re-runs the
 command), stores validated items into `hypothesis.evidence[]` with a
-`[correct]`/`[incorrect]` prefix (the research-loop E-item convention), and
+`[correct]`/`[incorrect]` prefix (the investigate-flow E-item convention), and
 adjudicates H's status from the `[correct]` items only:
 
 ```json
