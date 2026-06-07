@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 21
+  item: 22
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -104,3 +104,15 @@ archives:
 - blockingQuestions: ["Q131"]
 - handoffReasons: ["landed: G28 planned + T221/T223/T228 merged, M87/M89 archived","answers-required: live-pi integration/acceptance tail (T224-T227) blocked on Q131 environment decision"]
 - sessionLogs: ["docs/logs/20260607-203143-a97d456b51fabc948.md","docs/logs/20260607-203143-a9a2104f90713afba.md","docs/logs/20260607-204327-a587aeaaa80fb8b26.md","docs/logs/20260607-204327-ae1180d30433cc093.md","docs/drafts/20260607-2049-pi-runtime-config-access.md"]
+
+### HO22 — mixed
+
+- createdAt: 2026-06-07T23:42:30.840Z
+- updatedAt: 2026-06-07T23:42:30.840Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- summary: "MIXED — GOAL G28 FULLY IMPLEMENTED + LIVE-DEMONSTRATED; 3 minor follow-up defects remain. /cq:advance folded in the user's Q131 answer (the pi package builds+runs in-sandbox via nix, no home-manager switch needed to TEST it), unblocked the integration/acceptance tail, and drove all of G28 to merged, reviewed code. IMPLEMENTED + MERGED to main (all reviewed go-ahead via the opus+grok+codex panel; minimax abstained throughout — no key): T221 spike GO; T223 cq.toml [tiers]+[agent_tiers] + @cq/config resolvers (1038/0); T228 K46 runtime-config-access decision; T222 home.file projects the 7 cq agent md to ~/.pi/agent/cq-agents + CQ_AGENTS_DIR on piWrapped (7611867); T224 the bespoke cq-subagent-dispatch.ts extension registering dispatch_agent {agent,task,isolation?} — Route-A filtered child `pi -p --mode json`, re-dispatch blocked, injection-safe, +1 criticism round fixing a path-traversal (235f854); T225 tier resolution agent-name→[agent_tiers]→[tiers]→provider+model, LIVE: explorer→frontier→grok-build vs prober→fast→ollama-cloud/minimax-m3 (846a0a8); T229 the pi-context.md dispatch-trigger instruction (cc2f326). ACCEPTANCE (Q128) MET LIVE: T226 — an UNCHANGED cq investigate-explorer prompt fired dispatch_agent, child read-only, returned a parseable evidence block (fa5bc9e); T227 — an UNCHANGED cq plan-review prompt fired dispatch_agent(plan-reviewer), child returned a parseable verdict-json (8727d15). Work milestones M87/M88/M89 archived (M90/M91 stay open pending their defects). FOLLOW-UP DEFECTS (filed-and-deferred during review; do NOT undo the goal): D36 (low) cq.toml.example token `pi:minimax-m3` provider-ambiguous — fix to `pi:ollama-cloud/minimax-m3`; D37 (medium) the local home-manager ~/.pi/agent/settings.json registers a STALE pre-T225 extension store path — NEEDS A USER ACTION (`home-manager switch`) to pick up the merged extension (not a repo code fix); D38 (medium) the Pi-path plan-reviewer child emitted an off-enum verdict (\"fail\" vs go-ahead|revise) — reinforce the enum in pi-context.md / add orchestrator normalization. Final gate: P-investigate=TRUE (D36/D37/D38 open), P-plan=FALSE (G28 planned/locked), P-implement=FALSE (T221-T229 all done), open-Q-gate clear. CHECKPOINTED here after full goal achievement. NEXT (user): (1) run `home-manager switch` to activate the merged pi extension on your machine (resolves D37); (2) re-run /cq:advance to autonomously land the D36/D38 polish; (3) G28 stays `planned` — close it in the TUI/web (set done) now that it is implemented + demonstrated."
+- flow: advance
+- ledgerRefs: ["goals:G28","defects:D36","defects:D37","defects:D38","tasks:T221","tasks:T224","tasks:T226","tasks:T227"]
+- handoffReasons: ["landed: G28 fully implemented (T221-T229 merged) + acceptance demos T226/T227 live-verified; M87/M88/M89 archived","follow-up-defects-open: D36 (low, config) + D38 (medium, Pi verdict-enum) autonomously fixable next pass; D37 (medium) needs user home-manager re-activation"]
+- sessionLogs: ["docs/logs/20260607-221521-af554056ef561fad4.md","docs/logs/20260607-230442-a54aba4d897e853d3.md","docs/logs/20260607-233329-aa0c624118a6e9655.md","docs/logs/20260607-233329-afa0391d57f11518e.md"]
