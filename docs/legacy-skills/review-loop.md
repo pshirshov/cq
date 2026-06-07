@@ -1,3 +1,19 @@
+---
+name: review-loop
+status: retired
+retired: 2026-06-07
+cq-successor: /cq:advance + /cq:implement:advance + /cq:implement-review flow
+description: >-
+  Plan-execute-review loop for complex multi-step tasks. Delegates planning,
+  execution, and adversarial review to subagents; maintains ./tasks.md and
+  ./defects.md ledgers with per-milestone archives under ./docs/archive/;
+  iterates until the reviewer is satisfied; logs the session to ./docs/logs/.
+  TRIGGER when: the user assigns a complex, multi-step
+  task that warrants rigorous planning, adversarial review, and iteration, or
+  explicitly asks to use the review loop / adversarial loop / plan-review
+  workflow.
+---
+
 # Review Loop: Plan → Execute → Adversarially Review → Iterate
 
 A disciplined workflow for complex, multi-step tasks. Delegates work to
@@ -11,7 +27,7 @@ running the loop.
 - **Never do planning, execution, or review yourself.** Every phase runs in a
   subagent. Your job is orchestration, ledger maintenance, and decision-making
   on the loop exit condition. This is the orchestrator-side counterpart of the
-  leaf-authority principle in [[vsm-loop]] § *S1's local environment loop*:
+  leaf-authority principle in [vsm-loop](./vsm-loop.md) § *S1's local environment loop*:
   leaves iterate locally against tests/build/FS within their envelope; you do
   not. Local iteration is the leaf's resource bargain, not yours.
 - **Run independent subagents in parallel** whenever the work partitions
@@ -264,7 +280,7 @@ does not bypass S2; it consumes what S2 produces.
 
 It is **not** S3\*: Beer's S3\* is *sporadic, surprise* audit that
 bypasses normal reporting (the boss walking the factory floor
-unannounced). When [[vsm-loop]] wraps this loop, the orchestrator's
+unannounced). When [vsm-loop](./vsm-loop.md) wraps this loop, the orchestrator's
 spot-check in vsm-loop I3 is the actual S3\* channel layered on
 top — it re-reads the raw artefact rather than trusting either the
 executor's self-report or the reviewer's adjudication.
@@ -319,7 +335,7 @@ escalate to **session end** with `reason = blocked`.
    fixed), any deferred defects and why, the final ledger state, and —
    if terminating on a blocker — the specific question the user must
    resolve. Include the compact VSM metrics line when this loop runs
-   under [[vsm-loop]] or when any metric threshold fired:
+   under [vsm-loop](./vsm-loop.md) or when any metric threshold fired:
    `Metrics: WIP max <n>; review rounds <PR-01:n>; verification
    <complete|gaps>; audit discrepancies <n>; algedonic escalations
    <n>`. The log is written by you, from conversation context — not by
@@ -353,7 +369,7 @@ conditions. Keep going.
 ## Metrics emitted by this loop
 
 When this loop runs standalone, metrics live in the PR Completed entry
-and session log. When [[vsm-loop]] invokes this loop, these metrics feed
+and session log. When [vsm-loop](./vsm-loop.md) invokes this loop, these metrics feed
 the parent loop's control decisions:
 
 - **Review churn:** number of review rounds and defects per round.
@@ -418,7 +434,7 @@ cleanup commands. Merge back deterministically when each editor
 returns.
 
 For runtime-specific guidance (Claude / Codex / other), see
-[[vsm-loop]] § *Parallelism and S2 anti-oscillation* — that
+[vsm-loop](./vsm-loop.md) § *Parallelism and S2 anti-oscillation* — that
 section is the canonical reference and applies verbatim here.
 
 ## Model selection per phase

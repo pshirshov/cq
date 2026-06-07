@@ -1,3 +1,22 @@
+---
+name: vsm-loop
+status: retired
+retired: 2026-06-07
+cq-successor: /cq:advance + /cq:plan:advance + /cq:implement:advance + /cq:implement-review flow
+description: >-
+  Viable-System Model (VSM) orchestration for multi-cycle research and
+  development. The outer/meta loop that frames hierarchies of subagents
+  under Stafford Beer's S1-S5: variety engineering (compress going up,
+  expand going down), algedonic escalation, S3* audit, ledger-as-
+  institutional-memory with active vs. per-milestone ./docs/archive split, and
+  recursive viability via the vsm-node contract. Composes review-loop for
+  build-style cycles and research-loop for investigation cycles. TRIGGER
+  when: the user assigns a multi-cycle R&D programme spanning research,
+  planning, build, and review phases; or explicitly asks for a VSM /
+  cybernetic / viable-system workflow; or when work is large enough that
+  a single review-loop or research-loop invocation will not bound it.
+---
+
 # VSM Loop: Viable-System Orchestration for Multi-Agent R&D
 
 A meta-workflow for running hierarchies of subagents under Stafford
@@ -8,9 +27,9 @@ decides what*, *what crosses each channel in what form*, and *when
 to escalate to the user* will pay back the overhead.
 
 This skill is the **strategic and managerial** layer. Inside it,
-compose [[review-loop]] for build–fix–review cycles and
-[[research-loop]] for investigation cycles. Sub-tasks substantial
-enough to be viable systems of their own follow the [[vsm-node]]
+compose [review-loop](./review-loop.md) for build–fix–review cycles and
+[research-loop](./research-loop.md) for investigation cycles. Sub-tasks substantial
+enough to be viable systems of their own follow the [vsm-node](./vsm-node.md)
 recursion contract, so the hierarchy stays viable at every level.
 
 ## When to invoke vsm-loop
@@ -24,13 +43,13 @@ pass, ledger discipline, and a recursion contract. Invoke it when
    work, not a paragraph.
 2. **At least one S1 cycle will spawn its own sub-cycles.** The
    work will recurse — sub-tasks substantial enough to need their
-   own planning and audit, per [[vsm-node]].
+   own planning and audit, per [vsm-node](./vsm-node.md).
 3. **Multiple decision points the orchestrator cannot
    pre-resolve.** During execution, the loop will discover
    constraints that change the plan, not just refine it.
 
-If only one or two hold, prefer [[review-loop]] alone (build-style
-work) or [[research-loop]] alone (investigation). The meta-overhead
+If only one or two hold, prefer [review-loop](./review-loop.md) alone (build-style
+work) or [research-loop](./research-loop.md) alone (investigation). The meta-overhead
 of vsm-loop is paid back by reduced rework on genuinely large
 tasks; on small ones it taints perceived value.
 
@@ -71,11 +90,11 @@ Two cross-cutting mechanisms make the model work:
 |-----|----------|--------------------------|
 | **Metasystem** | Commissioning authority, identity-level rules above the viable system | User + project constitution: `CLAUDE.md`, `AGENTS.md`, explicit user instructions, safety/security policy, the "what must always be true" the system inherits from outside. |
 | **S5** | Holds the system's identity; balances S3 against S4 | The orchestrator's commitment to translate metasystem intent into operational policy and enforce identity rules (security, safety, scope, non-negotiables). |
-| **S4** | Plans, researches, models | Planning subagents; [[research-loop]] invocations; design-deliberation subagents. |
-| **S3** | Allocates work here-and-now; regular oversight | Main session as orchestrator: dispatches subagents, maintains ledgers, decides parallelism, sequences cycles. Includes the structured per-cycle review channel ([[review-loop]] I2) — that is S3 oversight via the S2 ledger/diff channel, *not* S3\*. |
+| **S4** | Plans, researches, models | Planning subagents; [research-loop](./research-loop.md) invocations; design-deliberation subagents. |
+| **S3** | Allocates work here-and-now; regular oversight | Main session as orchestrator: dispatches subagents, maintains ledgers, decides parallelism, sequences cycles. Includes the structured per-cycle review channel ([review-loop](./review-loop.md) I2) — that is S3 oversight via the S2 ledger/diff channel, *not* S3\*. |
 | **S3\*** | Sporadic, direct audit of S1 that bypasses S2 | Orchestrator's spot-checks during vsm-loop I3: open the diff or research artefact, verify one or two claims against source, confirm the cycle's report matches reality. Sporadic by design — exhaustive audit collapses back into S3. |
 | **S2** | Anti-oscillation between parallel S1s; *automatic*, non-managerial coordination | Two parts: (a) **transversal conventions** — sequential defect IDs, sequential PR IDs, ledger-entry-per-cycle, naming schemes for plan docs and archives, fixed report shapes. These let parallel S1s avoid collision without S3 intervention. (b) **Workspace isolation** — worktree-per-editor, one-cycle-per-ledger-group, parallel-vs-serial discipline. The ledger format is S2's substrate (the conventions all S1s read and write through) but the *content* of the active ledger is S3's institutional memory. |
-| **S1** | The actual work | Execution subagents (code, tests, edits). For substantial S1 tasks, the subagent runs its own vsm-loop per [[vsm-node]]. |
+| **S1** | The actual work | Execution subagents (code, tests, edits). For substantial S1 tasks, the subagent runs its own vsm-loop per [vsm-node](./vsm-node.md). |
 
 The S1 units in this mapping are themselves viable systems
 internally: an execution subagent that gets a non-trivial task
@@ -278,7 +297,7 @@ Each channel adds specificity the downstream level needs to act:
 - **S3 → S1** (orchestrator → executor): self-contained brief —
   exact file paths, success criteria as runnable commands, the
   relevant excerpt from the plan, in/out scope for this unit,
-  what the parent will inspect on return, and the [[vsm-node]]
+  what the parent will inspect on return, and the [vsm-node](./vsm-node.md)
   recursion contract if recursion is permitted.
 
 The downstream subagent must never have to ask *"what did they
@@ -323,7 +342,7 @@ information the plan did not model.
 - **S3 → S4 firing** — a sub-cycle returns "blocked on missing
   knowledge", "the upstream API behaves unexpectedly", or "the
   plan for this entry is wrong given what was discovered". The
-  orchestrator routes to S4 (a [[research-loop]] sub-cycle or a
+  orchestrator routes to S4 (a [research-loop](./research-loop.md) sub-cycle or a
   planner refresh) before another execution round. This is I5
   and I6 of the inner loop.
 - **S4 → S3 firing** — S4 returns a refreshed plan or validated
@@ -421,7 +440,7 @@ behaviour rather than its throughput.
    review rounds.
    - Threshold: same class appears twice in one milestone.
    - Control action: record a cross-cutting architectural note or open
-     a [[research-loop]] question.
+     a [research-loop](./research-loop.md) question.
 4. **Verification coverage** — every completed PR/task has exact
    verification commands and results.
    - Threshold: missing command result on a completed entry.
@@ -537,7 +556,7 @@ Metrics:
 The four-bullet form is the canonical layout — a single-line
 form would exceed the one-screen budget once all counters are
 included. Track `depth-limit` separately from ordinary algedonic
-and bypass per [[vsm-node]] § *Recursion-depth bound*.
+and bypass per [vsm-node](./vsm-node.md) § *Recursion-depth bound*.
 
 Only expand beyond that line when a threshold fired. The control action
 belongs in the ledger entry or session log next to the metric that
@@ -576,12 +595,12 @@ model gives it authority to close its own loop locally.
 **Whose authority is this?** The local-loop authority belongs to
 the *leaf executing subagent* — the level that actually runs
 tests, edits files, probes services. It does **not** extend to
-orchestrators at any layer. The main session running [[review-loop]]
+orchestrators at any layer. The main session running [review-loop](./review-loop.md)
 or vsm-loop is an orchestrator, not a leaf, even when the
 orchestrator itself is the S1 of a parent vsm-loop. Orchestrators
 dispatch and audit; they do not iterate against the local
 environment themselves. The "never edit yourself, even trivial"
-rule in [[review-loop]] is the orchestrator-side counterpart of
+rule in [review-loop](./review-loop.md) is the orchestrator-side counterpart of
 this rule: leaves iterate locally, orchestrators do not.
 
 Concretely: inside the scope envelope set by the brief, the
@@ -643,7 +662,7 @@ The cost of this narrowing is real: a leaf subagent that genuinely
 detects a policy violation cannot phone home directly. To preserve
 the *substantive* function of Beer's bypass (the carve-out for
 identity-threatening signals), the framework reintroduces a
-restricted bypass in [[vsm-node]]'s *Bypass authority* subsection:
+restricted bypass in [vsm-node](./vsm-node.md)'s *Bypass authority* subsection:
 a `BYPASS`-flagged algedonic that the parent **must** propagate
 upward unchanged, with no opportunity to re-litigate. This covers
 the genuine policy-violation case — credentials, security gates,
@@ -651,7 +670,7 @@ identity rules from `CLAUDE.md`, and operational-policy gates the
 metasystem has marked non-negotiable (immutable data, required
 CI/CD checks, mandatory audit trails) — while keeping the
 ordinary "I'm stuck" / "the plan is wrong" path inside the loop.
-See [[vsm-node]] § *Bypass authority* for the full criteria; the
+See [vsm-node](./vsm-node.md) § *Bypass authority* for the full criteria; the
 two files use the same list.
 
 If you find yourself reaching for ordinary algedonic frequently,
@@ -672,7 +691,7 @@ The user-facing metasystem hears from the loop in only two cases:
    top-level orchestrator has found something the loop cannot
    resolve from `CLAUDE.md` + the brief. Criteria — all must hold:
    - The blocker is **not** a knowledge gap that more research
-     could close. If it is, spawn a [[research-loop]] sub-cycle
+     could close. If it is, spawn a [research-loop](./research-loop.md) sub-cycle
      first.
    - The blocker is **not** a plan flaw that re-planning could
      fix. If it is, spawn a planner refresh first.
@@ -731,7 +750,7 @@ log.
 
 Current goal, current plan, in-progress entries, and recent
 completions (last cycle's worth). Mirrors the structure of
-[[review-loop]]'s `tasks.md` (Milestones, current PR breakdown,
+[review-loop](./review-loop.md)'s `tasks.md` (Milestones, current PR breakdown,
 Cross-cutting architectural notes locked, Completed-recent), with
 the addition of a **Cycle** marker at the top so the session
 knows which cycle it is in.
@@ -755,7 +774,7 @@ stub:
 
 ### `./defects.md` — active defect ledger
 
-Schema identical to [[review-loop]]'s `defects.md` (`PR-NN-DMM`
+Schema identical to [review-loop](./review-loop.md)'s `defects.md` (`PR-NN-DMM`
 IDs, Status / Severity / Location / Description / Root cause /
 Fix). On cycle completion where all defects in a PR group are
 `[x] resolved`, migrate that PR's defect section to
@@ -767,7 +786,7 @@ pattern.
 Written at session end (cycle completion or algedonic
 escalation). One file per session. Captures: goal, cycles run,
 what was archived, escalations made, final ledger state. Same
-role as in [[review-loop]].
+role as in [review-loop](./review-loop.md).
 
 ### Why archive instead of "completed-section-grows-forever"
 
@@ -781,7 +800,7 @@ of "current quarter board pack" vs. "historical KPI archive."
 
 ## The meta-loop
 
-Two nested loops, like [[review-loop]], but at a higher level of
+Two nested loops, like [review-loop](./review-loop.md), but at a higher level of
 abstraction.
 
 ### Outer loop — goal-to-deliverable
@@ -824,7 +843,7 @@ you the goal. If it has implicit ambiguity (multiple readings,
 missing scope boundary, undefined success criterion), do bounded
 read-only investigation (grep, file reads, ledger scan) for up
 to ~1 minute, then either proceed with a stated reading or batch
-the ambiguities via [[question-batch]].
+the ambiguities via [question-batch](./question-batch.md).
 
 **G2. Form or refresh the plan (S4).**
 
@@ -870,13 +889,13 @@ For each planned `[ ]` entry in the active ledger:
 of:
 
 - **Build-style** (writes code, runs tests, ships a PR) →
-  delegate to [[review-loop]]'s inner cycle as the primitive.
+  delegate to [review-loop](./review-loop.md)'s inner cycle as the primitive.
   Spawn executor, spawn reviewer, iterate.
 - **Research-style** (answers a question, produces no code) →
-  delegate to [[research-loop]]. The output is an evidence-backed
+  delegate to [research-loop](./research-loop.md). The output is an evidence-backed
   ledger entry, not a PR.
 - **Substantial** (large enough to be its own viable system) →
-  spawn a recursive [[vsm-node]] subagent with its own brief,
+  spawn a recursive [vsm-node](./vsm-node.md) subagent with its own brief,
   ledger pointer (a subsection of `./tasks.md` or its own ledger
   file), and budget.
 
@@ -908,7 +927,7 @@ ledger entry = one commit (code + ledger updates).
 **I5. Mid-cycle research trigger (S3 → S4 homeostat firing).** If
 during I1–I4 a sub-cycle returns "blocked on missing knowledge"
 (not a user-facing blocker — just an unknown), spawn a
-[[research-loop]] sub-cycle for that question, fold its findings
+[research-loop](./research-loop.md) sub-cycle for that question, fold its findings
 back into the active plan or the relevant ledger entry, and
 resume I2 with the refreshed brief. This is S3 routing work to
 S4 mid-execution — the homeostat doing its job. Count this
@@ -936,17 +955,17 @@ after one cycle "because it went well" is the primary failure
 mode of this skill*, and the most common surface of it is the
 courtesy-checkpoint pattern catalogued there.
 
-## Composing with `[[review-loop]]` and `[[research-loop]]`
+## Composing with `[review-loop](./review-loop.md)` and `[research-loop](./research-loop.md)`
 
 vsm-loop is the **outer** discipline. The two existing loops are
 the **specialized inner** disciplines:
 
-- **[[review-loop]]** is the canonical build-style I1 primitive.
+- **[review-loop](./review-loop.md)** is the canonical build-style I1 primitive.
   Its inner loop (execute → adversarial review → fix → re-review)
   is the S1 + S3\* pattern for any ledger entry that produces or
   modifies code. Use it verbatim. Its `tasks.md` / `defects.md`
   schema is compatible with vsm-loop's active ledger.
-- **[[research-loop]]** is the canonical research-style I1
+- **[research-loop](./research-loop.md)** is the canonical research-style I1
   primitive. Its hypothesis tree, evidence validation, and DFS
   traversal are S4's epistemic machinery. Use it verbatim. Its
   ledger (`./docs/research/research-<name>.md`) coexists with
@@ -962,7 +981,7 @@ When you invoke one of these from vsm-loop:
 - The sub-skill's stop conditions are the sub-skill's; vsm-loop's
   outer loop continues until *its own* goal is discharged.
 
-## Recursive viability: when to spawn a `[[vsm-node]]`
+## Recursive viability: when to spawn a `[vsm-node](./vsm-node.md)`
 
 Spawn a recursive vsm-node when the S1 task itself is large
 enough to need its own planning, audit, and ledger — e.g.
@@ -984,7 +1003,7 @@ algedonic goes to its immediate parent, which either resolves it
 to the user.
 
 Do **not** spawn a recursive vsm-node for tasks that fit cleanly
-into [[review-loop]] or [[research-loop]]. The recursion overhead
+into [review-loop](./review-loop.md) or [research-loop](./research-loop.md). The recursion overhead
 must be earned.
 
 ## Subagent briefing under VSM
@@ -998,7 +1017,7 @@ returns or escalates. The brief must contain:
 1. **Identity / scope** — who this subagent is in the hierarchy.
    "You are a build-cycle subagent operating at level N+1; parent
    is the main vsm-loop orchestrator." For recursive nodes, also
-   the [[vsm-node]] reference.
+   the [vsm-node](./vsm-node.md) reference.
 2. **Goal** — the unit deliverable, one sentence. This is the
    subagent's S5.
 3. **Acceptance criterion** — operational, testable. "Command X
@@ -1010,7 +1029,7 @@ returns or escalates. The brief must contain:
    ledger entries, or research findings. Not the whole ledger;
    the slice this cycle needs.
 6. **Recursion permission** — whether the subagent may spawn its
-   own subagents (per [[vsm-node]]) and under what conditions.
+   own subagents (per [vsm-node](./vsm-node.md)) and under what conditions.
    Default: no — only spawn for sub-tasks that meet the
    substantial threshold.
 7. **Report contract** — what the subagent's compressed return
@@ -1030,7 +1049,7 @@ Beer's analogue is the sympathetic nervous system: it coordinates
 the body's organs through standing reflexes, not through cortical
 attention. This section is the **canonical home** for both faces
 of S2: transversal conventions and parallel-editor discipline.
-[[review-loop]] and [[vsm-node]] reference it for runtime-specific
+[review-loop](./review-loop.md) and [vsm-node](./vsm-node.md) reference it for runtime-specific
 guidance.
 
 ### Transversal conventions (the standing reflexes)

@@ -1,6 +1,23 @@
+---
+name: vsm-node
+status: retired
+retired: 2026-06-07
+cq-successor: /cq:advance + /cq:implement:advance (implement-flow worker contract)
+description: >-
+  Recursive viability contract for subagents operating inside a vsm-loop
+  hierarchy. Defines how a subagent decides between do-it-yourself and
+  delegate, runs its own internal S1-S5 cycle when delegating, audits
+  what it dispatches (S3*), and compresses its return to its parent's
+  variety budget. Also defines the algedonic-flag criteria. TRIGGER
+  when: a subagent brief names vsm-node as the recursion contract; or
+  the orchestrator is briefing a substantial sub-task that warrants its
+  own internal cycle. Do not invoke for atomic tasks — read this skill
+  only when recursion is explicitly authorized in the brief.
+---
+
 # VSM Node: Recursive Viability Contract for Subagents
 
-A short contract that any subagent in a [[vsm-loop]] hierarchy
+A short contract that any subagent in a [vsm-loop](./vsm-loop.md) hierarchy
 follows when its brief includes the recursion permission. The
 contract makes the subagent itself a viable system: it can decide
 whether the task warrants its own sub-cycle, run that sub-cycle
@@ -8,7 +25,7 @@ internally, and report compressed results upward.
 
 Apply this contract when your brief names you as a vsm-node —
 typically with a clause like *"you may spawn your own subagents
-per the [[vsm-node]] contract"* or *"you are operating at level
+per the [vsm-node](./vsm-node.md) contract"* or *"you are operating at level
 N+1 under vsm-loop."* If your brief does **not** name vsm-node,
 treat the task as atomic: do the work yourself in one pass, no
 recursion.
@@ -66,7 +83,7 @@ For each sub-task implied by your brief, classify:
 - **Atomic** (one short editing pass, one read pass, one test
   run): do it yourself in-process.
 - **Tactical** (a build-fix-review cycle, or an evidence-gathering
-  cycle): delegate to [[review-loop]] or [[research-loop]] inside
+  cycle): delegate to [review-loop](./review-loop.md) or [research-loop](./research-loop.md) inside
   your own scope.
 - **Substantial** (a sub-deliverable large enough to need its own
   plan and audit): spawn a sub-vsm-node, **only if** your brief
@@ -85,7 +102,7 @@ If you cannot justify all three, do not recurse.
 
 ## When you delegate (you are now S3)
 
-Use the briefing discipline from [[vsm-loop]] § *Subagent
+Use the briefing discipline from [vsm-loop](./vsm-loop.md) § *Subagent
 briefing under VSM*. Each brief you write is the transduction
 from your context into the subagent's. You must:
 
@@ -107,7 +124,7 @@ editor, one isolated workspace, one disjoint write scope** — if
 your runtime cannot provide it, serialise. Do not ask child
 subagents to create, remove, or clean worktrees. For
 runtime-specific guidance (Claude / Codex / other), see
-[[vsm-loop]] § *Parallelism and S2 anti-oscillation*.
+[vsm-loop](./vsm-loop.md) § *Parallelism and S2 anti-oscillation*.
 
 ## When you do the work yourself
 
@@ -150,7 +167,7 @@ that destroys recursive viability. If the brief feels too large
 mid-execution, that is a *Left undone* entry or an algedonic
 flag — not a courtesy checkpoint. Mid-brief emissions to the
 parent are zero unless they meet the two triggers above; see
-[[vsm-loop]] § *Stop conditions* for the parent-side rationale
+[vsm-loop](./vsm-loop.md) § *Stop conditions* for the parent-side rationale
 and the phrase-detector this contract inherits.
 
 ### Report shape
@@ -297,7 +314,7 @@ silently masks the upstream plan defect that depth-3 indicates.
 **Resolution authority and scope:** `DEPTH-LIMIT` resolves at
 the **nearest ancestor that owns the plan for the affected
 work** — typically the top orchestrator, or the ancestor that
-ran the [[vsm-loop]] planner whose output this branch traces back
+ran the [vsm-loop](./vsm-loop.md) planner whose output this branch traces back
 to. It does **not** automatically cross the metasystem boundary
 to the user.
 
@@ -335,7 +352,7 @@ still a hard refusal.
   maintained inside your scope, referenced (not pasted) into
   your report.
 - Any plan doc you wrote — under `./docs/drafts/` per
-  [[vsm-loop]]'s convention.
+  [vsm-loop](./vsm-loop.md)'s convention.
 - Your own intermediate state (transcripts, partial work,
   rejected hypotheses) — not persisted. Only the deliverable,
   the verification, and the report cross your scope boundary.

@@ -1,3 +1,22 @@
+---
+name: research-loop
+status: retired
+retired: 2026-06-07
+cq-successor: /cq:investigate (and /cq:investigate:advance)
+description: >-
+  Investigate-research-review loop for complex research and investigation
+  tasks. Forms a tree of hypotheses, delegates evidence-gathering to
+  subagents, validates each piece of evidence against source, maintains a
+  `./docs/research/research-<name>.md` ledger marking each hypothesis
+  confirmed/uncertain/wrong with cited and verified evidence, and iterates
+  depth-first until every leaf hypothesis is resolved and at least one is
+  confirmed. TRIGGER when: the user assigns an open-ended investigation
+  spanning multiple code paths or competing explanations, asks "why does X
+  happen", "what causes Y", "is it possible that Z", or otherwise requests
+  a thorough multi-hypothesis analysis, or explicitly asks for the
+  research loop / investigation loop.
+---
+
 # Research Loop: Investigate → Hypothesise → Evidence → Validate → Iterate
 
 A disciplined workflow for complex investigation and research tasks.
@@ -262,7 +281,7 @@ outside scope.
     hypothesis (or hypotheses) was confirmed, the key validated
     evidence with file:line citations, a brief note of which
     branches were ruled out, and a pointer to the ledger. Include a
-    compact metrics line when the investigation ran under [[vsm-loop]]
+    compact metrics line when the investigation ran under [vsm-loop](./vsm-loop.md)
     or when a threshold fired: `Metrics: hypotheses <total:n,
     confirmed:n, wrong:n, uncertain:0>; evidence <correct:n,
     incorrect:n, unverified:0>; validation discrepancies <n>;
@@ -333,7 +352,7 @@ Iterate or escalate; do not silently terminate.
 ## Metrics emitted by this loop
 
 When this loop runs standalone, metrics live in the research ledger and
-final result. When [[vsm-loop]] invokes this loop, these metrics feed
+final result. When [vsm-loop](./vsm-loop.md) invokes this loop, these metrics feed
 the parent loop's S4 control decisions:
 
 - **Hypothesis closure:** total hypotheses and final counts by state.
