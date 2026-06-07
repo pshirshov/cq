@@ -476,7 +476,6 @@
           claude-code = pkgs.callPackage ./nix/pkg/claude-code/package.nix { };
           codex = pkgs.callPackage ./nix/pkg/codex/package.nix { };
           pi-coding-agent = pkgs.callPackage ./nix/pkg/pi-coding-agent/package.nix { };
-          pi-xai-patched = pkgs.callPackage ./nix/pkg/pi-xai-patched/package.nix { };
           reattach-llm = pkgs.callPackage ./nix/pkg/reattach-llm/default.nix { };
           # yolo builds its internal llm-sandbox helper itself.
           yolo = pkgs.callPackage ./nix/pkg/yolo/default.nix {

@@ -149,11 +149,6 @@ let
   # rerun the two fake-hash builds in pkg/pi-coding-agent/package.nix.
   piBase = pkgs.callPackage ../pkg/pi-coding-agent/package.nix { };
 
-  # Vendored pi-xai with the Grok Build context window patched 128k->256k (the
-  # upstream extension hardcodes a stale 131072). Referenced as a local-path
-  # package below instead of "npm:pi-xai". See pkg/pi-xai-patched/package.nix.
-  piXaiPatched = pkgs.callPackage ../pkg/pi-xai-patched/package.nix { };
-
   # Secret-keyed env injected into Pi at launch from agenix secret files (read
   # only if present, so hosts without them degrade gracefully). Keeps tokens out
   # of the Nix store and at-rest env — they live only in pi's process env at
@@ -652,10 +647,10 @@ in
           # - pi-anthropic-auth: Claude Pro/Max OAuth compat; activates only on
           #   Anthropic OAuth, passes everything else through (`/login anthropic`).
           # - pi-xai: xAI OAuth provider (`grok-build`) with Grok models/tools
-          #   (`/login grok-build`). Vendored from a local store path
-          #   (piXaiPatched) not "npm:pi-xai" so the Grok Build context window
-          #   reads 256k not the stale hardcoded 128k; Pi npm-installs the local
-          #   package + its typebox dep on launch.
+          #   (`/login grok-build`). Installed straight from npm; the stale 128k
+          #   contextWindow it hardcodes is corrected at runtime by the
+          #   patch-grok-build-context-window.ts extension below (a models-only
+          #   registerProvider override) rather than by vendoring its source.
           # - pi-ollama-cloud: Ollama Cloud provider (first-party, badlogic).
           #   Registers the `ollama-cloud` provider against https://ollama.com/v1
           #   (apiKey `$OLLAMA_API_KEY`; or ~/.pi/agent/ollama-cloud.json) — no
@@ -677,12 +672,16 @@ in
             "npm:@gotgenes/pi-anthropic-auth"
             "npm:pi-ollama-cloud"
             "npm:@sinamtz/pi-minimax-provider"
-            "${piXaiPatched}"
+            "npm:pi-xai"
           ];
           extensions = [
             # For grok-* requests, keep xAI's native server-side web_search and
             # remove only the rpiv-web-tools client function of the same name.
             "${../pkg/pi-extensions/drop-client-web-search-for-grok.ts}"
+            # Correct pi-xai's stale 128k grok-build contextWindow to 256k via a
+            # models-only registerProvider override (replaces vendoring the
+            # patched pi-xai source). See the extension header for the mechanism.
+            "${../pkg/pi-extensions/patch-grok-build-context-window.ts}"
           ];
         };
       };

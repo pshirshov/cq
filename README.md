@@ -27,7 +27,7 @@ nix/
     llm-skills/               # SKILL.md set + meta.yaml validation
     llm-contexts/             # general-context.md + pi-context.md
     claude-code/ codex/       # vendored agent CLIs (pinned releases)
-    pi-coding-agent/ pi-xai-patched/ pi-extensions/
+    pi-coding-agent/ pi-extensions/
     reattach-llm/
   hm/                         # home-manager modules: dev-llm.nix, programs-pi.nix
   lib/                        # mk-agent-harness.nix (harness module factory)
@@ -183,6 +183,6 @@ dependencies. After changing dependencies (and `bun.lock`), refresh its
 Outputs:
 - `packages.{ledger-mcp,ledger-tui,ledger-web,node-modules}` +
   `apps.{default,ledger-mcp,ledger-tui,ledger-web}` (default is `ledger-mcp`).
-- `packages.{yolo,claude-code,codex,pi-coding-agent,pi-xai-patched,llm-skills,llm-contexts,llm-context-with-env,reattach-llm}` — harness building blocks.
+- `packages.{yolo,claude-code,codex,pi-coding-agent,llm-skills,llm-contexts,llm-context-with-env,reattach-llm}` — harness building blocks.
 - `homeManagerModules.dev-llm` — the coding-agent harness module.
 - `llmAssets` — the ledger's system-agnostic prompt/skill asset bundle.
