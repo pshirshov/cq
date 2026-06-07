@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 81
+  item: 85
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -309,6 +309,26 @@ archives:
     summary: "G23 phase 1 complete: authored nix/pkg/cq-assets/docs/flow-state-machines.md (T200) documenting the plan/investigate/implement/advance state machines + cross-flow handoff topology; reviewed go-ahead (R240). Task done, milestone fully terminal."
     title: G23 phase 1 — flow state-machine doc
     status: done
+  - id: M79
+    path: ./archive/milestones/M79.md
+    summary: "Investigate D34 (top-bar progress 38/39) complete: root cause confirmed (H26 — denominator itemCount counts the terminal `withdrawn` question while numerator counts answered-only), file-and-deferred to G27, fix landed (T207-T209) and D34 resolved. HO15 handoff recorded."
+    title: "Investigate: topbar-progress-undercount"
+    status: done
+  - id: M83
+    path: ./archive/milestones/M83.md
+    summary: "G27/D34 fix landed: server-computed progressTotal on LedgerSummary (questions = open+answered, excludes withdrawn) in both MCP transports (T207), LedgerProgressBar uses it as denominator (T208), regression pinned (T209). All reviewed go-ahead; D34 resolved. Top-bar questions bar now reads 38/38 = 100%."
+    title: D34 fix — questions progress denominator excludes withdrawn (G27)
+    status: done
+  - id: M84
+    path: ./archive/milestones/M84.md
+    summary: "G25 skill-retirement landed: five skills (research-loop, vsm-loop, vsm-node, question-batch, review-loop) archived to docs/legacy-skills/ (T211), source dirs removed/de-registered (T212), references repointed to cq successors (T213), surviving skills verified clean (T214), and the final gate passed — nix build .#llm-skills green with 7 survivors, zero dangling refs in nix/ (T215). All reviewed go-ahead."
+    title: "G25: Retire legacy skill family (research-loop, vsm-loop, vsm-node, question-batch, review-loop) + scrub cq references"
+    status: done
+  - id: M85
+    path: ./archive/milestones/M85.md
+    summary: "G26 session-log popup landed: added .lw-modal-backdrop/.lw-modal overlay CSS so LogModal is a fixed popup (T216), LogModal renders content via the sanitized Markdown component instead of <pre> (T217), read_log cap relaxed to 4 MiB per K42 (T218), happy-dom regression test for overlay+markdown (T219), and bun run check green gate (T220). All reviewed go-ahead."
+    title: "W: session-log markdown popup (ledger-web, G26)"
+    status: done
 ---
 
 # milestones
@@ -425,13 +445,6 @@ archives:
 - updatedAt: 2026-06-06T20:44:12.421Z
 - title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
 
-### M79 — open
-
-- createdAt: 2026-06-06T23:16:18.254Z
-- updatedAt: 2026-06-06T23:16:18.254Z
-- title: "Investigate: topbar-progress-undercount"
-- description: "Investigate why the top-bar progress indicator reads 38/39 at commit 6b057903c40e469a03f3511d0310c802e58ddece (no working changes) even though, per the user, all questions are answered. Working hypothesis to verify: the numerator counts only `answered` questions (38) while the denominator (39) includes the 1 `withdrawn` question — an off-by-one where a terminal-but-not-`answered` question inflates the total so the bar never reaches 100%."
-
 ### M80 — open
 
 - createdAt: 2026-06-06T23:30:00.234Z
@@ -445,3 +458,10 @@ archives:
 - updatedAt: 2026-06-06T23:34:46.584Z
 - title: "Plan: render session logs as markdown in a popup"
 - description: Coordination milestone for the goal of changing how sessionLogs (and similar markdown content) on goals/handoffs ledger items are surfaced in the UI — from inline verbatim text to a popup/modal that renders the log markdown.
+
+### M82 — open
+
+- createdAt: 2026-06-06T23:49:22.032Z
+- updatedAt: 2026-06-06T23:49:22.032Z
+- title: "Plan: fix D34 (top-bar progress counts withdrawn)"
+- description: Coordination milestone for the defect-seeded goal fixing D34 — the top-bar questions progress bar reads 38/39 because itemCount (denominator) counts the terminal `withdrawn` question while completedCount (numerator) counts `answered` only. Seeded from the confirmed investigate root cause (H26).

@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 26
+  item: 27
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -517,10 +517,10 @@ archives:
 
 ## M80
 
-### G25 — clarifying
+### G25 — planned
 
 - createdAt: 2026-06-06T23:30:09.460Z
-- updatedAt: 2026-06-06T23:33:24.036Z
+- updatedAt: 2026-06-07T00:09:47.056Z
 - author: "opus-4.8[1m]"
 - session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
 - title: Retire legacy skills (research-loop, vsm-loop, vsm-node, question-batch) + clean up cq references
@@ -530,14 +530,23 @@ archives:
     User request (verbatim): "I think we should retire the following skills: research-loop, vsm-loop, vsm-node, question-batch. For future reference, move them into ./docs/legacy-skills ; our cq flow references these skills, we should cleanup the references"
     
     Scope notes for the planner to clarify: (1) where these skills currently live (likely nix/pkg/cq-assets/skills/ or similar) and what 'move to ./docs/legacy-skills' means for the build/packaging (Nix) that ships them; (2) which cq flow assets reference them (commands/cq/*, agents/*, skill manifests) and what 'clean up references' should do — remove the references, or repoint them; (3) whether retiring implies they must no longer be installed/registered as invocable skills.
-- sessionLogs: ["docs/logs/20260606-233304-ab05488ed82cc7cad.md"]
+- sessionLogs: ["docs/logs/20260606-233304-ab05488ed82cc7cad.md","docs/logs/20260607-000134-ab5f1116794648297.md","docs/logs/20260607-000637-aeb3128d2c2ae4474.md","docs/logs/20260607-000936-a5f137261337c70fc.md"]
+- grounding: |
+    Answered Q117-Q120 set the build shape:
+    - Q117: FULLY retire — move each skill dir OUT of nix/pkg/llm-skills/skills/. default.nix discovers skills via `builtins.readDir ./skills` (filterAttrs directory) and inlines `<meta.yaml>` + `<content.md>` per dir; removing a dir from skills/ de-registers it with no manifest edit. validate-skills.sh runs on skills/*/meta.yaml, so once dirs are gone there is nothing to validate for them.
+    - Q118: REPOINT references to cq successors where one exists (research-loop->/cq:investigate, question-batch->questions-ledger flow, vsm-*/review-loop->/cq:advance + plan/implement/review flow), DELETE only where no successor applies.
+    - Q119: FLATTEN each archived skill to a single docs/legacy-skills/<name>.md with meta.yaml folded into a header (NOT verbatim dir). Convert the inter-skill [[wikilinks]] inside the archived bodies so they don't dangle (point to peer archive files or note retirement).
+    - Q120: SCOPE EXPANSION — retire FIVE skills, not four: research-loop, vsm-loop, vsm-node, question-batch, AND review-loop. review-loop is the whole review/vsm family the user now wants gone (cq plan/implement/review flow supersedes it). Original goal title names only four; the authoritative set is five.
+    
+    Repo facts: skills are {meta.yaml, content.md} dirs under nix/pkg/llm-skills/skills/. docs/legacy-skills/ is repo-root relative and does NOT yet exist (docs/ has logs/, archive/, drafts/). cross-references via [[wikilinks]] couple the retired set to each other; with review-loop also retired, the entire family moves together (no surviving in-family link target). Reference surface to scrub: nix/pkg/cq-assets (commands/cq/*, agent prompts, other surviving skills' content.md) plus any surviving llm-skills/skills/* that mention the five names. Use git mv semantics (rename-tracked) for the move.
+- milestones: ["M84"]
 
 ## M81
 
-### G26 — clarifying
+### G26 — planned
 
 - createdAt: 2026-06-06T23:34:57.128Z
-- updatedAt: 2026-06-06T23:37:58.081Z
+- updatedAt: 2026-06-07T00:17:06.565Z
 - author: "opus-4.8[1m]"
 - session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
 - title: Render session-log markdown in a popup (not inline verbatim) for goals/handoffs items
@@ -547,4 +556,39 @@ archives:
     Intent: in the ledger UI, the `sessionLogs` field on goals (and handoffs) ledger items currently shows the log markdown inline as raw/verbatim text. Instead, surface each session log via a popup/modal (e.g. click a log entry to open) that renders the markdown properly.
     
     Scope notes for the planner to clarify: (1) which frontend(s) are in scope — ledger-web (React; already uses react-markdown/remark-gfm/rehype-sanitize), ledger-tui (ink), or both; (2) whether 'session logs' means specifically the `sessionLogs` field (a list of docs/logs/*.md PATHS) and how the UI obtains the file CONTENT to render (frontends are pure MCP clients per CLAUDE.md — they never read docs/ directly, so a render needs the content available over MCP, e.g. via read_log); (3) the interaction model (click-to-open popup, list of logs, close behavior) and whether it generalizes to other markdown fields beyond sessionLogs.
-- sessionLogs: ["docs/logs/20260606-233747-adda28120a7df8d0b.md"]
+- sessionLogs: ["docs/logs/20260606-233747-adda28120a7df8d0b.md","docs/logs/20260607-001319-a46779525c26687ff.md","docs/logs/20260607-001655-a162a1c387e284ac0.md"]
+- grounding: |
+    Frontend in scope: ledger-web ONLY (Q122). Applies to the `sessionLogs` field on ALL items uniformly — keep the generic SessionLogsPanel wiring (Q123). Content source: the existing `read_log` MCP tool via `client.readLog` (no new tool).
+    
+    Current state (ledger-web/src/App.tsx):
+    - `SessionLogsPanel` (~L3162) renders sessionLogs paths as clickable buttons; clicking calls `open(path)` → `onReadLog` → sets `LogModal` state. The `<LogModal>` is rendered at ~L3214 INSIDE SessionLogsPanel's fragment (so it sits in normal document flow right after the log list).
+    - `LogModal` (~L3099) IS a real modal element (role=dialog, backdrop, Escape/close, backdrop-dismiss) using classes `lw-modal-backdrop` / `lw-modal`. Content body (~L3148) renders via `<pre className="lw-log-content">{state.content}</pre>` — NOT the Markdown component. A truncation notice (~L3143) shows when `read_log` returns `truncated:true`.
+    
+    ROOT CAUSE of user's 'opens inline, not a popup' (Q121): styles.css has NO rules for `.lw-modal-backdrop` / `.lw-modal`. The help dialog (`.lw-help-backdrop` position:fixed; inset:0) and batch modal (`.lw-batch`) ARE styled as fixed overlays, but LogModal's classes are unstyled, so the modal renders in document flow (appears inline below the links) instead of as a fixed overlay popup.
+    
+    Three gaps vs request:
+    1. Missing `.lw-modal-backdrop`/`.lw-modal` CSS → modal not an overlay (Q121 'open as a popup').
+    2. Content rendered via `<pre>` not `<Markdown>` (Q121 'rendered as markdown'). Markdown component exists at src/Markdown.tsx (react-markdown + remark-gfm + rehype-sanitize); `.lw-md` styles exist.
+    3. Q124 'render everything without truncation': server caps read_log at MAX_READ_LOG_BYTES=256KiB (packages/ledger/src/mcp/readLog.ts) and flags truncated. See decision on bound vs literal-no-cap.
+    
+    Tests: web uses happy-dom; existing LogModal tests likely under packages/ledger-web/test (look for log-modal-* testids). `bun run check` (typecheck+lint+test) from nix/pkg/cq-ledgers/.
+- milestones: ["M85"]
+
+## M82
+
+### G27 — planned
+
+- createdAt: 2026-06-06T23:50:10.050Z
+- updatedAt: 2026-06-06T23:58:13.226Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- title: Fix D34 — top-bar questions progress bar reads 38/39 (denominator counts the terminal `withdrawn` question)
+- description: |
+    DEFECT-SEEDED goal (skips clarifying — root cause already confirmed). Fixes defect D34.
+    
+    CONFIRMED ROOT CAUSE (investigate H26, all citations orchestrator-validated): the top-bar questions progress fraction is `completedCount / itemCount`, both server-computed in the LedgerSummary and rendered verbatim by LedgerProgressBar (ledger-web App.tsx:1416-1430). For the questions ledger the NUMERATOR `computeCompletedCount` returns the count of `answered` only (ledgerTools.ts:78-79; mirrored in stdioLedgerTools.ts:119-132), deliberately excluding the other terminal status `withdrawn`. The DENOMINATOR `itemCount` (ledgerTools.ts:191-198) totals EVERY active item in every status with no terminal exclusion, so it includes the `withdrawn` question. Per QUESTIONS_SCHEMA (constants.ts:205-206) `withdrawn` is terminal but is not `answered`. With the live ledger at 38 answered + 1 withdrawn + 0 open = 39, the bar reads 38/39 and never reaches 100% while any withdrawn question exists. The answered-only numerator is intentional (types.ts:154-169); the defect is the ASYMMETRY — the denominator is not adjusted to also exclude `withdrawn`.
+    
+    SUGGESTED FIX (verbatim from D34): Make the questions progress denominator symmetric with its answered-only numerator so a withdrawn question is neither a positive completion (numerator) nor pending work (denominator). RECOMMENDED (approach A): introduce a per-schema 'progress denominator' classification alongside computeCompletedCount — for the questions ledger, denominator = active questions MINUS `withdrawn` (equivalently open + answered); for every other ledger, denominator = itemCount as today. Then the questions bar reads 38/38 = 100% when all answerable questions are answered. Keep `itemCount` itself unchanged (it is a general LedgerSummary field other consumers may rely on) — add a separate progress-total field OR compute the denominator from statusCounts in LedgerProgressBar. Alternative (approach B): count `withdrawn` in the numerator too (39/39) — simpler but contradicts the documented 'withdrawn is not a positive completion' intent, so prefer A. Apply the fix in BOTH MCP transports (ledgerTools.ts + stdioLedgerTools.ts) to keep them in sync, and extend test/enumerate-ledgers-summary.test.ts (which already encodes the 2-answered/1-open/1-withdrawn case) to assert the new denominator excludes withdrawn. The exact A-vs-B choice and field shape is the planner's to lock.
+- sourceRefs: ["defects:D34","hypothesis:H26"]
+- milestones: ["M83"]
+- sessionLogs: ["docs/logs/20260606-235430-a48f559038353f730.md","docs/logs/20260606-235758-a360792708a13fba4.md"]

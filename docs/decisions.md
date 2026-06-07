@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 37
+  item: 43
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -249,3 +249,68 @@ archives:
 - alternatives: "@xyflow/react (React Flow): richest interactive node-UI + native edge labels, but needs real-browser measurement (container size, ResizeObserver, DOMMatrix, getBBox) — heavy mocking to test under happy-dom, large bundle, and interactivity we don't need for a static help diagram. mermaid: purpose-built stateDiagram-v2 with native labelled transitions + self-loops, but its SVG layout depends on getBBox (returns 0 outside a real render tree) so it is unreliable/untestable under happy-dom without a headless chromium gate. dagre: also pure-JS layout (testable) but effectively in maintenance mode and weaker on edge labels / ports / self-loops than elk. cytoscape.js: canvas/DOM-measurement based, heavier, oriented at interactive graph exploration. Keep-homegrown-and-extend: rejected per Q116 (user explicitly asked to stop maintaining it)."
 - sourceRefs: ["Q116 answer: adopt a graph/state-machine viz library for both tabs, retire homegrown renderer","reactflow.dev/learn/layouting (elkjs is a pure layout engine; React Flow recommends it)","github.com/kieler/elkjs (EPL-2.0, Eclipse Layout Kernel ported to JS, computes positions only)","mermaid-js/mermaid#4180 (getBBox returns 0 when element not in render tree — happy-dom incompatibility)","xyflow/xyflow testing docs (mock ResizeObserver/DOMMatrix/getBBox; container needs width+height)"]
 - ledgerRefs: ["goals:G23"]
+
+## M82
+
+### K38 — locked
+
+- createdAt: 2026-06-06T23:53:27.772Z
+- updatedAt: 2026-06-06T23:53:27.772Z
+- author: "opus-4.8[1m]"
+- headline: "D34 fix shape: add server-side `progressTotal` field to LedgerSummary (approach A1), not client-side statusCounts math (A2)"
+- rationale: "D34's recommended fix is approach A (denominator symmetric with the answered-only numerator: questions denominator = open + answered, i.e. itemCount minus `withdrawn`; every other ledger denominator = itemCount). Two field shapes were viable: A1 = a new server-computed `progressTotal` field on LedgerSummary; A2 = compute the denominator client-side in LedgerProgressBar from `statusCounts`. LOCKED on A1. Rationale: the existing answered-only numerator (`completedCount`) is deliberately computed SERVER-SIDE against each ledger's schema, and App.tsx LedgerProgressBar (src/App.tsx:1405) documents the invariant 'No client-side schema lookup — classification is entirely server-side (T1/T3)'. A2 would re-introduce questions-ledger-specific classification on the client, violating that invariant and splitting the completion logic across tiers. A1 keeps numerator and denominator computed in the same place, the same way, mirrored across BOTH transports (ledgerTools.ts + stdioLedgerTools.ts). Field name: `progressTotal` (optional on LedgerSummary, absent on older servers → client falls back to `itemCount`). Numerator stays `completedCount`; `itemCount` is left UNCHANGED (other consumers rely on it)."
+- ledgerRefs: ["goals:G27","defects:D34"]
+
+### K39 — locked
+
+- createdAt: 2026-06-06T23:57:40.230Z
+- updatedAt: 2026-06-06T23:57:40.230Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (R247): D34 fix plan T207-T209 is grounded, complete across both MCP transports + web client + regression test, correctly sequenced, with verifiable acceptance per task; 0 criticisms, 0 new questions."
+- ledgerRefs: ["goals:G27"]
+
+## M80
+
+### K40 — locked
+
+- createdAt: 2026-06-06T23:59:42.739Z
+- updatedAt: 2026-06-06T23:59:42.739Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- headline: "Retirement set is FIVE skills, not four: review-loop joins research-loop/vsm-loop/vsm-node/question-batch"
+- rationale: "Q120 answer chose 'These four PLUS review-loop (retire the whole review/vsm family, since the cq flow supersedes it).' The original goal title/description named only four; this decision records that the authoritative retirement set is five. Consequence: the entire [[wikilink]]-coupled family moves together, so no in-family link target survives — archived bodies must repoint inter-skill links to peer archive files or to cq successors, not to a still-installed review-loop."
+- ledgerRefs: ["goals:G25"]
+
+### K41 — locked
+
+- createdAt: 2026-06-07T00:09:20.877Z
+- updatedAt: 2026-06-07T00:09:20.877Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead on round-2 plan (R249): 0 criticisms, 0 new questions; scrub-scope now matches T215 verify-scope and T212 de-registration acceptance is correct. Plan (M84/T210-T215) is fine-grained, sequenced, testable, grounded, complete."
+- ledgerRefs: ["goals:G25"]
+
+## M81
+
+### K42 — locked
+
+- createdAt: 2026-06-07T00:11:58.769Z
+- updatedAt: 2026-06-07T00:11:58.769Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- headline: "read_log truncation: relax the cap, keep a generous safety bound (Q124)"
+- rationale: "Q124 answer was 'render everything without truncation'. Literal removal of MAX_READ_LOG_BYTES (256KiB) would make read_log return unbounded content, risking MCP tool-output / browser overflow and violating fail-fast boundary-validation. Real session logs are realistically well under 256KiB, so the user's intent ('don't cut my logs off') is satisfied by rendering the full content the popup receives. DECISION: raise MAX_READ_LOG_BYTES to a generous bound (e.g. 4 MiB) so practical logs are always returned whole, KEEP the truncated flag + notice purely as a defensive fallback for pathological files, and render the (full) content as markdown. Do NOT make reads unbounded. If a future need arises for truly-unbounded reads, revisit with streaming/pagination rather than an uncapped read."
+- ledgerRefs: ["goals:G26"]
+
+### K43 — locked
+
+- createdAt: 2026-06-07T00:16:37.595Z
+- updatedAt: 2026-06-07T00:16:37.595Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- headline: "plan review: approved"
+- rationale: "Reviewer go-ahead (ref review R250): plan grounded/complete/fine-grained/sequenced/testable, 0 criticisms, 0 new questions."
+- ledgerRefs: ["goals:G26"]

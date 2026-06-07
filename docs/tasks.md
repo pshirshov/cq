@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 206
+  item: 220
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -253,6 +253,21 @@ archives:
     path: ./archive/tasks/M77.md
     summary: "G23 phase 1 complete: authored nix/pkg/cq-assets/docs/flow-state-machines.md (T200) documenting the plan/investigate/implement/advance state machines + cross-flow handoff topology; reviewed go-ahead (R240). Task done, milestone fully terminal."
     title: G23 phase 1 — flow state-machine doc
+    status: done
+  - id: M83
+    path: ./archive/tasks/M83.md
+    summary: "G27/D34 fix landed: server-computed progressTotal on LedgerSummary (questions = open+answered, excludes withdrawn) in both MCP transports (T207), LedgerProgressBar uses it as denominator (T208), regression pinned (T209). All reviewed go-ahead; D34 resolved. Top-bar questions bar now reads 38/38 = 100%."
+    title: D34 fix — questions progress denominator excludes withdrawn (G27)
+    status: done
+  - id: M84
+    path: ./archive/tasks/M84.md
+    summary: "G25 skill-retirement landed: five skills (research-loop, vsm-loop, vsm-node, question-batch, review-loop) archived to docs/legacy-skills/ (T211), source dirs removed/de-registered (T212), references repointed to cq successors (T213), surviving skills verified clean (T214), and the final gate passed — nix build .#llm-skills green with 7 survivors, zero dangling refs in nix/ (T215). All reviewed go-ahead."
+    title: "G25: Retire legacy skill family (research-loop, vsm-loop, vsm-node, question-batch, review-loop) + scrub cq references"
+    status: done
+  - id: M85
+    path: ./archive/tasks/M85.md
+    summary: "G26 session-log popup landed: added .lw-modal-backdrop/.lw-modal overlay CSS so LogModal is a fixed popup (T216), LogModal renders content via the sanitized Markdown component instead of <pre> (T217), read_log cap relaxed to 4 MiB per K42 (T218), happy-dom regression test for overlay+markdown (T219), and bun run check green gate (T220). All reviewed go-ahead."
+    title: "W: session-log markdown popup (ledger-web, G26)"
     status: done
 ---
 

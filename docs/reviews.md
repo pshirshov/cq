@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 246
+  item: 264
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -278,6 +278,21 @@ archives:
     path: ./archive/reviews/M77.md
     summary: "G23 phase 1 complete: authored nix/pkg/cq-assets/docs/flow-state-machines.md (T200) documenting the plan/investigate/implement/advance state machines + cross-flow handoff topology; reviewed go-ahead (R240). Task done, milestone fully terminal."
     title: G23 phase 1 — flow state-machine doc
+    status: done
+  - id: M83
+    path: ./archive/reviews/M83.md
+    summary: "G27/D34 fix landed: server-computed progressTotal on LedgerSummary (questions = open+answered, excludes withdrawn) in both MCP transports (T207), LedgerProgressBar uses it as denominator (T208), regression pinned (T209). All reviewed go-ahead; D34 resolved. Top-bar questions bar now reads 38/38 = 100%."
+    title: D34 fix — questions progress denominator excludes withdrawn (G27)
+    status: done
+  - id: M84
+    path: ./archive/reviews/M84.md
+    summary: "G25 skill-retirement landed: five skills (research-loop, vsm-loop, vsm-node, question-batch, review-loop) archived to docs/legacy-skills/ (T211), source dirs removed/de-registered (T212), references repointed to cq successors (T213), surviving skills verified clean (T214), and the final gate passed — nix build .#llm-skills green with 7 survivors, zero dangling refs in nix/ (T215). All reviewed go-ahead."
+    title: "G25: Retire legacy skill family (research-loop, vsm-loop, vsm-node, question-batch, review-loop) + scrub cq references"
+    status: done
+  - id: M85
+    path: ./archive/reviews/M85.md
+    summary: "G26 session-log popup landed: added .lw-modal-backdrop/.lw-modal overlay CSS so LogModal is a fixed popup (T216), LogModal renders content via the sanitized Markdown component instead of <pre> (T217), read_log cap relaxed to 4 MiB per K42 (T218), happy-dom regression test for overlay+markdown (T219), and bun run check green gate (T220). All reviewed go-ahead."
+    title: "W: session-log markdown popup (ledger-web, G26)"
     status: done
 ---
 
@@ -635,3 +650,57 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G23"]
 - sessionLogs: ["docs/logs/20260606-210916-a07e3591c62e34c2d.md"]
+
+## M82
+
+### R247 — go-ahead
+
+- createdAt: 2026-06-06T23:56:42.524Z
+- updatedAt: 2026-06-06T23:57:17.919Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- summary: "go-ahead: D34 fix plan (T207-T209) is grounded, complete across both transports + client + regression test, correctly sequenced, and each task has a verifiable acceptance criterion."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G27"]
+- sessionLogs: ["docs/logs/20260606-235703-aa9bf7ba7fd4842b4.md"]
+
+## M80
+
+### R248 — revise
+
+- createdAt: 2026-06-07T00:04:26.967Z
+- updatedAt: 2026-06-07T00:05:01.587Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- summary: Plan is grounded, complete (all five skills incl. review-loop), correctly sequenced and testable; two planner-fixable acceptance/scope precision gaps keep it on revise.
+- new_questions: []
+- criticism: ["Scrub scope vs verify scope mismatch: T210 inventory and the T213/T214 scrub tasks enumerate only nix/pkg/cq-assets/** and nix/pkg/llm-skills/skills/**, but T215's final gate greps ALL of nix/ (which also covers nix/pkg/llm-contexts/, nix/hm/, and flake.nix). I verified llm-contexts (general-context.md, pi-context.md) and flake.nix currently contain ZERO references to the five names, so the gate passes today — but the inventory/scrub scope should be widened to the full nix/ tree (or T215's gate narrowed to match) so every location the gate checks is owned by a scrub task; otherwise a reference outside the two enumerated subtrees would be invisible to T210/T213/T214 yet fail T215 with no task assigned to fix it.","T212 acceptance command is imprecise: it asserts `nix eval .#llm-skills` shows an attr set that 'no longer includes the five removed names', but per flake.nix L462 `.#llm-skills` resolves to `.package` (the validated derivation), not the `skills` attr set — `nix eval` on a derivation does not expose skillNames. De-registration IS correctly verifiable (T215 check 2 inspects the built $out/skills), so fix T212's own acceptance to inspect $out/skills after a build, or to evaluate `(callPackage ./nix/pkg/llm-skills/default.nix {}).skills` attr names, rather than `nix eval .#llm-skills`."]
+- ledgerRefs: ["goals:G25"]
+- sessionLogs: ["docs/logs/20260607-000447-a69e06dc96c2189ab.md"]
+
+### R249 — go-ahead
+
+- createdAt: 2026-06-07T00:08:23.828Z
+- updatedAt: 2026-06-07T00:08:53.289Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- summary: "Round-2 revisions resolve both R248 criticisms: scrub-scope now equals the T215 verify-scope (full nix/ tree) and T212's de-registration acceptance is now technically correct against the actual .package/readDir structure; plan is fine-grained, sequenced, testable, grounded, and complete."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G25"]
+- sessionLogs: ["docs/logs/20260607-000840-a743847f150e34c0a.md"]
+
+## M81
+
+### R250 — go-ahead
+
+- createdAt: 2026-06-07T00:15:45.738Z
+- updatedAt: 2026-06-07T00:16:15.556Z
+- author: "opus-4.8[1m]"
+- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
+- summary: Plan for G26 is grounded, complete, fine-grained, sequenced, and testable — root cause (missing .lw-modal-backdrop/.lw-modal CSS) and all API references verified against the repo; matches answers Q121-Q124 + K42; web-only, generic across items; approved.
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G26"]
+- sessionLogs: ["docs/logs/20260607-001602-a437cb1196df33565.md"]
