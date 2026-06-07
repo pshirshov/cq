@@ -131,6 +131,30 @@ function computeCompletedCount(
   return total;
 }
 
+/**
+ * The withdrawn status for the questions ledger. Items in this terminal status
+ * do not count toward the progress denominator (mirror of QUESTIONS_ANSWERED_STATUS).
+ */
+const QUESTIONS_WITHDRAWN_STATUS = "withdrawn";
+
+/**
+ * Compute the denominator for this ledger's progress bar, classified against
+ * its OWN schema:
+ *  - questions ledger: open + answered (excludes the terminal `withdrawn`).
+ *  - every other ledger: itemCount (all active items).
+ */
+function computeProgressTotal(
+  ledgerName: string,
+  sc: Record<string, number>,
+  _schema: LedgerSchema,
+  itemCount: number,
+): number {
+  if (ledgerName === QUESTIONS_LEDGER) {
+    return itemCount - (sc[QUESTIONS_WITHDRAWN_STATUS] ?? 0);
+  }
+  return itemCount;
+}
+
 // ---------------------------------------------------------------------------
 // Tool registration
 // ---------------------------------------------------------------------------
@@ -176,6 +200,7 @@ export function registerLedgerStdioTools(
       const counts: Record<string, number> = {};
       const statusCounts: Record<string, Record<string, number>> = {};
       const completedCounts: Record<string, number> = {};
+      const progressTotals: Record<string, number> = {};
       for (const name of ledgers) {
         const fetched = store.fetch(name);
         const sc: Record<string, number> = {};
@@ -189,12 +214,14 @@ export function registerLedgerStdioTools(
         counts[name] = total;
         statusCounts[name] = sc;
         completedCounts[name] = computeCompletedCount(name, sc, fetched.schema);
+        progressTotals[name] = computeProgressTotal(name, sc, fetched.schema, total);
       }
       const ledgerSummaries = ledgers.map((name) => ({
         name,
         itemCount: counts[name] ?? 0,
         statusCounts: statusCounts[name] ?? {},
         completedCount: completedCounts[name] ?? 0,
+        progressTotal: progressTotals[name] ?? 0,
       }));
       return jsonResult({ ledgers, counts, ledgerSummaries });
     },

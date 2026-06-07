@@ -167,6 +167,14 @@ export interface LedgerSummary {
    * older servers.
    */
   completedCount?: number;
+  /**
+   * Denominator for the progress bar, computed server-side against each
+   * ledger's schema; for the questions ledger this is open + answered
+   * (excludes the terminal `withdrawn`); for every other ledger it equals
+   * itemCount. Optional: absent on older servers (clients fall back to
+   * itemCount).
+   */
+  progressTotal?: number;
 }
 
 export interface ArchivePointer {
