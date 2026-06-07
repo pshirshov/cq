@@ -547,7 +547,7 @@ in
             allow = [ "Edit(/tmp/**)" ];
           };
           includeCoAuthoredBy = config.smind.hm.dev.llm.coAuthored.enable;
-          attribution = lib.mkIf (!config.smind.hm.dev.llm.coAuthored.enable) { commit = ""; pr = "" };
+          attribution = lib.mkIf (!config.smind.hm.dev.llm.coAuthored.enable) { commit = ""; pr = ""; };
           effortLevel = "high";
           model = "claude-opus-4-8[1m]";
           spinnerVerbs = {
