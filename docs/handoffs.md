@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 19
+  item: 20
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -79,3 +79,15 @@ archives:
 - ledgerRefs: ["goals:G28"]
 - blockingQuestions: ["Q125","Q126","Q127","Q128","Q129"]
 - sessionLogs: ["docs/logs/20260607-190101-adc3647f6e76fc771.md"]
+
+### HO20 — answers-required
+
+- createdAt: 2026-06-07T19:20:50.843Z
+- updatedAt: 2026-06-07T19:20:50.843Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- summary: "BLOCKED-ON-QUESTIONS. /cq:advance ran one cycle on the only actionable item, goal G28 (\"Enable subagent support in the pi agent harness for the cq flow\"). PLAN stage: the user had answered the first batch Q125-Q129, but Q125 (the load-bearing mechanism choice) was a COUNTER-QUESTION (\"give me pros/cons + how hard is a custom extension + downsides\"), so the goal stayed in its clarification sub-state and no plan could be emitted (configured multi-planner panel not run — clarification, not plan-emission, was the state). A single-planner pass grounded read-only in the real Pi extension surface (dev-llm.nix programs.pi wiring, the two extant nix/pkg/pi-extensions/*.ts, pi-context.md, mergedAgents frontmatter, the per-harness dispatch convention, and cq.toml) and filed Q130 answering the counter-question with a grounded 3-way comparison (nicobailon/pi-subagents npm vs badlogic example vs bespoke in-repo pi.registerTool extension) and a justified recommendation for the bespoke extension. Decisions captured from the answered batch: Q126 = shared cq prompts must stay UNCHANGED across harnesses (Pi mechanism interprets the existing named-agent+task dispatch convention); Q127 = orchestrator names which agent to run + fast/standard/frontier tier->provider mapping lives in cq.toml (needs a new [tiers] table); Q128 = acceptance is one explorer dispatch + one reviewer dispatch returning parseable results on THIS repo non-sandboxed first (sandbox+implement-worker is a follow-up); Q129 = no Nix-vendoring needed for a third-party ext, user biased to custom because a custom extension is also needed later for deterministic orchestration-session logic. INVESTIGATE/IMPLEMENT stages: skipped (no defects; no tasks). Open unknown to de-risk in the eventual first task: confirm Pi's ExtensionAPI can spawn a filtered-tool child session and capture its result. Final gate: P-investigate=FALSE, P-plan=FALSE (G28 blocked on open Q130), P-implement=FALSE, open-Q-gate=Q130 blocks G28. NEXT (user): answer Q130 in the TUI/web (lock the mechanism), then re-run /cq:advance (or /cq:plan:advance G28) to emit the task DAG."
+- flow: advance
+- ledgerRefs: ["goals:G28"]
+- blockingQuestions: ["Q130"]
+- sessionLogs: ["docs/logs/20260607-191636-acf7f53795bc6b6aa.md"]
