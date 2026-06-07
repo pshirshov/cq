@@ -61,6 +61,20 @@ export interface GetConfigResult {
   readonly aliases: Record<string, { harness: string; model: string }>;
   readonly reviewers: readonly string[];
   readonly planners: readonly string[];
+  /**
+   * The `[tiers]` table: maps fast/standard/frontier to a resolved
+   * provider+model, or null if `[tiers]` is absent from cq.toml.
+   */
+  readonly tiers: {
+    readonly fast?: { readonly harness: string; readonly model: string };
+    readonly standard?: { readonly harness: string; readonly model: string };
+    readonly frontier?: { readonly harness: string; readonly model: string };
+  } | null;
+  /**
+   * The `[agent_tiers]` table: maps agent-name -> tier name, or null if
+   * `[agent_tiers]` is absent from cq.toml.
+   */
+  readonly agentTiers: Record<string, string> | null;
 }
 
 /**

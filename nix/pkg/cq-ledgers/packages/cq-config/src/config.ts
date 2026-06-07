@@ -10,8 +10,12 @@ import * as path from "node:path";
 import { parseToml, type RawWebui } from "./toml.js";
 import {
   isHarness,
+  isTier,
+  DEFAULT_TIER,
   type CqConfig,
   type ReviewerToken,
+  type Tier,
+  type TiersConfig,
   type WebuiConfig,
 } from "./types.js";
 
@@ -77,7 +81,64 @@ export function parseConfig(source: string): CqConfig {
   const reviewers = raw.reviewers ?? [];
   const planners = raw.planners ?? [];
   const webui = raw.webui === null ? null : parseWebui(raw.webui);
-  return { aliases, reviewers, planners, webui };
+  const tiers = raw.tiers === null ? null : parseTiers(raw.tiers, aliases);
+  const agentTiers =
+    raw.agentTiers === null ? null : parseAgentTiers(raw.agentTiers);
+  return { aliases, reviewers, planners, webui, tiers, agentTiers };
+}
+
+/**
+ * Parse the `[tiers]` raw string table into a `TiersConfig`.
+ *
+ * Each value is either an alias name (looked up in `aliases`) or a direct
+ * `"<harness>:<model>"` token. Unknown keys (i.e. not fast/standard/frontier)
+ * throw a `CqConfigError`.
+ */
+function parseTiers(
+  raw: Record<string, string>,
+  aliases: Record<string, ReviewerToken>,
+): TiersConfig {
+  const VALID_TIER_KEYS = new Set(["fast", "standard", "frontier"]);
+  let fast: ReviewerToken | undefined;
+  let standard: ReviewerToken | undefined;
+  let frontier: ReviewerToken | undefined;
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (!VALID_TIER_KEYS.has(key)) {
+      throw new CqConfigError(
+        `unexpected key "${key}" in [tiers] (expected fast, standard, or frontier)`,
+      );
+    }
+    // Resolve: if the value names a known alias, use it; otherwise parse
+    // the value directly as a "<harness>:<model>" token.
+    const token =
+      aliases[value] !== undefined
+        ? aliases[value]!
+        : parseReviewerToken(value);
+    if (key === "fast") fast = token;
+    else if (key === "standard") standard = token;
+    else frontier = token;
+  }
+
+  return { fast, standard, frontier };
+}
+
+/**
+ * Parse the `[agent_tiers]` raw string table into a `Record<string, Tier>`.
+ *
+ * Every value must be a known tier name (fast/standard/frontier).
+ */
+function parseAgentTiers(raw: Record<string, string>): Record<string, Tier> {
+  const result: Record<string, Tier> = {};
+  for (const [agentName, tierName] of Object.entries(raw)) {
+    if (!isTier(tierName)) {
+      throw new CqConfigError(
+        `agent_tiers["${agentName}"] = "${tierName}" is not a valid tier (expected fast, standard, or frontier)`,
+      );
+    }
+    result[agentName] = tierName;
+  }
+  return result;
 }
 
 /**
@@ -141,6 +202,58 @@ export function resolvePlanners(config: CqConfig): ReviewerToken[] {
     }
     return token;
   });
+}
+
+/**
+ * Resolve a named agent to its tier, using `[agent_tiers]` if present and
+ * the agent is listed; falls back to `DEFAULT_TIER` otherwise.
+ */
+export function resolveAgentTier(config: CqConfig, agentName: string): Tier {
+  if (config.agentTiers !== null) {
+    const tier = config.agentTiers[agentName];
+    if (tier !== undefined) {
+      return tier;
+    }
+  }
+  return DEFAULT_TIER;
+}
+
+/**
+ * Resolve a tier name to a `ReviewerToken` using the `[tiers]` table.
+ *
+ * Throws a `CqConfigError` if `[tiers]` is absent or the requested tier slot
+ * is not configured.
+ */
+export function resolveTierToken(
+  config: CqConfig,
+  tier: Tier,
+): ReviewerToken {
+  if (config.tiers === null) {
+    throw new CqConfigError(
+      `cannot resolve tier "${tier}": [tiers] table is absent from cq.toml`,
+    );
+  }
+  const token = config.tiers[tier];
+  if (token === undefined) {
+    throw new CqConfigError(
+      `tier "${tier}" is not configured in [tiers] (slot is absent)`,
+    );
+  }
+  return token;
+}
+
+/**
+ * Resolve a named agent end-to-end: agent-name -> tier -> ReviewerToken.
+ *
+ * Combines `resolveAgentTier` and `resolveTierToken`. Throws a
+ * `CqConfigError` if the resolved tier has no entry in `[tiers]`.
+ */
+export function resolveAgentModel(
+  config: CqConfig,
+  agentName: string,
+): ReviewerToken {
+  const tier = resolveAgentTier(config, agentName);
+  return resolveTierToken(config, tier);
 }
 
 /**

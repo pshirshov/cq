@@ -1,16 +1,18 @@
 /**
- * cq.toml parsing scoped to the cq.toml schema (T170, T185).
+ * cq.toml parsing scoped to the cq.toml schema (T170, T185, T223).
  *
  * Parsing is delegated to the maintained `smol-toml` library (pure TS, TOML
  * 1.0, zero native deps, Bun-compatible). smol-toml accepts *any* valid TOML,
  * so this module layers the cq.toml schema on top of it as a post-parse
  * validation pass (fail fast at the boundary):
- *  - only `[aliases]`, `reviewers`, `planners`, and `[webui]` are allowed;
- *    any other top-level key/table throws;
+ *  - only `[aliases]`, `reviewers`, `planners`, `[webui]`, `[tiers]`, and
+ *    `[agent_tiers]` are allowed; any other top-level key/table throws;
  *  - `aliases` is a table of `name = "value"` string assignments;
  *  - `reviewers` / `planners` are arrays of strings;
  *  - `webui` is a table with an optional string `host` and an optional
- *    integer `port` in 1..65535.
+ *    integer `port` in 1..65535;
+ *  - `tiers` is a table of `fast/standard/frontier = "<harness>:<model>"`;
+ *  - `agent_tiers` is a table of `agent-name = "<tier>"` strings.
  *
  * A malformed document (smol-toml's `TomlError`) is re-wrapped into the
  * existing `TomlSyntaxError` style so the public surface is unchanged.
@@ -39,6 +41,10 @@ export interface RawToml {
   readonly planners: readonly string[] | null;
   /** The `[webui]` table, or null if absent. */
   readonly webui: RawWebui | null;
+  /** The `[tiers]` table: tier name -> raw token string, or null if absent. */
+  readonly tiers: Record<string, string> | null;
+  /** The `[agent_tiers]` table: agent name -> tier name, or null if absent. */
+  readonly agentTiers: Record<string, string> | null;
 }
 
 /** Thrown when cq.toml is not valid TOML, or violates the cq.toml schema. */
@@ -50,7 +56,14 @@ class TomlSyntaxError extends Error {
 }
 
 /** The exact set of top-level keys/tables cq.toml permits. */
-const ALLOWED_TOP_LEVEL = new Set(["aliases", "reviewers", "planners", "webui"]);
+const ALLOWED_TOP_LEVEL = new Set([
+  "aliases",
+  "reviewers",
+  "planners",
+  "webui",
+  "tiers",
+  "agent_tiers",
+]);
 
 /** Narrow an unknown value to a record (TOML table). */
 function isTable(value: unknown): value is Record<string, unknown> {
@@ -83,6 +96,24 @@ function parseStringArray(key: string, value: unknown): string[] {
     }
     return entry;
   });
+}
+
+/**
+ * Validate + coerce a string-to-string table (used for `[tiers]` and
+ * `[agent_tiers]`): every value must be a string.
+ */
+function parseStringTable(key: string, value: unknown): Record<string, string> {
+  if (!isTable(value)) {
+    throw new TomlSyntaxError(`[${key}] must be a table`);
+  }
+  const result: Record<string, string> = {};
+  for (const [name, raw] of Object.entries(value)) {
+    if (typeof raw !== "string") {
+      throw new TomlSyntaxError(`${key}.${name} must be a string`);
+    }
+    result[name] = raw;
+  }
+  return result;
 }
 
 /**
@@ -131,6 +162,11 @@ export function parseToml(source: string): RawToml {
   const planners =
     "planners" in doc ? parseStringArray("planners", doc.planners) : null;
   const webui = "webui" in doc ? parseWebui(doc.webui) : null;
+  const tiers = "tiers" in doc ? parseStringTable("tiers", doc.tiers) : null;
+  const agentTiers =
+    "agent_tiers" in doc
+      ? parseStringTable("agent_tiers", doc.agent_tiers)
+      : null;
 
-  return { aliases, reviewers, planners, webui };
+  return { aliases, reviewers, planners, webui, tiers, agentTiers };
 }

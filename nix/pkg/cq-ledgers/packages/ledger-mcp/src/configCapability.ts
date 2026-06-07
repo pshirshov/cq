@@ -77,7 +77,14 @@ export function computePlanners(repoRoot: string): GetPlannersResult {
 export function computeConfig(repoRoot: string): GetConfigResult {
   const config = loadConfig(repoRoot);
   if (config === null) {
-    return { configured: false, aliases: {}, reviewers: [], planners: [] };
+    return {
+      configured: false,
+      aliases: {},
+      reviewers: [],
+      planners: [],
+      tiers: null,
+      agentTiers: null,
+    };
   }
   return projectConfig(config);
 }
@@ -87,11 +94,29 @@ function projectConfig(config: CqConfig): GetConfigResult {
   for (const [name, token] of Object.entries(config.aliases)) {
     aliases[name] = { harness: token.harness, model: token.model };
   }
+
+  let tiers: GetConfigResult["tiers"] = null;
+  if (config.tiers !== null) {
+    tiers = {
+      ...(config.tiers.fast !== undefined
+        ? { fast: { harness: config.tiers.fast.harness, model: config.tiers.fast.model } }
+        : {}),
+      ...(config.tiers.standard !== undefined
+        ? { standard: { harness: config.tiers.standard.harness, model: config.tiers.standard.model } }
+        : {}),
+      ...(config.tiers.frontier !== undefined
+        ? { frontier: { harness: config.tiers.frontier.harness, model: config.tiers.frontier.model } }
+        : {}),
+    };
+  }
+
   return {
     configured: config.reviewers.length > 0,
     aliases,
     reviewers: config.reviewers,
     planners: config.planners,
+    tiers,
+    agentTiers: config.agentTiers,
   };
 }
 
