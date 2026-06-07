@@ -174,7 +174,8 @@ let
     postBuild = ''
       wrapProgram $out/bin/pi \
         --run ${lib.escapeShellArg piSecretsPrelude} \
-        --set-default SEARXNG_URL https://searx.web.7mind.io
+        --set-default SEARXNG_URL https://searx.web.7mind.io \
+        --run 'export CQ_AGENTS_DIR="$HOME/.pi/agent/cq-agents"'
     '';
   };
 
@@ -752,6 +753,15 @@ in
       home.file = lib.mapAttrs' (
         key: body: lib.nameValuePair ".codex/prompts/${commandKeyToStem key}.md" { text = body; }
       ) mergedCommands;
+    })
+    (lib.mkIf config.smind.hm.dev.llm.enable {
+      # Project individual cq agent markdowns to ~/.pi/agent/cq-agents/<name>.md
+      # so the dispatch extension (T224) can discover them by reading the
+      # directory pointed to by $CQ_AGENTS_DIR (set on piWrapped above).
+      # Separate mkMerge element for the same reason as the Codex block above.
+      home.file = lib.mapAttrs' (
+        name: body: lib.nameValuePair ".pi/agent/cq-agents/${name}.md" { text = body; }
+      ) mergedAgents;
     })
   ];
 }
