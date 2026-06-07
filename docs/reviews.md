@@ -294,413 +294,96 @@ archives:
     summary: "G26 session-log popup landed: added .lw-modal-backdrop/.lw-modal overlay CSS so LogModal is a fixed popup (T216), LogModal renders content via the sanitized Markdown component instead of <pre> (T217), read_log cap relaxed to 4 MiB per K42 (T218), happy-dom regression test for overlay+markdown (T219), and bun run check green gate (T220). All reviewed go-ahead."
     title: "W: session-log markdown popup (ledger-web, G26)"
     status: done
+  - id: M37
+    path: ./archive/reviews/M37.md
+    summary: G10 (fix D13 TUI nav perf + D23 test flake) closed done; coordination milestone archived — all items terminal.
+    title: "Plan: fix D13 (TUI nav perf — memo boundaries) + D23 (multi-step-form test flake)"
+    status: done
+  - id: M39
+    path: ./archive/reviews/M39.md
+    summary: G12 (fix D24 's'-key-inert archived-item test) closed done; coordination milestone archived — all items terminal.
+    title: "Fix: vacuous 's'-key-inert archived-item test (restores D22)"
+    status: done
+  - id: M40
+    path: ./archive/reviews/M40.md
+    summary: "G11 (agent-ergonomic ledger MCP: snapshot + handoffs + sessionLogs + click-protection) closed done; coordination milestone archived."
+    title: "Plan: agent-ergonomic ledger MCP (state-overview endpoint + better descriptions)"
+    status: done
+  - id: M47
+    path: ./archive/reviews/M47.md
+    summary: G13 (fix D25/D26/D27 G11 follow-up cleanup) closed done; coordination milestone archived.
+    title: "Plan: fix D25/D26/D27 (G11 follow-up cleanup)"
+    status: done
+  - id: M49
+    path: ./archive/reviews/M49.md
+    summary: G14 (fix D28 readLog TOCTOU) closed done; coordination milestone archived.
+    title: "Plan: fix D28 (readLog TOCTOU)"
+    status: done
+  - id: M51
+    path: ./archive/reviews/M51.md
+    summary: G15 (explorer RW prober + pluggable parallel reviewers via cq.toml) closed done; coordination milestone archived.
+    title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
+    status: done
+  - id: M53
+    path: ./archive/reviews/M53.md
+    summary: G16 (fix D29 reject empty answer on `answered`) closed done; coordination milestone archived.
+    title: "Plan: fix D29 (reject empty answer on question `answered`)"
+    status: done
+  - id: M57
+    path: ./archive/reviews/M57.md
+    summary: G17 (fix D30 link-prompts stale llm/ root) closed done; coordination milestone archived.
+    title: "Plan: fix D30 (link-prompts stale `llm/` root → dangling symlinks)"
+    status: done
+  - id: M59
+    path: ./archive/reviews/M59.md
+    summary: G18 (merge cq-config into ledger MCP + parallel planners) closed done; coordination milestone archived.
+    title: "Plan: merge cq-config into ledger MCP + parallel planners"
+    status: done
+  - id: M63
+    path: ./archive/reviews/M63.md
+    summary: G19 (fix D32 README cq-config repoint) closed done; coordination milestone archived.
+    title: "Plan: fix D32 (README cq-config repoint)"
+    status: done
+  - id: M65
+    path: ./archive/reviews/M65.md
+    summary: G20 (cq.toml [webui] + cq CLI init/reset/erase) closed done; coordination milestone archived.
+    title: "Plan: cq.toml [webui] + cq CLI (init/reset/erase)"
+    status: done
+  - id: M66
+    path: ./archive/reviews/M66.md
+    summary: G21 (fix D31 modal backdrop press-started dismiss) closed done; coordination milestone archived.
+    title: "Plan: fix D31 (modal backdrop press-started-inside dismiss)"
+    status: done
+  - id: M70
+    path: ./archive/reviews/M70.md
+    summary: "G22 (sidebar reorder + help-size + SVG align + cq: renames) closed done; coordination milestone archived."
+    title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
+    status: done
+  - id: M74
+    path: ./archive/reviews/M74.md
+    summary: G23 (flow state-machine docs + Flows help tab) closed done; coordination milestone archived.
+    title: "Plan: flow state-machine docs + Flows help tab"
+    status: done
+  - id: M75
+    path: ./archive/reviews/M75.md
+    summary: G24 (fix D33 left-align cyclic state-machine diagrams) closed done; coordination milestone archived.
+    title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
+    status: done
+  - id: M80
+    path: ./archive/reviews/M80.md
+    summary: G25 (retire legacy skills + clean cq references) closed done; coordination milestone archived.
+    title: "Plan: retire legacy skills + clean cq references"
+    status: done
+  - id: M81
+    path: ./archive/reviews/M81.md
+    summary: G26 (render session-log markdown in a popup) closed done; coordination milestone archived.
+    title: "Plan: render session logs as markdown in a popup"
+    status: done
+  - id: M82
+    path: ./archive/reviews/M82.md
+    summary: G27 (fix D34 top-bar progress counts withdrawn; + D35 client wiring) closed done; coordination milestone archived.
+    title: "Plan: fix D34 (top-bar progress counts withdrawn)"
+    status: done
 ---
 
 # reviews
-
-## M37
-
-### R129 — revise
-
-- createdAt: 2026-06-03T10:31:46.684Z
-- updatedAt: 2026-06-03T10:31:46.684Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- criticism: ["VERDICT (revise): D23 fix (T134) is sound, grounded, correctly scoped; D13 fix (T132/T133) has a fix-to-symptom gap — as specified, neither the React.memo boundaries nor useMemo([text]) reduces the per-cursor-MOVE cost the user reported, and the acceptance/regression guard are confounded by constant-text fixtures. File-disjoint (Unit A src vs Unit B test app.test.tsx) and T133 dependsOn:[T132] are correct. Four in-scope plan defects below; no user questions required.","D13 fix-to-symptom gap (T132 leg 1, the 'HIGHEST LEVERAGE'): the symptom is latency per cursor MOVE. On a real move the selected item changes, so the markdown `text` changes, so useMemo(()=>parseBlocks(text),[text]) (a one-slot memo) MISSES every move and re-parses. The investigation bench debug/20260603-101700-d13-navperf.tsx confounds this: makeItems(n,desc) (lines 67-82) gives EVERY item the SAME description (LONG_MD), so in the bench the memo hits across moves and the amplifier appears removed — but in production adjacent items have DIFFERENT markdown, where the one-slot memo gives no per-move benefit. T132 must either reframe leg 1 as a text-keyed bounded (LRU) parse cache so toggling/adjacent navigation actually hits, or explicitly drop the claim that it removes the measured per-move markdown amplifier.","D13 React.memo legs (T132 leg 2) do not address the per-move path: on a cursor move `cur` changes (ContentPane.row prop) and top.cursor changes (ScrollList.cursor prop, app.tsx:1002), so React.memo CANNOT skip re-rendering either component on a move — by construction both must re-render to show the new selection/highlight. React.memo only skips when App re-renders while selection is STABLE (overlay open/close, async data arrival, connErr). T132 must state which scenario each memo boundary targets and stop claiming it reduces per-cursor-move latency. Also: ScrollList receives inline getLabel/renderLabel closures (app.tsx:981-1001) recreated every render, so React.memo on ScrollList is inert unless those props are memoized — add memoizing them as required work in T132.","T132 acceptance is vacuous for the reported symptom: 'a pure cursor move no longer re-parses unchanged markdown' — on a move the markdown is the NEW item's, so 'unchanged markdown' never applies to a move. It does not verify per-move latency reduction. Replace with an operational, N-independent per-move criterion: assert per-move parseBlocks/ContentPane invocation counts and/or wall-clock do not grow when navigating across items with DISTINCT long markdown, against a target derived from the existing bench (e.g. long-md per-move ≈ empty-desc per-move).","T133 regression guard risks reproducing the bench artifact: it must give each item DISTINCT long-markdown (not a shared constant, as navMemo.test.tsx and the bench do), else the guard passes via constant-text memo hits while real navigation stays slow. Specify: distinct per-item markdown; instrument parseBlocks via a module-global counter + reset mirroring derivationCounters/resetDerivationCounters already exported from app.js (navMemo.test.tsx:26,155,170); assert on the production navigation pattern (move BETWEEN items, not re-select one). Correction: T133's parseBlocks instrumentation hook lands in markdownText.tsx, which T132 also edits — so T133 is NOT 'test-only / file-disjoint' as its scope note states; the dependsOn:[T132] ordering already covers the conflict, just fix the scope note."]
-- new_questions: []
-- ledgerRefs: ["goals:G10"]
-
-### R130 — revise
-
-- createdAt: 2026-06-03T10:42:35.569Z
-- updatedAt: 2026-06-03T10:42:35.569Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "All four R129 criticisms resolved; plan is fine-grained, sequenced, grounded, complete. One in-scope feasibility correction on T132: ink 7.0.5 (pinned) does NOT ship the incrementalRendering option that T132's leading direction (1) names."
-- new_questions: []
-- criticism: ["T132 direction (1) 'enable ink INCREMENTAL rendering' names an option the PINNED ink version does not have. Verified against upstream: the render() `incrementalRendering` option was added by ink PR #781, merged to master 2025-11-12 as an opt-in feature, and is NOT present in ink 7.0.5 (the version in packages/ledger-tui/package.json, released long before that PR). T132 correctly hedges ('check the installed ink version's render() signature + options in node_modules before assuming an API'), so this is not a blocker — but as written the HEADLINE and the leading/'HIGHEST LEVERAGE' direction of the central task both lead with an unavailable API, which risks a wasted implement cycle or an unrequested ink dependency bump (a bun.lock + FOD-hash change per CLAUDE.md). Fix: record the version reality in T132 and either (a) promote direction (2) — clamp the laid-out detail content — to the primary non-UX direction (it is independently verified feasible: ContentPane at app.tsx:1412-1414 renders ALL fields/blocks then scrolls via marginTop={-clamped} with overflow=hidden, so yoga DOES lay out every offscreen detail line regardless of the visible clamp), or (b) scope an ink upgrade to a version that ships incrementalRendering as its OWN explicit step (dependency change + FOD-hash refresh), not folded silently into T132.","T133 acceptance permits a pure wall-clock per-move threshold ('wall-clock and/or instrumented redraw/render counts'). A wall-clock-only assertion is contention-sensitive and would reintroduce exactly the D20/D23 timing-flake class this same goal is fixing (T134). Tighten T133 to REQUIRE an instrumented render/redraw-count assertion (the derivationCounters/resetDerivationCounters idiom already exported from app.js) as the regression signal, with wall-clock numbers reported for context only — not used as the pass/fail gate."]
-- ledgerRefs: ["goals:G10"]
-
-### R131 — go-ahead
-
-- createdAt: 2026-06-03T10:46:36.227Z
-- updatedAt: 2026-06-03T10:46:36.227Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: Both R130 criticisms resolved; revised plan is fine-grained, sequenced, testable, grounded (all citations verified against source), and complete — ready to build.
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G10"]
-
-## M39
-
-### R135 — revise
-
-- createdAt: 2026-06-03T15:18:45.206Z
-- updatedAt: 2026-06-03T15:18:45.206Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: T136 is correctly scoped (test-only) and citation-accurate, but its acceptance offers an unsound assertion path — a whole-frame '› '-absent check — that can never pass because the list-pane cursor always renders '› '; require content-pane scoping.
-- new_questions: []
-- criticism: ["T136 acceptance offers two assertion paths joined by 'AND/OR', and one of them is INCORRECT: 'assert \"› \" absent from the whole frame'. The list-pane SelectList renders \"› \" for the SELECTED row (app.tsx:1294, `sel ? \"› \" : \"  \"`); in this test the cursor sits on the archived row after A+DOWN, so the list pane always renders \"› archived task\" and \"› \" is present in the whole frame INDEPENDENT of whether the status overlay opened. The test file itself documents this exact trap — the listSide() helper (app.test.tsx L1257-1263) exists precisely because 'a substring check against the whole frame cannot tell a list COLUMN apart from a detail FIELD'. Consequently a whole-frame '› '-absent assertion FAILS even with the !cursorInArchive guard correctly in place (it is red on a CORRECT codebase, never passes) — the opposite of regression-sensitive, and it would also fail acceptance step 2 ('with the guard restored, the test passes'). FIX: T136 must REQUIRE that any '› '-absence assertion be CONTENT-PANE-SCOPED (slice the content pane — the complement of listSide, the text to the RIGHT of the second '│' — and assert '› ' absent there), OR drop the '› '-absence path entirely and assert only the read-only badge '[archived · read-only]' (app.tsx:1424) PRESENT. The badge path is verified sound and regression-sensitive: contentEl always renders ContentPane with readOnly={cursorInArchive} (app.tsx:1012-1021) so the badge shows whenever the cursor is on an archived row regardless of focus, while opening the status overlay swaps the content-pane Box to <Overlays/> (app.tsx:1071-1073), removing the badge — exactly mirroring the proven 'e'-inert test (app.test.tsx:1008). Remove the misleading parenthetical 'or assert › absent from the whole frame (the archived read-only content pane renders no SelectList)': it is true of the content pane but ignores the list-pane cursor."]
-- ledgerRefs: ["goals:G12"]
-
-### R136 — go-ahead
-
-- createdAt: 2026-06-03T15:21:23.794Z
-- updatedAt: 2026-06-03T15:21:23.794Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "T136 (revised) resolves R135: PRIMARY assertion = '[archived · read-only]' badge PRESENT is regression-sensitive (overlay swaps content-pane Box, removing badge), any '› '-absence is content-pane-scoped, whole-frame '› '-absent is explicitly FORBIDDEN; all citations verified against source; test-only, red/green + bun run check."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G12"]
-
-## M40
-
-### R137 — revise
-
-- createdAt: 2026-06-03T15:31:39.298Z
-- updatedAt: 2026-06-03T15:31:39.298Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: Plan is complete vs Q74-Q87 and well-grounded, but the unarchive design (T141/T146) is mis-grounded against the milestone-group-keyed archive layout, and four same-file tasks run DAG-parallel (ledgerTools.ts T144-T147; App.tsx T151/T152; advance.md T153/T156) violating implement-flow parallel-safety.
-- new_questions: []
-- criticism: ["T141/T146 unarchiveItem is mis-grounded. The plan specifies unarchiveItem(ledger,itemId) restoring 'from ./archive/<ledger>/<id>.md' treating <id> as the ITEM id. But FsLedgerStore archives non-milestones ledgers as a milestone-GROUP file keyed by MILESTONE id (./docs/archive/<ledger>/<milestoneId>.md, confirmed in FsLedgerStore.ts:7 and the archive_milestone tool description ledgerTools.ts:365); only the milestones ledger has per-item archive files. The actual D22 footgun (evidence #5) was a defects item swept inside its milestone-group archive. So 'restore one item by item-id' has no per-item file to read — the op must locate the group archive containing the item, extract that single item, re-attach it to the active ledger, and decide the fate of the remaining group + the archive pointer. Re-specify T141/T146 against the group-keyed layout (e.g. a signature carrying the milestone-id, or scanning group files), and update T141's acceptance and the dual-tests accordingly. The reopen-terminal half of T141 is correctly grounded and unaffected.","File-collision / parallel-safety: T144,T145,T146,T147 all edit packages/ledger/src/mcp/ledgerTools.ts but have NO mutual dependsOn (each depends only on a distinct W1 helper). Under the implement flow's isolated-worktree parallel execution these four workers will edit the same file concurrently and clobber on merge-back. Serialize them via a dependsOn chain (or collapse into fewer tasks) so the shared ledgerTools.ts edits are not concurrent.","File-collision: T151 (apply HoldButton to all buttons in App.tsx) and T152 (render sessionLogs popup in App.tsx) both edit packages/ledger-web/src/App.tsx with no dependsOn between them (T151->T150, T152->T147). They are DAG-parallel on the same file. Add a dependsOn edge (e.g. T152 dependsOn T151) or otherwise serialize the two App.tsx edits.","File-collision: T153 (amend advance.md §Provenance) and T156 (add the snapshot-first bootstrap recipe to advance.md) both edit llm/commands/advance.md with no dependsOn between them (T153->T137, T156->T145). Serialize them (e.g. T156 dependsOn T153) so the two advance.md edits do not run concurrently. T154 already serializes after T153 and touches different files (plan/implement/investigate prompts) — fine.","T142/T144 projection completeness: the grounding's LONG_FIELD_DENYLIST (columns.ts:35-47) does NOT include the goals 'grounding' field, yet evidence #2 names the goals ledger as a primary cause of the 51.8KB overflow and the GOALS_SCHEMA 'grounding' field holds a large per-goal repo-grounding blob. Reusing LONG_FIELD_DENYLIST verbatim will NOT strip 'grounding', so compact fetch_ledger over goals may still overflow — defeating the motivating fix and contradicting T144's own acceptance ('the previously-overflowing goals/questions ledgers fit'). Either extend the projection set used by projectCompact to include 'grounding' (and verify other large non-denylisted fields), or make T142/T144 acceptance prove the goals ledger fits under the token limit with grounding stripped.","T147 read_log confinement root is underspecified. The tool must confine reads to <root>/docs/logs, but the LedgerStore interface exposes no root/cwd accessor and the InMemoryLedgerStore (the dual-tests dummy the plan names) has no filesystem. Specify where read_log obtains its confinement root (e.g. an explicit root passed to the tool factory, distinct from the store) and how the traversal-rejection + truncation tests run when the store is the in-memory dummy; as written T147's dual-tests acceptance is not realizable against the in-memory store."]
-- ledgerRefs: ["goals:G11"]
-
-### R138 — revise
-
-- createdAt: 2026-06-03T15:38:07.312Z
-- updatedAt: 2026-06-03T15:38:07.312Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: All six R137 criticisms resolved and correctly re-grounded, but the same-file parallel-safety invariant was applied only to the three files R137 named — two NEW un-serialized same-file collisions remain (T141<->T143 on the LedgerStore trio; T148<->T149 on ledger-mcp/main.ts).
-- new_questions: []
-- criticism: ["File-collision (same class as R137 #2, newly surfaced): T141 (reopenItem+unarchiveItem on the LedgerStore interface — edits packages/ledger/src/store/LedgerStore.ts + FsLedgerStore.ts + InMemoryLedgerStore.ts) and T143 (cross-ledger snapshot, specified as 'a single store-level method (e.g. snapshot())' built on the store, which lands the new method in the SAME three files) are BOTH W1 roots with NO mutual dependsOn, so they are concurrently DAG-ready and will edit LedgerStore.ts/FsLedgerStore.ts/InMemoryLedgerStore.ts in parallel isolated worktrees and clobber on merge-back. Resolve by either serializing them (e.g. T143 dependsOn T141) or re-specifying T143's snapshot as a free function over the public store interface (snapshot(store)) in its OWN file and stating that explicitly so it shares no file with T141. T142 (projectCompact) is described as a pure isolation-testable helper not touching columns.ts/the store — confirm it lands in its own module (not the store trio); if it instead adds a store method it joins this same collision and must also be ordered.","File-collision (same class as R137 #2, newly surfaced): T148 (update the '14 tools' count comment + LEDGER_TOOL_NAMES + tests — edits packages/ledger-mcp/src/main.ts) and T149 (clarify SERVER_INSTRUCTIONS query-language docs — also edits packages/ledger-mcp/src/main.ts, the SERVER_INSTRUCTIONS string at main.ts:164) BOTH edit packages/ledger-mcp/src/main.ts but have NO mutual dependsOn. Their dep-sets differ (T148 dependsOn T144-T147; T149 dependsOn T140,T144,T145), so T149 becomes ready before T148 and the implement flow can dispatch them in overlapping ready-waves, clobbering main.ts on merge-back. Add a dependsOn edge between them (e.g. T148 dependsOn T149, since T149's instruction edit is independent of the tool-count sweep) so the two main.ts edits are serialized."]
-- ledgerRefs: ["goals:G11"]
-
-### R139 — revise
-
-- createdAt: 2026-06-03T15:43:46.135Z
-- updatedAt: 2026-06-03T15:43:46.135Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "R138's two collisions fixed (T143->T141, T148->T149) and T155 narrowed off advance.md correctly; projection now strips grounding/recommendation/suggestions; DAG acyclic. But the full sweep missed a THIRD same-file collision of the same class: T149 also edits ledgerTools.ts (fts_search + snapshot + fetch_ledger tool descriptions) yet forks parallel to T146/T147, which is left un-serialized."
-- new_questions: []
-- criticism: ["File-collision (same class as R137 #2 / R138, still un-serialized): T149 edits THREE files, not two. Its description amends QUERY_LANGUAGE_HELP (query.ts), SERVER_INSTRUCTIONS (main.ts:164), AND the fts_search tool description plus the new snapshot/fetch_ledger-compact tool descriptions — all three of which live in packages/ledger/src/mcp/ledgerTools.ts (QUERY_LANGUAGE_HELP is imported there at ledgerTools.ts:34 and every per-tool description string is constructed in that file's tool factory). The planner serialized the ledgerTools.ts write-chain as T144->T145->T146->T147 and serialized T149 only against main.ts (T148 dependsOn T149) and query.ts (T139->T140->T149) — but DID NOT place T149 in the ledgerTools.ts chain. T149 dependsOn {T140, T144, T145}, so it becomes ready right after T145 and runs DAG-parallel to T146 (dependsOn {T141, T145}) and T147 (dependsOn T146), both of which also edit ledgerTools.ts. After T145 merges, T146 and T149 are co-ready; after T146 merges, T147 and T149 can be co-ready. Two isolated-worktree workers (T149 and T146/T147) will then edit ledgerTools.ts concurrently and clobber on merge-back — the exact parallel-safety invariant R137 #2 and R138 enforce for every other shared file. The planner's reported file->task grouping classified T149 as a main.ts/query.ts task only and omitted it from the ledgerTools.ts group, which is why the sweep missed it. FIX: serialize T149 against the tail of the ledgerTools.ts chain, e.g. add T149 dependsOn T147 (T149 keeps its T140/T144/T145 deps; placing it after T147 puts it strictly after the whole T144->T145->T146->T147 chain). T148 already dependsOn T149, so T148 still trails correctly and the main.ts pair stays serialized; the only effect is that the ledgerTools.ts edits become strictly sequential. Update T149's acceptance/sequencing note to record that it edits ledgerTools.ts tool descriptions and is the last writer in that file's chain."]
-- ledgerRefs: ["goals:G11"]
-
-### R140 — go-ahead
-
-- createdAt: 2026-06-03T15:47:47.514Z
-- updatedAt: 2026-06-03T15:47:47.514Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "4th pass: R139's fix applied (T149 dependsOn T147) — ledgerTools.ts chain T144->T145->T146->T147->T149 is now total; all shared-file task pairs verified totally ordered; DAG acyclic; R137/R138/R139 fixes intact; plan complete + faithful to Q74-Q87."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G11"]
-
-## M47
-
-### R162 — go-ahead
-
-- createdAt: 2026-06-03T20:09:39.421Z
-- updatedAt: 2026-06-03T20:09:39.421Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "G13/M48 plan is fine-grained, parallel, testable, grounded: all 3 fix tasks (T158/T159/T160) correctly scope+accept their confirmed root causes (D26 realpath reproduce-first w/ ENOENT carve-out, D25 stale eslint-disable removal, D27 CHAINED-trigger reword), each ledgerRefs defects:D<n>+goals:G13, and the disjoint file scopes justify the no-dependsOn parallel DAG. Verified all 3 defect locations against the repo. No revisions needed."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G13"]
-
-## M49
-
-### R166 — go-ahead
-
-- createdAt: 2026-06-03T20:44:17.656Z
-- updatedAt: 2026-06-03T20:44:17.656Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- summary: "G14/M50 plan go-ahead, round 0. Single fine-grained task T161 closes the confirmed D28 check-then-read TOCTOU: read `real ?? resolved` (validated canonical, no symlink components) instead of the symlink-bearing `resolved` at FsLedgerStore.ts L1296. Verified against source L1251-1302 — fix correctly closes the race (read-path === validated-path); ENOENT preserved (realpath ENOENT swallowed at L1290-1294 leaves hoisted `let real` undefined → reads `resolved` → genuine not-found surfaces, not masked); escape-rejection LedgerError still rethrows (code undefined). Acceptance is reproduction-first (regression test must FAIL pre-fix) and requires the D26 escape-rejection + symlinked-root + ENOENT suite stay green + bun run check. ledgerRefs defects:D28+goals:G14 correct for orchestrator-owned closure (D28.dependsOn=[T161] reciprocates). Scope surgical (~2-3 lines + one test, one file), no over-reach, no missing prerequisite (T158/D26 realpath re-assert already merged on main). No user-only gaps, no planner-fixable defects, no out-of-scope faults."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["goals:G14"]
-
-## M53
-
-### R168 — go-ahead
-
-- createdAt: 2026-06-05T18:37:37.196Z
-- updatedAt: 2026-06-05T18:38:12.427Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "G16/M54 plan go-ahead, round 0. Plan for D29 is fine-grained, correctly sequenced (T163/T164 dependsOn T162), reproduce-first, fully grounded against live source, and complete across backend dual-store + all four frontend submit paths. Verified: applyUpdateItem (core.ts:277) fires precondition(item.status,patch.status) BEFORE applying patch.fields (L281), so the questions guard must read the EFFECTIVE answer = (patch.fields?.answer ?? item.fields.answer) via closure — T162 specifies exactly this (not the mis-grounded post-patch read). Goals-only precondition wiring confirmed in BOTH FsLedgerStore.updateItem (L571-581) AND InMemoryLedgerStore.updateItem (L307-317) — both need the questions branch; T162 names both stores + dual-tests. QUESTIONS_SCHEMA.answer={type:string,required:false} (constants.ts:217), validateFields type-checks only — confirmed. Frontend anchors verified real: web submitAnswer App.tsx:2611, HoldButton:2629 (no disabled guard today), answerHasText/setAnswerHasText pattern present (2626/2635); TUI BatchAnswerOverlay app.tsx:1952 (key.return->onAnswer(row,value)), TextPrompt components/TextPrompt.tsx:32-33 (key.return->onSubmit(value)). Same-file safety: both web edits folded into T163 (R137-R139 precedent); T164's two TUI edits are different files; T163/T164 in disjoint package trees, both depend on T162 (ledger pkg, disjoint). No DAG-parallel pair shares a file. Note (not a defect): TextPrompt is a generic single-line input — the empty-guard belongs at the answer-overlay caller, not inside the shared component; T164's acceptance is correctly scoped to the answer overlay's behavior. Scope surgical (targeted precondition, not a general FieldSpec extension), no over-reach. No user-only gaps, no planner-fixable defects, no out-of-scope faults."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G16"]
-- sessionLogs: ["docs/logs/20260605-183755-a10a9c55f675c1aa4.md"]
-
-## M51
-
-### R169 — revise
-
-- createdAt: 2026-06-05T18:51:39.883Z
-- updatedAt: 2026-06-05T18:52:31.940Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Well-grounded plan; DAG acyclic with same-file edits serialized (link-prompts.ts/README via T178->T168, package.json/cq-config via T171->T170). Revise on three planner-fixable defects: T173/T175 double-write of the reviews item in multi-reviewer mode, a stale/unverified link-prompts.ts 'llm/' source root in T168/T178, and no .mcp.json registration of cq-config for in-repo dogfooding. One confirming question on the empty-answer Q91 reconciliation semantics."
-- criticism: ["T173 vs T175 contradiction (single-reviews-item invariant). T173 says 'keep native plan-reviewer.md as-is — the claude:* path still writes the reviews item directly', while T175 has each claude reviewer RETURN verdict json so the ORCHESTRATOR writes the single aggregated reviews item. In configured multi-reviewer mode these combine to produce TWO reviews items per round (the native reviewer's direct write + the orchestrator's aggregate), breaking the single-aggregated-reviews-item-per-round invariant the whole strictest-wins+union reconciliation (Q91) depends on. Resolve the 'rather than (or in addition to) writing the ledger' hedge in T175: in configured/multi-reviewer mode the native claude plan-reviewer must NOT write the reviews ledger — only the orchestrator writes the one aggregated item; the direct-write path is retained ONLY for the unconfigured single-reviewer fallback (today's behaviour). Note the implement side is already clean (implement-reviewer.md returns json and never writes the ledger — verified), so make the plan-side reconciliation symmetric to that: have the claude plan-reviewer RETURN json in configured mode.","T168 and T178 build on an unverified/stale link-prompts.ts source root. scripts/link-prompts.ts resolves every LINKS `source` as 'llm/commands/...' / 'llm/agents/...' relative to nix/pkg/cq-ledgers/, but the actual assets live under nix/pkg/cq-assets/{commands,agents}/ and the 'llm/' tree does not resolve under cq-ledgers (verified: Read of nix/pkg/cq-ledgers/llm/agents/plan-reviewer.md and llm/commands/plan/advance.md both fail with 'File does not exist' while their nix/pkg/cq-assets/ equivalents read fine). The instruction 'match existing entries source-path style exactly (do not invent a new root)' would replicate a stale/broken root, and the acceptance 'bun run link-prompts runs clean and creates the symlink' is not safely achievable if that root is wrong (symlink() succeeds for a nonexistent target, yielding a DANGLING link that Claude cannot load). T168/T178 must FIRST verify the real source root against the current tree (check whether nix/pkg/cq-ledgers/llm is a symlink to ../cq-assets or simply stale) and pin link entries to the correct path before adding the investigate-prober / cq:* entries; acceptance must assert the new symlinks resolve to existing files (e.g. `test -e` the link target), not merely that link-prompts runs.","No task registers the new cq-config MCP server in THIS repo's project-local .mcp.json. .mcp.json currently wires only the ledger server (command `nix run .#ledger-mcp`); T172 wires cq-config only into the home-manager global dev-llm.nix programs.mcp.servers registry. For an in-repo /plan:advance or /implement:advance to call the cq-config get_reviewers tool during dogfooding, the orchestrator must be able to reach that server in this repo's session. Add a .mcp.json entry for cq-config (e.g. `nix run .#cq-config-mcp`) as part of T172 (or a small dedicated task), OR explicitly state and verify that the global home-manager registration is merged into in-repo Claude sessions so get_reviewers is reachable here; as written the plan leaves the in-repo reviewer feature unreachable.","OUT-OF-SCOPE / pre-existing (file-and-defer, does NOT block this plan; recorded here because the reviews schema has no defects field): scripts/link-prompts.ts and nix/pkg/cq-assets/README.md both still reference a 'llm/' single-source tree (link-prompts.ts LINKS `source: llm/...`; README Convention + Three-consumers tables say 'llm/commands/...', 'llm/agents/...'). The asset tree was relocated to nix/pkg/cq-assets/{commands,agents}/ and assets.nix was updated to read ./commands and ./agents, but link-prompts.ts and the README were not. The 'llm/' paths do not resolve under nix/pkg/cq-ledgers/, so `bun run link-prompts` likely creates dangling symlinks today. severity: medium. suggestedFix: repoint link-prompts.ts LINKS source paths and the README tables to nix/pkg/cq-assets/..., or restore a symlink nix/pkg/cq-ledgers/llm -> ../cq-assets, then confirm bun run link-prompts produces valid (non-dangling) symlinks. The /plan:advance orchestrator should file this as an open defects item linked goals:G15 and auto-launch investigate per K12, separately from this plan."]
-- new_questions: ["Q91 (reviewer-disagreement reconciliation) was left empty by the user; the planner adopted recommendation (i) — strictest-wins verdict (any reviewer's revise/disapprove blocks; go-ahead/approve requires unanimity) + UNION of all reviewers' criticism/questions/defects, each finding source-tagged. This is the conservative, safety-maximizing default and composes with the existing 'revise/disapprove requires non-empty findings' invariant, so it is a reasonable default — but please confirm strictest-wins + union-with-source-tags is the intended semantics (vs majority-vote or a designated-primary reviewer) before T175/T176 implement it, since the empty answer leaves the core behavioural decision unconfirmed."]
-- ledgerRefs: ["goals:G15"]
-- sessionLogs: ["docs/logs/20260605-185213-a4b0e9587bbebb6a6.md"]
-
-### R178 — go-ahead
-
-- createdAt: 2026-06-05T20:24:58.713Z
-- updatedAt: 2026-06-05T20:25:28.373Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Re-review: all 3 R169 criticisms resolved (T173/T175 single-aggregated-write gated on mode; T168/T178 pin link sources to the verified ../cq-assets root with test -e resolve assertions, coherent with post-D30 link-prompts.ts; T172 adds .mcp.json cq-config entry). Q95 confirms strictest-wins+union-with-source-tags, matching T175/T176. Spike-first (T169) precedes pi-shellout consumers; same-file edits serialized (link-prompts.ts+README via T178->T168, package.json+cq-config via T171->T170, single writers for each advance.md and dev-llm.nix); DAG acyclic; each task carries a concrete verifiable acceptance; both features fully scoped. Coherent with current main; will not regress the D30 fix or the throw-on-missing hardening. go-ahead."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G15"]
-- sessionLogs: ["docs/logs/20260605-202254-ad4f65b5c798e0da1.md"]
-
-## M57
-
-### R170 — revise
-
-- createdAt: 2026-06-05T19:05:43.046Z
-- updatedAt: 2026-06-05T19:06:13.849Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Plan is grounded, fine-grained, correctly sequenced (reproduce-first T179→T180→T181) and complete; one planner-fixable gap: T179 must make link-prompts.ts import-safe (guard the top-level creation loop) so the test can import the real LINKS array without firing symlink side effects."
-- criticism: ["T179 underspecifies the import-safety refactor. scripts/link-prompts.ts runs its symlink-CREATION loop at module top level (L56-74, a bare `for` with no `import.meta.main`/function guard). T179 requires the new test to operate on 'the SAME LINKS array the creation loop uses' — but importing the module from scripts/link-prompts.test.ts will EXECUTE that top-level loop and mutate `.claude/` at test time (and, against current `llm/` sources, may throw for the wrong reason rather than the D30 missing-target reason). Make it explicit in T179: extract LINKS + the per-link existence/check logic into importable exports and GUARD the creation loop behind `import.meta.main` (or move it into a `main()` invoked only when run as a script), so `bun test` imports the real LINKS array with zero filesystem side effects and the red failure is unambiguously the missing `llm/...` targets. Without this the implementer either duplicates the LINKS array in the test (defeating the 'same array' requirement and letting a stale source slip through undetected) or the test fails for an import-side-effect reason instead of the D30 reason."]
-- ledgerRefs: ["goals:G17"]
-- sessionLogs: ["docs/logs/20260605-190601-aa1442ade4288d14e.md"]
-
-### R171 — go-ahead
-
-- createdAt: 2026-06-05T19:08:37.036Z
-- updatedAt: 2026-06-05T19:09:03.312Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "R170's sole criticism resolved: revised T179 now explicitly mandates exporting LINKS as single source of truth, extracting a side-effect-free checkLinks helper, guarding the creation loop behind import.meta.main/main(), and a reproduce-first test importing the real LINKS with ZERO .claude/ mutation that fails for the D30 missing-target reason; T180 repoints the in-place exported LINKS onto verified ../cq-assets/{commands,agents}/ and reuses checkLinks; ordering T179→T180→T181 and same-file serialization (T180 dependsOn T179, T181 dependsOn T180) hold."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G17"]
-- sessionLogs: ["docs/logs/20260605-190853-aaf37e9557710bdc2.md"]
-
-## M59
-
-### R193 — revise
-
-- createdAt: 2026-06-05T22:27:35.671Z
-- updatedAt: 2026-06-05T22:28:21.450Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: Plan is well-grounded, fine-grained, and correctly sequenced, but T1/T2/T3/T13 only touch the Claude-SDK tool() factory (ledgerTools.ts) and miss the SECOND registration surface (stdioLedgerTools.ts) that the standalone ledger-mcp binary — the one .mcp.json/plan/implement/reviewers actually reach as mcp__ledger__* — uses; without it the new tools never surface on the real server.
-- new_questions: []
-- criticism: ["BLOCKER (T1, T2, T13): the ledger MCP has TWO parallel tool-registration surfaces, both keyed off LEDGER_TOOL_NAMES: (a) createLedgerMcpTools in packages/ledger/src/mcp/ledgerTools.ts (the @anthropic-ai/claude-agent-sdk tool() factory, used only by the in-process Claude-SDK host), and (b) registerLedgerStdioTools in packages/ledger/src/mcp/stdioLedgerTools.ts (raw @modelcontextprotocol/sdk server.registerTool). The STANDALONE @cq/ledger-mcp binary — which .mcp.json's `ledger` server runs (`nix run .#ledger-mcp`), and which plan/advance.md, implement/advance.md, and reviewers.md all reach as mcp__ledger__get_reviewers/get_config — goes through buildServer() -> registerLedgerStdioTools (ledger-mcp/src/main.ts:247), NOT createLedgerMcpTools. The embedded TUI (in-memory transport) and web (co-hosted HTTP via attachMcpHttp) servers ALSO route through buildServer -> registerLedgerStdioTools. T1 adds get_reviewers/get_config ONLY to ledgerTools.ts (its description and acceptance name only that file and createLedgerMcpTools); T13 adds get_planners ONLY to ledgerTools.ts. As written, the new tools surface on the in-process Claude-SDK path but NOT on the standalone/embedded stdio+HTTP binary that every consumer actually calls — PART 1's whole premise (consumers calling mcp__ledger__*) is unmet. FIX: T1 must ALSO register get_reviewers+get_config in registerLedgerStdioTools (stdioLedgerTools.ts), T13 must add get_planners there too, and the config capability must be threaded as a new param of registerLedgerStdioTools(server, store, readLog, configCapability?) — T2 already names registerLedgerStdioTools for the buildServer wiring, but no task actually adds the tool registrations to that file.","T3 (and T13) count/name bump is under-scoped to one file: stdioLedgerTools.ts ALSO documents '18 tools' (header L4-5 and the registerLedgerStdioTools doc-comment L149) and shares LEDGER_TOOL_NAMES, and per its own comment (L18) 'the schema-drift guard between the stdio path and the Claude path is the test suite' — i.e. a test asserts the two surfaces register the SAME tool set. Updating only ledgerTools.ts will leave that drift-guard / count test failing (or mask the bug by leaving BOTH files at 18). T3's and T13's acceptance must require the 18->20->21 bump AND the new tool names in BOTH ledgerTools.ts and stdioLedgerTools.ts, and the cross-surface drift-guard test green.","Minor (T8): reviewers.md carries bare 'cq-config' prose references beyond the two patterns T8's acceptance greps for ('mcp__cq-config__' and 'cq-config MCP server'): e.g. L15 '(from cq-config), falling back', L30 'Call get_config (from the cq-config MCP server)', the frontmatter `description` line ('from cq-config get_reviewers/get_config'), and L44/L147 'the cq-config server'/'(cq-config MCP)'. T8's acceptance grep should also catch the bare 'cq-config' token (or enumerate the description-line + prose hits) so no stale reference survives the repoint."]
-- ledgerRefs: ["goals:G18"]
-- sessionLogs: ["docs/logs/20260605-222806-a85471b82ade9e93e.md"]
-
-### R194 — go-ahead
-
-- createdAt: 2026-06-05T22:31:42.631Z
-- updatedAt: 2026-06-05T22:32:16.345Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Round-2: all three R193 criticisms durably resolved — T1/T2/T13 now register get_reviewers/get_config/get_planners on BOTH ledgerTools.ts (createLedgerMcpTools) AND stdioLedgerTools.ts (registerLedgerStdioTools, config capability threaded as new 4th param) with T2's end-to-end STDIO-roundtrip acceptance; T3/T13 bump the 18→20→21 count + LEDGER_TOOL_NAMES in BOTH files with the cross-surface drift-guard test green (reproduce-first); T8 greps the BARE 'cq-config' token to zero. Anchors verified real (main.ts:247 buildServer→registerLedgerStdioTools, stdioLedgerTools.ts L18 drift-guard note + L155 readLog?-param signature, reviewers.md bare cq-config prose). PART 2 (Q100 generate-N-then-judge+synthesis, Q101 pi candidate-emitters, Q102 config/command/tool, same-file DAG serialization) sound. Go-ahead."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G18"]
-- sessionLogs: ["docs/logs/20260605-223202-a0aae2a8104718584.md"]
-
-## M63
-
-### R212 — go-ahead
-
-- createdAt: 2026-06-06T00:38:47.177Z
-- updatedAt: 2026-06-06T00:39:10.146Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Plan is minimal, grounded, and testable: single doc-only task T182 repoints README L77/L82-85 to the ledger MCP with operationally-pinned acceptance and correct closure links; all grounding claims verified against source."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G19","defects:D32","tasks:T182"]
-- sessionLogs: ["docs/logs/20260606-003711-a5fbe5076e58e816e.md"]
-
-## M66
-
-### R214 — go-ahead
-
-- createdAt: 2026-06-06T11:01:32.969Z
-- updatedAt: 2026-06-06T11:02:00.907Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: Plan for G21/D31 is fine-grained, correctly sequenced (RED T183 → GREEN T184 via dependsOn), operationally testable, fully grounded against App.tsx/HoldButton.tsx, and minimal for the confirmed root cause — go-ahead.
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G21","defects:D31","tasks:T183","tasks:T184"]
-- sessionLogs: ["docs/logs/20260606-105830-a50916ce5d3363686.md"]
-
-## M65
-
-### R215 — revise
-
-- createdAt: 2026-06-06T11:10:50.106Z
-- updatedAt: 2026-06-06T11:11:32.916Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Plan conforms to Q105-Q111 and is well-grounded against current main, but has 3 fixable defects: a same-file DAG-parallel collision (T189/T190/T191 all edit cq-cli/main.ts under only dependsOn:[T188]), a missing FOD-refresh prerequisite edge (T192 must dependsOn T185), and an unwired @cq/config dependency for ledger-web (T187/T192 never add it to ledger-web's package.json + the ledgerWeb Nix derivation symlinks)."
-- new_questions: []
-- criticism: ["SAME-FILE DAG-PARALLEL COLLISION (R137/R138 precedent): T189, T190, T191 each declare only dependsOn:[T188] yet ALL three edit packages/cq-cli/src/main.ts (the dispatcher routing + their respective subcommand handlers). They are concurrently DAG-ready and WILL collide when the implement loop dispatches them into separate worktrees and merges back. T190's own body even admits 'should be serialized by the implement loop if they collide' but does not encode it in dependsOn. Serialize them into a chain via dependsOn, e.g. T190 dependsOn [T189], T191 dependsOn [T190] (any total order works), so only one writer touches cq-cli/main.ts at a time.","MISSING FOD-REFRESH PREREQUISITE EDGE: T192 (flake.nix cq derivation + node-modules FOD hash refresh) declares dependsOn:[T188,T189,T190,T191] but NOT T185. T185 adds the smol-toml dependency to packages/cq-config/package.json (already in the FOD manifest fileset, flake.nix L56) and to bun.lock, which changes the node-modules FOD output hash. T192's own description states the smol-toml dep 'ALSO requires the same FOD refresh' and that T192 is 'the natural place to do the final FOD refresh' — but without a dependsOn:[T185] edge the DAG permits T192 to compute and paste the hash BEFORE T185 lands, yielding a hash that omits smol-toml and breaking nix build .#ledger-mcp / .#ledger-web (and a re-mismatch once T185 merges). Add T185 to T192.dependsOn so the single FOD refresh happens after BOTH bun.lock changes (smol-toml in T185 + cq-cli workspace pkg in T188) are present.","UNWIRED @cq/config DEPENDENCY FOR ledger-web: T187 wires loadConfig (from @cq/config) into packages/ledger-web/src/serve.ts, but ledger-web does not currently depend on @cq/config — it is absent from packages/ledger-web/package.json, and the ledgerWeb Nix derivation (flake.nix L341-358) only symlinks @cq/ledger-mcp, @cq/ledger and @cq/ledger-live into packages/ledger-web/node_modules; the shared embedServerClosure stages cq-config SOURCE but symlinks @cq/config ONLY under ledger-mcp's node_modules (L157-158), not ledger-web's. So workspace resolution under `bun run check` and especially `nix build .#ledger-web` (which T187 acceptance asserts 'succeeds') will fail to resolve @cq/config from serve.ts at runtime. Neither T187 nor T192 adds @cq/config to ledger-web's package.json nor adds an @cq/config symlink to the ledgerWeb installPhase. Add explicit steps: declare @cq/config in packages/ledger-web/package.json (T187) AND symlink packages/ledger-web/node_modules/@cq/config in the ledgerWeb derivation (T192, or a dedicated flake.nix edit), mirroring the ledger-mcp wiring at L221-225."]
-- ledgerRefs: ["goals:G20","tasks:T185","tasks:T186","tasks:T187","tasks:T188","tasks:T189","tasks:T190","tasks:T191","tasks:T192"]
-- sessionLogs: ["docs/logs/20260606-110728-ae88cb866d32b4470.md"]
-
-### R216 — go-ahead
-
-- createdAt: 2026-06-06T11:14:11.730Z
-- updatedAt: 2026-06-06T11:14:40.116Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Round-1 re-review: all 3 R215 criticisms resolved (cq-cli/main.ts now a total chain T189->T190->T191; T192.dependsOn includes T185 so the single FOD hash refresh follows the smol-toml bun.lock edit; T187 now declares @cq/config in ledger-web/package.json + symlinks it in the ledgerWeb derivation with acceptance (5)(6)(7) asserting it). The fix introduced no new same-file collision: T187's flake.nix edit is scoped to the ledgerWeb derivation and T192's to the cqCli derivation + bunNodeModules FOD + apps.cq, serialized via T192 dependsOn T187. DAG acyclic; every shared-file task pair totally ordered; Q105-Q111 fidelity intact. go-ahead."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G20","tasks:T185","tasks:T186","tasks:T187","tasks:T188","tasks:T189","tasks:T190","tasks:T191","tasks:T192"]
-- sessionLogs: ["docs/logs/20260606-111249-a898bda7c81b5c1ac.md"]
-
-## M70
-
-### R227 — revise
-
-- createdAt: 2026-06-06T12:34:22.338Z
-- updatedAt: 2026-06-06T12:35:03.580Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Parts 1-3 sound and well-grounded; Part-4 has one coverage gap — /investigate:start cross-refs inside the relocated cq/plan.md fall between T196 (own-name only) and T198 (excludes the relocated files), leaving stale refs that fail T198's own grep acceptance."
-- new_questions: []
-- criticism: ["T196/T198 coverage gap on cross-file renamed-FROM refs: commands/plan/start.md (→ cq/plan.md) references /investigate:start at lines 2 (frontmatter description), 29, 35, 37. T196 scopes its in-file edits to each file's OWN old slash name only ('the command's OWN old slash name'); T198 explicitly EXCLUDES 'the three files T196 already fixed.' So the /investigate:start mentions inside cq/plan.md are owned by neither task and would survive as dangling references to a command that no longer exists. Worse, T198's own acceptance ('grep -rn /investigate:start nix/pkg/ returns no hits') cannot pass while the file it is told to exclude still contains those hits. Fix: extend T196 to also rewrite cross-references in a relocated file to the OTHER renamed-FROM commands (/advance, /plan:start, /investigate:start), not just its own name — OR drop T198's exclusion of the three relocated files so the global grep sweep covers them. Either makes the rename set internally consistent. (Only cq/plan.md is actually affected: investigate/start.md references only /investigate:advance [staying] + its own /investigate:start; advance.md references only its own /advance + staying *:advance names.)"]
-- ledgerRefs: ["goals:G22","tasks:T193","tasks:T194","tasks:T195","tasks:T196","tasks:T197","tasks:T198"]
-- sessionLogs: ["docs/logs/20260606-123129-ac4deea3a121b21d0.md"]
-
-### R228 — go-ahead
-
-- createdAt: 2026-06-06T12:38:05.785Z
-- updatedAt: 2026-06-06T12:38:37.122Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "R227 cross-file coverage gap resolved: T196 now owns ALL renamed-FROM refs inside the 3 relocated files (incl. /investigate:start in cq/plan.md), word-boundary-sparing the staying names; T198 sweep + both acceptance greps exclude those 3 files so its grep is satisfiable. T196→T197→T198 ordering intact; M71 unchanged + sound; T196∪T198 partition covers all of nix/pkg with no gap/overlap."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G22","tasks:T196","tasks:T197","tasks:T198","tasks:T193","tasks:T194","tasks:T195"]
-- sessionLogs: ["docs/logs/20260606-123129-a8e1f13516398ff6e.md"]
-
-## M75
-
-### R235 — revise
-
-- createdAt: 2026-06-06T20:51:16.852Z
-- updatedAt: 2026-06-06T20:52:01.348Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Fix + single-task granularity are correct and well-grounded (root cause = D33/H25, both consumers traced); two acceptance-completeness gaps keep it at revise: pin the test to the real @cq/ledger schema exports, and explicitly assert the DEFAULT_LAYOUT_OPTS (pad=24) DagView path."
-- new_questions: []
-- criticism: ["T199's unit-test instruction leaves a hand-fabricated-transition-map fallback ('if the schemas are not importable as plain data, drive computeDagLayout directly with the same statusValues/transitions') as an acceptable path. But @cq/ledger EXPORTS the canonical MILESTONES_SCHEMA / TASKS_SCHEMA / GOALS_SCHEMA (and CANONICAL_LEDGERS) as RUNTIME values (packages/ledger/src/constants.ts, re-exported from index.ts), and ledger-web already depends on @cq/ledger (src/types.ts imports from it). A copied transition map can silently drift from the canonical schema and pass while the real diagram regresses. Tighten the acceptance: the milestones/tasks/goals min-x===16 assertions MUST import and feed the actual @cq/ledger *_SCHEMA objects through computeStateMachine; remove/demote the hand-fabricate fallback.","T199's acceptance asserts min node x only for the STATE_LAYOUT_OPTS path (pad=16, the help State-machines view); it never asserts the DEFAULT_LAYOUT_OPTS / DagView path (pad=24), which the goal explicitly requires the single re-base to correct. DagView.tsx calls computeDagLayout(ids, data.edges) with DEFAULT_LAYOUT_OPTS and binds layout.width/height to the SVG, so the fix flows through it transitively, but the test only exercises the pad=24 opts via a width-shrink fixture, not a min-x assertion. Add to acceptance: (a) a minLayer>0 fixture driven through computeDagLayout(..., DEFAULT_LAYOUT_OPTS) asserting Math.min(node.x)===24; and (b) a no-op assertion that a graph WITH a real layer-0 source (as the milestone dependency DAG always has) is byte-identical pre/post re-base — proving the milestone DagView is never shifted and the re-base only moves content left when minLayer>0 (this is the risk that the re-base could disturb the dependency-graph view)."]
-- ledgerRefs: ["goals:G24"]
-- sessionLogs: ["docs/logs/20260606-205136-a7d92658324296b3e.md"]
-
-### R236 — go-ahead
-
-- createdAt: 2026-06-06T20:54:08.234Z
-- updatedAt: 2026-06-06T20:54:37.614Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Round-2 re-review: both R235 criticisms fully addressed in T199's revised acceptance — (A) pins min-x===16 to the real exported @cq/ledger *_SCHEMA objects and bans the hand-fabricated fallback; (C) adds the DEFAULT_LAYOUT_OPTS/pad=24 DagView coverage with a minLayer>0 min-x===24 fixture (c-i) and a byte-identical pre/post re-base invariance assertion on a real layer-0 source (c-ii). Acceptance is operationally complete and grounded; go-ahead."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G24"]
-- sessionLogs: ["docs/logs/20260606-205422-a38374312bac9b4bd.md"]
-
-## M74
-
-### R237 — revise
-
-- createdAt: 2026-06-06T21:05:20.029Z
-- updatedAt: 2026-06-06T21:05:58.594Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: Architecturally sound elkjs pivot (library/async/Nix/DAG all verified); two planner-fixable tightenings before go-ahead.
-- new_questions: []
-- criticism: ["T203 under-tests the State-machines-tab migration. The grounding claims the tab has structural happy-dom tests asserting help-sm-rect/node/edge ids, but the actual repo has NO DOM test of that tab: app.test.tsx only opens the help overlay on the Shortcuts tab (L1296-1305) and never clicks help-tab-statemachines or asserts any help-sm-* / help-statemachine-svg id; the sole computeStateMachine coverage is the pure unit test in test/stateMachine.test.ts. Consequently T203's regression de-risking rests entirely on T206's manual/headless smoke. Tighten T203 acceptance to ADD a happy-dom render test that opens the State-machines tab and asserts the migrated DiagramSvg renders one diagram per ledger with the documented data-testid scheme AND now renders a self-loop edge for a schema that has one (the behavior the elk migration newly enables), rather than asserting parity only via T206 smoke. Also correct T203's wording that frames this as 'updating existing tab tests' since no such DOM tab test exists.","T203/T206 do not reconcile defect D33 (filed this session, commit 224f69f: sm-diagram right-alignment, blocked-on-env). T203 rewrites the exact StateMachineDiagram SVG sizing/alignment code (width/height/viewBox/style maxWidth=model.width, preserveAspectRatio) that D33 concerns. The plan must state whether migrating to elk's computed width/height RESOLVES, PRESERVES, or INVALIDATES D33's alignment behavior, and add a step (in T203 or T206) to update/close D33 accordingly so the elk pivot does not silently leave a stale or contradicted defect."]
-- ledgerRefs: ["goals:G23"]
-- sessionLogs: ["docs/logs/20260606-210544-a1873e95df9ec2c70.md"]
-
-### R238 — go-ahead
-
-- createdAt: 2026-06-06T21:09:02.581Z
-- updatedAt: 2026-06-06T21:09:30.613Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- summary: "Round-2 revision resolves both R237 criticisms: T203 adds a new happy-dom render test (testid scheme + self-loop) with corrected new-coverage framing, and T203/T206 reconcile D33 with an operational left-alignment assertion and recorded disposition (resolved for homegrown via G24/T199, not re-filed). Plan is go-ahead."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G23"]
-- sessionLogs: ["docs/logs/20260606-210916-a07e3591c62e34c2d.md"]
-
-## M82
-
-### R247 — go-ahead
-
-- createdAt: 2026-06-06T23:56:42.524Z
-- updatedAt: 2026-06-06T23:57:17.919Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- summary: "go-ahead: D34 fix plan (T207-T209) is grounded, complete across both transports + client + regression test, correctly sequenced, and each task has a verifiable acceptance criterion."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G27"]
-- sessionLogs: ["docs/logs/20260606-235703-aa9bf7ba7fd4842b4.md"]
-
-## M80
-
-### R248 — revise
-
-- createdAt: 2026-06-07T00:04:26.967Z
-- updatedAt: 2026-06-07T00:05:01.587Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- summary: Plan is grounded, complete (all five skills incl. review-loop), correctly sequenced and testable; two planner-fixable acceptance/scope precision gaps keep it on revise.
-- new_questions: []
-- criticism: ["Scrub scope vs verify scope mismatch: T210 inventory and the T213/T214 scrub tasks enumerate only nix/pkg/cq-assets/** and nix/pkg/llm-skills/skills/**, but T215's final gate greps ALL of nix/ (which also covers nix/pkg/llm-contexts/, nix/hm/, and flake.nix). I verified llm-contexts (general-context.md, pi-context.md) and flake.nix currently contain ZERO references to the five names, so the gate passes today — but the inventory/scrub scope should be widened to the full nix/ tree (or T215's gate narrowed to match) so every location the gate checks is owned by a scrub task; otherwise a reference outside the two enumerated subtrees would be invisible to T210/T213/T214 yet fail T215 with no task assigned to fix it.","T212 acceptance command is imprecise: it asserts `nix eval .#llm-skills` shows an attr set that 'no longer includes the five removed names', but per flake.nix L462 `.#llm-skills` resolves to `.package` (the validated derivation), not the `skills` attr set — `nix eval` on a derivation does not expose skillNames. De-registration IS correctly verifiable (T215 check 2 inspects the built $out/skills), so fix T212's own acceptance to inspect $out/skills after a build, or to evaluate `(callPackage ./nix/pkg/llm-skills/default.nix {}).skills` attr names, rather than `nix eval .#llm-skills`."]
-- ledgerRefs: ["goals:G25"]
-- sessionLogs: ["docs/logs/20260607-000447-a69e06dc96c2189ab.md"]
-
-### R249 — go-ahead
-
-- createdAt: 2026-06-07T00:08:23.828Z
-- updatedAt: 2026-06-07T00:08:53.289Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- summary: "Round-2 revisions resolve both R248 criticisms: scrub-scope now equals the T215 verify-scope (full nix/ tree) and T212's de-registration acceptance is now technically correct against the actual .package/readDir structure; plan is fine-grained, sequenced, testable, grounded, and complete."
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G25"]
-- sessionLogs: ["docs/logs/20260607-000840-a743847f150e34c0a.md"]
-
-## M81
-
-### R250 — go-ahead
-
-- createdAt: 2026-06-07T00:15:45.738Z
-- updatedAt: 2026-06-07T00:16:15.556Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- summary: Plan for G26 is grounded, complete, fine-grained, sequenced, and testable — root cause (missing .lw-modal-backdrop/.lw-modal CSS) and all API references verified against the repo; matches answers Q121-Q124 + K42; web-only, generic across items; approved.
-- new_questions: []
-- criticism: []
-- ledgerRefs: ["goals:G26"]
-- sessionLogs: ["docs/logs/20260607-001602-a437cb1196df33565.md"]

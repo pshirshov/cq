@@ -64,253 +64,96 @@ archives:
     summary: "G15 Feature 2 (pluggable parallel reviewers) built+merged: pi non-interactive spike confirmed (K30 invocation contract) (T169); @cq/config cq.toml parser package (T170) + cq-config MCP server exposing get_reviewers + Nix package (T171); registered in dev-llm.nix + .mcp.json (T172); shared /cq:plan-review (T173) + /cq:implement-review (T174) rubrics; reconciliation (strictest-wins+union-with-source-tags, get_reviewers MCP tool, pi shellout) wired into plan/advance.md (T175) + implement/advance.md (T176); /cq:reviewers session-only override (T177); cq.toml.example + cq/* link entries + README (T178). Tasks T169-T178 done, reviews go-ahead, K30 locked. Integrated bun run check green 930/0; all new asset symlinks resolve."
     title: G15 W2 — Pluggable parallel reviewers (cq.toml + cq-config MCP + pi shellout)
     status: done
+  - id: M37
+    path: ./archive/decisions/M37.md
+    summary: G10 (fix D13 TUI nav perf + D23 test flake) closed done; coordination milestone archived — all items terminal.
+    title: "Plan: fix D13 (TUI nav perf — memo boundaries) + D23 (multi-step-form test flake)"
+    status: done
+  - id: M39
+    path: ./archive/decisions/M39.md
+    summary: G12 (fix D24 's'-key-inert archived-item test) closed done; coordination milestone archived — all items terminal.
+    title: "Fix: vacuous 's'-key-inert archived-item test (restores D22)"
+    status: done
+  - id: M40
+    path: ./archive/decisions/M40.md
+    summary: "G11 (agent-ergonomic ledger MCP: snapshot + handoffs + sessionLogs + click-protection) closed done; coordination milestone archived."
+    title: "Plan: agent-ergonomic ledger MCP (state-overview endpoint + better descriptions)"
+    status: done
+  - id: M47
+    path: ./archive/decisions/M47.md
+    summary: G13 (fix D25/D26/D27 G11 follow-up cleanup) closed done; coordination milestone archived.
+    title: "Plan: fix D25/D26/D27 (G11 follow-up cleanup)"
+    status: done
+  - id: M49
+    path: ./archive/decisions/M49.md
+    summary: G14 (fix D28 readLog TOCTOU) closed done; coordination milestone archived.
+    title: "Plan: fix D28 (readLog TOCTOU)"
+    status: done
+  - id: M51
+    path: ./archive/decisions/M51.md
+    summary: G15 (explorer RW prober + pluggable parallel reviewers via cq.toml) closed done; coordination milestone archived.
+    title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
+    status: done
+  - id: M53
+    path: ./archive/decisions/M53.md
+    summary: G16 (fix D29 reject empty answer on `answered`) closed done; coordination milestone archived.
+    title: "Plan: fix D29 (reject empty answer on question `answered`)"
+    status: done
+  - id: M57
+    path: ./archive/decisions/M57.md
+    summary: G17 (fix D30 link-prompts stale llm/ root) closed done; coordination milestone archived.
+    title: "Plan: fix D30 (link-prompts stale `llm/` root → dangling symlinks)"
+    status: done
+  - id: M59
+    path: ./archive/decisions/M59.md
+    summary: G18 (merge cq-config into ledger MCP + parallel planners) closed done; coordination milestone archived.
+    title: "Plan: merge cq-config into ledger MCP + parallel planners"
+    status: done
+  - id: M63
+    path: ./archive/decisions/M63.md
+    summary: G19 (fix D32 README cq-config repoint) closed done; coordination milestone archived.
+    title: "Plan: fix D32 (README cq-config repoint)"
+    status: done
+  - id: M65
+    path: ./archive/decisions/M65.md
+    summary: G20 (cq.toml [webui] + cq CLI init/reset/erase) closed done; coordination milestone archived.
+    title: "Plan: cq.toml [webui] + cq CLI (init/reset/erase)"
+    status: done
+  - id: M66
+    path: ./archive/decisions/M66.md
+    summary: G21 (fix D31 modal backdrop press-started dismiss) closed done; coordination milestone archived.
+    title: "Plan: fix D31 (modal backdrop press-started-inside dismiss)"
+    status: done
+  - id: M70
+    path: ./archive/decisions/M70.md
+    summary: "G22 (sidebar reorder + help-size + SVG align + cq: renames) closed done; coordination milestone archived."
+    title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
+    status: done
+  - id: M74
+    path: ./archive/decisions/M74.md
+    summary: G23 (flow state-machine docs + Flows help tab) closed done; coordination milestone archived.
+    title: "Plan: flow state-machine docs + Flows help tab"
+    status: done
+  - id: M75
+    path: ./archive/decisions/M75.md
+    summary: G24 (fix D33 left-align cyclic state-machine diagrams) closed done; coordination milestone archived.
+    title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
+    status: done
+  - id: M80
+    path: ./archive/decisions/M80.md
+    summary: G25 (retire legacy skills + clean cq references) closed done; coordination milestone archived.
+    title: "Plan: retire legacy skills + clean cq references"
+    status: done
+  - id: M81
+    path: ./archive/decisions/M81.md
+    summary: G26 (render session-log markdown in a popup) closed done; coordination milestone archived.
+    title: "Plan: render session logs as markdown in a popup"
+    status: done
+  - id: M82
+    path: ./archive/decisions/M82.md
+    summary: G27 (fix D34 top-bar progress counts withdrawn; + D35 client wiring) closed done; coordination milestone archived.
+    title: "Plan: fix D34 (top-bar progress counts withdrawn)"
+    status: done
 ---
 
 # decisions
-
-## M37
-
-### K22 — locked
-
-- createdAt: 2026-06-03T10:47:32.788Z
-- updatedAt: 2026-06-03T10:47:32.788Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R131): revised G10 fix plan (M38: T132/T133 D13 memo+layout incremental-render with text-keyed parse cache and instrumented-count regression guard; T134 D23 advance() poll-until-condition + generous per-test timeout; T135 D13 UX defer-detail file-and-defer) is fine-grained, sequenced, testable, and fully grounded — all citations verified against source. Both R130 feasibility corrections (ink 7.0.5 lacks incrementalRendering; instrumented render-count gate not wall-clock) resolved."
-- ledgerRefs: ["goals:G10"]
-
-## M39
-
-### K23 — locked
-
-- createdAt: 2026-06-03T15:22:11.639Z
-- updatedAt: 2026-06-03T15:22:11.639Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R136): T136 (revised) resolves R135 — PRIMARY assertion is '[archived · read-only]' badge PRESENT (regression-sensitive, overlay swaps the content-pane Box removing the badge); any '› '-absence assertion is content-pane-scoped; whole-frame '› '-absent is forbidden. Test-only fix to packages/ledger-tui/test/app.test.tsx, red/green + bun run check."
-- ledgerRefs: ["goals:G12"]
-
-## M40
-
-### K24 — locked
-
-- createdAt: 2026-06-03T15:48:52.034Z
-- updatedAt: 2026-06-03T15:48:52.034Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead on R140 (4th pass) — 0 criticisms, 0 new questions. Approved plan: 5 work milestones M42-M46, 21 tasks T137-T157 implementing the four G11 features (state-overview snapshot + fetch_ledger projection/pagination, doc/description improvements + FTS-anomaly repro, terminal-reopen + un-archive store ops, web click-and-hold HoldButton protection, handoffs ledger + sessionLogs link fields + read-log tool/log-viewer). Task DAG verified acyclic and totally ordered across shared-file task pairs (ledgerTools.ts chain T144->T145->T146->T147->T149); faithful to clarifying answers Q74-Q87."
-- ledgerRefs: ["goals:G11"]
-
-## M47
-
-### K25 — locked
-
-- createdAt: 2026-06-03T20:10:29.521Z
-- updatedAt: 2026-06-03T20:10:29.521Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: "plan review: approved"
-- rationale: reviewer go-ahead on G13/M48 plan (T158/T159/T160), ref review R162 — no criticism, no new questions, no out-of-scope defects.
-- ledgerRefs: ["goals:G13"]
-
-## M49
-
-### K26 — locked
-
-- createdAt: 2026-06-03T20:44:53.220Z
-- updatedAt: 2026-06-03T20:44:53.220Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (R166): G14/M50 plan approved round 0, 0 criticisms, 0 new questions, no out-of-scope defects. T161 closes D28 TOCTOU; fix + acceptance verified against source."
-- ledgerRefs: ["goals:G14"]
-
-## M53
-
-### K27 — locked
-
-- createdAt: 2026-06-05T18:38:46.696Z
-- updatedAt: 2026-06-05T18:38:46.696Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R168): D29 plan is fine-grained, reproduce-first, correctly sequenced (T163/T164 dependsOn T162), and complete across backend dual-store + all four frontend submit paths; no criticism, no new questions, no out-of-scope defects."
-- ledgerRefs: ["goals:G16"]
-
-## M57
-
-### K28 — locked
-
-- createdAt: 2026-06-05T19:09:30.004Z
-- updatedAt: 2026-06-05T19:09:30.004Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead on G17 plan (ref review R171): R170's sole import-safety criticism resolved; T179→T180→T181 grounded, fine-grained, reproduce-first, correctly serialized."
-- ledgerRefs: ["goals:G17"]
-
-## M51
-
-### K29 — locked
-
-- createdAt: 2026-06-05T20:25:53.209Z
-- updatedAt: 2026-06-05T20:25:53.209Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead on review R178 (0 criticisms, 0 new questions): all 3 R169 criticisms resolved, Q95 confirms strictest-wins+union reconciliation, DAG acyclic with same-file edits serialized. Approves the G15 plan (M55/M56) to advance planning -> planned."
-- ledgerRefs: ["goals:G15"]
-
-## M59
-
-### K31 — locked
-
-- createdAt: 2026-06-05T22:32:37.047Z
-- updatedAt: 2026-06-05T22:32:37.047Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R194): all three R193 criticisms durably resolved (dual-surface tool registration in ledgerTools.ts + stdioLedgerTools.ts, 18->20->21 count/drift-guard, bare cq-config repoint); PART 2 design sound. Plan G18 (M61/M62) approved for planned."
-- ledgerRefs: ["goals:G18"]
-
-## M63
-
-### K32 — locked
-
-- createdAt: 2026-06-06T00:39:28.607Z
-- updatedAt: 2026-06-06T00:39:28.607Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R212): plan minimal, grounded, testable — single doc-only fix task T182, 0 criticisms, 0 new questions."
-- ledgerRefs: ["goals:G19"]
-
-## M66
-
-### K33 — locked
-
-- createdAt: 2026-06-06T11:02:18.698Z
-- updatedAt: 2026-06-06T11:02:18.698Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R214): plan fine-grained, correctly sequenced (RED T183 -> GREEN T184), operationally testable, grounded, minimal for confirmed root cause D31; 0 criticisms, 0 new questions."
-- ledgerRefs: ["goals:G21"]
-
-## M65
-
-### K34 — locked
-
-- createdAt: 2026-06-06T11:15:01.671Z
-- updatedAt: 2026-06-06T11:15:01.671Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R216): all 3 R215 criticisms resolved (cq-cli/main.ts serialized T189->T190->T191; T192 dependsOn T185 for single FOD refresh; @cq/config wired into ledger-web pkg + ledgerWeb derivation). DAG acyclic, all shared-file task pairs totally ordered, Q105-Q111 fidelity intact. G20 plan (M68: T185-T187; M69: T188-T192) approved for planned."
-- ledgerRefs: ["goals:G20"]
-
-## M70
-
-### K35 — locked
-
-- createdAt: 2026-06-06T12:38:57.368Z
-- updatedAt: 2026-06-06T12:38:57.368Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R228): 0 criticisms, 0 new questions after one revise round (R227 cross-file rename gap resolved). Plan M71 (T193-T195) + M72 (T196-T198) approved for implementation."
-- ledgerRefs: ["goals:G22"]
-
-## M75
-
-### K36 — locked
-
-- createdAt: 2026-06-06T20:54:56.927Z
-- updatedAt: 2026-06-06T20:54:56.927Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (R236): plan for D33 left-align fix approved. computeDagLayout layer re-base (subtract minLayer so min layer is 0) corrects both the help State-machines view and the milestone DagView; task T199 under work milestone M76. Both R235 criticisms addressed in T199's acceptance."
-- ledgerRefs: ["goals:G24","defects:D33"]
-
-## M74
-
-### K37 — locked
-
-- createdAt: 2026-06-06T20:59:26.533Z
-- updatedAt: 2026-06-06T21:09:59.036Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Adopt elkjs as the diagram layout engine for the help-dialog State-machines + new Flows tabs (retire homegrown computeDagLayout for those tabs)
-- rationale: "Q116 delegated the library choice to the planner and asked to stop maintaining the homegrown renderer. The single load-bearing constraint is the happy-dom test environment: it has NO layout (no getBBox, ResizeObserver, DOMMatrix). That eliminates libraries whose LAYOUT depends on live DOM measurement: mermaid (getBBox returns 0 outside a real render tree), @xyflow/react React Flow (needs a measured container width/height + ResizeObserver/DOMMatrix/getBBox mocks, large interactive-canvas bundle), and cytoscape.js (DOM measurement). elkjs is a PURE layout engine (the Eclipse Layout Kernel compiled to JS) — given a graph it returns node/edge/edge-LABEL/self-loop coordinates as plain data, running in Node/Bun with ZERO DOM. We keep a THIN in-repo SVG renderer over elkjs output, so: (1) happy-dom unit tests keep asserting SVG/DOM STRUCTURE exactly as the current State-machines tab tests do (the layout is still pure JS, just elk's instead of ours); (2) we gain the features the flow diagrams need and computeDagLayout lacks — labelled transitions, self-loops/loop edges, and proper layered routing (Q115/Q116); (3) elkjs is the layout engine React Flow itself documents/recommends, actively maintained (Eclipse/Kieler), permissive (EPL-2.0), and ships a single worker-less JS entry usable directly. Scope: the TWO diagram tabs only (State machines + Flows). DagView.tsx (milestone dependency DAG) keeps computeDagLayout and is OUT of scope. elkjs runs async (elk.layout() returns a Promise) — the tabs already fetch async, so the diagram model is produced in an effect and rendered when ready."
-- alternatives: "@xyflow/react (React Flow): richest interactive node-UI + native edge labels, but needs real-browser measurement (container size, ResizeObserver, DOMMatrix, getBBox) — heavy mocking to test under happy-dom, large bundle, and interactivity we don't need for a static help diagram. mermaid: purpose-built stateDiagram-v2 with native labelled transitions + self-loops, but its SVG layout depends on getBBox (returns 0 outside a real render tree) so it is unreliable/untestable under happy-dom without a headless chromium gate. dagre: also pure-JS layout (testable) but effectively in maintenance mode and weaker on edge labels / ports / self-loops than elk. cytoscape.js: canvas/DOM-measurement based, heavier, oriented at interactive graph exploration. Keep-homegrown-and-extend: rejected per Q116 (user explicitly asked to stop maintaining it)."
-- sourceRefs: ["Q116 answer: adopt a graph/state-machine viz library for both tabs, retire homegrown renderer","reactflow.dev/learn/layouting (elkjs is a pure layout engine; React Flow recommends it)","github.com/kieler/elkjs (EPL-2.0, Eclipse Layout Kernel ported to JS, computes positions only)","mermaid-js/mermaid#4180 (getBBox returns 0 when element not in render tree — happy-dom incompatibility)","xyflow/xyflow testing docs (mock ResizeObserver/DOMMatrix/getBBox; container needs width+height)"]
-- ledgerRefs: ["goals:G23"]
-
-## M82
-
-### K38 — locked
-
-- createdAt: 2026-06-06T23:53:27.772Z
-- updatedAt: 2026-06-06T23:53:27.772Z
-- author: "opus-4.8[1m]"
-- headline: "D34 fix shape: add server-side `progressTotal` field to LedgerSummary (approach A1), not client-side statusCounts math (A2)"
-- rationale: "D34's recommended fix is approach A (denominator symmetric with the answered-only numerator: questions denominator = open + answered, i.e. itemCount minus `withdrawn`; every other ledger denominator = itemCount). Two field shapes were viable: A1 = a new server-computed `progressTotal` field on LedgerSummary; A2 = compute the denominator client-side in LedgerProgressBar from `statusCounts`. LOCKED on A1. Rationale: the existing answered-only numerator (`completedCount`) is deliberately computed SERVER-SIDE against each ledger's schema, and App.tsx LedgerProgressBar (src/App.tsx:1405) documents the invariant 'No client-side schema lookup — classification is entirely server-side (T1/T3)'. A2 would re-introduce questions-ledger-specific classification on the client, violating that invariant and splitting the completion logic across tiers. A1 keeps numerator and denominator computed in the same place, the same way, mirrored across BOTH transports (ledgerTools.ts + stdioLedgerTools.ts). Field name: `progressTotal` (optional on LedgerSummary, absent on older servers → client falls back to `itemCount`). Numerator stays `completedCount`; `itemCount` is left UNCHANGED (other consumers rely on it)."
-- ledgerRefs: ["goals:G27","defects:D34"]
-
-### K39 — locked
-
-- createdAt: 2026-06-06T23:57:40.230Z
-- updatedAt: 2026-06-06T23:57:40.230Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (R247): D34 fix plan T207-T209 is grounded, complete across both MCP transports + web client + regression test, correctly sequenced, with verifiable acceptance per task; 0 criticisms, 0 new questions."
-- ledgerRefs: ["goals:G27"]
-
-## M80
-
-### K40 — locked
-
-- createdAt: 2026-06-06T23:59:42.739Z
-- updatedAt: 2026-06-06T23:59:42.739Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- headline: "Retirement set is FIVE skills, not four: review-loop joins research-loop/vsm-loop/vsm-node/question-batch"
-- rationale: "Q120 answer chose 'These four PLUS review-loop (retire the whole review/vsm family, since the cq flow supersedes it).' The original goal title/description named only four; this decision records that the authoritative retirement set is five. Consequence: the entire [[wikilink]]-coupled family moves together, so no in-family link target survives — archived bodies must repoint inter-skill links to peer archive files or to cq successors, not to a still-installed review-loop."
-- ledgerRefs: ["goals:G25"]
-
-### K41 — locked
-
-- createdAt: 2026-06-07T00:09:20.877Z
-- updatedAt: 2026-06-07T00:09:20.877Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead on round-2 plan (R249): 0 criticisms, 0 new questions; scrub-scope now matches T215 verify-scope and T212 de-registration acceptance is correct. Plan (M84/T210-T215) is fine-grained, sequenced, testable, grounded, complete."
-- ledgerRefs: ["goals:G25"]
-
-## M81
-
-### K42 — locked
-
-- createdAt: 2026-06-07T00:11:58.769Z
-- updatedAt: 2026-06-07T00:11:58.769Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- headline: "read_log truncation: relax the cap, keep a generous safety bound (Q124)"
-- rationale: "Q124 answer was 'render everything without truncation'. Literal removal of MAX_READ_LOG_BYTES (256KiB) would make read_log return unbounded content, risking MCP tool-output / browser overflow and violating fail-fast boundary-validation. Real session logs are realistically well under 256KiB, so the user's intent ('don't cut my logs off') is satisfied by rendering the full content the popup receives. DECISION: raise MAX_READ_LOG_BYTES to a generous bound (e.g. 4 MiB) so practical logs are always returned whole, KEEP the truncated flag + notice purely as a defensive fallback for pathological files, and render the (full) content as markdown. Do NOT make reads unbounded. If a future need arises for truly-unbounded reads, revisit with streaming/pagination rather than an uncapped read."
-- ledgerRefs: ["goals:G26"]
-
-### K43 — locked
-
-- createdAt: 2026-06-07T00:16:37.595Z
-- updatedAt: 2026-06-07T00:16:37.595Z
-- author: "opus-4.8[1m]"
-- session: 059ff637-d28c-4785-8125-9c0d73ddf7a0
-- headline: "plan review: approved"
-- rationale: "Reviewer go-ahead (ref review R250): plan grounded/complete/fine-grained/sequenced/testable, 0 criticisms, 0 new questions."
-- ledgerRefs: ["goals:G26"]

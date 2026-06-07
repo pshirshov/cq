@@ -329,6 +329,96 @@ archives:
     summary: "G26 session-log popup landed: added .lw-modal-backdrop/.lw-modal overlay CSS so LogModal is a fixed popup (T216), LogModal renders content via the sanitized Markdown component instead of <pre> (T217), read_log cap relaxed to 4 MiB per K42 (T218), happy-dom regression test for overlay+markdown (T219), and bun run check green gate (T220). All reviewed go-ahead."
     title: "W: session-log markdown popup (ledger-web, G26)"
     status: done
+  - id: M37
+    path: ./archive/milestones/M37.md
+    summary: G10 (fix D13 TUI nav perf + D23 test flake) closed done; coordination milestone archived — all items terminal.
+    title: "Plan: fix D13 (TUI nav perf — memo boundaries) + D23 (multi-step-form test flake)"
+    status: done
+  - id: M39
+    path: ./archive/milestones/M39.md
+    summary: G12 (fix D24 's'-key-inert archived-item test) closed done; coordination milestone archived — all items terminal.
+    title: "Fix: vacuous 's'-key-inert archived-item test (restores D22)"
+    status: done
+  - id: M40
+    path: ./archive/milestones/M40.md
+    summary: "G11 (agent-ergonomic ledger MCP: snapshot + handoffs + sessionLogs + click-protection) closed done; coordination milestone archived."
+    title: "Plan: agent-ergonomic ledger MCP (state-overview endpoint + better descriptions)"
+    status: done
+  - id: M47
+    path: ./archive/milestones/M47.md
+    summary: G13 (fix D25/D26/D27 G11 follow-up cleanup) closed done; coordination milestone archived.
+    title: "Plan: fix D25/D26/D27 (G11 follow-up cleanup)"
+    status: done
+  - id: M49
+    path: ./archive/milestones/M49.md
+    summary: G14 (fix D28 readLog TOCTOU) closed done; coordination milestone archived.
+    title: "Plan: fix D28 (readLog TOCTOU)"
+    status: done
+  - id: M51
+    path: ./archive/milestones/M51.md
+    summary: G15 (explorer RW prober + pluggable parallel reviewers via cq.toml) closed done; coordination milestone archived.
+    title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
+    status: done
+  - id: M53
+    path: ./archive/milestones/M53.md
+    summary: G16 (fix D29 reject empty answer on `answered`) closed done; coordination milestone archived.
+    title: "Plan: fix D29 (reject empty answer on question `answered`)"
+    status: done
+  - id: M57
+    path: ./archive/milestones/M57.md
+    summary: G17 (fix D30 link-prompts stale llm/ root) closed done; coordination milestone archived.
+    title: "Plan: fix D30 (link-prompts stale `llm/` root → dangling symlinks)"
+    status: done
+  - id: M59
+    path: ./archive/milestones/M59.md
+    summary: G18 (merge cq-config into ledger MCP + parallel planners) closed done; coordination milestone archived.
+    title: "Plan: merge cq-config into ledger MCP + parallel planners"
+    status: done
+  - id: M63
+    path: ./archive/milestones/M63.md
+    summary: G19 (fix D32 README cq-config repoint) closed done; coordination milestone archived.
+    title: "Plan: fix D32 (README cq-config repoint)"
+    status: done
+  - id: M65
+    path: ./archive/milestones/M65.md
+    summary: G20 (cq.toml [webui] + cq CLI init/reset/erase) closed done; coordination milestone archived.
+    title: "Plan: cq.toml [webui] + cq CLI (init/reset/erase)"
+    status: done
+  - id: M66
+    path: ./archive/milestones/M66.md
+    summary: G21 (fix D31 modal backdrop press-started dismiss) closed done; coordination milestone archived.
+    title: "Plan: fix D31 (modal backdrop press-started-inside dismiss)"
+    status: done
+  - id: M70
+    path: ./archive/milestones/M70.md
+    summary: "G22 (sidebar reorder + help-size + SVG align + cq: renames) closed done; coordination milestone archived."
+    title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
+    status: done
+  - id: M74
+    path: ./archive/milestones/M74.md
+    summary: G23 (flow state-machine docs + Flows help tab) closed done; coordination milestone archived.
+    title: "Plan: flow state-machine docs + Flows help tab"
+    status: done
+  - id: M75
+    path: ./archive/milestones/M75.md
+    summary: G24 (fix D33 left-align cyclic state-machine diagrams) closed done; coordination milestone archived.
+    title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
+    status: done
+  - id: M80
+    path: ./archive/milestones/M80.md
+    summary: G25 (retire legacy skills + clean cq references) closed done; coordination milestone archived.
+    title: "Plan: retire legacy skills + clean cq references"
+    status: done
+  - id: M81
+    path: ./archive/milestones/M81.md
+    summary: G26 (render session-log markdown in a popup) closed done; coordination milestone archived.
+    title: "Plan: render session logs as markdown in a popup"
+    status: done
+  - id: M82
+    path: ./archive/milestones/M82.md
+    summary: G27 (fix D34 top-bar progress counts withdrawn; + D35 client wiring) closed done; coordination milestone archived.
+    title: "Plan: fix D34 (top-bar progress counts withdrawn)"
+    status: done
 ---
 
 # milestones
@@ -347,121 +437,3 @@ archives:
 - updatedAt: 2026-06-02T08:36:51.936Z
 - title: "Investigate: mcp-fails-uninitialized-ledger"
 - description: "Coordination milestone for investigating defect: @cq/ledger-mcp fails to connect when started in a directory with no initialized ledger; should auto-init the canonical ledger set instead. Holds the defect, its hypothesis tree, and any clarifying questions."
-
-### M37 — open
-
-- createdAt: 2026-06-03T10:24:42.538Z
-- updatedAt: 2026-06-03T10:24:42.538Z
-- title: "Plan: fix D13 (TUI nav perf — memo boundaries) + D23 (multi-step-form test flake)"
-- description: "Coordination milestone for defect-seeded goal G9 — the two root-caused defects from the /advance investigate round (2026-06-03): D13 (TUI ~500ms/cursor-move — confirmed N-independent: full unmemoized re-render + per-keystroke markdown re-parse, H9+H10) and D23 (multi-step-form test flakes via advance() helper's fixed 1500ms budget, H13). Both root causes CONFIRMED with runtime/git evidence. File-disjoint (ledger-tui src vs test) → parallel-safe. Holds the goal, its reviews, approval decision; work tasks under a separate work milestone."
-
-### M39 — open
-
-- createdAt: 2026-06-03T11:34:10.465Z
-- updatedAt: 2026-06-03T11:34:10.465Z
-- title: "Fix: vacuous 's'-key-inert archived-item test (restores D22)"
-- description: Coordination milestone restoring defect D22, which the user accidentally set `resolved` and which the /advance auto-archive sweep then swept into the M35 archive (G8 coordination). The ledger tooling has no un-archive / reopen-terminal path, so D22 is re-filed here as a fresh OPEN defect with its original content + the T130-reviewer-identified fix. (The archive footgun — auto-archive acting on an erroneous terminal status, with no inverse op — is grounding for the agent-ergonomics goal filed this session.)
-
-### M40 — open
-
-- createdAt: 2026-06-03T11:34:40.352Z
-- updatedAt: 2026-06-03T11:34:40.352Z
-- title: "Plan: agent-ergonomic ledger MCP (state-overview endpoint + better descriptions)"
-- description: "Coordination milestone for a greenfield goal: make the ledger MCP server more convenient/efficient for AGENT consumers — chiefly the /advance, /plan, /implement, /investigate flows that must derive ledger state at the start of a run. Groups the goal, its clarifying questions, reviews, and final approval decision; work tasks live under separate work milestones the planner creates."
-
-### M47 — open
-
-- createdAt: 2026-06-03T20:05:46.833Z
-- updatedAt: 2026-06-03T20:05:46.833Z
-- title: "Plan: fix D25/D26/D27 (G11 follow-up cleanup)"
-
-### M49 — open
-
-- createdAt: 2026-06-03T20:40:38.475Z
-- updatedAt: 2026-06-03T20:40:38.475Z
-- title: "Plan: fix D28 (readLog TOCTOU)"
-
-### M51 — open
-
-- createdAt: 2026-06-05T18:09:01.382Z
-- updatedAt: 2026-06-05T18:09:01.382Z
-- title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
-- description: "Coordination milestone for a plan-flow goal covering two new features: (1) granting investigate-flow explorers read/write capability when needed; (2) a cq.toml-defined pluggable reviewer set (claude + pi/codex/x.ai) run in parallel and reconciled, with on-the-fly switching via a /cq:reviewers command. Groups the goal, its clarifying questions, plan reviews, and the final approval decision."
-
-### M53 — open
-
-- createdAt: 2026-06-05T18:30:41.769Z
-- updatedAt: 2026-06-05T18:30:41.769Z
-- title: "Plan: fix D29 (reject empty answer on question `answered`)"
-- description: Coordination milestone for the defect-seeded plan-flow goal that fixes D29 — the ledger accepting an empty/whitespace answer when a question is marked `answered`. Confirmed root cause embedded in the goal; skips clarifying (T35).
-
-### M57 — open
-
-- createdAt: 2026-06-05T18:59:52.376Z
-- updatedAt: 2026-06-05T18:59:52.376Z
-- title: "Plan: fix D30 (link-prompts stale `llm/` root → dangling symlinks)"
-- description: Coordination milestone for the defect-seeded plan-flow goal fixing D30 — scripts/link-prompts.ts + cq-assets/README.md still reference the relocated `llm/` asset root, so `bun run link-prompts` silently creates dangling symlinks. Confirmed root cause embedded; skips clarifying (T35).
-
-### M59 — open
-
-- createdAt: 2026-06-05T21:57:57.940Z
-- updatedAt: 2026-06-05T21:57:57.940Z
-- title: "Plan: merge cq-config into ledger MCP + parallel planners"
-- description: "Coordination milestone for a plan-flow goal: (1) consolidate the standalone cq-config MCP server (built in G15/M56) into the existing ledger MCP as a tool, removing the separate server/package; (2) add pluggable parallel PLANNERS mirroring the parallel-reviewers design (config defaults + per-session override command). Groups the goal, its clarifying questions, plan reviews, and the final approval decision."
-
-### M63 — open
-
-- createdAt: 2026-06-06T00:35:07.871Z
-- updatedAt: 2026-06-06T00:35:07.871Z
-- title: "Plan: fix D32 (README cq-config repoint)"
-
-### M65 — open
-
-- createdAt: 2026-06-06T10:37:32.297Z
-- updatedAt: 2026-06-06T10:37:32.297Z
-- title: "Plan: cq.toml [webui] + cq CLI (init/reset/erase)"
-
-### M66 — open
-
-- createdAt: 2026-06-06T10:55:16.471Z
-- updatedAt: 2026-06-06T10:55:16.471Z
-- title: "Plan: fix D31 (modal backdrop press-started-inside dismiss)"
-
-### M70 — open
-
-- createdAt: 2026-06-06T12:24:48.761Z
-- updatedAt: 2026-06-06T12:24:48.761Z
-- title: "Plan: sidebar reorder + help-size + SVG align + cq: command renames"
-
-### M74 — open
-
-- createdAt: 2026-06-06T20:24:47.108Z
-- updatedAt: 2026-06-06T20:24:47.108Z
-- title: "Plan: flow state-machine docs + Flows help tab"
-
-### M75 — open
-
-- createdAt: 2026-06-06T20:44:12.421Z
-- updatedAt: 2026-06-06T20:44:12.421Z
-- title: "Plan: fix D33 (sm-diagram layer-0 left gap)"
-
-### M80 — open
-
-- createdAt: 2026-06-06T23:30:00.234Z
-- updatedAt: 2026-06-06T23:30:00.234Z
-- title: "Plan: retire legacy skills + clean cq references"
-- description: Coordination milestone for the goal of retiring four skills (research-loop, vsm-loop, vsm-node, question-batch), relocating them to ./docs/legacy-skills for future reference, and cleaning up the references to them in the cq flow assets.
-
-### M81 — open
-
-- createdAt: 2026-06-06T23:34:46.584Z
-- updatedAt: 2026-06-06T23:34:46.584Z
-- title: "Plan: render session logs as markdown in a popup"
-- description: Coordination milestone for the goal of changing how sessionLogs (and similar markdown content) on goals/handoffs ledger items are surfaced in the UI — from inline verbatim text to a popup/modal that renders the log markdown.
-
-### M82 — open
-
-- createdAt: 2026-06-06T23:49:22.032Z
-- updatedAt: 2026-06-06T23:49:22.032Z
-- title: "Plan: fix D34 (top-bar progress counts withdrawn)"
-- description: Coordination milestone for the defect-seeded goal fixing D34 — the top-bar questions progress bar reads 38/39 because itemCount (denominator) counts the terminal `withdrawn` question while completedCount (numerator) counts `answered` only. Seeded from the confirmed investigate root cause (H26).

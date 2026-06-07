@@ -64,6 +64,16 @@ archives:
     summary: "Investigate D34 (top-bar progress 38/39) complete: root cause confirmed (H26 — denominator itemCount counts the terminal `withdrawn` question while numerator counts answered-only), file-and-deferred to G27, fix landed (T207-T209) and D34 resolved. HO15 handoff recorded."
     title: "Investigate: topbar-progress-undercount"
     status: done
+  - id: M39
+    path: ./archive/hypothesis/M39.md
+    summary: G12 (fix D24 's'-key-inert archived-item test) closed done; coordination milestone archived — all items terminal.
+    title: "Fix: vacuous 's'-key-inert archived-item test (restores D22)"
+    status: done
+  - id: M51
+    path: ./archive/hypothesis/M51.md
+    summary: G15 (explorer RW prober + pluggable parallel reviewers via cq.toml) closed done; coordination milestone archived.
+    title: "Plan: explorer RW access + pluggable parallel reviewers (cq.toml)"
+    status: done
 ---
 
 # hypothesis
@@ -114,30 +124,3 @@ archives:
 - parentHypothesis: H3
 - evidence: ["[correct] USER-OBSERVED runtime error (decisive): `ledger-mcp: fatal: Bootstrap invariant violated: existing goals ledger has a different schema than its canonical bootstrap schema` — the exact BootstrapViolationError message, naming the goals ledger schema divergence.","[correct] packages/ledger/src/store/FsLedgerStore.ts:283-289 (orchestrator-verified earlier): `else if (!schemasEqual(entry.schema, canonical.schema)) { throw new BootstrapViolationError(...) }` — the only startup throw on a non-ENOENT tree; fires on an existing-but-divergent on-disk schema.","[correct] packages/ledger-mcp/src/main.ts:337-344: main() awaits store.init() before serving, so this throw aborts the connection."]
 - ledgerRefs: ["defects:D2"]
-
-## M39
-
-### H14 — confirmed
-
-- createdAt: 2026-06-03T15:10:57.119Z
-- updatedAt: 2026-06-03T15:14:20.262Z
-- author: "opus-4.8[1m]"
-- session: ea0ee283-9e2d-4088-a61a-86fac464e29b
-- headline: The 's'-key-inert archived-item test asserts only overlay-INSENSITIVE frame content, so it cannot catch a regression where 's' opens the status overlay on an archived row
-- description: "ROOT-CAUSE CANDIDATE (single). packages/ledger-tui/test/app.test.tsx \"the 's' key is inert on an archived item\" asserts only frame.toContain('[archived]') + frame.toContain('archived task'). TRUE if: (a) both asserted strings render OUTSIDE the right-hand content pane (the '[archived]' path-header at app.tsx cursorInArchive ~L937 + the list-pane row), (b) the status/SelectList overlay replaces ONLY the content pane — so the header + list row persist even when the picker IS open — making both assertions pass regardless of whether 's' was wrongly handled, and (c) the sibling 'e'-inert test asserts a content-pane string ('read-only') that the overlay WOULD replace, so it IS regression-sensitive and is the model for the fix (assert the status-picker SelectList marker is absent in the content pane, or the read-only badge present)."
-- ledgerRefs: ["defects:D24"]
-- evidence: ["[correct] app.test.tsx:982-984 (orchestrator-verified) — the 's'-inert test asserts ONLY `expect(f).toContain('[archived]')` + `expect(f).toContain('archived task')`; both are overlay-insensitive (path header + list row).","[correct] app.test.tsx:1008 (orchestrator-verified) — the sibling 'e'-inert test asserts `expect(f).toContain('read-only')`, a CONTENT-PANE string the overlay would replace → regression-sensitive; the model for the fix.","[correct] app.tsx:1061-1073 (orchestrator-verified) — the list pane ({listEl}, holding 'archived task') is its own Box; the right-hand box renders `overlay !== null ? <Overlays/> : contentEl`, so the status overlay replaces ONLY the content pane. Header '[archived]' + list row persist with the picker open → both 's'-test assertions still pass.","[correct] app.tsx:803 + 838 (orchestrator-verified) — the guarded behavior is `input === 's' && cur && !cursorInArchive && setOverlay({t:'status',row:cur})` (content-focus L803, list-focus L838). Removing `!cursorInArchive` re-introduces exactly the regression the current test cannot catch.","[correct] app.tsx:1291-1296 + 1424 (explorer-cited, consistent with source) — the SelectList cursor marker is '› '; the archived content-pane badge is '[archived · read-only]'. The fix asserts the '› ' picker marker ABSENT / the read-only badge PRESENT in the content pane."]
-
-## M51
-
-### H21 — confirmed
-
-- createdAt: 2026-06-05T18:56:40.776Z
-- updatedAt: 2026-06-05T18:59:22.447Z
-- author: "opus-4.8[1m]"
-- session: 58a3012b-08b8-4f7a-816b-008d6fb1d8d5
-- headline: Asset tree was relocated from `llm/` to `nix/pkg/cq-assets/` but scripts/link-prompts.ts + cq-assets/README.md still reference the old `llm/` root, so link-prompts creates dangling symlinks
-- description: "TRUE if: (a) scripts/link-prompts.ts LINKS entries set `source:` to `llm/commands/...` / `llm/agents/...`; (b) that `llm/` root does NOT resolve relative to where link-prompts runs (no `nix/pkg/cq-ledgers/llm` dir, or it is a stale/broken symlink) while the real assets live under `nix/pkg/cq-assets/{commands,agents}/`; (c) assets.nix reads `./commands`/`./agents` under cq-assets (confirming the relocation); (d) `symlink()` on a nonexistent target still succeeds, yielding a DANGLING link, so the script can 'run clean' while producing unusable links; (e) README.md tables still cite `llm/...`."
-- ledgerRefs: ["defects:D30"]
-- evidence: ["[correct] scripts/link-prompts.ts:19 — REPO_ROOT = resolve(dirname(scriptfile), '..') = nix/pkg/cq-ledgers/; sources resolve under it. (re-validated, exact)","[correct] scripts/link-prompts.ts:29-44 — all 14 LINKS entries set source: 'llm/commands/...' / 'llm/agents/...'. (re-validated, exact)","[correct] `ls nix/pkg/cq-ledgers/llm` -> 'No such file or directory' — the llm/ source root the script points at is ABSENT, so every absSource is missing. (re-validated)","[correct] scripts/link-prompts.ts:46-73 — linkExists()/the loop stat only absLink (the LINK), NEVER absSource (the TARGET); symlink(relTarget, absLink) succeeds for a nonexistent target and line 73 logs success -> DANGLING symlinks on a 'clean' run. (re-validated, exact)","[correct] nix/pkg/cq-assets/assets.nix:49-50 — commands = collectMdIn ./commands; agents = collectMdIn ./agents; (relative to cq-assets, no llm/ prefix) confirming relocation. (re-validated, exact)","[correct] real assets present: nix/pkg/cq-assets/agents/plan-reviewer.md + commands/plan/start.md exist (test -e OK) — sources moved here, not deleted. (re-validated)","[correct] nix/pkg/cq-assets/README.md:1,10-11,40-42 — title '# `llm/` — single-source LLM assets' + convention block + Claude-link table still cite 'llm/commands/...' / 'llm/agents/...'. (re-validated, exact)","[correct] package.json:13 — 'link-prompts': 'bun run scripts/link-prompts.ts' runs from nix/pkg/cq-ledgers/, fixing the CWD/REPO_ROOT. (re-validated, exact)"]
-- sessionLogs: ["docs/logs/20260605-185840-addf76024a26b2805.md"]
