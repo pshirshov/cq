@@ -667,12 +667,21 @@ in
           #   (piXaiPatched) not "npm:pi-xai" so the Grok Build context window
           #   reads 256k not the stale hardcoded 128k; Pi npm-installs the local
           #   package + its typebox dep on launch.
-          # - @0xkobold/pi-ollama: Ollama provider.
+          # - pi-ollama-cloud: Ollama Cloud provider (first-party, badlogic).
+          #   Registers the `ollama-cloud` provider against https://ollama.com/v1
+          #   (apiKey `$OLLAMA_API_KEY`; or ~/.pi/agent/ollama-cloud.json) — no
+          #   local server. Self-contained: its only imports (@sinclair/typebox +
+          #   the host pi API) come from Pi's jiti alias map, so Pi's managed
+          #   `--legacy-peer-deps` install resolves everything.
+          #   NOT "npm:@0xkobold/pi-ollama": that one declares the `ollama` npm
+          #   package as a *peer* dependency, which Pi's --legacy-peer-deps
+          #   managed install skips (and Pi does not alias `ollama`), so it fails
+          #   to load with "Cannot find module 'ollama'".
           # (pi-mcp-adapter is added separately by enableMcpIntegration.)
           packages = [
             "npm:@juicesharp/rpiv-web-tools"
             "npm:@gotgenes/pi-anthropic-auth"
-            "npm:@0xkobold/pi-ollama"
+            "npm:pi-ollama-cloud"
             "${piXaiPatched}"
           ];
           extensions = [
