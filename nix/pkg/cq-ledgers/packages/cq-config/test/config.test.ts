@@ -354,7 +354,7 @@ grok = "pi:grok-build/grok-build"
 
 [tiers]
 "pi:ollama-cloud/minimax-m3" = "fast"
-minimax = "standard"
+grok = "standard"
 opus = "frontier"
 
 [agent_tiers]
@@ -381,14 +381,14 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
 
   it("resolves a tier value that names an alias", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
-    // 'standard' = "minimax" — a name in [aliases] -> pi:ollama-cloud/minimax-m3
+    // 'standard' = "grok" — a name in [aliases] -> pi:grok-build/grok-build
     const standardEntry = config.tiers!.entries.find(
       (e) => e.class === "standard",
     );
     expect(standardEntry?.token).toEqual({
       harness: "pi",
-      model: "minimax-m3",
-      provider: "ollama-cloud",
+      model: "grok-build",
+      provider: "grok-build",
     });
     // 'frontier' = "opus" — a name in [aliases] -> claude:opus-4.8[1m]
     const frontierEntry = config.tiers!.entries.find(
@@ -476,7 +476,7 @@ describe("resolveAgentModel end-to-end (T223 acceptance c; T271 classifier)", ()
   const ALL_TOKENS: ReviewerToken[] = [
     { harness: "claude", model: "opus-4.8[1m]", provider: null }, // frontier
     { harness: "pi", model: "minimax-m3", provider: "ollama-cloud" }, // fast
-    { harness: "pi", model: "grok-build", provider: "grok-build" }, // unclassified
+    { harness: "pi", model: "grok-build", provider: "grok-build" }, // standard
   ];
 
   it("resolves agent-name -> tier -> first classified candidate", () => {
@@ -487,23 +487,25 @@ describe("resolveAgentModel end-to-end (T223 acceptance c; T271 classifier)", ()
       model: "opus-4.8[1m]",
       provider: null,
     });
-    // implement-worker -> standard. In VALID_TOML_WITH_TIERS, `minimax` (the
-    // alias KEY) classifies as standard; its token is pi:ollama-cloud/minimax-m3,
-    // which is also the fast-classified direct token — document-order in [tiers]
-    // means the direct `pi:...` key (fast) wins for that exact token. So no
-    // candidate classifies as standard here and resolveAgentModel throws.
-    expect(() =>
-      resolveAgentModel(config, "implement-worker", ALL_TOKENS),
-    ).toThrow(CqConfigError);
+    // implement-worker -> standard. After T282 the [tiers] fixture is
+    // contradiction-free: `grok` (alias -> pi:grok-build/grok-build) is the
+    // standard token, so the standard candidate resolves unambiguously.
+    expect(resolveAgentModel(config, "implement-worker", ALL_TOKENS)).toEqual({
+      harness: "pi",
+      model: "grok-build",
+      provider: "grok-build",
+    });
   });
 
-  it("throws for an unlisted agent when no candidate classifies to DEFAULT_TIER", () => {
+  it("resolves an unlisted agent to the DEFAULT_TIER (standard) candidate", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
-    // unlisted agent -> standard (DEFAULT_TIER); no candidate classifies as
-    // standard (see note above), so resolveAgentModel throws.
-    expect(() =>
-      resolveAgentModel(config, "unlisted-agent", ALL_TOKENS),
-    ).toThrow(CqConfigError);
+    // unlisted agent -> standard (DEFAULT_TIER); grok-build is the standard
+    // token, so resolveAgentModel returns it.
+    expect(resolveAgentModel(config, "unlisted-agent", ALL_TOKENS)).toEqual({
+      harness: "pi",
+      model: "grok-build",
+      provider: "grok-build",
+    });
   });
 
   it("throws when [tiers] is absent (nothing classifies)", () => {
@@ -528,7 +530,7 @@ describe("resolveAgentModel end-to-end (T223 acceptance c; T271 classifier)", ()
         model: "grok-build",
         provider: "grok-build",
       }),
-    ).toBeUndefined();
+    ).toBe("standard");
   });
 
   it("classifyToken returns undefined when [tiers] is absent", () => {
@@ -1011,6 +1013,99 @@ describe("T273 — [tiers] error cases: exact CqConfigError messages", () => {
     expect((caught as CqConfigError).message).toBe(
       'cq.toml: pi token "pi:minimax-m3" must be "pi:<provider>/<model>" (missing provider qualifier \'/\'; bare pi tokens are no longer accepted)',
     );
+  });
+});
+
+describe("T282 — parseTiers: fail-loud on a duplicate-token [tiers] classification (D42)", () => {
+  it("direct token key + alias key resolving to the SAME token throws CqConfigError naming BOTH keys", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[aliases]
+opus = "claude:opus-4.8[1m]"
+
+[tiers]
+"claude:opus-4.8[1m]" = "frontier"
+opus                  = "fast"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    const message = (caught as CqConfigError).message;
+    expect(message).toContain('tiers["opus"]');
+    expect(message).toContain('tiers["claude:opus-4.8[1m]"]');
+    expect(message).toContain("classify the same token");
+  });
+
+  // NOTE: two *literal* identical direct keys cannot reach parseTiers — the
+  // TOML parser rejects a redefined key first. The reachable "same token under
+  // two keys" cases all route through [aliases] (an alias key + a direct key,
+  // or two aliases). The class-agnostic guard fires for SAME class too.
+  it("alias key + direct key resolving to the SAME token with the SAME class still throws (class-agnostic)", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[aliases]
+grok = "pi:grok-build/grok-build"
+
+[tiers]
+"pi:grok-build/grok-build" = "standard"
+grok                       = "standard"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    const message = (caught as CqConfigError).message;
+    expect(message).toContain('tiers["grok"]');
+    expect(message).toContain('tiers["pi:grok-build/grok-build"]');
+    expect(message).toContain("classify the same token");
+  });
+
+  it("two distinct aliases resolving to the SAME token throw, naming BOTH alias keys", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[aliases]
+codex = "pi:grok-build/grok-build"
+grok  = "pi:grok-build/grok-build"
+
+[tiers]
+codex = "standard"
+grok  = "fast"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    const message = (caught as CqConfigError).message;
+    expect(message).toContain('tiers["codex"]');
+    expect(message).toContain('tiers["grok"]');
+    expect(message).toContain("classify the same token");
+  });
+
+  it("a single-token-one-class [tiers] does NOT throw", () => {
+    expect(() =>
+      parseConfig(`
+[tiers]
+"claude:opus-4.8[1m]" = "frontier"
+`),
+    ).not.toThrow();
+  });
+
+  it("distinct tokens classified under [tiers] do NOT false-positive", () => {
+    expect(() =>
+      parseConfig(`
+[aliases]
+minimax = "pi:ollama-cloud/minimax-m3"
+
+[tiers]
+"claude:opus-4.8[1m]"      = "frontier"
+minimax                    = "fast"
+"pi:grok-build/grok-build" = "standard"
+`),
+    ).not.toThrow();
   });
 });
 

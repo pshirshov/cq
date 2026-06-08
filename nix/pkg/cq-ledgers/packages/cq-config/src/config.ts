@@ -172,6 +172,18 @@ function parseTiers(
         `tiers["${key}"] = "${value}" is not a valid tier class (expected fast, standard, or frontier)`,
       );
     }
+    // Fail-loud on a DUPLICATE token classification (class-agnostic): a token
+    // must be classified at most once. If this KEY resolves to a token
+    // structurally equal to an already-recorded entry's token, the config
+    // contradicts itself (e.g. a direct token key + an alias key resolving to
+    // it, or two direct keys for the same token) — throw naming BOTH keys and
+    // their classes rather than letting classifyToken silently first-match.
+    const duplicate = entries.find((e) => reviewerTokensEqual(e.token, token));
+    if (duplicate !== undefined) {
+      throw new CqConfigError(
+        `tiers["${key}"] = "${value}" and tiers["${duplicate.raw}"] = "${duplicate.class}" both classify the same token — a token must be classified at most once`,
+      );
+    }
     entries.push({ token, raw: key, class: value });
   }
 
@@ -297,9 +309,9 @@ function reviewerTokensEqual(a: ReviewerToken, b: ReviewerToken): boolean {
  * is absent or no configured entry matches the token (i.e. the token is
  * unclassified).
  *
- * If the same token were keyed to more than one class in `[tiers]`, the FIRST
- * matching entry in configured order wins (parse order = TOML key order);
- * `parseTiers` does not currently dedupe, so document-order is the tie-break.
+ * `parseTiers` rejects a config in which two `[tiers]` entries resolve to the
+ * same token (class-agnostic dedup, fail-loud), so a classified token can
+ * match at most one entry here — first-match is therefore unambiguous.
  */
 export function classifyToken(
   config: CqConfig,
