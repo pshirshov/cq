@@ -499,6 +499,16 @@ archives:
     summary: "G30 W2 live-ledger migration complete: T246 (operational in-place migration of the gitignored docs/ledgers.yaml handoffs schema — user-action-required added to statusValues/terminalStatuses/transitions; verified no backup-reinit, HO records intact) + T247 (committed CI records-survive regression test) both done; R299 go-ahead. Closes the last open G30 work item."
     title: "G30 W2: in-place live-ledger migration (Q141)"
     status: done
+  - id: M111
+    path: ./archive/milestones/M111.md
+    summary: "G34 W3 complete: Agents-tab build-time catalogue codegen + new web Agents tab. T275 (AgentRole model + parseAgentMarkdown + formatExposedTools), T281 (## Catalogue blocks in all 19 role assets), T276 (gen-agents codegen → committed agentsCatalogue.gen.ts, 19 roles), T277 (freshness/drift test), T278 (Agents tab in HelpOverlay — privilege badge + exposed tools + folded prompt), T279 (happy-dom tests) all done; reviews R333-R338 go-ahead. bun run check green; nix build .#ledger-web green."
+    title: "G34-W3: Agents tab — build-time catalogue codegen from cq-assets + new web Agents tab"
+    status: done
+  - id: M112
+    path: ./archive/milestones/M112.md
+    summary: "G34 W4 complete: integration verification (T280). gen-agents no-drift + bun run check green (1218/1skip/0) + nix build .#ledger-web/.#ledger-mcp/.#ledger-tui all green. Final cross-product gate for the G34 plan passed."
+    title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
+    status: done
 ---
 
 # milestones
@@ -571,17 +581,3 @@ archives:
 - createdAt: 2026-06-08T16:56:34.752Z
 - updatedAt: 2026-06-08T16:56:34.752Z
 - title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
-
-### M111 — open
-
-- createdAt: 2026-06-08T16:56:37.809Z
-- updatedAt: 2026-06-08T16:56:37.809Z
-- title: "G34-W3: Agents tab — build-time catalogue codegen from cq-assets + new web Agents tab"
-- dependsOn: ["M109","M110"]
-
-### M112 — open
-
-- createdAt: 2026-06-08T16:56:41.093Z
-- updatedAt: 2026-06-08T16:56:41.093Z
-- title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
-- dependsOn: ["M109","M110","M111"]

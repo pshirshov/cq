@@ -344,6 +344,16 @@ archives:
     summary: "G30 W2 live-ledger migration complete: T246 (operational in-place migration of the gitignored docs/ledgers.yaml handoffs schema — user-action-required added to statusValues/terminalStatuses/transitions; verified no backup-reinit, HO records intact) + T247 (committed CI records-survive regression test) both done; R299 go-ahead. Closes the last open G30 work item."
     title: "G30 W2: in-place live-ledger migration (Q141)"
     status: done
+  - id: M111
+    path: ./archive/tasks/M111.md
+    summary: "G34 W3 complete: Agents-tab build-time catalogue codegen + new web Agents tab. T275 (AgentRole model + parseAgentMarkdown + formatExposedTools), T281 (## Catalogue blocks in all 19 role assets), T276 (gen-agents codegen → committed agentsCatalogue.gen.ts, 19 roles), T277 (freshness/drift test), T278 (Agents tab in HelpOverlay — privilege badge + exposed tools + folded prompt), T279 (happy-dom tests) all done; reviews R333-R338 go-ahead. bun run check green; nix build .#ledger-web green."
+    title: "G34-W3: Agents tab — build-time catalogue codegen from cq-assets + new web Agents tab"
+    status: done
+  - id: M112
+    path: ./archive/tasks/M112.md
+    summary: "G34 W4 complete: integration verification (T280). gen-agents no-drift + bun run check green (1218/1skip/0) + nix build .#ledger-web/.#ledger-mcp/.#ledger-tui all green. Final cross-product gate for the G34 plan passed."
+    title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
+    status: done
 ---
 
 # tasks
@@ -527,115 +537,3 @@ archives:
 - resultCommit: dae5161
 - completion: "Updated cq.toml.example [tiers] to the inverted token-keyed classifier (demonstrating BOTH a full-token key — \"claude:opus-4.8[1m]\"=frontier, \"pi:grok-build/grok-build\"=standard — AND an alias key — minimax=fast, after round-2 criticism), with a classifier-not-dispatch explanatory comment + [agent_tiers] tie-break note + token-grammar [tiers]-key requirement doc note. Added cq-config regression tests (cq-toml-example.test.ts) that load repo-root cq.toml.example, assert parseConfig no-error, AND assert classifier semantics (classifyToken opus→frontier, minimax→fast; resolveAgentModel plan-reviewer→opus). 1 revise round (R1 disapprove on doc/example consistency + vacuous test). Cherry-picked range onto main (background committer rebases hashes). bun run check green 1177/0. Review APPROVE (opus + minimax round 2)."
 - sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
-
-## M111
-
-### T275 — done
-
-- createdAt: 2026-06-08T16:58:20.160Z
-- updatedAt: 2026-06-08T19:33:54.477Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Define the typed AgentCatalogue data model + a browser-safe markdown parser
-- description: "Create nix/pkg/cq-ledgers/packages/ledger-web/src/agentsCatalogue.ts defining the typed render model for the Agents tab (mirroring flowData.ts). An `AgentRole` interface with the Q148+goal fields: id, name, kind ('orchestrator'|'agent-subagent'), source path, description, expected INPUTS, OUTPUTS produced, input/output SCHEMA notes, prompt-template body (full markdown, folded by default in the UI), configured model class (frontier|fast|standard, or 'default'/'N/A' when non-configurable), per-harness model mappings ({claude?: token[], pi?: token[]}), AND the FOLLOW-UP fields (Q151-Q153): `privilege: 'RO'|'RW'` and `exposedTools` (the raw per-kind tool descriptor). Export `AGENT_ROLES: AgentRole[]` (re-export of the generated module). Define the SOURCE-OF-TRUTH CONVENTION: inputs/outputs/ioSchema come from a parseable `## Catalogue` fenced-yaml block authored per asset (T281); privilege + exposedTools are DERIVED MECHANICALLY from frontmatter (NOT authored), per Q151-Q153: — privilege: a SUBAGENT (agents/*.md) is 'RW' iff NONE of {Write,Edit,MultiEdit,NotebookEdit,Bash} appears in its `disallowedTools`, else 'RO'; a COMMAND (commands/cq/*.md) is 'RW' iff its `allowed-tools` lists a mutating tool (Write|Edit|Bash), else 'RO'. — exposedTools: RAW per-kind — subagents show `disallowedTools` (+ `isolation` when present), commands show `allowed-tools`, 'none declared' when the frontmatter key is absent. The pure `parseAgentMarkdown(raw)` extracts: real frontmatter keys for BOTH kinds — agents' name/description/disallowedTools/isolation AND commands' description/argument-hint/allowed-tools (EXTEND the parser to read command `allowed-tools` per Q152) — the `## Catalogue` block, and the prompt-template body. Keep the module node-free / browser-bundleable (no node:fs); file reading lives in the codegen script."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run typecheck` green; agentsCatalogue.ts exports AgentRole (incl. privilege: 'RO'|'RW' + exposedTools) + AGENT_ROLES + a pure parseAgentMarkdown reading agent frontmatter (name/description/disallowedTools/isolation) AND command frontmatter (allowed-tools) + the `## Catalogue` block + body; no node:fs import; AND a unit test exercises parseAgentMarkdown on BOTH an agent fixture (deny-list) and a command fixture (allow-list) asserting it extracts the structured block, real frontmatter keys, and that the derived privilege is correct (e.g. an implement-worker-like deny-list => RW, a plan-reviewer-like deny-list => RO, a command with Write/Bash in allowed-tools => RW)."
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 0d8c340
-- completion: "Created packages/ledger-web/src/agentsCatalogue.ts: typed AgentRole (id,name,kind,source,description,inputs,outputs,ioSchema,promptTemplate,model,modelMappings + privilege RO/RW + exposedTools per Q148/Q151-Q153) mirroring flowData.ts; pure node-free parseAgentMarkdown (agent frontmatter name/description/disallowedTools/isolation + command frontmatter description/argument-hint/allowed-tools per Q152 + optional ## Catalogue fenced-yaml block + body); deriveSubagentPrivilege/deriveCommandPrivilege (exact mutating-tool sets); exported formatExposedTools(frontmatter,kind) helper (canonical per-kind string); Catalogue parser strips surrounding quotes (inner preserved). Placeholder agentsCatalogue.gen.ts (AGENT_ROLES=[]) for T276 to overwrite. Avoided a yaml dep (FOD-hash) via a hand-written parser. 1 revise round (R1 disapprove on 2 forward-looking contract gaps, both resolved R2). Cherry-picked to main. bun run check green 1201/0 (+24 tests). Review APPROVE (opus + minimax, R2)."
-- sessionLogs: ["docs/logs/20260608-193323-T275-worker-and-reviews.md"]
-
-### T276 — done
-
-- createdAt: 2026-06-08T16:58:33.206Z
-- updatedAt: 2026-06-08T20:14:40.749Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Write the codegen script that emits a COMMITTED generated catalogue module from cq-assets
-- description: "Add a codegen script (nix/pkg/cq-ledgers/packages/ledger-web/scripts/gen-agents-catalogue.ts) wired as a `gen-agents` package.json script. It reads each Q148 role's source file (nix/pkg/cq-assets/agents/*.md + commands/cq/*.md) by repo-relative path, parses it with the T275 parseAgentMarkdown to extract the `## Catalogue` block (inputs/outputs/ioSchema) + real frontmatter (both kinds) + prompt-template body, derives the per-role model class from the COMMITTED cq.toml.example (NOT the gitignored live cq.toml) via [agent_tiers] + classifyToken ('default'/'N/A' when non-configurable), and DERIVES the follow-up fields per Q151-Q153: privilege ('RW' iff a subagent's disallowedTools omits all of Write/Edit/MultiEdit/NotebookEdit/Bash, or a command's allowed-tools contains Write/Edit/Bash; else 'RO') and exposedTools (raw per-kind: agents' disallowedTools+isolation; commands' allowed-tools; 'none declared' when absent). EMITS a committed TS module packages/ledger-web/src/agentsCatalogue.gen.ts exporting `AGENT_ROLES: AgentRole[]`. WHY-committed rationale in a HEADER CODE COMMENT (cq-assets is outside the ledger-web Nix closure; ledger-web's Nix build is a startup Bun.build over src/; the script runs at DEV time, never in the sandbox). Hard-fail on any role whose file is missing the `## Catalogue` block or is unparseable."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run gen-agents` writes packages/ledger-web/src/agentsCatalogue.gen.ts; `bun run typecheck` green; AGENT_ROLES has one entry per Q148 role, each with non-empty description + inputs + outputs + ioSchema + prompt-template body + model-class field + a derived privilege ('RO'|'RW') + exposedTools; spot-check the derivation (implement-worker => RW, plan-reviewer => RO); re-running gen-agents is byte-deterministic. (committed==regenerated asserted by T277.)"
-- suggestedModel: frontier
-- dependsOn: ["T275","T281"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: dca35f8
-- completion: "Wrote gen-agents-catalogue.ts (wired as `gen-agents` package.json script) parsing all 19 Q148 role assets via T275 parseAgentMarkdown; derives model class from cq.toml.example [agent_tiers]+classifyToken (N/A for the 12 orchestrator commands), privilege via deriveSubagentPrivilege/deriveCommandPrivilege, exposedTools via formatExposedTools; emits committed agentsCatalogue.gen.ts (AGENT_ROLES, 19 entries; 7 real class + 12 N/A; per-harness mappings from planners+reviewers classified to the class). Hard-fails on missing ## Catalogue block; byte-deterministic (reads committed cq.toml.example via parseConfig, not live cq.toml). Narrowed the stale T275 placeholder test. Cherry-picked to main. bun run check green 1201/0; determinism re-verified (zero diff). Review APPROVE (opus + minimax)."
-- sessionLogs: ["docs/logs/20260608-201412-T276.md"]
-
-### T277 — done
-
-- createdAt: 2026-06-08T16:58:43.704Z
-- updatedAt: 2026-06-08T20:28:19.456Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Add a generated-catalogue freshness/drift test (Q147 auto-sync guard)
-- description: "Add nix/pkg/cq-ledgers/packages/ledger-web/test/agentsCatalogue.gen.test.ts that (a) imports AGENT_ROLES and asserts the full Q148 role set is present with the required structured fields populated; and (b) enforces FRESHNESS: re-run the codegen (in-memory, or shell out to the gen script into a temp path) and assert the COMMITTED agentsCatalogue.gen.ts matches the freshly-generated output — so a stale generated file (cq-assets or cq.toml.example changed but not regenerated) fails CI. This automates the sync Q147 chose codegen for (replacing the Flows-tab manual cross-check)."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun test packages/ledger-web/test/agentsCatalogue.gen.test.ts` green when the committed file is fresh; hand-editing the generated file (or a stale asset) makes the freshness assertion fail."
-- suggestedModel: standard
-- dependsOn: ["T276"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 67cc722
-- completion: "Added agentsCatalogue.gen.test.ts: (a) role-set invariants (all 19 Q148 roles present, required fields populated, privilege ∈{RO,RW}, spot-checks plan-reviewer=RO/implement-worker=RW); (b) freshness/drift guard (save committed gen.ts → spawn `bun run gen-agents` → byte-compare → afterAll restore) with VERIFIED teeth + clean-tree-on-failure. +12 tests. Cherry-picked to main. bun run check green 1213/0. Review APPROVE (opus + minimax)."
-- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
-
-### T278 — done
-
-- createdAt: 2026-06-08T16:58:50.455Z
-- updatedAt: 2026-06-08T20:28:23.538Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Add the Agents tab to HelpOverlay, rendering the generated catalogue with prompt templates folded by default
-- description: "In nix/pkg/cq-ledgers/packages/ledger-web/src/App.tsx HelpOverlay: add an 'agents' member to the tab-state union; add a tab button (data-testid help-tab-agents, label \"Agents\") after the Flows tab; render an AgentsTab component that maps AGENT_ROLES (from agentsCatalogue.gen.ts) to a structured detail list (one section per role, data-testid help-agent-<id>) showing: name, kind, description, inputs, outputs, input/output schema, configured model class + per-harness mappings (or 'default'/'N/A'), the PRIVILEGE CLASS as an RO/RW badge (data-testid help-agent-<id>-privilege), the EXPOSED TOOLS descriptor (data-testid help-agent-<id>-tools; raw per-kind 'Disallowed: …'+isolation for subagents / 'Allowed: …' for commands / 'none declared'), and the PROMPT TEMPLATE inside a <details> COLLAPSED by default (no `open` attribute) with testid help-agent-<id>-prompt. Reuse the existing Markdown component for the body. Add lw-agent* CSS (incl. a privilege-badge style) in styles.css consistent with the existing help styling. Static data only (no MCP fetch), like FLOWS."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run typecheck` green; the Agents tab renders one section per Q148 role, each showing the RO/RW privilege badge + the exposed-tools descriptor; the prompt-template <details> is collapsed by default. Verified by the W3 Agents-tab happy-dom test T279."
-- suggestedModel: frontier
-- dependsOn: ["T275","T276"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 1e0b26e
-- completion: "Added the 'agents' tab to App.tsx HelpOverlay: tab button help-tab-agents (after Flows) + AgentsTab mapping all 19 AGENT_ROLES to one section per role (help-agent-<id>) showing name/kind/description/inputs/outputs/ioSchema, model class + per-harness mappings (N/A/default fallback), RO/RW privilege badge (help-agent-<id>-privilege), exposed-tools descriptor (help-agent-<id>-tools), and the prompt template in a COLLAPSED <details> (help-agent-<id>-prompt) via the Markdown component; lw-agent* CSS added. Scope App.tsx+styles.css only; existing tabs intact. Cherry-picked to main. bun run check green 1201/0. Review APPROVE (opus; minimax disapprove rejected as based on false premises — T278 adds no new module, privilege is a closed union, check green)."
-- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
-
-### T279 — done
-
-- createdAt: 2026-06-08T16:58:59.950Z
-- updatedAt: 2026-06-08T20:37:08.006Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Add happy-dom tests for the Agents tab
-- description: "Add a ledger-web happy-dom test (packages/ledger-web/test/) that opens the help overlay, clicks the Agents tab (help-tab-agents), and asserts: the full Q148 role set renders (each help-agent-<id> present — derive the expected set from imported AGENT_ROLES); each role shows description + inputs + outputs + model class; the PRIVILEGE badge (help-agent-<id>-privilege) shows the correct RO/RW for a sample RW role (implement-worker) and a sample RO role (plan-reviewer); the EXPOSED TOOLS descriptor (help-agent-<id>-tools) renders per-kind; and the prompt-template <details> (help-agent-<id>-prompt) is COLLAPSED by default, then expands on toggle. Use the existing in-memory help-test harness."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun test packages/ledger-web` green; the test fails if a Q148 role is missing, if a sample role's RO/RW privilege badge is wrong, or if the prompt template is not folded-by-default."
-- suggestedModel: standard
-- dependsOn: ["T278"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: d4935f4
-- completion: "Added agentsTab.test.tsx (6 happy-dom tests, flowsTab-harness): opens help, clicks Agents tab, iterates imported AGENT_ROLES asserting each help-agent-<id> section renders; spot-checks description+inputs+outputs+model (implement-worker); asserts help-agent-implement-worker-privilege=RW + help-agent-plan-reviewer-privilege=RO; every help-agent-<id>-tools non-empty; prompt <details> collapsed-by-default (no `open` + .open===false) then expands on toggle. Cherry-picked to main. bun run check green 1219/0. Review APPROVE (opus + minimax)."
-- sessionLogs: ["docs/logs/20260608-203646-T279.md"]
-
-### T281 — done
-
-- createdAt: 2026-06-08T17:19:04.316Z
-- updatedAt: 2026-06-08T19:59:44.490Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Author the structured `## Catalogue` (inputs/outputs/ioSchema) block into every Q148 cq-assets agent + command file
-- description: "Per R324/opus: the structured inputs/outputs/IO-schema fields the Agents tab shows MUST have a parseable source of truth so codegen stays in sync (Q147) and the freshness test (T277) guards them. Add the `## Catalogue` structured block (the T275 convention — fenced yaml with keys inputs, outputs, ioSchema) to EVERY role's source file: nix/pkg/cq-assets/agents/*.md (plan-advance incl candidate mode, plan-reviewer, implement-worker, implement-reviewer, implement-conflict-resolver, investigate-explorer, investigate-prober, plan-synthesizer/judge) AND the orchestrator commands/cq/*.md (cq:plan/investigate/implement :advance/:start/:follow-up + cq:advance). Fill each from the role's actual prose contract. NOTE (follow-up Q151-Q153): the `## Catalogue` block holds ONLY inputs/outputs/ioSchema — the privilege class (RO/RW) and exposedTools are DERIVED from existing frontmatter by codegen (NOT authored here), so this task does NOT add privilege/tools to the blocks; it only ensures the frontmatter the derivation reads is present/correct (agents already carry disallowedTools/isolation; commands carry allowed-tools — leave those as-is). Surgical: add ONLY the `## Catalogue` block; do not alter the existing prose/behavioural body."
-- acceptance: "From repo root: every Q148 role file under nix/pkg/cq-assets/agents + nix/pkg/cq-assets/commands/cq has a `## Catalogue` block parseable by parseAgentMarkdown (T275); one per file; the existing behavioural prose bodies AND the existing tool frontmatter (disallowedTools/isolation/allowed-tools) are unchanged (git diff shows only added Catalogue blocks); the T275 parser extracts each block without error."
-- suggestedModel: standard
-- dependsOn: ["T275"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 363f11a
-- completion: "Authored `## Catalogue` (inputs/outputs/ioSchema, fenced-yaml per the T275 parseCatalogueBlock convention) into ALL 19 Q148 frontmatter-bearing role files: 7 agents (plan-advance, plan-reviewer, implement-worker/-reviewer/-conflict-resolver, investigate-explorer/-prober) + 12 commands (advance, plan, plan/advance, plan/follow-up, investigate, investigate/advance, implement/start, implement/advance, plan-review, implement-review, planners, reviewers). Each block grounded in the file's actual prose contract; privilege/exposedTools remain DERIVED from frontmatter (not authored). 2 revise rounds: R2 added the 4 initially-skipped files (Q148 'all roles'); R3 flattened the ioSchema in plan-review/implement-review (nested mapping was silently dropped by the parser). Purely additive (frontmatter+prose byte-identical). Cherry-picked to main. bun run check green 1201/0. Review APPROVE (opus, parser-verified)."
-- sessionLogs: ["docs/logs/20260608-195916-T281-worker-and-reviews.md"]
-
-## M112
-
-### T280 — planned
-
-- createdAt: 2026-06-08T16:59:09.876Z
-- updatedAt: 2026-06-08T17:19:30.664Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "Integration verification: regen catalogue + full check + nix build across touched products + drift gate"
-- description: "Final cross-cutting gate. It runs LAST by construction: its milestone M112 dependsOn M109+M110+M111, so implement-flow makes T280 ready ONLY once every W1/W2/W3 task is terminal — it can never pass against an incomplete tree. From nix/pkg/cq-ledgers/: run `bun run gen-agents` then `bun run check` (typecheck + lint + bun test) — all green; confirm no drift (`git diff --quiet -- packages/ledger-web/src/agentsCatalogue.gen.ts` after regen). From repo root: `nix build .#ledger-web` AND `nix build .#ledger-mcp` (cq-config changed) green; spot-check `.#ledger-tui` only if T272's audit actually touched a tui consumer. Catches cross-milestone interactions (Agents tab + rename both edit HelpOverlay; the catalogue consumes the inverted [tiers] classifier + the `## Catalogue` asset blocks). Verification/fixup only — no new feature code."
-- acceptance: "`bun run gen-agents && bun run check` exits 0 (from nix/pkg/cq-ledgers/); `nix build .#ledger-web` and `nix build .#ledger-mcp` exit 0 (from repo root); re-running gen-agents leaves the working tree clean (no drift on agentsCatalogue.gen.ts)."
-- suggestedModel: standard
-- dependsOn: ["T269","T272","T273","T274","T277","T279","T281"]
-- ledgerRefs: ["goals:G34"]
