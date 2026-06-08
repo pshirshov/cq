@@ -597,10 +597,10 @@ archives:
 - dependsOn: ["T278"]
 - ledgerRefs: ["goals:G34"]
 
-### T281 — planned
+### T281 — done
 
 - createdAt: 2026-06-08T17:19:04.316Z
-- updatedAt: 2026-06-08T17:36:01.154Z
+- updatedAt: 2026-06-08T19:59:44.490Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Author the structured `## Catalogue` (inputs/outputs/ioSchema) block into every Q148 cq-assets agent + command file
@@ -609,6 +609,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T275"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 363f11a
+- completion: "Authored `## Catalogue` (inputs/outputs/ioSchema, fenced-yaml per the T275 parseCatalogueBlock convention) into ALL 19 Q148 frontmatter-bearing role files: 7 agents (plan-advance, plan-reviewer, implement-worker/-reviewer/-conflict-resolver, investigate-explorer/-prober) + 12 commands (advance, plan, plan/advance, plan/follow-up, investigate, investigate/advance, implement/start, implement/advance, plan-review, implement-review, planners, reviewers). Each block grounded in the file's actual prose contract; privilege/exposedTools remain DERIVED from frontmatter (not authored). 2 revise rounds: R2 added the 4 initially-skipped files (Q148 'all roles'); R3 flattened the ioSchema in plan-review/implement-review (nested mapping was silently dropped by the parser). Purely additive (frontmatter+prose byte-identical). Cherry-picked to main. bun run check green 1201/0. Review APPROVE (opus, parser-verified)."
+- sessionLogs: ["docs/logs/20260608-195916-T281-worker-and-reviews.md"]
 
 ## M112
 

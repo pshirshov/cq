@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 333
+  item: 334
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -818,3 +818,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T275","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-193323-T275-worker-and-reviews.md"]
+
+### R334 — go-ahead
+
+- createdAt: 2026-06-08T19:59:39.606Z
+- updatedAt: 2026-06-08T19:59:39.606Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T281 implement review APPROVE (reconciled, after 2 revise rounds). Panel opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded (stall). R1 DISAPPROVE: 4 frontmatter-bearing files (plan-review/implement-review/planners/reviewers) skipped vs Q148 'all existing roles' — they'd render with empty I/O. R2 DISAPPROVE: opus ran the parser, found plan-review/implement-review authored ioSchema as a NESTED mapping the T275 parseCatalogueBlock silently drops (collapses to 1 garbled item); discarded minimax's over-specified points (goalId/defects-unification) as they'd make blocks inaccurate to the genuinely-different rubric contracts. R3 APPROVE: ioSchema re-authored as FLAT quoted dash-lists — opus re-ran the parser: both now parse to 2 flat items, accurate to each rubric's in-body verdict-JSON contract; all 19 Q148 role files now carry one parseable, accurate `## Catalogue` block; purely additive (frontmatter/prose untouched); bun run check green 1201/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T281","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-195916-T281-worker-and-reviews.md"]
