@@ -439,6 +439,11 @@ archives:
     summary: "G28 W2 agents-projection + extension — COMPLETE. T222: home.file projects the 7 cq agent markdowns to ~/.pi/agent/cq-agents/<name>.md (byte-identical to mergedAgents) + CQ_AGENTS_DIR pinned on piWrapped (7611867, R271 unanimous). T224: bespoke nix/pkg/pi-extensions/cq-subagent-dispatch.ts registering dispatch_agent {agent,task,isolation?} (K44) — reads $CQ_AGENTS_DIR agent md, spawns a Route-A filtered child `pi -p --mode json` (re-dispatch blocked via --exclude-tools + not loading the extension in the child; injection-safe shell:false argv; agent body via temp file), returns child output; registered in dev-llm.nix; LIVE dispatch probe returned non-empty + child lacked the dispatch tool. 1 criticism round fixed a path-traversal + 4 robustness items (235f854, R272 unanimous round-2). tsc --strict clean."
     title: Pi subagent dispatch — agents projection + extension
     status: done
+  - id: M96
+    path: ./archive/milestones/M96.md
+    summary: "G31 D38-verdict-enum fix COMPLETE: T240-T244 all merged (c24b02d/a74d9eb/3ee5bf1/567c415), D38 resolved. Two-layer fix (pi-context.md enum reinforcement + plan/implement advance.md fail-loud off-enum→abstention) + verify (bun run check 1037/0 + nix builds) + documented argument. All implement reviews go-ahead (R285-R289)."
+    title: "G31 W: D38 verdict-enum fix (reinforce + fail-loud validate)"
+    status: done
 ---
 
 # milestones
@@ -501,13 +506,6 @@ archives:
 - updatedAt: 2026-06-08T07:49:55.614Z
 - title: "Plan: fix D38 — pin verdict enum on the Pi subagent path"
 - description: "Coordination milestone for the defect-seeded fix goal G31 (resolves D38). Root cause confirmed via H27: the Pi dispatch path never re-asserts the cq agent's canonical verdict enum on the child, and no orchestrator-side step validates/normalizes the returned verdict before gating, so a Pi child can paraphrase the verdict (e.g. \"fail\") and silently mis-gate."
-
-### M96 — open
-
-- createdAt: 2026-06-08T08:00:22.686Z
-- updatedAt: 2026-06-08T08:00:22.686Z
-- title: "G31 W: D38 verdict-enum fix (reinforce + fail-loud validate)"
-- description: "Work milestone for G31 (resolves D38). Synthesized from opus+grok+minimax candidate panel. Two-layer fix: (1) reinforce the exact verdict enum on the Pi dispatch path in pi-context.md; (2) add orchestrator-side fail-loud off-enum→abstention validation in plan/advance.md and implement/advance.md; then verify (bun run check + nix build) and document the why-it-can-no-longer-mis-gate argument."
 
 ### M97 — open
 

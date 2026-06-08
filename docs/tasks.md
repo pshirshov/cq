@@ -284,6 +284,11 @@ archives:
     summary: "G28 W2 agents-projection + extension — COMPLETE. T222: home.file projects the 7 cq agent markdowns to ~/.pi/agent/cq-agents/<name>.md (byte-identical to mergedAgents) + CQ_AGENTS_DIR pinned on piWrapped (7611867, R271 unanimous). T224: bespoke nix/pkg/pi-extensions/cq-subagent-dispatch.ts registering dispatch_agent {agent,task,isolation?} (K44) — reads $CQ_AGENTS_DIR agent md, spawns a Route-A filtered child `pi -p --mode json` (re-dispatch blocked via --exclude-tools + not loading the extension in the child; injection-safe shell:false argv; agent body via temp file), returns child output; registered in dev-llm.nix; LIVE dispatch probe returned non-empty + child lacked the dispatch tool. 1 criticism round fixed a path-traversal + 4 robustness items (235f854, R272 unanimous round-2). tsc --strict clean."
     title: Pi subagent dispatch — agents projection + extension
     status: done
+  - id: M96
+    path: ./archive/tasks/M96.md
+    summary: "G31 D38-verdict-enum fix COMPLETE: T240-T244 all merged (c24b02d/a74d9eb/3ee5bf1/567c415), D38 resolved. Two-layer fix (pi-context.md enum reinforcement + plan/implement advance.md fail-loud off-enum→abstention) + verify (bun run check 1037/0 + nix builds) + documented argument. All implement reviews go-ahead (R285-R289)."
+    title: "G31 W: D38 verdict-enum fix (reinforce + fail-loud validate)"
+    status: done
 ---
 
 # tasks
@@ -523,71 +528,6 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T231","T232","T233","T234","T235","T236","T237","T238"]
 - ledgerRefs: ["goals:G29","defects:D36"]
-
-## M96
-
-### T240 — planned
-
-- createdAt: 2026-06-08T08:00:40.061Z
-- updatedAt: 2026-06-08T08:11:59.215Z
-- author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
-- headline: Reinforce the exact verdict enum on the Pi dispatch path in pi-context.md
-- description: "Extend the 'Dispatching cq subagents' section of nix/pkg/llm-contexts/pi-context.md (currently ~L43-72) so that when the model IS a dispatched cq child producing a verdict json (plan-reviewer / implement-reviewer, or any cq agent whose rubric defines a verdict enum), it MUST emit the agent's EXACT canonical verdict enum literal and NEVER a paraphrase/synonym: for plan-review exactly `go-ahead` or `revise` (per plan-review.md), for implement-review exactly `approve` or `disapprove` (per implement-review.md). State that the verdict string is a CLOSED enum, not free text, and that the orchestrator will DROP an off-enum verdict as an abstention (e.g. never emit `fail`, `pass`, `ok`, `reject`). Add this as an explicit rule alongside the existing 'Emit the tool CALL — do not paraphrase' bullet. Surgical insertion only; do not restructure the surrounding dispatch-convention text. Keep it harness-appropriate (this is the Pi-specific context asset by design)."
-- acceptance: The 'Dispatching cq subagents' section of nix/pkg/llm-contexts/pi-context.md contains an explicit rule requiring a dispatched reviewer child's `verdict` to be the EXACT rubric enum literal (naming go-ahead|revise for plan-review and approve|disapprove for implement-review) and forbidding any paraphrase/synonym; `grep -n 'go-ahead' nix/pkg/llm-contexts/pi-context.md` and `grep -n 'approve' nix/pkg/llm-contexts/pi-context.md` return the new rule; reviewing the full diff shows no other section of the file changed.
-- suggestedModel: standard
-- ledgerRefs: ["goals:G31","defects:D38"]
-
-### T241 — planned
-
-- createdAt: 2026-06-08T08:00:47.584Z
-- updatedAt: 2026-06-08T08:12:05.772Z
-- author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
-- headline: Add fail-loud off-enum verdict validation to plan/advance.md (plan-review enum)
-- description: "In nix/pkg/cq-assets/commands/cq/plan/advance.md, after the fence-strip parse step and within/adjacent to the existing Abstention rule (the block that drops a reviewer whose stdout does not parse into the verdict contract), add an explicit imperative validation step: after parsing the verdict contract, VALIDATE the `verdict` string against the closed plan-review enum {`go-ahead`,`revise`} (the literal enum in nix/pkg/cq-assets/commands/cq/plan-review.md). If `verdict` is NOT EXACTLY `go-ahead` or `revise`, treat the reviewer as ABSTAINING — DROP it from the panel (not counted go-ahead, not counted revise), exactly as the existing abstention rule drops an unparseable verdict, and LOG it with the reviewer alias + the raw off-enum value + cause (per §Session logs). Do NOT normalize or recover synonyms — an off-enum value is an ABSTENTION, never a value to coerce into a canonical enum (silent coercion would defeat the fail-loud contract). Place the step BEFORE the reconcile string-equality so an off-enum value can never reach reconcile. Author the new block with the SAME structure/wording as the implement-review counterpart in T242 (the two edits must be symmetric). Harness-agnostic prose; do not alter reconcile semantics for valid verdicts."
-- acceptance: "nix/pkg/cq-assets/commands/cq/plan/advance.md gains, after the fence-strip parse, an explicit step that treats a `verdict` not in {go-ahead,revise} as an ABSTENTION (dropped + logged with alias + raw value), mirroring the existing abstention rule, with NO synonym-normalization/coercion; the new step textually PRECEDES the reconcile string-equality; grep for `go-ahead`/`revise` + an abstention/off-enum reference confirms the block. Reviewing the diff shows no other behavioral change."
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G31","defects:D38"]
-
-### T242 — planned
-
-- createdAt: 2026-06-08T08:00:59.040Z
-- updatedAt: 2026-06-08T08:12:16.322Z
-- author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
-- headline: Add fail-loud off-enum verdict validation to implement/advance.md (implement-review enum), symmetric with T241
-- description: "In nix/pkg/cq-assets/commands/cq/implement/advance.md, after the fence-strip parse and within/adjacent to the abstention rule of step 3b/3c, add the SYMMETRIC fail-loud validation: after parsing the per-reviewer contract, VALIDATE the `verdict` string against the closed implement-review enum {`approve`,`disapprove`} (the literal enum in nix/pkg/cq-assets/commands/cq/implement-review.md). If `verdict` is NOT EXACTLY `approve` or `disapprove`, treat the reviewer as ABSTAINING — DROP it from the panel for this task (not counted approve, not counted disapprove), exactly as the existing abstention rule, and LOG raw stdout + alias + the off-enum value + cause (per §Session logs). Do NOT normalize or recover synonyms — off-enum = ABSTENTION (fail-loud); never coerce into a canonical enum. Place the step BEFORE the strictest-wins match so an off-enum value can never reach reconcile. Use the IDENTICAL block structure/wording as the plan/advance.md counterpart in T241 — only the file, the enum literals ({approve,disapprove} vs {go-ahead,revise}), and the reconcile-step name differ. This task is INDEPENDENT of T241 (different file, no shared state); symmetry is guaranteed by both task descriptions fully specifying the same block shape."
-- acceptance: "nix/pkg/cq-assets/commands/cq/implement/advance.md gains, after the fence-strip parse, an explicit step that treats a `verdict` not in {approve,disapprove} as an ABSTENTION (dropped + logged with alias + raw value), mirroring the existing abstention rule AND structurally identical to the T241 plan/advance.md step, with NO synonym-normalization/coercion; the new step textually PRECEDES the strictest-wins match; grep for `approve`/`disapprove` + an abstention/off-enum reference confirms the block. Reviewing the diff shows no other behavioral change."
-- suggestedModel: frontier
-- dependsOn: []
-- ledgerRefs: ["goals:G31","defects:D38"]
-
-### T243 — planned
-
-- createdAt: 2026-06-08T08:01:04.329Z
-- updatedAt: 2026-06-08T08:21:00.581Z
-- author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
-- headline: "Verify: bun run check + nix build of affected products green"
-- description: "From nix/pkg/cq-ledgers/ run `bun run check` (typecheck + lint + test) and confirm exit 0 — this is the SUBSTANTIVE guard against breakage in any file that bundles/validates the assets. Note: nix/pkg/cq-assets is consumed EVAL-TIME-ONLY (nix/pkg/cq-assets/assets.nix reads it via builtins.readFile/readDir into the flake-level `llmAssets` output), so it has NO per-file buildable derivation and the T241/T242 Markdown edits are not exercised by a package build. The T240 edit lives in nix/pkg/llm-contexts, which IS vendored by a buildable attr. From the REPO ROOT run `nix build .#llm-contexts` (vendors the edited pi-context.md) and, to exercise the asset graph/validation, `nix build .#llm-context-with-env` and `nix build .#llm-skills`; confirm each exits 0. (Verify these attr names against the flake; adjust if the flake exposes them differently — the intent is: build the attr that vendors the edited llm-contexts plus the attrs that pull the cq-assets graph into validation.) Capture all outputs. If any check/build fails, fix the cause before this task is done."
-- acceptance: "`bun run check` (from nix/pkg/cq-ledgers/) exits 0 with captured output (the substantive guard). `nix build .#llm-contexts` (vendors the T240 pi-context.md edit) plus `nix build .#llm-context-with-env` and `nix build .#llm-skills` (asset-graph validation) — each from the repo root — exit 0 with captured output (attr names confirmed against the flake). The completion records that nix/pkg/cq-assets is eval-time-only (no per-file build target) so a green build validates the asset graph, not the prose per-file; both outputs quoted."
-- suggestedModel: standard
-- dependsOn: ["T240","T241","T242"]
-- ledgerRefs: ["goals:G31","defects:D38"]
-
-### T244 — planned
-
-- createdAt: 2026-06-08T08:01:18.961Z
-- updatedAt: 2026-06-08T08:12:29.834Z
-- author: "opus-4.8[1m]"
-- session: $CLAUDE_CODE_SESSION_ID
-- headline: Write the documented why-it-can-no-longer-mis-gate argument (D38 acceptance)
-- description: "Produce the reasoning artifact D38's acceptance requires. Write a concise note at docs/drafts/{YYYYMMDD-HHMM}-d38-verdict-enum-fix.md (timestamp at write time) that: (1) names the two complementary fix layers (reinforced pi-context.md enum instruction; orchestrator fail-loud off-enum->abstention validation in plan/advance.md + implement/advance.md) and what each blocks; (2) walks the PRE-fix silent failure chain end to end — a paraphrased verdict like `fail` passes fence-strip parse, survives the abstention check (which keyed on parseability only), then matches NEITHER reconcile branch -> silent mis-gate; (3) shows why the new validation step deterministically closes that gap (off-enum -> abstention with logged cause) regardless of which child produced the verdict, on the dispatch_agent path OR the direct `pi -p` reviewer-panel path, for BOTH the plan-review (go-ahead|revise) and implement-review (approve|disapprove) enums — citing the exact post-edit step locations in the three files. Also record a short resolution note referencing this doc on the D38 defect record (via the orchestrator) so D38 can move to resolved."
-- acceptance: "docs/drafts/{timestamp}-d38-verdict-enum-fix.md exists; it names all three edited files (nix/pkg/llm-contexts/pi-context.md, nix/pkg/cq-assets/commands/cq/plan/advance.md, nix/pkg/cq-assets/commands/cq/implement/advance.md) with the new step locations; walks the four-step pre-fix silent mis-gate chain (parses -> survives abstention -> matches no reconcile branch -> mis-gates); and shows that chain broken at the new validation step for BOTH enums (go-ahead|revise and approve|disapprove), explicitly mapping the two path-independent routes from D38's root cause: the dispatch_agent child path is closed by the T240 pi-context.md enum reinforcement, and the direct `pi -p` reviewer-panel path is closed by the T241/T242 orchestrator off-enum->abstention validation. A reviewer reading it can point to where an off-enum verdict is now dropped+logged instead of surviving."
-- suggestedModel: standard
-- dependsOn: ["T240","T241","T242"]
-- ledgerRefs: ["goals:G31","defects:D38"]
 
 ## M97
 

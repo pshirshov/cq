@@ -141,10 +141,10 @@ archives:
 - suggestedFix: Re-run `home-manager switch` (or the relevant activation) so ~/.pi/agent/settings.json registers the merged cq-subagent-dispatch.ts store path; then re-capture one dispatch under the unmodified locally-installed pi to confirm the merged extension loads without any PI_CODING_AGENT_DIR override.
 - ledgerRefs: ["goals:G28","tasks:T226"]
 
-### D38 — root-caused
+### D38 — resolved
 
 - createdAt: 2026-06-07T23:39:46.103Z
-- updatedAt: 2026-06-08T08:01:32.753Z
+- updatedAt: 2026-06-08T09:14:30.440Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Pi-path subagent child emits off-enum verdict ("fail") instead of the plan-review rubric's go-ahead|revise
@@ -155,3 +155,4 @@ archives:
 - rootCause: "Confirmed (H27). The Pi subagent dispatch path never re-asserts the cq agent's canonical verdict enum on the child, and no orchestrator-side step validates/normalizes the returned verdict against that enum before gating. (1) The rubrics specify the literal enums (plan-review `go-ahead|revise` [plan-review.md:85]; implement-review `approve|disapprove` [implement-review.md:83]) — but that is the CHILD's instruction only. (2) The Pi dispatch trigger (pi-context.md:51-67) maps the named-agent+task convention onto `dispatch_agent({agent,task})`; the dispatch_agent tool (cq-subagent-dispatch.ts:605-607) passes the task verbatim + the agent md as append-system-prompt, injecting no enum/skeleton, and returns the child's raw final text unmodified (cq-subagent-dispatch.ts:687-694). (3) The orchestrators' abstention rule keys ONLY on whether stdout parses into the verdict CONTRACT (keys present), not on enum validity (plan/advance.md:291-299; implement/advance.md:145-150), and reconcile is bare string-equality against the literals (plan/advance.md:310-311; implement/advance.md:174-177). A Pi child can therefore paraphrase the verdict (e.g. \"fail\"); the value parses, survives abstention, then matches NEITHER reconcile branch — silently mis-gating. Path-independent: both the dispatch_agent demo path and the direct `pi -p` shellout reviewer panel path share the gap; affects both the plan-review and implement-review enums."
 - sessionLogs: ["docs/logs/20260608-074755-aa243a5b68b5e3c0e.md"]
 - dependsOn: ["tasks:T240","tasks:T241","tasks:T242","tasks:T243","tasks:T244"]
+- fix: "Resolved via G31/M96 (T240-T244, all merged). Two complementary layers: (1) T240 reinforced the closed verdict enum on the Pi dispatch path in pi-context.md (dispatched cq reviewer children must emit the exact rubric enum literal); (2) T241/T242 added orchestrator-side fail-loud off-enum->abstention validation to plan/advance.md (go-ahead|revise) + implement/advance.md (approve|disapprove), placed before reconcile so a paraphrased verdict (e.g. 'fail') is dropped+logged instead of silently mis-gating. T243 verified (bun run check 1037/0 + nix build .#llm-contexts/.#llm-context-with-env/.#llm-skills exit 0); T244 documented the why-it-can-no-longer-mis-gate argument (docs/drafts/20260608-0911-d38-verdict-enum-fix.md). Merged commits: c24b02d (T240), a74d9eb (T241), 3ee5bf1 (T242), 567c415 (T244)."
