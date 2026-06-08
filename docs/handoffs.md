@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 31
+  item: 32
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -263,3 +263,23 @@ archives:
 - ledgerRefs: ["goals:G34"]
 - blockingQuestions: ["Q151","Q152","Q153"]
 - sessionLogs: ["docs/logs/20260608-172840-a519de836685f06ad.md"]
+
+### HO32 — drained
+
+- createdAt: 2026-06-08T20:58:55.383Z
+- updatedAt: 2026-06-08T20:58:55.383Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: |
+    DRAINED. Final gate: P-investigate=FALSE (D37/D38/D39/D41/D42 all resolved), P-plan=FALSE (G28-G32/G34/G35 all planned), P-implement=FALSE (no non-terminal task), open-Q-gate=clear (Q125-Q153 all answered). Nothing actionable remains.
+    
+    LANDED THIS RUN:
+    - DEFECT D37 RESOLVED: the user re-deployed (home-manager switch); verified the live ~/.pi/agent/settings.json now registers the merged cq-subagent-dispatch.ts (byte-identical to repo source) — stale-path condition gone (H29).
+    - DEFECT D41 FILED+RESOLVED (user-requested prompt fix): the TURN-vs-RUN turn-pause was an unguarded escape hatch (the D39 euphemism blocklist + self-check were scoped to handoff writes; a no-handoff turn-pause bypassed the gate). Hardened all four *:advance.md prompts — a TURN-pause is now legal ONLY on genuine externally-evidenced context exhaustion (never magnitude/'fresh context'/'done a lot'), with a forbidden-rationale list + the self-check broadened to fire before EITHER a handoff OR a turn-pause. (commits b7ea64f + the cq-assets edits)
+    - GOAL G34 PLANNED + FULLY IMPLEMENTED: help-popup 'State Machines'->'Item States' rename (W1: T267/T269), cq.toml [tiers] inverted to a (harness+provider+model)->class CLASSIFIER (W2: T268/T270/T271/T272/T273/T274 — resolveTierToken removed, classifyToken/selectTokensForTier added, token-keyed parse, cq.toml.example+docs), new web Agents tab generated at build time from cq-assets (W3: T275 AgentRole model+parser, T281 ## Catalogue blocks in all 19 role assets, T276 gen-agents codegen, T277 freshness/drift test, T278 Agents tab UI with RO/RW privilege badge + exposed-tools + folded prompt, T279 happy-dom tests), integration verified (W4: T280 — gen-agents no-drift + bun run check 1218/1skip/0 + nix build .#ledger-web/.#ledger-mcp/.#ledger-tui all green). Follow-up (Q151-153) added the per-role privilege class (RO/RW, derived from disallowedTools/allowed-tools) + exposed-tools, folded into W3. Archived M98 (G30 W2: T246+T247), M109/M110/M111/M112 (G34 W1-W4).
+    - DEFECT D42 (filed during T271 review) RESOLVED: investigate(H30)->seed G35->plan(R339/K56)->implement(T282). parseTiers now fails loud (CqConfigError naming both keys) on a duplicate-token [tiers] classification. Archived M113... (M114 G35 W1).
+    
+    NEXT (user, optional — goals never auto-close): G28/G29/G30/G31/G32/G34/G35 are all `planned`/built — CLOSE them in the TUI/web (set `done`) when ready; the next /cq:advance sweep then archives their now-eligible coordination milestones (M86/M92/M93/M95/M102/M108/M113). To ACTIVATE the D41 prompt fix + the new Agents tab in your live harness, run `home-manager switch` (the source is fixed/committed). OPERATIONAL NOTES: (a) a background auto-committer repeatedly re-authored/rebased main under new hashes — merge-back used cherry-pick onto current main throughout (content preserved). (b) The pi:grok-build reviewers/planners (aliases grok+codex) hung with zero output every dispatch this run (a likely grok-build provider issue) and were excluded as operational stalls; opus[claude] + minimax[pi:ollama-cloud] carried every plan/implement review.
+- flow: advance
+- ledgerRefs: ["goals:G34","goals:G35","defects:D37","defects:D41","defects:D42"]
+- sessionLogs: ["docs/logs/20260608-150928-abb5622a0a388a034.md","docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-181727-a0ebdfdbc5ec7ed80.md","docs/logs/20260608-193323-T275-worker-and-reviews.md","docs/logs/20260608-195916-T281-worker-and-reviews.md","docs/logs/20260608-201412-T276.md","docs/logs/20260608-202739-T277-T278.md","docs/logs/20260608-203646-T279.md","docs/logs/20260608-204503-G35-plan-review.md","docs/logs/20260608-205640-T282.md"]
