@@ -412,18 +412,16 @@ in
 
     smind.hm.dev.llm.secretEnv = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
-      default = {
-        OPENROUTER_API_KEY = "/run/agenix/openrouter";
-        AI_GATEWAY_API_KEY = "/run/agenix/vercel"; # Vercel AI Gateway
-        EXA_API_KEY = "/run/agenix/exa";
-        BRAVE_SEARCH_API_KEY = "/run/agenix/brave";
-        FIRECRAWL_API_KEY = "/run/agenix/firecrawl";
-        OLLAMA_API_KEY = "/run/agenix/ollama"; # Ollama Cloud (pi-ollama-cloud reads $OLLAMA_API_KEY)
-        MINIMAX_API_KEY = "/run/agenix/minimax"; # MiniMax (pi-minimax-provider reads $MINIMAX_API_KEY)
-      };
+      default = { };
       example = lib.literalExpression ''
         {
           OPENROUTER_API_KEY = "/run/agenix/openrouter";
+          AI_GATEWAY_API_KEY = "/run/agenix/vercel"; # Vercel AI Gateway
+          EXA_API_KEY = "/run/agenix/exa";
+          BRAVE_SEARCH_API_KEY = "/run/agenix/brave";
+          FIRECRAWL_API_KEY = "/run/agenix/firecrawl";
+          OLLAMA_API_KEY = "/run/agenix/ollama"; # Ollama Cloud (reads $OLLAMA_API_KEY)
+          MINIMAX_API_KEY = "/run/agenix/minimax"; # MiniMax (reads $MINIMAX_API_KEY)
           ANTHROPIC_API_KEY = config.age.secrets.anthropic.path;
         }
       '';
@@ -435,10 +433,10 @@ in
         the Pi wrapper exports `VAR="$(cat <path>)"` into its process env — only
         when the file is readable, so a host missing a secret degrades gracefully
         (the file is simply absent and skipped). Tokens stay out of the Nix store
-        and at-rest env. The default points at the agenix-managed secrets under
-        `/run/agenix`; defining this option in a downstream flake replaces the
-        default map wholesale, so list the full set of providers to wire (drop a
-        secret by omitting its entry, add one with a new `VAR = path` pair).
+        and at-rest env. Empty by default: the consumer wires its own providers
+        downstream (e.g. pointing each `VAR` at an agenix secret path such as
+        `/run/agenix/<name>` or `config.age.secrets.<name>.path`). With an empty
+        map no provider secrets are bound or injected.
       '';
     };
   };
