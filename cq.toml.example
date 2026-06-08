@@ -25,10 +25,10 @@ planners = ["opus", "grok"]
 # Harnesses: "claude" (Claude API), "pi" (Pi/Pika API)
 # Models: e.g., opus-4.8[1m], haiku-4.5, sonnet-4, grok-build, etc.
 [aliases]
-  codex = "pi:grok-build"
-  grok = "pi:grok-build"
+  codex = "pi:grok-build/grok-build"
+  grok = "pi:grok-build/grok-build"
   opus = "claude:opus-4.8[1m]"
-  minimax = "pi:minimax-m3"
+  minimax = "pi:ollama-cloud/minimax-m3"
 
 # [tiers] — Map the three dispatch tiers to a concrete provider+model.
 # Values are either an alias name (from [aliases] above) or a direct token.
