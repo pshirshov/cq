@@ -17,6 +17,7 @@
   extraPromptFragments ? [ ],
   secretPaths ? [ ],
   sandboxPackages ? [ ],
+  sessionVariables ? { },
 }:
 
 let
@@ -65,6 +66,14 @@ let
   sandboxBinExports = lib.optionalString (sandboxPackages != [ ]) ''
     export YOLO_SANDBOX_BIN=${sandboxEnv}/bin
   '';
+  # Declarative session env vars set INSIDE the sandbox. Serialized as one
+  # newline-joined NAME=VALUE line per entry; yolo.sh splits on newline and
+  # the llm-sandbox layer splits each line on the first `=`, so values may
+  # contain `=` (but not newlines).
+  sessionVarLines = lib.mapAttrsToList (name: value: "${name}=${value}") sessionVariables;
+  sessionVarsExports = lib.optionalString (sessionVariables != { }) ''
+    export YOLO_SESSION_VARS=${lib.escapeShellArg (lib.concatStringsSep "\n" sessionVarLines)}
+  '';
   promptExports = lib.optionalString (extraPromptFragments != [ ]) ''
     export YOLO_EXTRA_PROMPT=${lib.escapeShellArg (lib.concatStringsSep "\n\n" extraPromptFragments)}
   '';
@@ -85,6 +94,7 @@ pkgs.writeShellScriptBin "yolo" ''
   ${extraRwExports}
   ${secretPathExports}
   ${sandboxBinExports}
+  ${sessionVarsExports}
   ${promptExports}
   exec bash ${yoloScript} "$@"
 ''

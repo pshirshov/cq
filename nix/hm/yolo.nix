@@ -48,6 +48,8 @@ let
     ollamaModelsDir = cfg.ollamaModelsDir;
     # Extra packages exposed ONLY inside the sandbox (not the host profile).
     sandboxPackages = cfg.yolo.packages;
+    # Declarative env vars set inside the sandbox session.
+    sessionVariables = cfg.yolo.sessionVariables;
   };
 in
 {
@@ -166,6 +168,25 @@ in
         ro-bound `/nix/store`, so no extra bind is needed). Applies to every
         `yolo` subcommand (claude/codex/pi/shell/cmd). Linux-only, like the rest
         of the sandbox.
+      '';
+    };
+
+    smind.hm.dev.llm.yolo.sessionVariables = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          EDITOR = "nvim";
+          RUST_BACKTRACE = "1";
+        }
+      '';
+      description = ''
+        Environment variables to set INSIDE the yolo sandbox session, as a
+        NAME -> value map. Applied to every `yolo` subcommand
+        (claude/codex/pi/shell/cmd) via the sandbox's `--env`, and overridable
+        per-invocation by an explicit `--env NAME=VALUE` flag. Values may contain
+        `=` but not newlines. Mirrors home-manager's `home.sessionVariables`, but
+        scoped to the sandbox only — these are NOT exported into the host session.
       '';
     };
   };

@@ -22,6 +22,8 @@
 #                              (configured from smind.hm.dev.llm.secretEnv; missing paths are skipped)
 #   YOLO_SANDBOX_BIN         - bin dir of a buildEnv of extra packages (smind.hm.dev.llm.yolo.packages)
 #                              to prepend onto PATH inside the sandbox; empty means none
+#   YOLO_SESSION_VARS        - newline-separated NAME=VALUE list (smind.hm.dev.llm.yolo.sessionVariables)
+#                              of env vars to set inside the sandbox; empty means none
 #   YOLO_OLLAMA_MODELS_DIR   - host path to the ollama models directory (ro-bind); empty means no ollama on this host
 #   YOLO_EXTRA_PROMPT        - extra text appended to the claude system prompt (after the YOLO header)
 
@@ -239,6 +241,17 @@ if [[ -n "${YOLO_SANDBOX_BIN:-}" ]]; then
   SANDBOX_PKG_ARGS+=(--env "PATH=$YOLO_SANDBOX_BIN:$PATH")
 fi
 
+# Declarative session env vars set inside the sandbox (smind.hm.dev.llm.yolo.
+# sessionVariables -> YOLO_SESSION_VARS, one NAME=VALUE per line). Applied
+# before the CLI `--env` flags (ENV_ARGS) so an explicit `--env` overrides a
+# declarative default for the same name.
+SESSION_VAR_ARGS=()
+if [[ -n "${YOLO_SESSION_VARS:-}" ]]; then
+  while IFS= read -r _v; do
+    [[ -n "$_v" ]] && SESSION_VAR_ARGS+=(--env "$_v")
+  done <<< "$YOLO_SESSION_VARS"
+fi
+
 # Ollama models directory (read-only). Derived from services.ollama.models
 # at Nix-eval time; empty on hosts where ollama is not enabled.
 OLLAMA_ARGS=()
@@ -295,6 +308,7 @@ BASE_ARGS=(
   --ro-bind "${YOLO_NIX_LD},/lib64/ld-linux-x86-64.so.2"
   --env SMIND_SANDBOXED=1
   "${SANDBOX_PKG_ARGS[@]}"
+  "${SESSION_VAR_ARGS[@]}"
   "${ENV_ARGS[@]}"
 )
 
