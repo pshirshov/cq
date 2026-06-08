@@ -30,6 +30,13 @@ let
   llmSandbox = pkgs.runCommandLocal "llm-sandbox" { } ''
     install -Dm755 ${./llm-sandbox.sh} $out/bin/llm-sandbox
   '';
+  # Tiny entrypoint that runs INSIDE the sandbox to load the composed secrets
+  # file into the env before exec'ing the real command (used only when
+  # secretSessionVariables are set). Installed like llm-sandbox; its store path
+  # is reachable in the sandbox via the ro-bound /nix/store.
+  secretsExec = pkgs.runCommandLocal "yolo-secrets-exec" { } ''
+    install -Dm755 ${./secrets-exec.sh} $out/bin/yolo-secrets-exec
+  '';
   podmanExports = lib.optionalString (podmanSocketPath != null) ''
     export YOLO_PODMAN_SOCKET_PATH=${lib.escapeShellArg podmanSocketPath}
     export YOLO_PODMAN_SOCKET_URI=${lib.escapeShellArg podmanSocketUri}
@@ -84,6 +91,7 @@ let
 in
 pkgs.writeShellScriptBin "yolo" ''
   export YOLO_LLM_SANDBOX="${llmSandbox}/bin/llm-sandbox"
+  export YOLO_SECRETS_EXEC="${secretsExec}/bin/yolo-secrets-exec"
   export YOLO_NIX_LD="${nix-ld}/bin/nix-ld"
   export YOLO_JQ="${jq}/bin/jq"
   export YOLO_CODEGRAPH_BIN="${codegraph}/bin/codegraph"

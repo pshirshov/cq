@@ -3,6 +3,7 @@
 #
 # Required env vars (set by Nix wrapper):
 #   YOLO_LLM_SANDBOX            - path to llm-sandbox binary
+#   YOLO_SECRETS_EXEC          - path to the in-sandbox secrets-loading entrypoint (yolo-secrets-exec)
 #   YOLO_NIX_LD                 - path to nix-ld binary (bound as /lib64/ld-linux-x86-64.so.2)
 #   YOLO_JQ                     - path to jq binary
 #   YOLO_CODEGRAPH_BIN          - path to codegraph binary (per-project index bootstrap)
@@ -29,6 +30,7 @@
 #   YOLO_EXTRA_PROMPT        - extra text appended to the claude system prompt (after the YOLO header)
 
 : "${YOLO_LLM_SANDBOX:?must be set}"
+: "${YOLO_SECRETS_EXEC:?must be set}"
 : "${YOLO_NIX_LD:?must be set}"
 : "${YOLO_JQ:?must be set}"
 : "${YOLO_CODEGRAPH_BIN:?must be set}"
@@ -660,19 +662,19 @@ case "$SUBCMD" in
     ;;
 esac
 
-# When secret session vars are in play, run the real command behind a tiny
-# in-sandbox prelude that reads the composed secrets file (bound read-only at
-# $SANDBOX_SECRETS_PATH, exposed as $YOLO_SECRETS_FILE), exports each NAME=VALUE
-# line verbatim, then exec's the command — so every harness inherits the
-# secrets. Without secrets we exec the sandbox directly (no extra shell layer,
-# no cleanup).
+# When secret session vars are in play, run the real command behind the
+# yolo-secrets-exec entrypoint (resolved from the ro-bound /nix/store): it loads
+# the composed secrets file (bound read-only at $SANDBOX_SECRETS_PATH, exposed as
+# $YOLO_SECRETS_FILE) into the env, then exec's the command — so every harness
+# inherits the secrets. Without secrets we exec the sandbox directly (no extra
+# entrypoint layer, no cleanup).
 if [[ -n "$SECRET_TMPFILE" ]]; then
   # Remove the host-side composed file on exit; it lives in tmpfs regardless.
   trap 'rm -f "$SECRET_TMPFILE"' EXIT
   "$YOLO_LLM_SANDBOX" \
     "${BASE_ARGS[@]}" \
     "${EXTRA_ARGS[@]}" \
-    -- /bin/sh -c 'while IFS= read -r _l; do [ -n "$_l" ] && export "$_l"; done < "$YOLO_SECRETS_FILE"; exec "$@"' yolo-secrets "${EXEC_CMD[@]}"
+    -- "$YOLO_SECRETS_EXEC" "${EXEC_CMD[@]}"
   exit $?
 fi
 
