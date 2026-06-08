@@ -561,10 +561,10 @@ archives:
 - completion: "Wrote gen-agents-catalogue.ts (wired as `gen-agents` package.json script) parsing all 19 Q148 role assets via T275 parseAgentMarkdown; derives model class from cq.toml.example [agent_tiers]+classifyToken (N/A for the 12 orchestrator commands), privilege via deriveSubagentPrivilege/deriveCommandPrivilege, exposedTools via formatExposedTools; emits committed agentsCatalogue.gen.ts (AGENT_ROLES, 19 entries; 7 real class + 12 N/A; per-harness mappings from planners+reviewers classified to the class). Hard-fails on missing ## Catalogue block; byte-deterministic (reads committed cq.toml.example via parseConfig, not live cq.toml). Narrowed the stale T275 placeholder test. Cherry-picked to main. bun run check green 1201/0; determinism re-verified (zero diff). Review APPROVE (opus + minimax)."
 - sessionLogs: ["docs/logs/20260608-201412-T276.md"]
 
-### T277 — planned
+### T277 — done
 
 - createdAt: 2026-06-08T16:58:43.704Z
-- updatedAt: 2026-06-08T16:58:43.704Z
+- updatedAt: 2026-06-08T20:28:19.456Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add a generated-catalogue freshness/drift test (Q147 auto-sync guard)
@@ -573,11 +573,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T276"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 67cc722
+- completion: "Added agentsCatalogue.gen.test.ts: (a) role-set invariants (all 19 Q148 roles present, required fields populated, privilege ∈{RO,RW}, spot-checks plan-reviewer=RO/implement-worker=RW); (b) freshness/drift guard (save committed gen.ts → spawn `bun run gen-agents` → byte-compare → afterAll restore) with VERIFIED teeth + clean-tree-on-failure. +12 tests. Cherry-picked to main. bun run check green 1213/0. Review APPROVE (opus + minimax)."
+- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
 
-### T278 — planned
+### T278 — done
 
 - createdAt: 2026-06-08T16:58:50.455Z
-- updatedAt: 2026-06-08T17:36:08.224Z
+- updatedAt: 2026-06-08T20:28:23.538Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add the Agents tab to HelpOverlay, rendering the generated catalogue with prompt templates folded by default
@@ -586,6 +589,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T275","T276"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 1e0b26e
+- completion: "Added the 'agents' tab to App.tsx HelpOverlay: tab button help-tab-agents (after Flows) + AgentsTab mapping all 19 AGENT_ROLES to one section per role (help-agent-<id>) showing name/kind/description/inputs/outputs/ioSchema, model class + per-harness mappings (N/A/default fallback), RO/RW privilege badge (help-agent-<id>-privilege), exposed-tools descriptor (help-agent-<id>-tools), and the prompt template in a COLLAPSED <details> (help-agent-<id>-prompt) via the Markdown component; lw-agent* CSS added. Scope App.tsx+styles.css only; existing tabs intact. Cherry-picked to main. bun run check green 1201/0. Review APPROVE (opus; minimax disapprove rejected as based on false premises — T278 adds no new module, privilege is a closed union, check green)."
+- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
 
 ### T279 — planned
 

@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 335
+  item: 337
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -842,3 +842,27 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T276","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-201412-T276.md"]
+
+### R336 — go-ahead
+
+- createdAt: 2026-06-08T20:28:04.647Z
+- updatedAt: 2026-06-08T20:28:04.647Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T277 implement review APPROVE (opus[claude] + minimax[pi:ollama-cloud] both approve; grok+codex[pi:grok-build] excluded, stall). agentsCatalogue.gen.test.ts: (a) role-set invariants — 19 roles present, required fields, privilege spot-checks (plan-reviewer=RO, implement-worker=RW); (b) freshness drift guard (save-run `bun run gen-agents`-compare-restore) with VERIFIED teeth (perturbing gen.ts fails the byte-compare) + safe afterAll restore (clean tree even on failure). +12 tests; bun run check green 1213/0. minimax's only note (codegen cross-run determinism) was a non-blocking question out of scope."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T277","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
+
+### R337 — go-ahead
+
+- createdAt: 2026-06-08T20:28:19.411Z
+- updatedAt: 2026-06-08T20:28:19.411Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T278 implement review APPROVE (reconciled). opus[claude] APPROVE (authoritative, full worktree): all 19 AGENT_ROLES render one section each (help-agent-<id>) with RO/RW privilege badge + exposed-tools descriptor + prompt template in a COLLAPSED <details> (no `open`); AgentModelMappings handles N/A/default/per-harness correctly; shortcuts/item-states/flows panel branches byte-identical (surgical ternary extension, no regression); key props present; scope = App.tsx+styles.css. bun run check green 1201/0. minimax[pi:ollama-cloud] DISAPPROVE was REJECTED as based on factually FALSE premises (refuted by the diff stat + types.ts + green check): (1) 'new agentsCatalogue.ts scope violation' — false, T278 touches ONLY App.tsx+styles.css (2 files); agentsCatalogue.ts is the pre-existing T275 module it imports; (2) 'fragile lowercase privilege class' — false, privilege is the closed Privilege('RO'|'RW') union (types.ts:105); (3) 'renderListField undefined' — refuted by green typecheck; (4) 'Source field extra' — Q148 permits extra useful fields. grok+codex[pi:grok-build] excluded (stall). Reconciled APPROVE."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T278","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-202739-T277-T278.md"]
