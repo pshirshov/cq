@@ -553,13 +553,13 @@ auto-investigated: 1 confirmed→seeded goal, 1 parked on a question").
 > **Your stop is PROGRESS-bounded, never EFFORT-bounded.** Stop ONLY when this
 > flow's own stop predicate fires — a terminal planner token (`awaiting-answers`
 > / `completed` / `noop`), the auto-investigate stop predicates (a)–(f), or
-> everything parked on an `open` user question — NEVER because the run is long,
-> costly, used many subagents, reached "a natural milestone", or the remaining
-> work feels disproportionate. The handoff status you write is the gate: one of
-> `drained` / `answers-required` / `mixed` / `illness-detected`, each requiring a
-> real predicate condition — there is no status for an effort-based stop. If
-> tempted to stop while progress is still possible, CONTINUE. (See
-> llm/commands/cq/advance.md §Stop condition.)
+> everything parked on an `open` user question or a user action — NEVER because
+> the run is long, costly, used many subagents, reached "a natural milestone", or
+> the remaining work feels disproportionate. The handoff status you write is the
+> gate: one of `drained` / `answers-required` / `user-action-required` / `mixed`
+> / `illness-detected`, each requiring a real predicate condition — there is no
+> status for an effort-based stop. If tempted to stop while progress is still
+> possible, CONTINUE. (See llm/commands/cq/advance.md §Stop condition.)
 
 Whether you write a `handoffs` record at your stop depends ENTIRELY on your
 invocation context — there is **no env var or process signal** to read. You,
@@ -573,21 +573,42 @@ context you are in.
   mapping your end-of-round classification (across BOTH axes) to the handoff
   `status`:
 
-  | This round's stop                                                          | handoff `status`   |
-  | -------------------------------------------------------------------------- | ------------------ |
-  | every target goal reached `planned`/terminal, nothing left to advance      | `drained`          |
-  | one or more goals/defects `awaiting-answers` / parked on an `open` question | `answers-required` |
-  | both at once — some goals planned/drained, others awaiting answers          | `mixed`            |
-  | a stop predicate (a)/(c)–(f) bounded the pass / an invariant violation      | `illness-detected` |
+  | This round's stop                                                                          | handoff `status`         |
+  | ------------------------------------------------------------------------------------------ | ------------------------ |
+  | every target goal reached `planned`/terminal, nothing left to advance                      | `drained`                |
+  | one or more goals/defects `awaiting-answers` / parked on an `open` question                | `answers-required`       |
+  | a SPECIFIC named goal/task whose only remaining step is exclusively the user's action      | `user-action-required`   |
+  | both at once — some goals planned/drained, others awaiting answers and/or a user action    | `mixed`                  |
+  | a stop predicate (a)/(c)–(f) bounded the pass / an invariant violation                    | `illness-detected`       |
+
+  **`user-action-required` — narrow-pinning trigger (Q138/Q139).** This row
+  applies ONLY when a SPECIFIC, NAMED goal or task cannot progress because its
+  next physical step is *exclusively the user's* — re-activate an environment,
+  provision a credential/secret, or run a privileged/external command the planner
+  cannot run — AND the planner has ALREADY done every autonomous step for that
+  item. **Operational test:** name the EXACT command/action the user must run AND
+  the EXACT item it unblocks. If either cannot be named, it is NOT
+  `user-action-required` — CONTINUE.
+
+  **Distinct from `answers-required`:** `answers-required` is strictly gated on
+  an `open` `questions` item (a requirements/clarification ANSWER from the user).
+  `user-action-required` involves NO `questions` item — it is a
+  manual/environment ACTION the planner cannot perform itself. When BOTH
+  co-occur (a run that has also landed or is also blocked on an open question),
+  classify `mixed` and list both components in `handoffReasons` (e.g.
+  `[answers-required, user-action-required]` or `[drained, answers-required,
+  user-action-required]`).
 
   Field set (per `HANDOFFS_SCHEMA`; consistent with cq/advance.md §Provenance):
   `summary` (**required** — the why-it-stopped prose, mirror the §Report);
   `flow` = `plan`; `ledgerRefs` = the stop-causing items (`goals:<G>`,
   `defects:<D>`); `blockingQuestions` = the `open` question ids for an
   `answers-required`/`mixed` stop; `handoffReasons` = the component reasons for
-  a `mixed` stop (e.g. `[drained, answers-required]`); `sessionLogs` = the
-  `docs/logs/<ts>-<agent-id>.md` path(s) written this round — populate them in
-  the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
+  a `mixed` stop (e.g. `[drained, answers-required]`), and for
+  `user-action-required` carries the EXACT user action + item unblocked (the
+  action is recorded here — NO new schema field is added; Q140); `sessionLogs` =
+  the `docs/logs/<ts>-<agent-id>.md` path(s) written this round — populate them
+  in the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
   once at the stop, never updated. (The auto-investigate sub-rounds this command
   chains do NOT each write a handoff — investigate/advance.md suppresses its own
   handoff whenever chained, so this one record covers the whole pass.) **Then
