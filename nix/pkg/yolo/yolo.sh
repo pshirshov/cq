@@ -397,8 +397,9 @@ add_pi_binds() {
   for _sec in openrouter vercel exa brave firecrawl ollama minimax; do
     EXTRA_ARGS+=(--ro "/run/agenix/$_sec")
   done
-  # rpiv-web-tools writable config (provider selection / SearXNG URL).
-  EXTRA_ARGS+=(--rw "${HOME}/.config/rpiv-web-tools")
+  # pi-search-hub config is HM-managed (declarative) under
+  # ~/.pi/agent/extensions/search.json, shared read-only with the rest of
+  # agent/extensions below — no separate writable mount needed.
   if [[ -n "$PROFILE" ]]; then
     local A item; A="$(profile_dir pi)"
     mkdir -p "$A/home/agent"

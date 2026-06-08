@@ -163,9 +163,11 @@ let
     MINIMAX_API_KEY = "minimax"; # MiniMax (pi-minimax-provider reads $MINIMAX_API_KEY)
   };
   piSecretsPrelude = lib.concatStringsSep "\n" (
-    lib.mapAttrsToList (
-      var: secret: ''[ -r /run/agenix/${secret} ] && export ${var}="$(cat /run/agenix/${secret})"''
-    ) piSecretEnv
+    lib.mapAttrsToList
+      (
+        var: secret: ''[ -r /run/agenix/${secret} ] && export ${var}="$(cat /run/agenix/${secret})"''
+      )
+      piSecretEnv
   );
   piWrapped = pkgs.symlinkJoin {
     name = "pi-coding-agent-wrapped";
@@ -174,19 +176,71 @@ let
     postBuild = ''
       wrapProgram $out/bin/pi \
         --run ${lib.escapeShellArg piSecretsPrelude} \
-        --set-default SEARXNG_URL https://searx.net.7mind.io \
         --run 'export CQ_AGENTS_DIR="$HOME/.pi/agent/cq-agents"'
     '';
   };
 
-  # Default rpiv-web-tools config: route web search through our own SearXNG.
-  # Seeded as a writable copy (not a store symlink) so the tool's own
-  # `/web-tools` command and runtime persistence keep working. API keys are
-  # NOT stored here — they come from the env injected by piWrapped.
-  rpivWebToolsConfig = jsonFormat.generate "rpiv-web-tools-config.json" {
-    provider = "searxng";
-    baseUrls.searxng = "https://searx.net.7mind.io";
-  };
+  # Declarative pi-search-hub config (replaces rpiv-web-tools). pi-search-hub
+  # reads ~/.pi/agent/extensions/search.json; we manage it as a read-only HM
+  # store symlink (truly declarative — runtime `/search` mutations do not
+  # persist; change a backend here). API keys are NOT stored here: each
+  # backend's `apiKey` names the env var injected by piWrapped from agenix
+  # (see piSecretEnv), resolved by pi-search-hub's "ALL_CAPS string => env var"
+  # rule. Tool names are unchanged (`web_search`, `web_read`), so the grok
+  # drop-client-web-search extension still applies.
+  #
+  # Fallback ORDER (selectionStrategy = "sequential"): pi-search-hub tries
+  # backends in config object-key order, with `defaultBackend` hoisted first.
+  # `pkgs.formats.json`/`toJSON` would sort keys alphabetically and lose that
+  # order, so we emit the JSON with EXPLICIT key order from searchHubBackends —
+  # edit that list to re-order. We front self-hosted SearXNG, then free DDG,
+  # then the paid APIs, so paid backends are only reached if both free ones
+  # fail. duckduckgo needs `ddgs` on PATH at runtime (added to home.packages).
+  searchHubBackends = [
+    {
+      name = "searxng";
+      cfg = {
+        enabled = true;
+        instanceUrl = "https://searx.net.7mind.io";
+      };
+    }
+    {
+      name = "duckduckgo";
+      cfg.enabled = true;
+    }
+    {
+      name = "brave";
+      cfg = {
+        enabled = true;
+        apiKey = "BRAVE_SEARCH_API_KEY";
+      };
+    }
+    {
+      name = "exa";
+      cfg = {
+        enabled = true;
+        apiKey = "EXA_API_KEY";
+      };
+    }
+    {
+      name = "firecrawl";
+      cfg = {
+        enabled = true;
+        apiKey = "FIRECRAWL_API_KEY";
+      };
+    }
+  ];
+  searchHubConfig = pkgs.writeText "pi-search-hub-config.json" ''
+    {
+      "defaultBackend": "searxng",
+      "selectionStrategy": "sequential",
+      "backends": {
+    ${lib.concatStringsSep ",\n" (
+      map (b: "    ${builtins.toJSON b.name}: ${builtins.toJSON b.cfg}") searchHubBackends
+    )}
+      }
+    }
+  '';
 
   # Pi has no native MCP; pi-mcp-adapter (added via enableMcpIntegration)
   # auto-reads ~/.config/mcp/mcp.json — but servers there are lazy (connect on
@@ -200,14 +254,16 @@ let
   # reason.
   piMcpDirectTools = config.smind.hm.dev.llm.pi.mcpDirectTools;
   piMcpJson = jsonFormat.generate "pi-mcp.json" {
-    mcpServers = lib.mapAttrs (
-      name: server:
-      let
-        directToolsEnabled =
-          if lib.isList piMcpDirectTools then lib.elem name piMcpDirectTools else piMcpDirectTools;
-      in
-      server // { lifecycle = "keep-alive"; } // lib.optionalAttrs directToolsEnabled { directTools = true; }
-    ) config.programs.mcp.servers;
+    mcpServers = lib.mapAttrs
+      (
+        name: server:
+          let
+            directToolsEnabled =
+              if lib.isList piMcpDirectTools then lib.elem name piMcpDirectTools else piMcpDirectTools;
+          in
+          server // { lifecycle = "keep-alive"; } // lib.optionalAttrs directToolsEnabled { directTools = true; }
+      )
+      config.programs.mcp.servers;
   };
 
   # Repo-agnostic operating manual appended INSIDE Pi's system prompt (via
@@ -648,8 +704,10 @@ in
           hideThinkingBlock = true;
           enableInstallTelemetry = false;
           # Pi packages (installed from npm on first run):
-          # - rpiv-web-tools: web search/fetch (keys via piWrapped env, SearXNG
-          #   default; config seeded at ~/.config/rpiv-web-tools/config.json).
+          # - pi-search-hub: unified web_search/web_read over 12 backends with
+          #   auto-fallback (https://pi.dev/packages/pi-search-hub). Keys via
+          #   piWrapped env; declaratively configured at
+          #   ~/.pi/agent/extensions/search.json (see searchHubConfig).
           # - pi-anthropic-auth: Claude Pro/Max OAuth compat; activates only on
           #   Anthropic OAuth, passes everything else through (`/login anthropic`).
           # - pi-xai: xAI OAuth provider (`grok-build`) with Grok models/tools
@@ -674,14 +732,14 @@ in
           #   Pi's loader, so the managed --legacy-peer-deps install resolves it.
           # (pi-mcp-adapter is added separately by enableMcpIntegration.)
           packages = [
-            "npm:@juicesharp/rpiv-web-tools"
+            "npm:pi-search-hub"
             "npm:pi-ollama-cloud"
             "npm:@sinamtz/pi-minimax-provider"
             "npm:pi-xai"
           ];
           extensions = [
             # For grok-* requests, keep xAI's native server-side web_search and
-            # remove only the rpiv-web-tools client function of the same name.
+            # remove only the pi-search-hub client tool of the same name.
             "${../pkg/pi-extensions/drop-client-web-search-for-grok.ts}"
             # Correct pi-xai's stale 128k grok-build contextWindow to 256k via a
             # registerProvider override that replaces the model list (restating
@@ -710,21 +768,17 @@ in
       # pi-mcp-adapter connects them at startup (see piMcpJson).
       home.file.".pi/agent/mcp.json".source = piMcpJson;
 
-      # Seed a writable rpiv-web-tools config (SearXNG default) once, leaving it
-      # user/tool-writable thereafter. Replaces an HM store symlink if present.
-      home.activation.rpivWebToolsConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        _rpiv_cfg="${config.home.homeDirectory}/.config/rpiv-web-tools/config.json"
-        if [ ! -e "$_rpiv_cfg" ] || [ -L "$_rpiv_cfg" ]; then
-          run mkdir -p "$(dirname "$_rpiv_cfg")"
-          run rm -f "$_rpiv_cfg"
-          run install -m600 ${rpivWebToolsConfig} "$_rpiv_cfg"
-        fi
-      '';
+      # Declarative pi-search-hub config (see searchHubConfig). RO store symlink,
+      # like mcp.json above.
+      home.file.".pi/agent/extensions/search.json".source = searchHubConfig;
 
       # Linux-only: bubblewrap sandbox and yolo wrapper script
       home.packages = [
         pkgs.gh
         pkgs.nodejs # required by claude-code plugins (.mjs scripts)
+        # pi-search-hub's duckduckgo backend spawns `python3 -c "from ddgs
+        # import DDGS …"`, so put a python3 with ddgs importable on PATH.
+        (pkgs.python3.withPackages (ps: [ ps.ddgs ]))
         codegraphPkg # for `codegraph init -i` per-project bootstrap
       ]
       ++ ledgerTools
@@ -732,9 +786,6 @@ in
         inputs.claude-code-sandbox.packages.${system}.default
       ]
       ++ lib.optionals isLinux [
-        # aichat
-        # aider-chat
-        # goose-cli
         pkgs.bubblewrap
         (pkgs.callPackage ../pkg/reattach-llm/default.nix { })
 
@@ -768,18 +819,22 @@ in
       # Sharing commandKeyToStem with Pi keeps the two deliveries in lockstep.
       # Codex agents have no canonical markdown home and are intentionally not
       # materialized (Claude receives them via its agents option).
-      home.file = lib.mapAttrs' (
-        key: body: lib.nameValuePair ".codex/prompts/${commandKeyToStem key}.md" { text = body; }
-      ) mergedCommands;
+      home.file = lib.mapAttrs'
+        (
+          key: body: lib.nameValuePair ".codex/prompts/${commandKeyToStem key}.md" { text = body; }
+        )
+        mergedCommands;
     })
     (lib.mkIf config.smind.hm.dev.llm.enable {
       # Project individual cq agent markdowns to ~/.pi/agent/cq-agents/<name>.md
       # so the dispatch extension (T224) can discover them by reading the
       # directory pointed to by $CQ_AGENTS_DIR (set on piWrapped above).
       # Separate mkMerge element for the same reason as the Codex block above.
-      home.file = lib.mapAttrs' (
-        name: body: lib.nameValuePair ".pi/agent/cq-agents/${name}.md" { text = body; }
-      ) mergedAgents;
+      home.file = lib.mapAttrs'
+        (
+          name: body: lib.nameValuePair ".pi/agent/cq-agents/${name}.md" { text = body; }
+        )
+        mergedAgents;
     })
   ];
 }
