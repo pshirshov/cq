@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 30
+  item: 32
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -175,12 +175,12 @@ archives:
 
 ## M93
 
-### G30 — clarifying
+### G30 — planned
 
 - createdAt: 2026-06-08T00:02:15.261Z
-- updatedAt: 2026-06-08T00:06:47.561Z
+- updatedAt: 2026-06-08T08:54:12.661Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: $CLAUDE_CODE_SESSION_ID
 - title: Add a user-action-required handoff status + thread it through the flow prompts
 - description: |
     Also, we should extend the handoffs status set with a new action like 'user-action-required' — which the agent can use in situations like HO22, where it genuinely needs the user's manual/environment action. Accordingly, account for that new status in the prompts.
@@ -188,4 +188,25 @@ archives:
     Motivation: HO22 (this session) was forced to classify as `mixed`, but the real remaining blocker (defect D37) needed a USER ACTION — re-run `home-manager switch` to activate the merged pi extension — which is NOT an open `questions` item and NOT a requirements ambiguity. The current handoff status set (drained / answers-required / mixed / illness-detected) has no clean way to say 'I did everything I autonomously can; YOU must now perform a manual/environment action (re-activate, provision a credential, run an external command) before the flow can complete or verify.' This forces either a misleading `mixed`/`answers-required`, or an effort-looking stop with no legal status.
     
     Scope: (1) add the new terminal status to the handoffs schema (HANDOFFS_SCHEMA in @cq/ledger CANONICAL_LEDGERS — nix/pkg/cq-ledgers); (2) thread it through the flow command prompts that map end-of-run classifications to handoff statuses — /cq:advance (§Provenance status table + §End-of-run report + the STOP-GATE 'progress-bounded not effort-bounded' logic so a genuine user-action stop is a LEGAL stop distinct from answers-required) and the per-flow plan/investigate/implement *:advance §Handoff-record tables; (3) update any consumer/rendering (TUI/web handoff-status display, snapshot). The new status must be clearly distinguished from answers-required (a user REQUIREMENTS/clarification ANSWER) — it is a manual/environment ACTION the agent cannot perform itself. Consider whether it carries a structured 'required action' description so the user sees exactly what to do.
-- sessionLogs: ["docs/logs/20260608-000631-acfb0df8dce386356.md"]
+- sessionLogs: ["docs/logs/20260608-082500-a1f1c71e6e8947b5c.md","docs/logs/20260608-082500-pi-grok.md","docs/logs/20260608-082500-pi-minimax.md","docs/logs/20260608-084157-aa6b092e7b5729c43.md","docs/logs/20260608-084846-ad018a304777bde16.md","docs/logs/20260608-085336-a644adda2d79b52bb.md"]
+- milestones: ["M97","M98","M99","M100","M101"]
+
+## M95
+
+### G31 — planned
+
+- createdAt: 2026-06-08T07:50:38.865Z
+- updatedAt: 2026-06-08T08:25:00.975Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- title: Fix D38 — pin the cq verdict enum on the Pi subagent path (reinforce + fail-loud validate)
+- description: |
+    Defect-seeded goal (resolves defect D38); root cause CONFIRMED via H27, so this skips clarification and goes straight to planning.
+    
+    **Confirmed root cause:** The Pi subagent dispatch path never re-asserts the cq agent's canonical verdict enum on the child, and no orchestrator-side step validates/normalizes the returned verdict against that enum before gating. The rubrics specify the literal enums (plan-review `go-ahead|revise` [plan-review.md:85]; implement-review `approve|disapprove` [implement-review.md:83]) but only as the CHILD's instruction; the Pi dispatch trigger (pi-context.md:51-67) + dispatch_agent tool (cq-subagent-dispatch.ts:605-607, 687-694) pass the task verbatim and return raw child text with no enum re-assertion; the orchestrators key abstention on contract-key PARSEABILITY not enum validity (plan/advance.md:291-299; implement/advance.md:145-150) and reconcile by bare string-equality against the literals (plan/advance.md:310-311; implement/advance.md:174-177). A paraphrased verdict (e.g. "fail") parses, survives abstention, and matches neither reconcile branch — silently mis-gating. Path-independent (dispatch_agent demo path AND direct `pi -p` shellout reviewer-panel path); affects both plan-review and implement-review enums.
+    
+    **Suggested fix (two complementary layers):** (1) Reinforce the enum on the Pi path — extend pi-context.md's 'Dispatching cq subagents' section so a dispatched cq child producing a verdict json MUST emit the agent's EXACT verdict enum literal, never a paraphrase. (2) Add orchestrator-side fail-loud validation in plan/advance.md and implement/advance.md — after fence-strip parse, VALIDATE the verdict string against the enum; an off-enum verdict is treated as an ABSTENTION (dropped + logged) rather than silently surviving, optionally with a small synonym-normalization map applied before rejection.
+    
+    **Acceptance:** the plan must specify how an off-enum verdict on the Pi path is caught (reinforced child instruction + orchestrator fail-loud), and validate via the existing bun run check + a documented reasoning of why a paraphrased verdict can no longer silently mis-gate. Tasks created under this goal must ledgerRef defects:D38.
+- milestones: ["M96"]
+- sessionLogs: ["docs/logs/20260608-075907-a154a37239d30c033.md","docs/logs/20260608-075907-pi-grok.md","docs/logs/20260608-075907-pi-minimax.md","docs/logs/20260608-080957-a7a8b2a4d39a4f50c.md","docs/logs/20260608-082009-a321657379502d04a.md","docs/logs/20260608-082403-a7069cb62865e8e08.md"]

@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 94
+  item: 102
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -494,3 +494,56 @@ archives:
 - updatedAt: 2026-06-08T00:38:18.252Z
 - title: "G29 W: provider-qualified pi token grammar"
 - description: "G29 work milestone: make the cq pi token grammar `pi:<provider>/<model>`-only (drop bare), thread a structured provider through @cq/config + the ledger config-capability surfacing + the dispatch-extension mirror, migrate configs, test+doc. Resolves D36."
+
+### M95 — open
+
+- createdAt: 2026-06-08T07:49:55.614Z
+- updatedAt: 2026-06-08T07:49:55.614Z
+- title: "Plan: fix D38 — pin verdict enum on the Pi subagent path"
+- description: "Coordination milestone for the defect-seeded fix goal G31 (resolves D38). Root cause confirmed via H27: the Pi dispatch path never re-asserts the cq agent's canonical verdict enum on the child, and no orchestrator-side step validates/normalizes the returned verdict before gating, so a Pi child can paraphrase the verdict (e.g. \"fail\") and silently mis-gate."
+
+### M96 — open
+
+- createdAt: 2026-06-08T08:00:22.686Z
+- updatedAt: 2026-06-08T08:00:22.686Z
+- title: "G31 W: D38 verdict-enum fix (reinforce + fail-loud validate)"
+- description: "Work milestone for G31 (resolves D38). Synthesized from opus+grok+minimax candidate panel. Two-layer fix: (1) reinforce the exact verdict enum on the Pi dispatch path in pi-context.md; (2) add orchestrator-side fail-loud off-enum→abstention validation in plan/advance.md and implement/advance.md; then verify (bun run check + nix build) and document the why-it-can-no-longer-mis-gate argument."
+
+### M97 — open
+
+- createdAt: 2026-06-08T08:34:20.314Z
+- updatedAt: 2026-06-08T08:34:20.314Z
+- title: "G30 W1: schema — add user-action-required to HANDOFFS_SCHEMA"
+- description: Synthesized from opus+grok+minimax. Add the `user-action-required` terminal status to the canonical HANDOFFS_SCHEMA (constants.ts). Root dependency for all other G30 work.
+
+### M98 — open
+
+- createdAt: 2026-06-08T08:34:22.312Z
+- updatedAt: 2026-06-08T08:34:22.312Z
+- title: "G30 W2: in-place live-ledger migration (Q141)"
+- description: Edit this repo's live (gitignored) docs/ledgers.yaml handoffs schema block IN PLACE so init() does not backup-reinit (preserving the tracked handoffs.md HO records), plus a fixture-based records-survive regression test. Per Q141 user override.
+- dependsOn: ["M97"]
+
+### M99 — open
+
+- createdAt: 2026-06-08T08:34:29.161Z
+- updatedAt: 2026-06-08T08:34:29.161Z
+- title: "G30 W3: rendering — warning bucket (TUI + web)"
+- description: Add user-action-required to the WARNING set in both mirrored status.ts files + TUI/web render tests asserting it renders warning (not green). Per Q142.
+- dependsOn: ["M97"]
+
+### M100 — open
+
+- createdAt: 2026-06-08T08:34:31.979Z
+- updatedAt: 2026-06-08T08:34:31.979Z
+- title: "G30 W4: prompt threading (advance.md + 3 per-flow tables)"
+- description: "Thread user-action-required into the 4 cq command-prompt status tables: advance.md full treatment (status table + narrow-legal-stop + anti-laundering prose + mixed/handoffReasons composition, Q138/Q139) + plan/investigate/implement handoff-record table rows."
+- dependsOn: ["M97"]
+
+### M101 — open
+
+- createdAt: 2026-06-08T08:34:33.605Z
+- updatedAt: 2026-06-08T08:34:33.605Z
+- title: "G30 W5: verify — schema/grep tests + bun run check + scoped nix build"
+- description: Schema unit test + four-table grep-invariant test, then bun run check + scoped nix build (.#llm-contexts/.#llm-context-with-env/.#llm-skills) green. Per Q142 acceptance gates (a)/(b) + repo substantive guard.
+- dependsOn: ["M98","M99","M100"]

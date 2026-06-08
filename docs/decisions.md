@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 47
+  item: 50
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -201,3 +201,27 @@ archives:
 - headline: "plan review: approved"
 - rationale: Reviewer go-ahead on the G29 plan (work milestone M94, tasks T231-T239), ref review R278 — opus + codex + grok all go-ahead, all 9 R277 criticisms verified resolved; DAG acyclic, fine-grained/sequenced/testable/grounded/complete, honors locked Q132-Q136. Locking the plan; G29 -> planned.
 - ledgerRefs: ["goals:G29"]
+
+## M95
+
+### K48 — locked
+
+- createdAt: 2026-06-08T08:24:44.646Z
+- updatedAt: 2026-06-08T08:24:56.207Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "G31 plan review: approved"
+- rationale: "G31 (fix D38 — pin the cq verdict enum on the Pi subagent path) reached unanimous go-ahead (R281) after a 3-round planner↔reviewer loop (R279 revise → R280 revise → R281 go-ahead). Locked plan: work milestone M96, tasks T240 (reinforce verdict enum in pi-context.md), T241/T242 (symmetric fail-loud off-enum→abstention validation in plan/advance.md + implement/advance.md, no synonym coercion), T243 (verify: bun run check + scoped nix build), T244 (documented why-it-can-no-longer-mis-gate argument). All tasks ledgerRef defects:D38."
+- ledgerRefs: ["goals:G31"]
+
+## M93
+
+### K49 — locked
+
+- createdAt: 2026-06-08T08:54:05.369Z
+- updatedAt: 2026-06-08T08:54:05.369Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "G30 plan review: approved"
+- rationale: "G30 (add a `user-action-required` handoff status + thread it through the flow prompts) reached unanimous go-ahead (R284) after a 3-round planner↔reviewer loop (R282 revise → R283 revise → R284 go-ahead). Locked plan: 5 work milestones M97-M101, 12 tasks T245-T256. Honors locked answers Q137 (token=user-action-required, terminal), Q138 (narrow legal stop + anti-laundering, no-effort-gate intact), Q139 (distinct from answers-required, mixed via handoffReasons, 4 prompt tables), Q140 (no new schema field), Q141 (in-place schema edit, no backup-reinit, preserve HO records — committed: constants.ts + CI fixture test; operational: gitignored ledgers.yaml on main checkout), Q142 (warning bucket render + schema unit/grep-invariant/render tests + bun run check + scoped nix build)."
+- ledgerRefs: ["goals:G30"]

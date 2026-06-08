@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 278
+  item: 285
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -530,3 +530,79 @@ archives:
 - new_questions: []
 - ledgerRefs: ["goals:G29","defects:D36"]
 - sessionLogs: ["docs/logs/20260608-010041-G29-review2.md"]
+
+## M95
+
+### R279 — revise
+
+- createdAt: 2026-06-08T08:11:20.561Z
+- updatedAt: 2026-06-08T08:11:20.561Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "G31 plan ROUND 1 REVISE (3/4 revise: codex+grok+minimax revise; opus go-ahead). Plan is well-grounded in the confirmed D38 root cause and the DAG is acyclic, but carries an unjustified T242←T241 edge, a synonym-normalization layer that is scope-creep AND contradicts fail-loud, imprecise acceptance (bare paths + approx line numbers), an underspecified nix-build product list, and a T244 path-traceability wording gap. All planner-fixable; no new_questions; no out-of-scope defects."
+- new_questions: []
+- criticism: ["[codex,grok] T242 dependsOn [T241] is unjustified: the two orchestrator validation edits target INDEPENDENT files (plan/advance.md vs implement/advance.md) with no shared output/state/prerequisite — violates correctly-sequenced. Remove the edge (make both roots) and preserve symmetry by fully specifying the IDENTICAL block shape in both task descriptions.","[codex,minimax] T241/T242 prescribe a synonym-normalization map that (a) is NOT in G31's required fix (scope creep) and (b) CONTRADICTS fail-loud — normalizing a paraphrase into a canonical enum silently RECOVERS it instead of abstaining. Remove the synonym map entirely; the required behavior is: any verdict not EXACTLY an enum literal is dropped+logged as an ABSTENTION.","[codex] T240/T241/T242 acceptance uses bare filenames + approximate line numbers; use fully-qualified repo paths (nix/pkg/llm-contexts/pi-context.md, nix/pkg/cq-assets/commands/cq/{plan,implement}/advance.md) and content-presence observables (grep for the new rule text) rather than line-number assertions that won't match git diff output.","[minimax] T243 acceptance underspecifies the nix build: enumerate the CONCRETE product attrs that vendor nix/pkg/cq-assets + nix/pkg/llm-contexts and give the exact `nix build` command from repo root (the changed assets feed the home-manager LLM bundle, NOT the ledger-mcp/tui/web Bun apps).","[codex] T244 'both dispatch paths' must be made explicitly TRACEABLE to D38's path-independent root cause: the dispatch_agent child path is closed by the T240 pi-context.md reinforcement and the direct `pi -p` reviewer-panel path by the T241/T242 orchestrator validation."]
+- ledgerRefs: ["goals:G31"]
+- sessionLogs: ["docs/logs/20260608-080957-a7a8b2a4d39a4f50c.md","docs/logs/20260608-080957-pi-codex.md","docs/logs/20260608-080957-pi-grok.md","docs/logs/20260608-080957-pi-minimax.md"]
+
+### R280 — revise
+
+- createdAt: 2026-06-08T08:20:41.717Z
+- updatedAt: 2026-06-08T08:20:41.717Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "G31 plan ROUND 2 REVISE (opus revise; codex + grok go-ahead; minimax abstained — shellout timeout exit 124). All five R279 points verified resolved. One residual planner-fixable criticism from opus: T243's nix-build acceptance presumes a buildable attr vendoring cq-assets, but cq-assets is eval-time-only. Converging."
+- new_questions: []
+- criticism: ["[opus] T243 acceptance presumes a `nix build .#<attr>` target that VENDORS nix/pkg/cq-assets, but cq-assets is consumed EVAL-TIME-ONLY via nix/pkg/cq-assets/assets.nix (builtins.readFile/readDir) and surfaces as the flake-level `llmAssets` output — it has NO buildable packages.* derivation. Only `llm-contexts` / `llm-context-with-env` / `llm-skills` are buildable, and of those only `llm-contexts` vendors the T240-edited nix/pkg/llm-contexts; none builds the T241/T242-edited cq-assets Markdown (read via readFile, so a green build would not exercise them anyway). Tighten T243: state cq-assets is eval-time-only, drop the implied per-file cq-assets build target, scope the nix-build gate to `llm-contexts` (+ `llm-context-with-env`/`llm-skills` for asset-validation-into-the-graph), and make `bun run check` the substantive guard — so the acceptance is satisfiable as written."]
+- ledgerRefs: ["goals:G31"]
+- sessionLogs: ["docs/logs/20260608-082009-a321657379502d04a.md","docs/logs/20260608-082009-pi-codex.md","docs/logs/20260608-082009-pi-grok.md","docs/logs/20260608-082009-pi-minimax.md"]
+
+### R281 — go-ahead
+
+- createdAt: 2026-06-08T08:24:40.350Z
+- updatedAt: 2026-06-08T08:24:40.350Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "G31 plan ROUND 3 GO-AHEAD (UNANIMOUS: opus + codex + grok + minimax all go-ahead; minimax now returned within timeout). R280's sole criticism (T243 presuming a buildable cq-assets attr) verified resolved: T243 records cq-assets eval-time-only, scopes the nix-build gate to the real buildable attrs (.#llm-contexts vendors the T240 pi-context.md edit, +.#llm-context-with-env/.#llm-skills for asset-graph validation), bun run check the substantive guard. DAG acyclic (T240/T241/T242 roots; T243/T244←all three); off-enum→abstention edits symmetric + fail-loud (no synonym coercion); plan fully achieves D38 across both dispatch paths + both enums. Ready to lock."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G31"]
+- sessionLogs: ["docs/logs/20260608-082403-a7069cb62865e8e08.md","docs/logs/20260608-082403-pi-codex.md","docs/logs/20260608-082403-pi-grok.md","docs/logs/20260608-082403-pi-minimax.md"]
+
+## M93
+
+### R282 — revise
+
+- createdAt: 2026-06-08T08:42:40.311Z
+- updatedAt: 2026-06-08T08:42:40.311Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: G30 plan ROUND 1 REVISE (opus + codex + minimax go-ahead; grok revise). Plan well-grounded, acyclic, honors all locked answers Q137-Q142; one substantive sequencing fix + three acceptance-precision tightenings from grok. All planner-fixable; no new_questions; no out-of-scope defects.
+- new_questions: []
+- criticism: ["[grok] T247 (committed fixture records-survive test) incorrectly dependsOn T246 (the LOCAL gitignored docs/ledgers.yaml edit). Per Q141 the live edit is a non-committed local runtime migration; the committed fixture test must be CI-independent and depend ONLY on T245 (constants.ts). Repoint T247 dependsOn -> [T245]; note the live ledgers.yaml edit (T246) is a separate operational step.","[grok] T245 description should explicitly enumerate the precise edits (add token to statusValues + terminalStatuses + a transitions empty entry) so it is independently testable, not deferring verifiability to T255.","[grok] T252/T253/T254 acceptance is too terse ('handoff table row'); each must require the row's surrounding text to carry the narrow-legal-stop / forbidden-look-alikes / no-effort-stop-gate-intact / distinct-from-answers-required / mixed-handoffReasons cross-references (Q138/Q139), so each of the four tables is individually verifiable.","[grok] T250 acceptance 'warning not green' is indirect/negative; positively assert the warning bucket/class/color for user-action-required in BOTH mirrored status.ts AND that the other four handoff statuses' buckets are unchanged."]
+- ledgerRefs: ["goals:G30"]
+- sessionLogs: ["docs/logs/20260608-084157-aa6b092e7b5729c43.md","docs/logs/20260608-084157-pi-codex.md","docs/logs/20260608-084157-pi-grok.md","docs/logs/20260608-084157-pi-minimax.md"]
+
+### R283 — revise
+
+- createdAt: 2026-06-08T08:49:26.703Z
+- updatedAt: 2026-06-08T08:49:26.703Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "G30 plan ROUND 2 REVISE (opus + grok go-ahead; codex + minimax revise). All four R282 fixes verified applied. Of the new findings: codex#2/codex#3/minimax#1 are ARTIFACTS of the abbreviated round-2 review PROMPT (the actual ledger tasks already name the three nix attrs in T256 and the four prompt tables in T251-T254 + the T255 grep-invariant) — no plan change needed for those. The one substantive fix: codex#1 — T246 (in-place edit of the GITIGNORED docs/ledgers.yaml) is an OPERATIONAL main-checkout migration, not a worktree code task (a worktree edit to a gitignored file cannot merge back). Reframed accordingly."
+- new_questions: []
+- criticism: ["[codex] T246 is an OPERATIONAL live-ledger migration of the gitignored docs/ledgers.yaml — it must be performed on the MAIN checkout (it produces no committed diff, and a worktree task editing a gitignored file cannot merge back). The committed Q141 deliverables are T245 (constants.ts) + T247 (CI fixture test). Reframe T246 as operational + ensure the verify path (T256 task-level deps T247/T250/T255) gates on the COMMITTED test T247, not on operational T246.","[codex,minimax — PROMPT ARTIFACT, no change] T256 already names `.#llm-contexts .#llm-context-with-env .#llm-skills` in its acceptance; the 'vague scoped nix build' read came from the abbreviated review prompt, not the task.","[codex — PROMPT ARTIFACT, no change] all four prompt tables ARE covered: T251 (advance.md), T252 (plan), T253 (investigate), T254 (implement), with T255 the four-table grep-invariant; the round-3 prompt states this explicitly."]
+- ledgerRefs: ["goals:G30"]
+- sessionLogs: ["docs/logs/20260608-084846-ad018a304777bde16.md","docs/logs/20260608-084846-pi-codex.md","docs/logs/20260608-084846-pi-grok.md","docs/logs/20260608-084846-pi-minimax.md"]
+
+### R284 — go-ahead
+
+- createdAt: 2026-06-08T08:53:59.842Z
+- updatedAt: 2026-06-08T08:53:59.842Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "G30 plan ROUND 3 GO-AHEAD (UNANIMOUS: opus + codex + grok + minimax). T246 operational reframe sound; T256 verify gates on committed T247 (not operational T246). All locked answers Q137-Q142 honored; DAG acyclic; all R282/R283 fixes applied; prior round-2 prompt-artifact findings confirmed non-issues. Ready to lock."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G30"]
+- sessionLogs: ["docs/logs/20260608-085336-a644adda2d79b52bb.md","docs/logs/20260608-085336-pi-codex.md","docs/logs/20260608-085336-pi-grok.md","docs/logs/20260608-085336-pi-minimax.md"]

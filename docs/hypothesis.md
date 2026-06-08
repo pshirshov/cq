@@ -2,7 +2,7 @@
 ledger: hypothesis
 counters:
   milestone: 0
-  item: 26
+  item: 28
 archives:
   - id: M14
     path: ./archive/hypothesis/M14.md
@@ -82,3 +82,17 @@ archives:
 ---
 
 # hypothesis
+
+## M91
+
+### H27 — confirmed
+
+- createdAt: 2026-06-08T07:45:10.922Z
+- updatedAt: 2026-06-08T07:48:50.787Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Pi dispatch path never pins the child's verdict to the cq agent's canonical enum, and no orchestrator-side validation rejects/normalizes off-enum verdicts, so the Pi child model paraphrases the verdict string (e.g. "fail" instead of go-ahead|revise)
+- description: "Would be TRUE if ALL hold: (1) the cq plan-review / implement-review agent contract specifies a literal verdict ENUM (go-ahead|revise; approve|disapprove); (2) the Pi-side dispatch-trigger instruction in nix/pkg/cq-assets contexts (pi-context.md, T229) and the dispatch_agent tool's task-passing in nix/pkg/pi-extensions/cq-subagent-dispatch.ts do NOT re-assert that the child must emit the EXACT enum (they ask only for a 'parseable verdict-json'), and/or the parent injects a JSON skeleton with placeholder verdict values the model fills loosely; (3) there is NO orchestrator-side normalization/validation step that maps or rejects a non-enum verdict string before the go-ahead/revise gating logic consumes it."
+- ledgerRefs: ["defects:D38"]
+- evidence: ["[correct] plan-review.md:82-86 — `\"verdict\": \"go-ahead | revise\"`: the rubric specifies the literal enum (sub-claim 1).","[correct] implement-review.md:81-83 — `\"verdict\": \"approve | disapprove\"`: implement-review enum (sub-claim 1).","[correct] pi-context.md:51-67 — the Pi dispatch trigger maps the named-agent+task convention onto `dispatch_agent({agent,task})` and asserts only 'emit the tool call'; it never re-asserts the verdict enum or output contract (sub-claim 2).","[correct] cq-subagent-dispatch.ts:605-607 — the tool passes `args.task` verbatim as the child prompt + the agent md as append-system-prompt; injects NO JSON skeleton, NO placeholder verdict, NO enum (sub-claim 2).","[correct] cq-subagent-dispatch.ts:687-694 — returns the child's raw final text via `textResult(capOutput(finalText))`; performs no verdict parse/normalization/enum validation (sub-claim 3).","[correct] plan/advance.md:291-299 — abstention keys ONLY on whether stdout parses into the verdict CONTRACT (keys present), not on enum-literal validity; an off-enum `verdict:\"fail\"` parses and survives (sub-claim 3).","[correct] plan/advance.md:310-311 — reconcile is bare string-equality: `revise` if any reviewer == revise, `go-ahead` only if all == go-ahead; an off-enum value matches neither branch (sub-claim 3).","[correct] implement/advance.md:145-150 — same parseability-only abstention on the implement side (sub-claim 3, approve|disapprove).","[correct] implement/advance.md:174-177 — strictest-wins reconcile is string-equality vs approve|disapprove literals; off-enum matches neither (sub-claim 3)."]
+- sessionLogs: ["docs/logs/20260608-074755-aa243a5b68b5e3c0e.md"]

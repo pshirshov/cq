@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 239
+  item: 257
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -523,3 +523,233 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T231","T232","T233","T234","T235","T236","T237","T238"]
 - ledgerRefs: ["goals:G29","defects:D36"]
+
+## M96
+
+### T240 — planned
+
+- createdAt: 2026-06-08T08:00:40.061Z
+- updatedAt: 2026-06-08T08:11:59.215Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Reinforce the exact verdict enum on the Pi dispatch path in pi-context.md
+- description: "Extend the 'Dispatching cq subagents' section of nix/pkg/llm-contexts/pi-context.md (currently ~L43-72) so that when the model IS a dispatched cq child producing a verdict json (plan-reviewer / implement-reviewer, or any cq agent whose rubric defines a verdict enum), it MUST emit the agent's EXACT canonical verdict enum literal and NEVER a paraphrase/synonym: for plan-review exactly `go-ahead` or `revise` (per plan-review.md), for implement-review exactly `approve` or `disapprove` (per implement-review.md). State that the verdict string is a CLOSED enum, not free text, and that the orchestrator will DROP an off-enum verdict as an abstention (e.g. never emit `fail`, `pass`, `ok`, `reject`). Add this as an explicit rule alongside the existing 'Emit the tool CALL — do not paraphrase' bullet. Surgical insertion only; do not restructure the surrounding dispatch-convention text. Keep it harness-appropriate (this is the Pi-specific context asset by design)."
+- acceptance: The 'Dispatching cq subagents' section of nix/pkg/llm-contexts/pi-context.md contains an explicit rule requiring a dispatched reviewer child's `verdict` to be the EXACT rubric enum literal (naming go-ahead|revise for plan-review and approve|disapprove for implement-review) and forbidding any paraphrase/synonym; `grep -n 'go-ahead' nix/pkg/llm-contexts/pi-context.md` and `grep -n 'approve' nix/pkg/llm-contexts/pi-context.md` return the new rule; reviewing the full diff shows no other section of the file changed.
+- suggestedModel: standard
+- ledgerRefs: ["goals:G31","defects:D38"]
+
+### T241 — planned
+
+- createdAt: 2026-06-08T08:00:47.584Z
+- updatedAt: 2026-06-08T08:12:05.772Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add fail-loud off-enum verdict validation to plan/advance.md (plan-review enum)
+- description: "In nix/pkg/cq-assets/commands/cq/plan/advance.md, after the fence-strip parse step and within/adjacent to the existing Abstention rule (the block that drops a reviewer whose stdout does not parse into the verdict contract), add an explicit imperative validation step: after parsing the verdict contract, VALIDATE the `verdict` string against the closed plan-review enum {`go-ahead`,`revise`} (the literal enum in nix/pkg/cq-assets/commands/cq/plan-review.md). If `verdict` is NOT EXACTLY `go-ahead` or `revise`, treat the reviewer as ABSTAINING — DROP it from the panel (not counted go-ahead, not counted revise), exactly as the existing abstention rule drops an unparseable verdict, and LOG it with the reviewer alias + the raw off-enum value + cause (per §Session logs). Do NOT normalize or recover synonyms — an off-enum value is an ABSTENTION, never a value to coerce into a canonical enum (silent coercion would defeat the fail-loud contract). Place the step BEFORE the reconcile string-equality so an off-enum value can never reach reconcile. Author the new block with the SAME structure/wording as the implement-review counterpart in T242 (the two edits must be symmetric). Harness-agnostic prose; do not alter reconcile semantics for valid verdicts."
+- acceptance: "nix/pkg/cq-assets/commands/cq/plan/advance.md gains, after the fence-strip parse, an explicit step that treats a `verdict` not in {go-ahead,revise} as an ABSTENTION (dropped + logged with alias + raw value), mirroring the existing abstention rule, with NO synonym-normalization/coercion; the new step textually PRECEDES the reconcile string-equality; grep for `go-ahead`/`revise` + an abstention/off-enum reference confirms the block. Reviewing the diff shows no other behavioral change."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G31","defects:D38"]
+
+### T242 — planned
+
+- createdAt: 2026-06-08T08:00:59.040Z
+- updatedAt: 2026-06-08T08:12:16.322Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add fail-loud off-enum verdict validation to implement/advance.md (implement-review enum), symmetric with T241
+- description: "In nix/pkg/cq-assets/commands/cq/implement/advance.md, after the fence-strip parse and within/adjacent to the abstention rule of step 3b/3c, add the SYMMETRIC fail-loud validation: after parsing the per-reviewer contract, VALIDATE the `verdict` string against the closed implement-review enum {`approve`,`disapprove`} (the literal enum in nix/pkg/cq-assets/commands/cq/implement-review.md). If `verdict` is NOT EXACTLY `approve` or `disapprove`, treat the reviewer as ABSTAINING — DROP it from the panel for this task (not counted approve, not counted disapprove), exactly as the existing abstention rule, and LOG raw stdout + alias + the off-enum value + cause (per §Session logs). Do NOT normalize or recover synonyms — off-enum = ABSTENTION (fail-loud); never coerce into a canonical enum. Place the step BEFORE the strictest-wins match so an off-enum value can never reach reconcile. Use the IDENTICAL block structure/wording as the plan/advance.md counterpart in T241 — only the file, the enum literals ({approve,disapprove} vs {go-ahead,revise}), and the reconcile-step name differ. This task is INDEPENDENT of T241 (different file, no shared state); symmetry is guaranteed by both task descriptions fully specifying the same block shape."
+- acceptance: "nix/pkg/cq-assets/commands/cq/implement/advance.md gains, after the fence-strip parse, an explicit step that treats a `verdict` not in {approve,disapprove} as an ABSTENTION (dropped + logged with alias + raw value), mirroring the existing abstention rule AND structurally identical to the T241 plan/advance.md step, with NO synonym-normalization/coercion; the new step textually PRECEDES the strictest-wins match; grep for `approve`/`disapprove` + an abstention/off-enum reference confirms the block. Reviewing the diff shows no other behavioral change."
+- suggestedModel: frontier
+- dependsOn: []
+- ledgerRefs: ["goals:G31","defects:D38"]
+
+### T243 — planned
+
+- createdAt: 2026-06-08T08:01:04.329Z
+- updatedAt: 2026-06-08T08:21:00.581Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "Verify: bun run check + nix build of affected products green"
+- description: "From nix/pkg/cq-ledgers/ run `bun run check` (typecheck + lint + test) and confirm exit 0 — this is the SUBSTANTIVE guard against breakage in any file that bundles/validates the assets. Note: nix/pkg/cq-assets is consumed EVAL-TIME-ONLY (nix/pkg/cq-assets/assets.nix reads it via builtins.readFile/readDir into the flake-level `llmAssets` output), so it has NO per-file buildable derivation and the T241/T242 Markdown edits are not exercised by a package build. The T240 edit lives in nix/pkg/llm-contexts, which IS vendored by a buildable attr. From the REPO ROOT run `nix build .#llm-contexts` (vendors the edited pi-context.md) and, to exercise the asset graph/validation, `nix build .#llm-context-with-env` and `nix build .#llm-skills`; confirm each exits 0. (Verify these attr names against the flake; adjust if the flake exposes them differently — the intent is: build the attr that vendors the edited llm-contexts plus the attrs that pull the cq-assets graph into validation.) Capture all outputs. If any check/build fails, fix the cause before this task is done."
+- acceptance: "`bun run check` (from nix/pkg/cq-ledgers/) exits 0 with captured output (the substantive guard). `nix build .#llm-contexts` (vendors the T240 pi-context.md edit) plus `nix build .#llm-context-with-env` and `nix build .#llm-skills` (asset-graph validation) — each from the repo root — exit 0 with captured output (attr names confirmed against the flake). The completion records that nix/pkg/cq-assets is eval-time-only (no per-file build target) so a green build validates the asset graph, not the prose per-file; both outputs quoted."
+- suggestedModel: standard
+- dependsOn: ["T240","T241","T242"]
+- ledgerRefs: ["goals:G31","defects:D38"]
+
+### T244 — planned
+
+- createdAt: 2026-06-08T08:01:18.961Z
+- updatedAt: 2026-06-08T08:12:29.834Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Write the documented why-it-can-no-longer-mis-gate argument (D38 acceptance)
+- description: "Produce the reasoning artifact D38's acceptance requires. Write a concise note at docs/drafts/{YYYYMMDD-HHMM}-d38-verdict-enum-fix.md (timestamp at write time) that: (1) names the two complementary fix layers (reinforced pi-context.md enum instruction; orchestrator fail-loud off-enum->abstention validation in plan/advance.md + implement/advance.md) and what each blocks; (2) walks the PRE-fix silent failure chain end to end — a paraphrased verdict like `fail` passes fence-strip parse, survives the abstention check (which keyed on parseability only), then matches NEITHER reconcile branch -> silent mis-gate; (3) shows why the new validation step deterministically closes that gap (off-enum -> abstention with logged cause) regardless of which child produced the verdict, on the dispatch_agent path OR the direct `pi -p` reviewer-panel path, for BOTH the plan-review (go-ahead|revise) and implement-review (approve|disapprove) enums — citing the exact post-edit step locations in the three files. Also record a short resolution note referencing this doc on the D38 defect record (via the orchestrator) so D38 can move to resolved."
+- acceptance: "docs/drafts/{timestamp}-d38-verdict-enum-fix.md exists; it names all three edited files (nix/pkg/llm-contexts/pi-context.md, nix/pkg/cq-assets/commands/cq/plan/advance.md, nix/pkg/cq-assets/commands/cq/implement/advance.md) with the new step locations; walks the four-step pre-fix silent mis-gate chain (parses -> survives abstention -> matches no reconcile branch -> mis-gates); and shows that chain broken at the new validation step for BOTH enums (go-ahead|revise and approve|disapprove), explicitly mapping the two path-independent routes from D38's root cause: the dispatch_agent child path is closed by the T240 pi-context.md enum reinforcement, and the direct `pi -p` reviewer-panel path is closed by the T241/T242 orchestrator off-enum->abstention validation. A reviewer reading it can point to where an off-enum verdict is now dropped+logged instead of surviving."
+- suggestedModel: standard
+- dependsOn: ["T240","T241","T242"]
+- ledgerRefs: ["goals:G31","defects:D38"]
+
+## M97
+
+### T245 — planned
+
+- createdAt: 2026-06-08T08:34:47.098Z
+- updatedAt: 2026-06-08T08:42:58.491Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required to HANDOFFS_SCHEMA in constants.ts
+- description: "In nix/pkg/cq-ledgers/packages/ledger/src/constants.ts (HANDOFFS_SCHEMA, ~L341-361) add the literal token `user-action-required` (kebab-case, Q137) in exactly three places, consistently: (a) statusValues (currently [drained, answers-required, mixed, illness-detected]); (b) terminalStatuses (it is TERMINAL per Q137); (c) the transitions map as `\"user-action-required\": []` (empty, mirroring the other four). Do NOT add any new schema field (Q140 — the required action is carried in the existing handoffReasons[]). idPrefix HO unchanged. Update the adjacent doc-comment if it enumerates the status set."
+- acceptance: "constants.ts HANDOFFS_SCHEMA shows the literal `user-action-required` added in ALL THREE places — (a) statusValues, (b) terminalStatuses, (c) a `\"user-action-required\": []` transitions entry — with the other four tokens unchanged and NO new field added to HANDOFFS_SCHEMA.fields. Independently verifiable by reading the file (not deferred to T255); `bun run typecheck` (tsc -b) from nix/pkg/cq-ledgers passes."
+- suggestedModel: standard
+- ledgerRefs: ["goals:G30"]
+
+## M98
+
+### T246 — planned
+
+- createdAt: 2026-06-08T08:34:57.189Z
+- updatedAt: 2026-06-08T08:49:35.588Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "OPERATIONAL: in-place migrate the live (gitignored) docs/ledgers.yaml handoffs schema block on the MAIN checkout"
+- description: "Per Q141 (USER OVERRIDE — edit in place, do NOT backup-and-reinit). This is an OPERATIONAL step performed on the MAIN checkout, NOT a worktree code task: docs/ledgers.yaml is GITIGNORED (the per-cwd runtime registry), so a worktree edit would produce no committed diff and could not merge back. The orchestrator (or the implement flow, on the main checkout after T245 lands) edits the docs/ledgers.yaml handoffs block IN PLACE — add `user-action-required` to statusValues AND terminalStatuses AND a `user-action-required: []` transitions entry, byte-matching the canonical T245 shape — so FsLedgerStore.init() sees NO divergence and does NOT backup-reinit this repo's live handoffs ledger. Confirmed grounding: the live schema sidecar is docs/ledgers.yaml (handoffs block ~L429-471); the TRACKED docs/handoffs.md holds only counters/archives (HO18–HO25 preserved by construction). The COMMITTED Q141 deliverables are T245 (constants.ts) + T247 (CI fixture records-survive test); THIS task produces no committed artifact (gitignored). After editing, run the store init path and confirm no docs/.backup/<ts>/ is created and the live handoffs ledger still lists HO18–HO25."
+- acceptance: "On the main checkout, docs/ledgers.yaml handoffs block lists `user-action-required` in statusValues + terminalStatuses + a `user-action-required: []` transitions entry (token byte-identical to constants.ts); running init() creates NO docs/.backup/<ts>/ and does NOT empty the handoffs ledger; docs/handoffs.md counter still 25 and HO18–HO25 unchanged. No committed diff is expected (ledgers.yaml gitignored); the verification output is captured. (Records-survival is ALSO covered by the committed CI test T247.)"
+- suggestedModel: standard
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T247 — planned
+
+- createdAt: 2026-06-08T08:35:02.973Z
+- updatedAt: 2026-06-08T08:42:57.374Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add a fixture-based test asserting HO records survive the additive schema widening
+- description: "Per Q141's explicit requirement to verify records survive. Add a COMMITTED, CI-runnable test (under nix/pkg/cq-ledgers/packages/ledger/test/, alongside the existing schema-divergence/init suite) that: seeds a TEMP store (temp dirs/fixtures, NOT the repo's live docs/) whose on-disk handoffs ledger + registry already carry the widened statusValues (the additive shape), runs FsLedgerStore.init() against the NEW canonical HANDOFFS_SCHEMA (from T245), and asserts (a) NO backup-reinit fired (no backup dir created, handoffs ledger NOT reset to fresh-canonical) and (b) a pre-seeded HO record is still readable post-init. This test depends ONLY on the committed T245 constants.ts change so it runs in CI; it must NOT depend on the local gitignored docs/ledgers.yaml edit (that live runtime migration is the separate operational step T246). This is the committed regression guard that an additive statusValue does not destroy live handoff history."
+- acceptance: New test runs under `bun test` and passes using temp fixtures (no dependence on the live docs/ledgers.yaml); it FAILS if init() reinitializes/empties the handoffs ledger or creates a backup dir for the additive statusValue, and asserts a pre-seeded HO record is present after init().
+- suggestedModel: frontier
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+## M99
+
+### T248 — planned
+
+- createdAt: 2026-06-08T08:35:12.398Z
+- updatedAt: 2026-06-08T08:35:12.398Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required to the WARNING set in ledger-tui status.ts
+- description: "Per Q142: in nix/pkg/cq-ledgers/packages/ledger-tui/src/status.ts, add `user-action-required` to the terminal-status WARNING set (~L28) so statusBucket() returns 'warning' (magenta) for the new terminal status instead of falling through to green 'done'. Change ONLY the WARNING set; leave the other four handoff statuses (drained/answers-required/mixed/illness-detected) and all other buckets unchanged (Q142 scope)."
+- acceptance: ledger-tui status.ts WARNING set contains `user-action-required`; statusBucket('user-action-required', HANDOFFS_SCHEMA) returns 'warning' (magenta); no other status's bucket changes; `bun run typecheck` passes.
+- suggestedModel: fast
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T249 — planned
+
+- createdAt: 2026-06-08T08:35:17.115Z
+- updatedAt: 2026-06-08T08:35:17.115Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required to the WARNING set in ledger-web status.ts (mirror)
+- description: "Per Q142: in nix/pkg/cq-ledgers/packages/ledger-web/src/status.ts (mirror of the TUI helper), add `user-action-required` to the terminal-status WARNING set so statusBucket() maps it to 'warning' → `lw-status-warning` CSS class (amber), not green 'done'. Keep the two status.ts files' bucket logic mirrored/in-sync. Leave the other four handoff statuses unchanged."
+- acceptance: ledger-web status.ts WARNING set contains `user-action-required`; statusBucket('user-action-required', HANDOFFS_SCHEMA) returns 'warning' (→ lw-status-warning / amber); the two status.ts WARNING sets are in sync; no other status's bucket changes; `bun run typecheck` passes.
+- suggestedModel: fast
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T250 — planned
+
+- createdAt: 2026-06-08T08:35:22.257Z
+- updatedAt: 2026-06-08T08:43:01.554Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add TUI + web render tests asserting user-action-required renders warning (not green)
+- description: "Add render/bucket tests (under the respective package test dirs) asserting a handoffs item with status `user-action-required` renders in the warning bucket and NOT done/green: (a) TUI — statusBucket/statusColor returns 'warning'/'magenta' for `user-action-required` against HANDOFFS_SCHEMA (plus a badge/DagView render assertion where the suite already does this for other statuses); (b) web — statusBucket returns 'warning' and the badge carries `lw-status-warning` (amber), not `lw-status-done` (use uncontrolled inputs/refs per repo happy-dom convention if a component is rendered). These tests MUST FAIL if either WARNING-set edit (T248/T249) is reverted."
+- acceptance: "Under `bun test`, new TUI and web tests POSITIVELY assert that for status `user-action-required`: (TUI) statusBucket returns 'warning' and statusColor returns 'magenta'; (web) statusBucket returns 'warning' and the badge carries the `lw-status-warning` (amber) class. Each test ALSO asserts the other four handoff statuses' buckets are unchanged (still their existing buckets). Reverting either WARNING-set addition (T248/T249) makes the corresponding test fail (observed 'done'/green)."
+- suggestedModel: standard
+- dependsOn: ["T248","T249"]
+- ledgerRefs: ["goals:G30"]
+
+## M100
+
+### T251 — planned
+
+- createdAt: 2026-06-08T08:35:37.823Z
+- updatedAt: 2026-06-08T08:35:37.823Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Full treatment of user-action-required in cq/advance.md (status table + stop-condition prose)
+- description: "In nix/pkg/cq-assets/commands/cq/advance.md give the new status the full treatment per Q138/Q139: (1) the §Provenance 'one write' status table (~L60-66) gains a row mapping the user-action classification → handoff status `user-action-required`; update adjacent prose that says 'all four statuses terminal' to reflect five. (2) §End-of-run report: add the user-action classification as a legal end-of-run outcome alongside DRAINED/BLOCKED-ON-QUESTIONS/MIXED (and note co-occurrence with an open-question block + landed work → `mixed` with handoffReasons listing both, e.g. [drained, answers-required, user-action-required], Q139). (3) §Stop-condition gate (~L253-325): make `user-action-required` a LEGAL stop, NARROWLY pinned per Q138 — permitted ONLY when a SPECIFIC NAMED item's next physical step is exclusively the user's (re-activate an environment, provision a credential/secret, run a privileged/external command the agent cannot run) AND every autonomous step is already done; the agent MUST name the EXACT user command/action AND the EXACT item it unblocks (like D37's `home-manager switch`). Enumerate the forbidden look-alikes — magnitude/proportion/scope/disposition/'natural stopping point'/'remaining fix disproportionate' are NEVER user-action-required — mirroring the existing anti-laundering prose, and WITHOUT weakening the 'There is deliberately NO handoff status for an effort-based stop' gate. Distinguish it explicitly from answers-required (strictly open-question-gated; user-action-required involves NO questions item). Add it to the gate's enumeration of legal handoff statuses with its specific predicate condition."
+- acceptance: advance.md status table contains a `user-action-required` row; the §End-of-run report lists the user-action outcome + the mixed/handoffReasons composition note; the §Stop-condition gate names the narrow trigger (specific item + exact user command + all autonomous steps done), enumerates magnitude/proportion/scope/disposition/natural-stopping-point as explicitly NOT user-action-required, keeps the no-effort-stop gate intact, distinguishes it from answers-required, and includes it in the legal-status list. The token `user-action-required` appears verbatim in advance.md.
+- suggestedModel: frontier
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T252 — planned
+
+- createdAt: 2026-06-08T08:35:42.984Z
+- updatedAt: 2026-06-08T08:43:08.290Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required row to the plan/advance.md handoff status-table
+- description: "In nix/pkg/cq-assets/commands/cq/plan/advance.md, the §Handoff-record (STANDALONE) status-table (~L563-568) maps this round's stop to a handoff status. Add a row for the user-action case → `user-action-required`, with the SAME narrow-pinning language as advance.md (Q138) and the distinction from answers-required (a user ACTION the planner cannot perform, not an open-question answer; Q139); note co-occurrence with an open question → `mixed` with both in handoffReasons. Keep the field-set prose consistent (action carried in handoffReasons[] + ledgerRefs + summary per Q140; no new field)."
+- acceptance: "plan/advance.md §Handoff-record status-table contains a row mapping the user-action case -> `user-action-required` (token verbatim); the surrounding prose carries the narrow-pinning trigger (specific named item + exact user command + all autonomous steps done), the distinction from answers-required (a user ACTION not an open-question answer), and the co-occurrence -> `mixed` with handoffReasons listing both (Q138/Q139); the field-set prose references handoffReasons[] as the action carrier (no new schema field, Q140)."
+- suggestedModel: standard
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T253 — planned
+
+- createdAt: 2026-06-08T08:35:46.822Z
+- updatedAt: 2026-06-08T08:43:11.151Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required row to the investigate/advance.md handoff status-table
+- description: In nix/pkg/cq-assets/commands/cq/investigate/advance.md, the §Handoff-record (STANDALONE) status-table (~L355-360) maps this round's stop to a handoff status. Add a row for the user-action case → `user-action-required`, with the SAME narrow-pinning language (Q138; e.g. the motivating D37 `home-manager switch`) and the distinction from answers-required (Q139; co-occurrence → `mixed` listing both in handoffReasons). Keep the field-set prose consistent with Q140 (no new field).
+- acceptance: "investigate/advance.md §Handoff-record status-table contains a row mapping the user-action case -> `user-action-required` (token verbatim); the surrounding prose carries the narrow-pinning trigger (e.g. the motivating D37 `home-manager switch`), the distinction from answers-required, and the co-occurrence -> `mixed` with handoffReasons listing both (Q138/Q139); field-set prose references handoffReasons[] as the action carrier (no new schema field, Q140)."
+- suggestedModel: standard
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+### T254 — planned
+
+- createdAt: 2026-06-08T08:35:54.467Z
+- updatedAt: 2026-06-08T08:43:13.373Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add user-action-required row to the implement/advance.md handoff status-table
+- description: "In nix/pkg/cq-assets/commands/cq/implement/advance.md, the §Handoff-record (STANDALONE) status-table (~L422-427) maps this pass's stop to a handoff status. Add a row for the user-action case → `user-action-required`, with the SAME narrow-pinning language (Q138; a specific task whose next physical step is exclusively the user's — provision a credential, re-activate an environment, run a privileged external command — all autonomous steps done) and the distinction from answers-required (Q139; co-occurrence → `mixed` with both in handoffReasons). Keep field-set prose consistent with Q140 (action in handoffReasons[] + ledgerRefs + summary; no new field)."
+- acceptance: "implement/advance.md §Handoff-record status-table contains a row mapping the user-action case -> `user-action-required` (token verbatim); the surrounding prose carries the narrow-pinning trigger (a specific task whose next physical step is exclusively the user's, all autonomous steps done), the distinction from answers-required, and the co-occurrence -> `mixed` with handoffReasons listing both (Q138/Q139); field-set prose references handoffReasons[] as the action carrier (no new schema field, Q140)."
+- suggestedModel: standard
+- dependsOn: ["T245"]
+- ledgerRefs: ["goals:G30"]
+
+## M101
+
+### T255 — planned
+
+- createdAt: 2026-06-08T08:36:01.045Z
+- updatedAt: 2026-06-08T08:36:01.045Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: Add HANDOFFS_SCHEMA unit test + four-table grep-invariant test
+- description: "Per Q142 acceptance gates (a) + (b). (1) Schema unit test (under nix/pkg/cq-ledgers/packages/ledger/test/, where the existing HANDOFFS_SCHEMA tests live): assert HANDOFFS_SCHEMA includes `user-action-required` in statusValues AND terminalStatuses AND has a `user-action-required: []` transitions entry, and that isTerminal reports it terminal; the other four tokens still pass their existing assertions. (2) Grep-invariant test: assert ALL FOUR prompt status-tables — nix/pkg/cq-assets/commands/cq/{advance.md, plan/advance.md, investigate/advance.md, implement/advance.md} — contain the literal token `user-action-required` (read each file, assert presence) so a future prompt edit dropping the token fails. cq-assets is eval-time-only (no per-file build target), so this grep test is the substantive guard for prompt threading."
+- acceptance: Under `bun test`, the new schema unit test + the four-table grep-invariant test pass; the schema test would have failed before T245; the grep test fails if any of the four prompt files lacks `user-action-required`.
+- suggestedModel: standard
+- dependsOn: ["T245","T251","T252","T253","T254"]
+- ledgerRefs: ["goals:G30"]
+
+### T256 — planned
+
+- createdAt: 2026-06-08T08:36:06.880Z
+- updatedAt: 2026-06-08T08:36:06.880Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- headline: "Verify: bun run check + scoped nix build green"
+- description: Final verification gate. From nix/pkg/cq-ledgers/ run `bun run check` (tsc -b + eslint . + bun test) and confirm exit 0 with all new tests (schema unit, grep-invariant, records-survive, TUI/web render) green and no regressions — the substantive guard. Then from the REPO ROOT run `nix build .#llm-contexts .#llm-context-with-env .#llm-skills` (the buildable attrs that exercise the cq-assets prompts + the edited llm-contexts; cq-assets is eval-time-only with no per-file target) and confirm each exits 0. Capture all outputs. If any check/build fails, fix the cause before this task is done.
+- acceptance: "`bun run check` (from nix/pkg/cq-ledgers/) exits 0 with captured output (all new + existing tests green); `nix build .#llm-contexts .#llm-context-with-env .#llm-skills` (from repo root) each exit 0 with captured output; both quoted in the completion."
+- suggestedModel: standard
+- dependsOn: ["T247","T250","T255"]
+- ledgerRefs: ["goals:G30"]
