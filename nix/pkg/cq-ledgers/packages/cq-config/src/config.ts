@@ -1,8 +1,14 @@
 /**
- * cq.toml parse / resolve / load logic (T170).
+ * cq.toml parse / resolve / load logic (T170, T237).
  *
  * Pure module: validates at the boundary and fails fast with precise errors.
  * No transport/MCP concerns — that lands in the next task (T171).
+ *
+ * Token grammar (T237 BREAKING change):
+ *  - pi tokens MUST be `pi:<provider>/<model>` (e.g. pi:ollama-cloud/minimax-m3)
+ *  - claude tokens MUST be `claude:<model>` (e.g. claude:opus-4.8[1m])
+ * Bare pi tokens and provider qualifiers on claude tokens are rejected as
+ * CqConfigErrors. See parseReviewerToken for the full grammar.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -35,20 +41,22 @@ export class CqConfigError extends Error {
 }
 
 /**
- * Parse a `"<harness>:<model>"` token into a typed ReviewerToken.
+ * Parse a reviewer token string into a typed ReviewerToken.
  *
- * The FIRST `:` separates harness from the model segment (further colons stay
- * in the model segment). The model segment is then split on the FIRST `/` to
- * extract the pi provider qualifier:
+ * Token grammar (T237 BREAKING change):
+ *  - pi tokens MUST be `pi:<provider>/<model>` where:
+ *    - The FIRST `:` separates the harness from the model segment.
+ *    - The FIRST `/` in the model segment separates provider from model.
+ *    - Both provider and model must be non-empty.
+ *    - A bare pi token (missing `/`) is rejected as a CqConfigError (BREAKING).
+ *  - claude tokens MUST be `claude:<model>` where:
+ *    - The FIRST `:` separates the harness from the model.
+ *    - No `/` is permitted in the model (provider qualifiers are pi-only).
+ *    - A `/` in the model is rejected as a CqConfigError.
  *
- *  - harness `pi`: the model segment MUST contain a `/`; it splits into
- *    `provider` (before) and `model` (after), BOTH non-empty. A leading or
- *    trailing `/` (an empty half) is a `CqConfigError`; NO `/` at all is a
- *    BARE-pi token and is rejected (BREAKING).
- *  - harness `claude`: a `/` in the model segment is a `CqConfigError`
- *    (provider qualifiers are pi-only); `provider` stays null.
- *
- * Throws a `CqConfigError` if the harness is unknown or any segment is empty.
+ * Further colons in the model segment (after the first `:`) are preserved.
+ * Throws a `CqConfigError` if the harness is unknown, the token format is
+ * invalid, or any required segment is empty.
  */
 export function parseReviewerToken(token: string): ReviewerToken {
   const sep = token.indexOf(":");

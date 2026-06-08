@@ -1,10 +1,16 @@
 /**
- * cq.toml data model (T170, T223).
+ * cq.toml data model (T170, T223, T237).
  *
  * Pure, typed domain types — no transport/MCP concerns. A `ReviewerToken`
  * names a reviewer harness + model; a `CqConfig` is the fully-parsed (but
  * not yet alias-resolved) configuration: the `[aliases]` table plus the
  * top-level `reviewers` list of alias names.
+ *
+ * Token grammar (BREAKING in T237):
+ *  - pi tokens: `pi:<provider>/<model>` (e.g. pi:ollama-cloud/minimax-m3)
+ *  - claude tokens: `claude:<model>` (e.g. claude:opus-4.8[1m])
+ * Bare pi tokens (no provider) and provider qualifiers on claude tokens
+ * are CONFIG ERRORs.
  */
 
 /** The two reviewer harnesses cq knows how to drive. */
@@ -16,11 +22,17 @@ export type Harness = (typeof HARNESSES)[number];
 /**
  * A reviewer token parsed from a `"<harness>:<model>"` string.
  *
- * The model segment of a `pi` token additionally carries a provider qualifier
- * separated by the FIRST `/` — e.g. `"pi:ollama-cloud/minimax-m3"` =>
- * `{ harness: "pi", model: "minimax-m3", provider: "ollama-cloud" }` (the pi
- * `--provider`). A `claude` token never carries a provider: `provider` is null
- * and a `/` in its model is a hard error.
+ * Token grammar (T237 BREAKING change):
+ *  - pi tokens MUST be `pi:<provider>/<model>` where the provider is
+ *    separated from model by the FIRST `/`. E.g. `"pi:ollama-cloud/minimax-m3"`
+ *    parses to `{ harness: "pi", model: "minimax-m3", provider: "ollama-cloud" }`.
+ *    A bare pi token (e.g. `pi:minimax`) missing the provider qualifier is a
+ *    CONFIG ERROR (BREAKING).
+ *  - claude tokens MUST be `claude:<model>` and never carry a provider.
+ *    `provider` is always null for claude tokens, and a `/` in the model
+ *    segment is a CONFIG ERROR.
+ *
+ * Reference: D36 (pi provider routing).
  */
 export interface ReviewerToken {
   readonly harness: Harness;

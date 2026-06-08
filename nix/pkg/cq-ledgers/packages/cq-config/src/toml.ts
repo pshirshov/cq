@@ -1,5 +1,5 @@
 /**
- * cq.toml parsing scoped to the cq.toml schema (T170, T185, T223).
+ * cq.toml parsing scoped to the cq.toml schema (T170, T185, T223, T237).
  *
  * Parsing is delegated to the maintained `smol-toml` library (pure TS, TOML
  * 1.0, zero native deps, Bun-compatible). smol-toml accepts *any* valid TOML,
@@ -7,12 +7,19 @@
  * validation pass (fail fast at the boundary):
  *  - only `[aliases]`, `reviewers`, `planners`, `[webui]`, `[tiers]`, and
  *    `[agent_tiers]` are allowed; any other top-level key/table throws;
- *  - `aliases` is a table of `name = "value"` string assignments;
+ *  - `aliases` is a table of `name = "value"` string assignments (token values);
  *  - `reviewers` / `planners` are arrays of strings;
  *  - `webui` is a table with an optional string `host` and an optional
  *    integer `port` in 1..65535;
- *  - `tiers` is a table of `fast/standard/frontier = "<harness>:<model>"`;
+ *  - `tiers` is a table of `fast/standard/frontier = "<harness>:<model>"` or alias;
  *  - `agent_tiers` is a table of `agent-name = "<tier>"` strings.
+ *
+ * Token grammar (BREAKING in T237):
+ *  - pi tokens MUST be `pi:<provider>/<model>` where provider is the pi
+ *    `--provider` and model is the pi `--model`. Bare pi tokens (e.g.
+ *    `pi:minimax` without a provider qualifier) are a CONFIG ERROR.
+ *  - claude tokens MUST be `claude:<model>`. Provider qualifiers (/) are
+ *    NOT permitted on claude tokens and are a CONFIG ERROR.
  *
  * A malformed document (smol-toml's `TomlError`) is re-wrapped into the
  * existing `TomlSyntaxError` style so the public surface is unchanged.

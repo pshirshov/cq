@@ -21,9 +21,21 @@ reviewers = ["codex", "grok", "opus"]
 # [aliases] table below.
 planners = ["opus", "grok"]
 
-# [aliases] — Define reviewer instances as <harness>:<model> tokens.
-# Harnesses: "claude" (Claude API), "pi" (Pi/Pika API)
-# Models: e.g., opus-4.8[1m], haiku-4.5, sonnet-4, grok-build, etc.
+# [aliases] — Define reviewer instances as reviewer tokens.
+#
+# Token grammar (BREAKING in this version):
+#   - pi tokens MUST be: pi:<provider>/<model>
+#     The provider is the pi `--provider` flag value; model is the pi `--model`.
+#     E.g.: pi:ollama-cloud/minimax-m3, pi:grok-build/grok-build
+#     A bare pi token WITHOUT a provider qualifier (e.g. pi:minimax) is a
+#     CONFIG ERROR and will be rejected at parse time.
+#     MIGRATION: if you were using pi:minimax, update to pi:ollama-cloud/minimax-m3
+#   - claude tokens MUST be: claude:<model>
+#     The model is the Claude model identifier (e.g. opus-4.8[1m], haiku-4.5).
+#     Provider qualifiers (/) are NOT permitted on claude tokens and will
+#     be rejected as a CONFIG ERROR.
+#
+# Reference: D36 (pi provider routing)
 [aliases]
   codex = "pi:grok-build/grok-build"
   grok = "pi:grok-build/grok-build"
