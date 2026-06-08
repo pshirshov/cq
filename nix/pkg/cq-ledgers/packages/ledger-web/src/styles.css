@@ -258,15 +258,15 @@ body {
   background: #0c0e12;
   border-bottom-color: transparent;
 }
-.lw-help-statemachines {
+.lw-help-item-states {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.lw-statemachine h4 {
+.lw-item-state h4 {
   margin: 0 0 4px;
 }
-.lw-statemachine-svg {
+.lw-item-state-svg {
   display: block;
   /* width:100% constrains every diagram to the dialog width so a wide diagram
      (intrinsic width > dialog, e.g. goals/milestones/tasks) can never overflow
@@ -279,7 +279,7 @@ body {
   width: 100%;
   height: auto;
 }
-.lw-statemachine-svg text {
+.lw-item-state-svg text {
   user-select: none;
 }
 /* Flows help tab (T205): one section per flow, each an elk-laid-out DiagramSvg.

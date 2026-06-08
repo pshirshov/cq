@@ -7,7 +7,7 @@
  * scheme). This test drives the migrated tab end-to-end through the in-memory
  * FakeClient and asserts:
  *   (1) one DiagramSvg per ledger under the documented T202 testid scheme
- *       (`help-statemachine-${ledger}` section + `${idPrefix}-svg` svg +
+ *       (`help-item-state-${ledger}` section + `${idPrefix}-svg` svg +
  *       `${idPrefix}-node-${status}` / `${idPrefix}-edge-${from}-${to}`);
  *   (2) a schema WITH a self-loop transition renders its self-loop edge testid —
  *       the behavior the elk migration newly ENABLES (computeDagLayout dropped
@@ -75,7 +75,7 @@ async function openStateMachinesTab(): Promise<void> {
   await mount();
   press("?");
   await flush();
-  click(testid("help-tab-statemachines"));
+  click(testid("help-tab-item-states"));
   await settle();
 }
 
@@ -98,21 +98,21 @@ describe("State-machines tab (elk migration, T203)", () => {
     expect(ledgers.length).toBeGreaterThan(0);
     for (const name of ledgers) {
       // The per-ledger <section> container.
-      expect(testid(`help-statemachine-${name}`)).not.toBeNull();
-      // Exactly ONE svg per ledger (idPrefix `help-statemachine-${name}`).
-      const svgs = container.querySelectorAll(`[data-testid="help-statemachine-${name}-svg"]`);
+      expect(testid(`help-item-state-${name}`)).not.toBeNull();
+      // Exactly ONE svg per ledger (idPrefix `help-item-state-${name}`).
+      const svgs = container.querySelectorAll(`[data-testid="help-item-state-${name}-svg"]`);
       expect(svgs).toHaveLength(1);
 
       // Every status of the schema renders a node + rect under the scheme.
       const { schema } = await fake.fetchLedger(name);
       for (const status of schema.statusValues) {
-        expect(testid(`help-statemachine-${name}-node-${status}`)).not.toBeNull();
-        expect(testid(`help-statemachine-${name}-rect-${status}`)).not.toBeNull();
+        expect(testid(`help-item-state-${name}-node-${status}`)).not.toBeNull();
+        expect(testid(`help-item-state-${name}-rect-${status}`)).not.toBeNull();
       }
     }
 
     // A known directed (non-self) transition edge renders (bugs: open -> wip).
-    expect(testid("help-statemachine-bugs-edge-open-wip")).not.toBeNull();
+    expect(testid("help-item-state-bugs-edge-open-wip")).not.toBeNull();
   });
 
   it("renders a self-loop edge testid that the old computeDagLayout dropped", async () => {
@@ -120,7 +120,7 @@ describe("State-machines tab (elk migration, T203)", () => {
 
     // The fake `tasks` schema declares wip -> wip (a self-loop). The old
     // computeDagLayout-based model dropped self-loops; the elk renderer keeps it.
-    expect(testid("help-statemachine-tasks-edge-wip-wip")).not.toBeNull();
+    expect(testid("help-item-state-tasks-edge-wip-wip")).not.toBeNull();
   });
 
   it("lays out left-aligned with no empty leading layer-0 gap (D33 guard)", async () => {

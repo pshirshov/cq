@@ -1494,14 +1494,14 @@ function HelpOverlay({
   onClose: () => void;
   client: LedgerClient | null;
 }): React.ReactElement {
-  const [tab, setTab] = useState<"shortcuts" | "statemachines" | "flows">("shortcuts");
+  const [tab, setTab] = useState<"shortcuts" | "item-states" | "flows">("shortcuts");
   const [schemas, setSchemas] = useState<NamedSchema[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   // Batched, cached fetch of every ledger's schema — runs once, the first time
   // the state-machines tab is shown.
   useEffect(() => {
-    if (tab !== "statemachines" || schemas !== null || client === null) return;
+    if (tab !== "item-states" || schemas !== null || client === null) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -1538,12 +1538,12 @@ function HelpOverlay({
             <button
               type="button"
               role="tab"
-              aria-selected={tab === "statemachines"}
-              className={`lw-help-tab${tab === "statemachines" ? " lw-help-tab-active" : ""}`}
-              data-testid="help-tab-statemachines"
-              onClick={() => setTab("statemachines")}
+              aria-selected={tab === "item-states"}
+              className={`lw-help-tab${tab === "item-states" ? " lw-help-tab-active" : ""}`}
+              data-testid="help-tab-item-states"
+              onClick={() => setTab("item-states")}
             >
-              State machines
+              Item States
             </button>
             <button
               type="button"
@@ -1572,15 +1572,15 @@ function HelpOverlay({
                 </React.Fragment>
               ))}
             </dl>
-          ) : tab === "statemachines" ? (
-            <div className="lw-help-statemachines" data-testid="help-statemachines">
+          ) : tab === "item-states" ? (
+            <div className="lw-help-item-states" data-testid="help-item-states">
               {loadErr !== null ? (
                 <p className="lw-empty">(could not load schemas: {loadErr})</p>
               ) : schemas === null ? (
                 <p className="lw-empty">(loading…)</p>
               ) : (
                 schemas.map(({ ledger, schema }) => (
-                  <section key={ledger} className="lw-statemachine" data-testid={`help-statemachine-${ledger}`}>
+                  <section key={ledger} className="lw-item-state" data-testid={`help-item-state-${ledger}`}>
                     <h4>{ledger}</h4>
                     <StateMachineDiagram ledger={ledger} schema={schema} />
                   </section>
@@ -1609,7 +1609,7 @@ function HelpOverlay({
  * to the generic graph model (status nodes filled by their bucket color, edges
  * from the `transitions` pairs INCLUDING self-loops); {@link layoutDiagram}
  * positions it via elkjs (async — driven in a useEffect), then {@link DiagramSvg}
- * renders it. The per-ledger `idPrefix` (`help-statemachine-${ledger}`) makes the
+ * renders it. The per-ledger `idPrefix` (`help-item-state-${ledger}`) makes the
  * documented T202 scheme resolve per-ledger: svg `${idPrefix}-svg`, node
  * `${idPrefix}-node-${status}`, edge `${idPrefix}-edge-${from}-${to}`.
  *
@@ -1631,7 +1631,7 @@ function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: Ledge
     };
   }, [model]);
   if (laid === null) return <p className="lw-empty">(laying out…)</p>;
-  return <DiagramSvg idPrefix={`help-statemachine-${ledger}`} model={laid} className="lw-statemachine-svg" />;
+  return <DiagramSvg idPrefix={`help-item-state-${ledger}`} model={laid} className="lw-item-state-svg" />;
 }
 
 // FlowNodeKind → node fill, reusing the canonical BUCKET_HEX palette so a flow
