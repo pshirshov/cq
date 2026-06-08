@@ -44,6 +44,7 @@ export function computeReviewers(repoRoot: string): GetReviewersResult {
   const reviewers: ResolvedReviewer[] = tokens.map((token, i) => ({
     harness: token.harness,
     model: token.model,
+    provider: token.provider,
     // resolveReviewers preserves order, so the alias is config.reviewers[i].
     alias: config.reviewers[i] as string,
   }));
@@ -67,6 +68,7 @@ export function computePlanners(repoRoot: string): GetPlannersResult {
   const planners: ResolvedPlanner[] = tokens.map((token, i) => ({
     harness: token.harness,
     model: token.model,
+    provider: token.provider,
     // resolvePlanners preserves order, so the alias is config.planners[i].
     alias: config.planners[i] as string,
   }));
@@ -90,22 +92,47 @@ export function computeConfig(repoRoot: string): GetConfigResult {
 }
 
 function projectConfig(config: CqConfig): GetConfigResult {
-  const aliases: Record<string, { harness: string; model: string }> = {};
+  const aliases: Record<
+    string,
+    { harness: string; model: string; provider: string | null }
+  > = {};
   for (const [name, token] of Object.entries(config.aliases)) {
-    aliases[name] = { harness: token.harness, model: token.model };
+    aliases[name] = {
+      harness: token.harness,
+      model: token.model,
+      provider: token.provider,
+    };
   }
 
   let tiers: GetConfigResult["tiers"] = null;
   if (config.tiers !== null) {
     tiers = {
       ...(config.tiers.fast !== undefined
-        ? { fast: { harness: config.tiers.fast.harness, model: config.tiers.fast.model } }
+        ? {
+            fast: {
+              harness: config.tiers.fast.harness,
+              model: config.tiers.fast.model,
+              provider: config.tiers.fast.provider,
+            },
+          }
         : {}),
       ...(config.tiers.standard !== undefined
-        ? { standard: { harness: config.tiers.standard.harness, model: config.tiers.standard.model } }
+        ? {
+            standard: {
+              harness: config.tiers.standard.harness,
+              model: config.tiers.standard.model,
+              provider: config.tiers.standard.provider,
+            },
+          }
         : {}),
       ...(config.tiers.frontier !== undefined
-        ? { frontier: { harness: config.tiers.frontier.harness, model: config.tiers.frontier.model } }
+        ? {
+            frontier: {
+              harness: config.tiers.frontier.harness,
+              model: config.tiers.frontier.model,
+              provider: config.tiers.frontier.provider,
+            },
+          }
         : {}),
     };
   }

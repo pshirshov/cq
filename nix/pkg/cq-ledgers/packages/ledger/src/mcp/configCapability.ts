@@ -20,6 +20,8 @@
 export interface ResolvedReviewer {
   readonly harness: string;
   readonly model: string;
+  /** The pi `--provider` qualifier; null for claude. */
+  readonly provider: string | null;
   readonly alias: string;
 }
 
@@ -42,6 +44,8 @@ export interface GetReviewersResult {
 export interface ResolvedPlanner {
   readonly harness: string;
   readonly model: string;
+  /** The pi `--provider` qualifier; null for claude. */
+  readonly provider: string | null;
   readonly alias: string;
 }
 
@@ -58,7 +62,10 @@ export interface GetPlannersResult {
 /** The `get_config` payload: the full parsed config (or `configured:false`). */
 export interface GetConfigResult {
   readonly configured: boolean;
-  readonly aliases: Record<string, { harness: string; model: string }>;
+  readonly aliases: Record<
+    string,
+    { harness: string; model: string; provider: string | null }
+  >;
   readonly reviewers: readonly string[];
   readonly planners: readonly string[];
   /**
@@ -66,9 +73,21 @@ export interface GetConfigResult {
    * provider+model, or null if `[tiers]` is absent from cq.toml.
    */
   readonly tiers: {
-    readonly fast?: { readonly harness: string; readonly model: string };
-    readonly standard?: { readonly harness: string; readonly model: string };
-    readonly frontier?: { readonly harness: string; readonly model: string };
+    readonly fast?: {
+      readonly harness: string;
+      readonly model: string;
+      readonly provider: string | null;
+    };
+    readonly standard?: {
+      readonly harness: string;
+      readonly model: string;
+      readonly provider: string | null;
+    };
+    readonly frontier?: {
+      readonly harness: string;
+      readonly model: string;
+      readonly provider: string | null;
+    };
   } | null;
   /**
    * The `[agent_tiers]` table: maps agent-name -> tier name, or null if
