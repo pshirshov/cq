@@ -54,8 +54,12 @@ let
   extraRwExports = lib.optionalString (extraReadWritePaths != [ ]) ''
     export YOLO_EXTRA_RW_PATHS=${lib.escapeShellArg (joinPaths extraReadWritePaths)}
   '';
+  # Device records, one TAB-separated `path<TAB>type<TAB>class` line per entry
+  # (paths/tags contain no tab or newline). yolo.sh splits on newline then tab,
+  # and uses type/class for `--no-dev=<tag>` suppression.
+  devLines = map (d: "${d.path}\t${d.type or ""}\t${d.class or ""}") extraDevicePaths;
   extraDevExports = lib.optionalString (extraDevicePaths != [ ]) ''
-    export YOLO_EXTRA_DEV_PATHS=${lib.escapeShellArg (joinPaths extraDevicePaths)}
+    export YOLO_EXTRA_DEV_PATHS=${lib.escapeShellArg (lib.concatStringsSep "\n" devLines)}
   '';
   # Secret session variables: ENV_VAR -> host secret-file path. Serialized as
   # one newline-joined NAME=path line per entry (paths cannot contain newlines).

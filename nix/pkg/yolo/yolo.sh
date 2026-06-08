@@ -15,8 +15,9 @@
 #                              (set on llm-worker hosts so the llm user can use the key inside yolo)
 #   YOLO_EXTRA_RO_PATHS      - newline-separated list of host paths to ro-bind (missing paths are skipped)
 #   YOLO_EXTRA_RW_PATHS      - newline-separated list of host paths to rw-bind (missing paths are skipped)
-#   YOLO_EXTRA_DEV_PATHS     - newline-separated list of host device paths to --dev-bind (e.g. GPU render
-#                              nodes); missing paths are skipped
+#   YOLO_EXTRA_DEV_PATHS     - newline-separated `path<TAB>type<TAB>class` records of host devices to
+#                              --dev-bind (e.g. GPU render nodes); type/class are tags for `--no-dev`
+#                              suppression; missing paths are skipped
 #   YOLO_SECRET_VARS         - newline-separated NAME=/path/to/secret list (smind.hm.dev.llm.yolo.
 #                              secretSessionVariables); each readable file's content is composed into
 #                              one 0600 file, bound once, and sourced inside the sandbox (never via argv)
@@ -51,6 +52,10 @@ CG_MODE=1
 # sound (e.g. completion notifications, TTS); --no-audio opts out. Binds
 # self-skip on hosts without the sockets (headless), so this is a no-op there.
 AUDIO_MODE=1
+# Device-bind suppression: --no-dev drops ALL --dev-bind entries; --no-dev=TAG
+# (repeatable, comma-separated) drops entries whose type OR class equals TAG.
+NO_DEV_ALL=0
+NO_DEV_TAGS=()
 ENV_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -64,6 +69,11 @@ while [[ $# -gt 0 ]]; do
     --no-cg) CG_MODE=0; shift ;;
     --audio) AUDIO_MODE=1; shift ;;
     --no-audio) AUDIO_MODE=0; shift ;;
+    --no-dev) NO_DEV_ALL=1; shift ;;
+    --no-dev=*)
+      IFS=',' read -ra _ndtags <<< "${1#*=}"
+      NO_DEV_TAGS+=("${_ndtags[@]}")
+      shift ;;
     --unsafe-share-home) UNSAFE_SHARE_HOME=1; shift ;;
     --env) ENV_ARGS+=(--env "$2"); shift 2 ;;
     -*) echo "Unknown flag: $1" >&2; exit 1 ;;
@@ -127,7 +137,7 @@ if [[ $MOBILE_MODE -eq 1 ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--mobile] [--no-cg] [--audio|--no-audio] [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
+  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--mobile] [--no-cg] [--audio|--no-audio] [--no-dev[=TAG]]... [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
   exit 1
 fi
 
@@ -159,17 +169,29 @@ if [[ -n "${TMUX:-}" ]]; then
 fi
 
 # Device passthrough (configured via Nix from
-# smind.hm.dev.llm.yolo.extraDevicePaths -> YOLO_EXTRA_DEV_PATHS). Each entry is
-# bind-mounted WITH device access (bwrap --dev-bind); a directory exposes every
-# device node under it (e.g. /dev/dri for GPU render nodes). GPU passthrough is
-# no longer special-cased here — the consumer wires the device paths plus the
-# non-device bits (/run/opengl-driver, /sys via extraReadOnlyPaths) and the GPU
-# system-prompt note (via promptExtensions) from its own host config. The
+# smind.hm.dev.llm.yolo.extraDevicePaths -> YOLO_EXTRA_DEV_PATHS, one
+# `path<TAB>type<TAB>class` record per line). Each path is bind-mounted WITH
+# device access (bwrap --dev-bind); a directory exposes every device node under
+# it (e.g. /dev/dri for GPU render nodes). GPU passthrough is no longer special-
+# cased here — the consumer wires the device paths plus the non-device bits
+# (/run/opengl-driver, /sys via extraReadOnlyPaths) and the GPU system-prompt
+# note (via promptExtensions) from its own host config. `--no-dev` drops all
+# device binds; `--no-dev=TAG` drops those whose type or class equals TAG. The
 # llm-sandbox layer skips any path absent on this host.
 DEV_ARGS=()
-if [[ -n "${YOLO_EXTRA_DEV_PATHS:-}" ]]; then
-  while IFS= read -r _d; do
-    [[ -n "$_d" ]] && DEV_ARGS+=(--dev-bind "$_d,$_d")
+if [[ $NO_DEV_ALL -ne 1 && -n "${YOLO_EXTRA_DEV_PATHS:-}" ]]; then
+  while IFS=$'\t' read -r _dpath _dtype _dclass; do
+    [[ -z "$_dpath" ]] && continue
+    _dev_skip=0
+    if [[ ${#NO_DEV_TAGS[@]} -gt 0 ]]; then
+      for _tag in "${NO_DEV_TAGS[@]}"; do
+        if [[ -n "$_tag" && ( "$_tag" == "$_dtype" || "$_tag" == "$_dclass" ) ]]; then
+          _dev_skip=1; break
+        fi
+      done
+    fi
+    [[ $_dev_skip -eq 1 ]] && continue
+    DEV_ARGS+=(--dev-bind "$_dpath,$_dpath")
   done <<< "$YOLO_EXTRA_DEV_PATHS"
 fi
 

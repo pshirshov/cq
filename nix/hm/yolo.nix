@@ -125,16 +125,47 @@ in
     };
 
     smind.hm.dev.llm.yolo.extraDevicePaths = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          path = lib.mkOption {
+            type = lib.types.str;
+            description = "Host device path to bind (file or directory).";
+          };
+          type = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = ''
+              Coarse category tag (e.g. "gpu"). Matched by the runtime
+              `yolo --no-dev=<tag>` flag to suppress a group of device binds.
+            '';
+          };
+          class = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = ''
+              Finer tag (e.g. vendor "amd"/"nvidia"/"intel"), also matched by
+              `yolo --no-dev=<tag>`.
+            '';
+          };
+        };
+      });
       default = [ ];
-      example = lib.literalExpression ''[ "/dev/dri" "/dev/kfd" ]'';
+      example = lib.literalExpression ''
+        [
+          { path = "/dev/dri"; type = "gpu"; }
+          { path = "/dev/kfd"; type = "gpu"; class = "amd"; }
+        ]
+      '';
       description = ''
-        Host device paths to bind into the sandbox WITH device access (bwrap
-        `--dev-bind`) — e.g. GPU render nodes for compute passthrough. Files or
-        directories (a directory exposes every device node under it, so
-        `/dev/dri` covers all render nodes). Missing paths are skipped. GPU
-        passthrough is no longer built in: wire the device paths here, the
-        non-device GPU bits (`/run/opengl-driver`, `/sys`) via
+        Host device paths bound into the sandbox WITH device access (bwrap
+        `--dev-bind`) — e.g. GPU render nodes for compute passthrough. Each entry
+        is `{ path; type ? ""; class ? ""; }`; a directory `path` exposes every
+        device node under it (so `/dev/dri` covers all render nodes). The
+        `type`/`class` tags are matched by the runtime `yolo --no-dev=<tag>` flag
+        to drop a group of binds (e.g. `--no-dev=gpu`, `--no-dev=amd`); bare
+        `--no-dev` drops them all. Missing paths are skipped. GPU passthrough is
+        no longer built in: wire the device paths here, the non-device GPU bits
+        (`/run/opengl-driver`, `/sys`) via
         {option}`smind.hm.dev.llm.yolo.extraReadOnlyPaths`, and the GPU
         availability note via {option}`smind.hm.dev.llm.yolo.promptExtensions`.
       '';
