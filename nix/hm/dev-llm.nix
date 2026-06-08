@@ -752,6 +752,13 @@ in
             # For grok-* requests, keep xAI's native server-side web_search and
             # remove only the pi-search-hub client tool of the same name.
             "${../pkg/pi-extensions/drop-client-web-search-for-grok.ts}"
+            # pi-search-hub advertises a static all-12-backend list in the
+            # web_search description + `backend` enum regardless of what's
+            # configured, so the model picks unconfigured backends (which fail).
+            # This rewrites the web_search tool definition per request to list
+            # only the backends actually active per the live search.json. See
+            # the extension header and the upstream bug-report draft.
+            "${../pkg/pi-extensions/patch-search-hub-backends.ts}"
             # Correct pi-xai's stale 128k grok-build contextWindow to 256k via a
             # registerProvider override that replaces the model list (restating
             # baseUrl/api to satisfy pi-coding-agent ≥0.78.0 validation, omitting

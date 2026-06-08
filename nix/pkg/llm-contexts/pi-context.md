@@ -25,6 +25,12 @@ session start; never rely on cross-session recall.
 - Prefer the native read / grep / find / ls over `bash cat|sed|head|awk` —
   cheaper and better rendered. Edit over rewrite. Batch independent tool
   calls in one turn.
+- Web search runs through `web_search` (and `web_read` to fetch a URL as
+  markdown). For a simple, well-scoped query call `web_search` plain — it
+  uses one backend with auto-fallback (fast, cheap). Only when that is not
+  enough — the question is broad or ambiguous, or a plain search came back
+  thin — re-issue with `combine=true` to fan out across all backends in
+  parallel and merge the results (broader coverage, slower, more calls).
 - If a `codegraph` MCP server is connected, use it (context / trace /
   callers / callees / impact) for "where is X / what calls X / what would
   changing X break" before grep+read — confirm the repo is indexed first
