@@ -21,6 +21,7 @@ import {
   parseAgentMarkdown,
   deriveSubagentPrivilege,
   deriveCommandPrivilege,
+  formatExposedTools,
   type AgentRole,
 } from "../src/agentsCatalogue";
 
@@ -101,8 +102,10 @@ describe("parseAgentMarkdown — agent fixture (deny-list)", () => {
       "structured pass/fail JSON",
       "one commit on the task branch",
     ]);
+    // The fixture quotes this value; the parser strips the surrounding quotes
+    // (T281 quoting convention) so the stored value is unquoted.
     expect(parsed.catalogue.ioSchema).toEqual([
-      '"result: { taskId, status, resultCommit, branch, filesTouched }"',
+      "result: { taskId, status, resultCommit, branch, filesTouched }",
     ]);
   });
 
@@ -198,6 +201,81 @@ describe("privilege derivation edge cases", () => {
   it("treats an absent allow-list as RO (command)", () => {
     expect(deriveCommandPrivilege(undefined)).toBe("RO");
     expect(deriveCommandPrivilege([])).toBe("RO");
+  });
+});
+
+// A Catalogue block exercising the quoting convention: double-quoted,
+// single-quoted, and bare values across scalar + dash-item forms.
+const CATALOGUE_QUOTING_FIXTURE = `---
+name: quoting-probe
+---
+
+## Catalogue
+\`\`\`yaml
+inputs:
+  - "double-quoted input"
+  - 'single-quoted input'
+  - bare input
+outputs: "scalar quoted output"
+ioSchema:
+  - 'isn''t fully unwrapped'
+\`\`\`
+`;
+
+describe("parseCatalogueBlock — quote stripping (T281 convention)", () => {
+  const parsed = parseAgentMarkdown(CATALOGUE_QUOTING_FIXTURE);
+
+  it("strips one matching pair of surrounding quotes from dash-items", () => {
+    expect(parsed.catalogue.inputs).toEqual([
+      "double-quoted input",
+      "single-quoted input",
+      "bare input",
+    ]);
+  });
+
+  it("strips surrounding quotes from an inline scalar value", () => {
+    expect(parsed.catalogue.outputs).toEqual(["scalar quoted output"]);
+  });
+
+  it("removes only the outer matching pair (inner quotes preserved)", () => {
+    // `'isn''t fully unwrapped'` → outer single pair removed, leaving the inner
+    // doubled quote untouched (the parser strips ONE matching outer pair only).
+    expect(parsed.catalogue.ioSchema).toEqual(["isn''t fully unwrapped"]);
+  });
+});
+
+describe("formatExposedTools — canonical display string (Q152–Q153)", () => {
+  it("agent-subagent: lists disallowed tools + isolation suffix", () => {
+    const parsed = parseAgentMarkdown(AGENT_RW_FIXTURE);
+    expect(formatExposedTools(parsed.frontmatter, "agent-subagent")).toBe(
+      "Disallowed: Agent; isolation: worktree",
+    );
+  });
+
+  it("agent-subagent: lists a multi-tool deny-list (no isolation)", () => {
+    const parsed = parseAgentMarkdown(AGENT_RO_FIXTURE);
+    expect(formatExposedTools(parsed.frontmatter, "agent-subagent")).toBe(
+      "Disallowed: Write, Edit, MultiEdit, NotebookEdit, Bash",
+    );
+  });
+
+  it("agent-subagent: 'Disallowed: none' when the deny-list is absent", () => {
+    expect(formatExposedTools({}, "agent-subagent")).toBe("Disallowed: none");
+    expect(formatExposedTools({ isolation: "worktree" }, "agent-subagent")).toBe(
+      "Disallowed: none; isolation: worktree",
+    );
+  });
+
+  it("orchestrator: lists allowed tools", () => {
+    const parsed = parseAgentMarkdown(COMMAND_RW_FIXTURE);
+    expect(formatExposedTools(parsed.frontmatter, "orchestrator")).toBe(
+      "Allowed: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob",
+    );
+  });
+
+  it("orchestrator: 'none declared' when the allow-list is absent", () => {
+    expect(formatExposedTools({}, "orchestrator")).toBe("none declared");
+    expect(formatExposedTools({ allowedTools: [] }, "orchestrator")).toBe("none declared");
   });
 });
 

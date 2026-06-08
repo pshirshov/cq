@@ -167,6 +167,25 @@ function stripInlineComment(value: string): string {
   return value.trim();
 }
 
+/**
+ * Strip a single matching pair of surrounding single or double quotes from a
+ * value. `## Catalogue` authoring convention (T281): an author MAY quote a
+ * scalar/list value (e.g. to protect a leading `{` or a colon under a strict
+ * YAML reader) or leave it bare — the parser yields the UNQUOTED string either
+ * way, so the UI never renders literal quote characters. Only a *matching*
+ * outer pair is removed; mismatched or single dangling quotes are preserved.
+ */
+function stripQuotes(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === '"' || first === "'") && first === last) {
+      return value.slice(1, -1);
+    }
+  }
+  return value;
+}
+
 /** Split a comma-separated tool list into trimmed, non-empty tokens. */
 function splitToolList(value: string): string[] {
   return value
@@ -244,6 +263,13 @@ function parseFrontmatterBlock(raw: string): { fm: ParsedFrontmatter; rest: stri
  * absent fence, or absent keys yield an empty {@link CatalogueBlock}. The parser
  * is intentionally small (flat keys → string lists) so the module stays
  * dependency-free and browser-bundleable rather than pulling in a YAML library.
+ *
+ * Quoting convention (T281 authors): each scalar/list value MAY be wrapped in a
+ * single matching pair of single or double quotes — useful to protect a value
+ * whose first character (`{`, `[`, `&`, …) or embedded `:` would confuse a
+ * strict YAML reader — or left bare. The parser strips one matching outer pair
+ * via {@link stripQuotes}, so the stored value is always UNQUOTED and the UI
+ * never renders literal quote characters.
  */
 function parseCatalogueBlock(body: string): CatalogueBlock {
   const out: CatalogueBlock = {};
@@ -261,7 +287,7 @@ function parseCatalogueBlock(body: string): CatalogueBlock {
     // A `- item` line appends to the currently-open key.
     const item = line.match(/^[ \t]*-[ \t]+(.*\S)[ \t]*$/);
     if (item && current) {
-      (out[current] ??= []).push((item[1] ?? "").trim());
+      (out[current] ??= []).push(stripQuotes((item[1] ?? "").trim()));
       continue;
     }
     // A `key:` line (optionally with an inline scalar value) opens a key.
@@ -272,7 +298,7 @@ function parseCatalogueBlock(body: string): CatalogueBlock {
         current = key;
         const scalar = (kv[2] ?? "").trim();
         if (scalar.length > 0) {
-          (out[current] ??= []).push(scalar);
+          (out[current] ??= []).push(stripQuotes(scalar));
         }
       } else {
         // Unknown key: stop appending dash-items to a prior key.
@@ -321,4 +347,36 @@ export function deriveCommandPrivilege(allowedTools: string[] | undefined): Priv
   const allowed = new Set(allowedTools ?? []);
   const grantsMutation = COMMAND_MUTATING_TOOLS.some((t) => allowed.has(t));
   return grantsMutation ? "RW" : "RO";
+}
+
+/**
+ * Build the canonical display string for {@link AgentRole.exposedTools} from the
+ * PARSED frontmatter (Q152–Q153, raw per-kind semantics). Centralising the
+ * format here is the contract for downstream tasks: T276 (codegen) populates
+ * `exposedTools` by calling THIS helper, and T278 (UI) renders the result
+ * verbatim — neither invents its own string.
+ *
+ * Tool-list parsing assumption (for T281 authors): the underlying frontmatter
+ * `disallowedTools` / `allowed-tools` values are COMMA-SEPARATED lists of EXACT
+ * tool tokens (e.g. `Write`, `Edit`, `Bash`, `mcp__ledger__*`, `Agent`), already
+ * split + trimmed into {@link ParsedFrontmatter}. This helper joins them back
+ * with `", "`; it does not normalise or validate token spelling, so privilege
+ * derivation and display both rely on the authored tokens matching exactly.
+ *
+ * Exact output format:
+ * - `agent-subagent` → `"Disallowed: <comma-list>"`, with `"; isolation: <value>"`
+ *   appended when `isolation` is present; `"Disallowed: none"` when
+ *   `disallowedTools` is absent or empty (the `isolation` suffix is still
+ *   appended when present, e.g. `"Disallowed: none; isolation: worktree"`).
+ * - `orchestrator` (command) → `"Allowed: <comma-list>"`, or `"none declared"`
+ *   when `allowed-tools` is absent or empty.
+ */
+export function formatExposedTools(frontmatter: ParsedFrontmatter, kind: AgentKind): string {
+  if (kind === "agent-subagent") {
+    const denied = frontmatter.disallowedTools ?? [];
+    const base = denied.length > 0 ? `Disallowed: ${denied.join(", ")}` : "Disallowed: none";
+    return frontmatter.isolation ? `${base}; isolation: ${frontmatter.isolation}` : base;
+  }
+  const allowed = frontmatter.allowedTools ?? [];
+  return allowed.length > 0 ? `Allowed: ${allowed.join(", ")}` : "none declared";
 }
