@@ -16,7 +16,13 @@ import {
   loadConfig,
   resolveReviewers,
   resolvePlanners,
+  resolveAgentTier,
+  selectTokensForTier,
+  HARNESSES,
+  AGENT_ROLE_TIERS,
   type CqConfig,
+  type Harness,
+  type ReviewerToken,
 } from "@cq/config";
 import type {
   ConfigCapability,
@@ -25,6 +31,8 @@ import type {
   GetConfigResult,
   ResolvedReviewer,
   ResolvedPlanner,
+  AgentModelsResult,
+  AgentModelEntry,
 } from "@cq/ledger";
 
 /**
@@ -141,6 +149,112 @@ function projectConfig(config: CqConfig): GetConfigResult {
 }
 
 /**
+ * The candidate token UNION: the config's `planners` ∪ `reviewers` alias lists,
+ * resolved through `[aliases]` (Q156). De-duplicated by alias NAME (so the same
+ * alias listed under both planners and reviewers contributes once), preserving
+ * first-seen order. Mirrors the candidate derivation in
+ * `gen-agents-catalogue.ts`'s `deriveModelMappings`.
+ */
+function candidateTokens(config: CqConfig): ReviewerToken[] {
+  const aliasNames = [...new Set([...config.planners, ...config.reviewers])];
+  const candidates: ReviewerToken[] = [];
+  for (const name of aliasNames) {
+    const token = config.aliases[name];
+    if (token !== undefined) {
+      candidates.push(token);
+    }
+  }
+  return candidates;
+}
+
+/**
+ * Group `tokens` by harness into the per-harness `modelMappings` shape: each
+ * concrete model id is de-duplicated per harness (by its provider-qualified
+ * rendering) and sorted for deterministic output. A pi token is rendered
+ * `<provider>/<model>`; a claude token (provider null) is rendered bare —
+ * EXACTLY as `gen-agents-catalogue.ts`'s `deriveModelMappings` does.
+ *
+ * Returns `{}` when no token maps to any harness (the `no-live-token` case).
+ */
+function groupByHarness(
+  tokens: readonly ReviewerToken[],
+): AgentModelEntry["modelMappings"] {
+  const byHarness: Record<Harness, Set<string>> = {
+    claude: new Set(),
+    pi: new Set(),
+  };
+  for (const t of tokens) {
+    byHarness[t.harness].add(
+      t.provider === null ? t.model : `${t.provider}/${t.model}`,
+    );
+  }
+  const mappings: { claude?: readonly string[]; pi?: readonly string[] } = {};
+  for (const harness of HARNESSES) {
+    const models = [...byHarness[harness]].sort();
+    if (models.length > 0) {
+      mappings[harness] = models;
+    }
+  }
+  return mappings;
+}
+
+/**
+ * Compute the `get_agent_models` payload for `repoRoot` (Q156–Q158).
+ *
+ * Re-reads `cq.toml` per call (no caching), like the other compute* methods.
+ * Walks the fixed {@link AGENT_ROLE_TIERS} 19-role roster (the SHARED anti-drift
+ * roster the codegen also consumes) and, per role:
+ *
+ *  - `agentTierKey === null` (orchestrator commands) -> status
+ *    `not-model-configurable`, `modelClass` null, empty mappings.
+ *  - otherwise, when no `cq.toml` is present (`config === null`) -> status
+ *    `not-configured` for every model-configurable role.
+ *  - otherwise resolve the role's tier via {@link resolveAgentTier}, select the
+ *    candidate-union tokens classified to that tier via
+ *    {@link selectTokensForTier}, and group them by harness. Empty grouping ->
+ *    status `no-live-token` with `modelClass = tier`; non-empty -> status
+ *    `resolved` with `modelClass = tier` and per-harness mappings (Q157).
+ *
+ * `configured` is `config !== null`.
+ */
+export function computeAgentModels(repoRoot: string): AgentModelsResult {
+  const config = loadConfig(repoRoot);
+  const candidates = config === null ? [] : candidateTokens(config);
+
+  const agents: AgentModelEntry[] = AGENT_ROLE_TIERS.map((role) => {
+    if (role.agentTierKey === null) {
+      return {
+        id: role.id,
+        status: "not-model-configurable",
+        modelClass: null,
+        modelMappings: {},
+      };
+    }
+    if (config === null) {
+      return {
+        id: role.id,
+        status: "not-configured",
+        modelClass: null,
+        modelMappings: {},
+      };
+    }
+    const tier = resolveAgentTier(config, role.agentTierKey);
+    const selected = selectTokensForTier(config, tier, candidates);
+    const modelMappings = groupByHarness(selected);
+    const hasLiveToken =
+      modelMappings.claude !== undefined || modelMappings.pi !== undefined;
+    return {
+      id: role.id,
+      status: hasLiveToken ? "resolved" : "no-live-token",
+      modelClass: tier,
+      modelMappings,
+    };
+  });
+
+  return { configured: config !== null, agents };
+}
+
+/**
  * Build a {@link ConfigCapability} bound to `repoRoot`, suitable for injection
  * into the ledger tool factories. Each method re-reads `cq.toml` on each call.
  */
@@ -149,10 +263,6 @@ export function createConfigCapability(repoRoot: string): ConfigCapability {
     computeReviewers: () => computeReviewers(repoRoot),
     computePlanners: () => computePlanners(repoRoot),
     computeConfig: () => computeConfig(repoRoot),
-    // T283 added the interface method; the resolution logic is T285. Throwing
-    // stub keeps typecheck green until T285 replaces it with a real impl.
-    computeAgentModels: () => {
-      throw new Error("computeAgentModels not implemented — T285");
-    },
+    computeAgentModels: () => computeAgentModels(repoRoot),
   };
 }

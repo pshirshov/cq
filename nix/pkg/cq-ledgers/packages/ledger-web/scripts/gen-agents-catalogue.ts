@@ -42,6 +42,7 @@ import {
   classifyToken,
   resolveAgentTier,
   HARNESSES,
+  AGENT_ROLE_TIERS,
   type CqConfig,
   type Harness,
   type ReviewerToken,
@@ -293,7 +294,29 @@ ${entries}
 
 // --- Main ------------------------------------------------------------------
 
+/**
+ * Fail the codegen if this script's {@link ROLES} table has drifted from the
+ * SHARED {@link AGENT_ROLE_TIERS} roster (the same `(id, agentTierKey)` pairs
+ * the ledger-mcp `computeAgentModels` capability resolves over). The shared
+ * roster is the single source of truth for the join keys; this script owns only
+ * the per-role display metadata (`name`/`kind`/`source`). They must agree on the
+ * 19 ids, their order, and which carry an `[agent_tiers]` key.
+ */
+function assertRosterMatchesShared(): void {
+  const local = ROLES.map((r) => `${r.id}=${r.agentTierKey ?? "null"}`);
+  const shared = AGENT_ROLE_TIERS.map(
+    (r) => `${r.id}=${r.agentTierKey ?? "null"}`,
+  );
+  if (local.length !== shared.length || local.some((v, i) => v !== shared[i])) {
+    throw new Error(
+      `gen-agents: ROLES table drifted from @cq/config AGENT_ROLE_TIERS — ` +
+        `local=[${local.join(", ")}] shared=[${shared.join(", ")}]`,
+    );
+  }
+}
+
 function main(): void {
+  assertRosterMatchesShared();
   const config = parseConfig(readFileSync(CONFIG_EXAMPLE, "utf8"));
 
   const roles: AgentRole[] = [];

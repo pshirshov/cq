@@ -43,3 +43,5 @@ export {
 } from "./config.js";
 export type { RawToml, RawWebui } from "./toml.js";
 export { parseToml } from "./toml.js";
+export type { AgentRoleTier } from "./agentRoster.js";
+export { AGENT_ROLE_TIERS } from "./agentRoster.js";
