@@ -59,25 +59,6 @@ opus = "claude:opus-4.8"
 `;
 
 describe("parseReviewerToken", () => {
-  it("parses a claude harness token", () => {
-    const tok: ReviewerToken = parseReviewerToken("claude:opus-4.8");
-    expect(tok).toEqual({ harness: "claude", model: "opus-4.8" });
-  });
-
-  it("parses a pi harness token", () => {
-    expect(parseReviewerToken("pi:grok-4")).toEqual({
-      harness: "pi",
-      model: "grok-4",
-    });
-  });
-
-  it("preserves colons inside the model segment", () => {
-    expect(parseReviewerToken("pi:provider:model")).toEqual({
-      harness: "pi",
-      model: "provider:model",
-    });
-  });
-
   it("throws on an unknown harness", () => {
     expect(() => parseReviewerToken("gemini:flash")).toThrow(/unknown harness/i);
   });
@@ -88,6 +69,43 @@ describe("parseReviewerToken", () => {
 
   it("throws on an empty model segment", () => {
     expect(() => parseReviewerToken("claude:")).toThrow();
+  });
+});
+
+// T231: provider qualifier grammar (BREAKING — bare pi is rejected).
+describe("parseReviewerToken — provider qualifier (T231)", () => {
+  it("splits a pi token into provider + model on the first '/'", () => {
+    const tok: ReviewerToken = parseReviewerToken("pi:ollama-cloud/minimax-m3");
+    expect(tok).toEqual({
+      harness: "pi",
+      model: "minimax-m3",
+      provider: "ollama-cloud",
+    });
+  });
+
+  it("parses a claude token with provider null", () => {
+    const tok: ReviewerToken = parseReviewerToken("claude:opus-4.8[1m]");
+    expect(tok).toEqual({
+      harness: "claude",
+      model: "opus-4.8[1m]",
+      provider: null,
+    });
+  });
+
+  it("rejects a bare pi token (no provider qualifier)", () => {
+    expect(() => parseReviewerToken("pi:minimax-m3")).toThrow(CqConfigError);
+  });
+
+  it("rejects a provider qualifier on a claude token", () => {
+    expect(() => parseReviewerToken("claude:x/y")).toThrow(CqConfigError);
+  });
+
+  it("rejects a pi token with an empty provider half", () => {
+    expect(() => parseReviewerToken("pi:/m")).toThrow(CqConfigError);
+  });
+
+  it("rejects a pi token with an empty model half", () => {
+    expect(() => parseReviewerToken("pi:p/")).toThrow(CqConfigError);
   });
 });
 
@@ -102,17 +120,17 @@ describe("loadConfig", () => {
     expect(config).not.toBeNull();
     const cfg = config as CqConfig;
     expect(cfg.aliases).toEqual({
-      codex: { harness: "pi", model: "gpt-5-codex" },
-      grok: { harness: "pi", model: "grok-4" },
-      opus: { harness: "claude", model: "opus-4.8" },
+      codex: { harness: "pi", model: "gpt-5-codex", provider: null },
+      grok: { harness: "pi", model: "grok-4", provider: null },
+      opus: { harness: "claude", model: "opus-4.8", provider: null },
     });
     // CqConfig.reviewers holds the raw ALIAS names (not yet resolved).
     expect(cfg.reviewers).toEqual(["codex", "grok", "opus"]);
     // Resolution through [aliases] yields the ReviewerToken[].
     expect(resolveReviewers(cfg)).toEqual([
-      { harness: "pi", model: "gpt-5-codex" },
-      { harness: "pi", model: "grok-4" },
-      { harness: "claude", model: "opus-4.8" },
+      { harness: "pi", model: "gpt-5-codex", provider: null },
+      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
 
@@ -147,9 +165,9 @@ describe("resolveReviewers", () => {
     const config = parseConfig(VALID_TOML);
     const resolved: ReviewerToken[] = resolveReviewers(config);
     expect(resolved).toEqual([
-      { harness: "pi", model: "gpt-5-codex" },
-      { harness: "pi", model: "grok-4" },
-      { harness: "claude", model: "opus-4.8" },
+      { harness: "pi", model: "gpt-5-codex", provider: null },
+      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
 });
@@ -192,7 +210,9 @@ describe("resolvePlanners", () => {
   it("resolves planner aliases through [aliases]", () => {
     const config = parseConfig(VALID_TOML_WITH_PLANNERS);
     const resolved: ReviewerToken[] = resolvePlanners(config);
-    expect(resolved).toEqual([{ harness: "claude", model: "opus-4.8" }]);
+    expect(resolved).toEqual([
+      { harness: "claude", model: "opus-4.8", provider: null },
+    ]);
   });
 
   it("throws on a dangling planner alias", () => {
@@ -298,7 +318,7 @@ describe("loadConfig with planners", () => {
     const cfg = config as CqConfig;
     expect(cfg.planners).toEqual(["opus"]);
     expect(resolvePlanners(cfg)).toEqual([
-      { harness: "claude", model: "opus-4.8" },
+      { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
 
@@ -339,17 +359,26 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
     expect(config.tiers).not.toBeNull();
     // 'fast' is a direct "<harness>:<model>" token (not an alias).
-    expect(config.tiers!.fast).toEqual({ harness: "pi", model: "minimax-m3" });
+    expect(config.tiers!.fast).toEqual({
+      harness: "pi",
+      model: "minimax-m3",
+      provider: null,
+    });
   });
 
   it("resolves a tier value that names an alias", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
     // 'standard' = "minimax" — a name in [aliases] -> pi:minimax-m3
-    expect(config.tiers!.standard).toEqual({ harness: "pi", model: "minimax-m3" });
+    expect(config.tiers!.standard).toEqual({
+      harness: "pi",
+      model: "minimax-m3",
+      provider: null,
+    });
     // 'frontier' = "opus" — a name in [aliases] -> claude:opus-4.8[1m]
     expect(config.tiers!.frontier).toEqual({
       harness: "claude",
       model: "opus-4.8[1m]",
+      provider: null,
     });
   });
 
@@ -425,11 +454,13 @@ describe("resolveAgentModel end-to-end (T223 acceptance c)", () => {
     expect(resolveAgentModel(config, "investigate-explorer")).toEqual({
       harness: "claude",
       model: "opus-4.8[1m]",
+      provider: null,
     });
     // implement-worker -> standard -> minimax alias -> pi:minimax-m3
     expect(resolveAgentModel(config, "implement-worker")).toEqual({
       harness: "pi",
       model: "minimax-m3",
+      provider: null,
     });
   });
 
@@ -437,7 +468,11 @@ describe("resolveAgentModel end-to-end (T223 acceptance c)", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
     // unlisted agent -> standard (DEFAULT_TIER) -> minimax alias -> pi:minimax-m3
     const token = resolveAgentModel(config, "unlisted-agent");
-    expect(token).toEqual({ harness: "pi", model: "minimax-m3" });
+    expect(token).toEqual({
+      harness: "pi",
+      model: "minimax-m3",
+      provider: null,
+    });
   });
 
   it("resolveTierToken throws when [tiers] is absent", () => {
@@ -459,9 +494,9 @@ describe("additive-only regression (T223 acceptance d)", () => {
     const config = parseConfig(VALID_TOML);
     // existing fields intact
     expect(config.aliases).toEqual({
-      codex: { harness: "pi", model: "gpt-5-codex" },
-      grok: { harness: "pi", model: "grok-4" },
-      opus: { harness: "claude", model: "opus-4.8" },
+      codex: { harness: "pi", model: "gpt-5-codex", provider: null },
+      grok: { harness: "pi", model: "grok-4", provider: null },
+      opus: { harness: "claude", model: "opus-4.8", provider: null },
     });
     expect(config.reviewers).toEqual(["codex", "grok", "opus"]);
     expect(config.planners).toEqual([]);
@@ -470,9 +505,9 @@ describe("additive-only regression (T223 acceptance d)", () => {
     expect(config.agentTiers).toBeNull();
     // resolveReviewers still works
     expect(resolveReviewers(config)).toEqual([
-      { harness: "pi", model: "gpt-5-codex" },
-      { harness: "pi", model: "grok-4" },
-      { harness: "claude", model: "opus-4.8" },
+      { harness: "pi", model: "gpt-5-codex", provider: null },
+      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
 

@@ -14,12 +14,19 @@ export const HARNESSES = ["claude", "pi"] as const;
 export type Harness = (typeof HARNESSES)[number];
 
 /**
- * A reviewer token parsed from a `"<harness>:<model>"` string, e.g.
- * `"claude:opus-4.8"` => `{ harness: "claude", model: "opus-4.8" }`.
+ * A reviewer token parsed from a `"<harness>:<model>"` string.
+ *
+ * The model segment of a `pi` token additionally carries a provider qualifier
+ * separated by the FIRST `/` — e.g. `"pi:ollama-cloud/minimax-m3"` =>
+ * `{ harness: "pi", model: "minimax-m3", provider: "ollama-cloud" }` (the pi
+ * `--provider`). A `claude` token never carries a provider: `provider` is null
+ * and a `/` in its model is a hard error.
  */
 export interface ReviewerToken {
   readonly harness: Harness;
   readonly model: string;
+  /** The pi `--provider` (before the first `/`); null for claude. */
+  readonly provider: string | null;
 }
 
 /**

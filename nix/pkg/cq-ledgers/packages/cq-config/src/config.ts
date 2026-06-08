@@ -37,9 +37,18 @@ export class CqConfigError extends Error {
 /**
  * Parse a `"<harness>:<model>"` token into a typed ReviewerToken.
  *
- * The first `:` separates harness from model; further colons stay in the
- * model segment (so `"pi:provider:model"` => model `"provider:model"`).
- * Throws a `CqConfigError` if the harness is unknown or either segment empty.
+ * The FIRST `:` separates harness from the model segment (further colons stay
+ * in the model segment). The model segment is then split on the FIRST `/` to
+ * extract the pi provider qualifier:
+ *
+ *  - harness `pi`: the model segment MUST contain a `/`; it splits into
+ *    `provider` (before) and `model` (after), BOTH non-empty. A leading or
+ *    trailing `/` (an empty half) is a `CqConfigError`; NO `/` at all is a
+ *    BARE-pi token and is rejected (BREAKING).
+ *  - harness `claude`: a `/` in the model segment is a `CqConfigError`
+ *    (provider qualifiers are pi-only); `provider` stays null.
+ *
+ * Throws a `CqConfigError` if the harness is unknown or any segment is empty.
  */
 export function parseReviewerToken(token: string): ReviewerToken {
   const sep = token.indexOf(":");
@@ -49,11 +58,11 @@ export function parseReviewerToken(token: string): ReviewerToken {
     );
   }
   const harness = token.slice(0, sep);
-  const model = token.slice(sep + 1);
+  const modelSegment = token.slice(sep + 1);
   if (harness === "") {
     throw new CqConfigError(`token "${token}" has an empty harness`);
   }
-  if (model === "") {
+  if (modelSegment === "") {
     throw new CqConfigError(`token "${token}" has an empty model`);
   }
   if (!isHarness(harness)) {
@@ -61,7 +70,37 @@ export function parseReviewerToken(token: string): ReviewerToken {
       `unknown harness "${harness}" in token "${token}" (expected "claude" or "pi")`,
     );
   }
-  return { harness, model };
+
+  const slash = modelSegment.indexOf("/");
+
+  if (harness === "pi") {
+    if (slash < 0) {
+      throw new CqConfigError(
+        `pi token "${token}" must be "pi:<provider>/<model>" (missing provider qualifier '/'; bare pi tokens are no longer accepted)`,
+      );
+    }
+    const provider = modelSegment.slice(0, slash);
+    const model = modelSegment.slice(slash + 1);
+    if (provider === "") {
+      throw new CqConfigError(
+        `pi token "${token}" has an empty provider (before '/')`,
+      );
+    }
+    if (model === "") {
+      throw new CqConfigError(
+        `pi token "${token}" has an empty model (after '/')`,
+      );
+    }
+    return { harness, model, provider };
+  }
+
+  // harness === "claude": provider qualifiers are pi-only.
+  if (slash >= 0) {
+    throw new CqConfigError(
+      `claude token "${token}" must not contain a provider qualifier '/' (provider qualifiers are pi-only)`,
+    );
+  }
+  return { harness, model: modelSegment, provider: null };
 }
 
 /**
