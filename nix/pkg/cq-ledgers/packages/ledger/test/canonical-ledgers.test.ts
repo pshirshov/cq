@@ -899,3 +899,41 @@ describe("T255(b): four-table prompt grep invariant — user-action-required", (
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// T264 — D39 stop-discipline grep-invariant: all four cq command-prompt
+// advance.md files must contain BOTH D39 marker tokens. This is the
+// regression guard ensuring a future prompt edit cannot silently drop the
+// turn-vs-run + euphemism-blocklist enforcement.
+//
+// Token set 1 (turn-vs-run clause): `NOT a run-stop`
+// Token set 2 (euphemism self-check): `predicates still TRUE`
+//
+// 2 token sets × 4 files = 8 cells; all must be present.
+// ---------------------------------------------------------------------------
+
+describe("T264: D39 stop-discipline grep invariant — turn-vs-run + euphemism-blocklist", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+
+  const promptFiles = [
+    path.join(cqCommandsRoot, "advance.md"),
+    path.join(cqCommandsRoot, "plan", "advance.md"),
+    path.join(cqCommandsRoot, "investigate", "advance.md"),
+    path.join(cqCommandsRoot, "implement", "advance.md"),
+  ];
+
+  const markers: Array<{ token: string; description: string }> = [
+    { token: "NOT a run-stop", description: "turn-vs-run clause marker" },
+    { token: "predicates still TRUE", description: "euphemism-blocklist self-check marker" },
+  ];
+
+  for (const filePath of promptFiles) {
+    for (const { token, description } of markers) {
+      const label = filePath.replace(/.*\/commands\/cq\//, "cq/");
+      it(`${label} contains the ${description}: "${token}"`, async () => {
+        const text = await readFile(filePath, "utf8");
+        expect(text).toContain(token);
+      });
+    }
+  }
+});
