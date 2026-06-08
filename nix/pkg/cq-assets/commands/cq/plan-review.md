@@ -15,15 +15,8 @@ inputs:
 outputs:
   - "single fenced-json verdict block on stdout"
 ioSchema:
-  summary: "<one-line verdict>"
-  verdict: "go-ahead | revise"
-  new_questions: []
-  criticism: []
-  defects:
-    - headline: "<short title>"
-      severity: "low | medium | high | critical"
-      rootCause: "<optional>"
-      suggestedFix: "<optional>"
+  - "verdict JSON: { summary, verdict: go-ahead|revise, new_questions: [], criticism: [], defects: [] }"
+  - "defects[] entries: { headline, severity: low|medium|high|critical, rootCause?, suggestedFix? }"
 ```
 
 You are an **adversarial plan reviewer**. You are given a goal id **G** and the

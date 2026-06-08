@@ -12,17 +12,8 @@ inputs:
 outputs:
   - "single fenced-json verdict block on stdout"
 ioSchema:
-  taskId: "<task id>"
-  verdict: "approve | disapprove"
-  criticism: []
-  questions: []
-  defects:
-    - headline: "<short title>"
-      description: "<what is wrong and where>"
-      severity: "low | medium | high | critical"
-      suggestedFix: "<optional>"
-  rationale: "<1-3 lines of decisive evidence>"
-  summary: "<optional one-line verdict summary>"
+  - "verdict JSON: { taskId, verdict: approve|disapprove, criticism: [], questions: [], defects: [], rationale, summary }"
+  - "defects[] entries: { headline, description, severity: low|medium|high|critical, suggestedFix? }"
 ```
 
 # Implement-review rubric (portable promptTemplate)
