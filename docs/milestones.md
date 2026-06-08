@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 91
+  item: 92
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -473,3 +473,10 @@ archives:
 - title: Pi subagent dispatch — acceptance demo
 - description: "G28 work milestone 5/5: demonstrate the acceptance bar (Q128) — one read-only explorer dispatch AND one reviewer dispatch complete under pi on THIS repo (non-sandboxed) returning parseable structured results. Sandbox + implement-worker validation is a deferred follow-up."
 - dependsOn: ["M90"]
+
+### M92 — open
+
+- createdAt: 2026-06-07T23:58:02.725Z
+- updatedAt: 2026-06-07T23:58:02.725Z
+- title: "Plan: provider-qualified token support in cq config"
+- description: "Coordination milestone for adding explicit-provider token support to the cq.toml config grammar (e.g. minimax = \"pi:ollama-cloud:minimax-m3\"), resolving the D36 provider-ambiguity."

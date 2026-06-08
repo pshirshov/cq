@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 28
+  item: 29
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -159,3 +159,15 @@ archives:
     - Key tension to resolve in planning: the cq `agents` bundle frontmatter shape (Claude's name/description/tools) vs whatever a chosen pi mechanism expects, and how the cq command prompts (which currently assume a Claude `Task`-style dispatch + a 'subagents cannot spawn subagents' rule) invoke subagents portably across harnesses.
 - sessionLogs: ["docs/logs/20260607-190101-adc3647f6e76fc771.md","docs/logs/20260607-191636-acf7f53795bc6b6aa.md","docs/logs/20260607-194044-aeca57f3db613a5b9.md","docs/logs/20260607-194044-pi-grok.md","docs/logs/20260607-194044-pi-minimax.md","docs/logs/20260607-195829-aa236264221419411.md","docs/logs/20260607-200912-ae41e1d678ccd8dc4.md","docs/logs/20260607-201716-a19419c0f5917a848.md","docs/logs/20260607-201941-ad3fd3408db384547.md"]
 - milestones: ["M87","M88","M89","M90","M91"]
+
+## M92
+
+### G29 — clarifying
+
+- createdAt: 2026-06-07T23:58:14.370Z
+- updatedAt: 2026-06-08T00:00:45.917Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- title: Add provider-qualified token support to the cq config grammar
+- description: "Regarding the minimax issue (defect D36): obviously we should add provider support into our config, e.g. `minimax = \"pi:ollama-cloud:minimax-m3\"`. Extend the cq.toml token grammar so an [aliases]/[tiers]/[agent_tiers] value can name an EXPLICIT provider — a `pi:<provider>:<model>` form (user-proposed colon separator) — in addition to today's `pi:<model>` form. This resolves D36: minimax-m3 is registered under BOTH the `minimax` provider (needs $MINIMAX_API_KEY, absent) and the OAuth-authed `ollama-cloud` provider, so a bare `pi:minimax-m3` token emits no `--provider` and relies on pi's non-deterministic fuzzy matching (and the minimax reviewer/planner shellouts abstained all run because they resolved to `--provider minimax`). The change must be parsed by the @cq/config layer (parseReviewerToken + the [aliases]/[tiers]/[agent_tiers] resolution that get_planners/get_reviewers and the tier resolver expose) AND honored by the cq-subagent-dispatch extension's inlined resolver (which already added a `pi:<provider>/<model>` SLASH form in T225 — reconcile the separator: user proposes colon `:` vs T225's slash `/`). Update cq.toml.example + any token-format docs. End state: `minimax = \"pi:ollama-cloud:minimax-m3\"` (or the agreed separator) resolves to provider=ollama-cloud, model=minimax-m3 everywhere, so minimax works as a reviewer/planner and as a dispatch tier target."
+- sessionLogs: ["docs/logs/20260608-000022-afd464efe85dce401.md"]

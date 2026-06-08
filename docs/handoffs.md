@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 22
+  item: 23
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -116,3 +116,17 @@ archives:
 - ledgerRefs: ["goals:G28","defects:D36","defects:D37","defects:D38","tasks:T221","tasks:T224","tasks:T226","tasks:T227"]
 - handoffReasons: ["landed: G28 fully implemented (T221-T229 merged) + acceptance demos T226/T227 live-verified; M87/M88/M89 archived","follow-up-defects-open: D36 (low, config) + D38 (medium, Pi verdict-enum) autonomously fixable next pass; D37 (medium) needs user home-manager re-activation"]
 - sessionLogs: ["docs/logs/20260607-221521-af554056ef561fad4.md","docs/logs/20260607-230442-a54aba4d897e853d3.md","docs/logs/20260607-233329-aa0c624118a6e9655.md","docs/logs/20260607-233329-afa0391d57f11518e.md"]
+
+## M92
+
+### HO23 — answers-required
+
+- createdAt: 2026-06-08T00:01:08.246Z
+- updatedAt: 2026-06-08T00:01:08.246Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- summary: "ANSWERS-REQUIRED. /cq:plan bootstrapped goal G29 (\"Add provider-qualified token support to the cq config grammar\") under M92 — the D36 fix/enhancement. The planner grounded read-only in @cq/config (toml/config/types.ts), the cq-subagent-dispatch.ts inlined resolver, and D36, then filed clarifying batch Q132-Q136 (all linked goals:G29). KEY FINDING: the user's premise that a colon separator collides with the harness split is FALSE — both parsers split on the FIRST colon only, so `pi:ollama-cloud:minimax-m3` already parses cleanly to {harness:pi, model:'ollama-cloud:minimax-m3'}. The real reconciliation is the IN-MODEL provider separator: the extension's tokenToChildModel extracts provider on `/` (T225-shipped, matching D36's suggestedFix), while @cq/config extracts NO provider at all and ReviewerToken has no provider field; the two layers are deliberate copies (extension can't import @cq/config, K46). The user has ALREADY answered Q132 (separator) = 'as recommended' = standardize on the slash `pi:<provider>/<model>` form. Open: Q133 (add a structured provider field to @cq/config vs parse-and-preserve), Q134 (keep bare `pi:<model>` backward-compatible), Q135 (pi-only vs also claude:), Q136 (acceptance bar: unit tests + cq.toml.example + docs vs also a fresh live minimax/ollama-cloud dispatch demo). Goal in clarifying/awaiting-answers. NEXT (user): answer Q133-Q136 in the TUI/web, then run /cq:plan:advance G29."
+- flow: plan
+- ledgerRefs: ["goals:G29","defects:D36"]
+- blockingQuestions: ["Q133","Q134","Q135","Q136"]
+- sessionLogs: ["docs/logs/20260608-000022-afd464efe85dce401.md"]
