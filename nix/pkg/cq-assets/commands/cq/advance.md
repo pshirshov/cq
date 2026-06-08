@@ -325,7 +325,26 @@ effort-based stop**.
   multi-task, multi-language implementation, or autonomously building an entire
   feature) — magnitude is NEVER a reason to pause or confirm;
 - no implement run has been bootstrapped yet — P-implement TRUE on a `planned`
-  goal means BOOTSTRAP and build it, not ask (see the implement stage above).
+  goal means BOOTSTRAP and build it, not ask (see the implement stage above);
+- **running low on context or turn budget** — this is NOT a run-stop and NEVER
+  warrants a handoff record (see the TURN-vs-RUN clause below).
+
+**TURN-vs-RUN clause (D39).** A RUN and a TURN are distinct scopes.
+A **RUN** spans as many turns as needed and is durably resumable from ledger
+state on the next `/cq:advance` invocation — the ledger IS the durable resume
+point. A **TURN** is a single context window; exhausting the turn/context
+budget is NOT a run-stop. When a turn/context budget is exhausted mid-stride,
+the agent **STOPS WITHOUT writing a handoff** — no `handoffs` record, no
+`mixed`/effort terminal artifact — because the ledger already captures every
+durable state change. The next `/cq:advance` reads ledger state and continues
+from where the previous turn left off. Contrast: a **RUN-stop** = one of the
+five predicate-gated handoff statuses (`drained`, `answers-required`,
+`user-action-required`, `mixed`, `illness-detected`); a **TURN-pause** = no
+artifact, just resume next invocation. Fabricating a terminal handoff record to
+"wrap up" a turn that ran out of budget is the same forbidden launder as an
+effort-based stop — there remains deliberately **NO handoff status for an
+effort-based stop**, and turn exhaustion is an effort-based fact, not a
+predicate-gated one.
 
 **Default disposition for every defect is FIX (hard rule).** Every
 `open`/`wip`/`root-caused`/`inconclusive` defect is fixed, properly, now. The
