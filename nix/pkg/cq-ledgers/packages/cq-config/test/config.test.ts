@@ -53,8 +53,8 @@ const VALID_TOML = `
 reviewers = ["codex", "grok", "opus"]
 
 [aliases]
-codex = "pi:gpt-5-codex"
-grok = "pi:grok-4"
+codex = "pi:grok-build/grok-build"
+grok = "pi:grok-build/grok-build"
 opus = "claude:opus-4.8"
 `;
 
@@ -107,6 +107,15 @@ describe("parseReviewerToken — provider qualifier (T231)", () => {
   it("rejects a pi token with an empty model half", () => {
     expect(() => parseReviewerToken("pi:p/")).toThrow(CqConfigError);
   });
+
+  it("preserves colons inside the model segment (pi:prov/a:b)", () => {
+    const tok: ReviewerToken = parseReviewerToken("pi:prov/a:b");
+    expect(tok).toEqual({
+      harness: "pi",
+      model: "a:b",
+      provider: "prov",
+    });
+  });
 });
 
 describe("loadConfig", () => {
@@ -120,16 +129,16 @@ describe("loadConfig", () => {
     expect(config).not.toBeNull();
     const cfg = config as CqConfig;
     expect(cfg.aliases).toEqual({
-      codex: { harness: "pi", model: "gpt-5-codex", provider: null },
-      grok: { harness: "pi", model: "grok-4", provider: null },
+      codex: { harness: "pi", model: "grok-build", provider: "grok-build" },
+      grok: { harness: "pi", model: "grok-build", provider: "grok-build" },
       opus: { harness: "claude", model: "opus-4.8", provider: null },
     });
     // CqConfig.reviewers holds the raw ALIAS names (not yet resolved).
     expect(cfg.reviewers).toEqual(["codex", "grok", "opus"]);
     // Resolution through [aliases] yields the ReviewerToken[].
     expect(resolveReviewers(cfg)).toEqual([
-      { harness: "pi", model: "gpt-5-codex", provider: null },
-      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
       { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
@@ -139,7 +148,7 @@ describe("loadConfig", () => {
 reviewers = ["codex", "ghost"]
 
 [aliases]
-codex = "pi:gpt-5-codex"
+codex = "pi:grok-build/grok-build"
 `);
     expect(() => loadConfig(dir)).toThrow(/undefined alias.*ghost/i);
   });
@@ -155,7 +164,7 @@ weird = "gemini:flash"
   });
 
   it("throws on malformed TOML", () => {
-    writeCqToml(`[aliases\ncodex = "pi:gpt-5-codex"`);
+    writeCqToml(`[aliases\ncodex = "pi:grok-build/grok-build"`);
     expect(() => loadConfig(dir)).toThrow();
   });
 });
@@ -165,8 +174,8 @@ describe("resolveReviewers", () => {
     const config = parseConfig(VALID_TOML);
     const resolved: ReviewerToken[] = resolveReviewers(config);
     expect(resolved).toEqual([
-      { harness: "pi", model: "gpt-5-codex", provider: null },
-      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
       { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
@@ -179,7 +188,7 @@ reviewers = ["codex"]
 planners = ["opus"]
 
 [aliases]
-codex = "pi:gpt-5-codex"
+codex = "pi:grok-build/grok-build"
 opus = "claude:opus-4.8"
 `;
 
@@ -230,7 +239,7 @@ const VALID_TOML_WITH_WEBUI = `
 reviewers = ["codex"]
 
 [aliases]
-codex = "pi:gpt-5-codex"
+codex = "pi:grok-build/grok-build"
 
 [webui]
 host = "0.0.0.0"
@@ -339,11 +348,11 @@ planners = ["opus"]
 
 [aliases]
 opus = "claude:opus-4.8[1m]"
-minimax = "pi:minimax-m3"
-grok = "pi:grok-build"
+minimax = "pi:ollama-cloud/minimax-m3"
+grok = "pi:grok-build/grok-build"
 
 [tiers]
-fast = "pi:minimax-m3"
+fast = "pi:ollama-cloud/minimax-m3"
 standard = "minimax"
 frontier = "opus"
 
@@ -362,17 +371,17 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
     expect(config.tiers!.fast).toEqual({
       harness: "pi",
       model: "minimax-m3",
-      provider: null,
+      provider: "ollama-cloud",
     });
   });
 
   it("resolves a tier value that names an alias", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
-    // 'standard' = "minimax" — a name in [aliases] -> pi:minimax-m3
+    // 'standard' = "minimax" — a name in [aliases] -> pi:ollama-cloud/minimax-m3
     expect(config.tiers!.standard).toEqual({
       harness: "pi",
       model: "minimax-m3",
-      provider: null,
+      provider: "ollama-cloud",
     });
     // 'frontier' = "opus" — a name in [aliases] -> claude:opus-4.8[1m]
     expect(config.tiers!.frontier).toEqual({
@@ -456,22 +465,22 @@ describe("resolveAgentModel end-to-end (T223 acceptance c)", () => {
       model: "opus-4.8[1m]",
       provider: null,
     });
-    // implement-worker -> standard -> minimax alias -> pi:minimax-m3
+    // implement-worker -> standard -> minimax alias -> pi:ollama-cloud/minimax-m3
     expect(resolveAgentModel(config, "implement-worker")).toEqual({
       harness: "pi",
       model: "minimax-m3",
-      provider: null,
+      provider: "ollama-cloud",
     });
   });
 
   it("resolves an unlisted agent through DEFAULT_TIER", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
-    // unlisted agent -> standard (DEFAULT_TIER) -> minimax alias -> pi:minimax-m3
+    // unlisted agent -> standard (DEFAULT_TIER) -> minimax alias -> pi:ollama-cloud/minimax-m3
     const token = resolveAgentModel(config, "unlisted-agent");
     expect(token).toEqual({
       harness: "pi",
       model: "minimax-m3",
-      provider: null,
+      provider: "ollama-cloud",
     });
   });
 
@@ -494,8 +503,8 @@ describe("additive-only regression (T223 acceptance d)", () => {
     const config = parseConfig(VALID_TOML);
     // existing fields intact
     expect(config.aliases).toEqual({
-      codex: { harness: "pi", model: "gpt-5-codex", provider: null },
-      grok: { harness: "pi", model: "grok-4", provider: null },
+      codex: { harness: "pi", model: "grok-build", provider: "grok-build" },
+      grok: { harness: "pi", model: "grok-build", provider: "grok-build" },
       opus: { harness: "claude", model: "opus-4.8", provider: null },
     });
     expect(config.reviewers).toEqual(["codex", "grok", "opus"]);
@@ -505,8 +514,8 @@ describe("additive-only regression (T223 acceptance d)", () => {
     expect(config.agentTiers).toBeNull();
     // resolveReviewers still works
     expect(resolveReviewers(config)).toEqual([
-      { harness: "pi", model: "gpt-5-codex", provider: null },
-      { harness: "pi", model: "grok-4", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
       { harness: "claude", model: "opus-4.8", provider: null },
     ]);
   });
