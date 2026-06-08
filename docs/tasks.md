@@ -385,25 +385,28 @@ archives:
 - completion: "ReviewerToken gains provider:string|null; parseReviewerToken does first-colon harness/model split then first-slash provider extraction (pi requires pi:<provider>/<model>, bare pi rejected BREAKING; claude rejects '/'; empty halves rejected). 6 new parse-cases + typecheck green. 23 legacy bare-pi fixtures left failing (deferred to T235/T238 per scope)."
 - sessionLogs: ["docs/logs/20260608-093215-aaabc652fcf46f1f0.md","docs/logs/20260608-093215-ad95591b7354885bc.md","docs/logs/20260608-093215-pi-grok-T231.md","docs/logs/20260608-093215-pi-minimax-T231.md"]
 
-### T232 — planned
+### T232 — done
 
 - createdAt: 2026-06-08T00:39:26.796Z
-- updatedAt: 2026-06-08T00:39:26.796Z
+- updatedAt: 2026-06-08T09:56:09.389Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: $CLAUDE_CODE_SESSION_ID
 - headline: Thread provider through @cq/config resolvers + the ledger config-capability surfacing
 - description: "Propagate the new provider field end-to-end. (1) In @cq/config config.ts, ensure resolveReviewers/resolvePlanners/resolveTierToken/resolveAgentTier/resolveAgentModel carry `provider` from the parsed token through alias/tier resolution into the returned token objects. (2) In `packages/ledger/src/mcp/configCapability.ts` add `readonly provider: string | null` to the STRUCTURAL `ResolvedReviewer`/`ResolvedPlanner` interfaces and to `GetConfigResult`'s `aliases` value shape + each `tiers` slot shape (keep @cq/ledger core config-agnostic — a plain string|null needs no @cq/config import). (3) In `packages/ledger-mcp/src/configCapability.ts`: computeReviewers/computePlanners map `provider: token.provider`; projectConfig copies provider for every alias + each populated tier slot. So get_reviewers/get_planners/get_config consumers see the resolved provider."
 - acceptance: "`bun run typecheck` + `bun run lint` clean across packages/ledger + ledger-mcp. A test asserts computeReviewers(root) for a cq.toml with `minimax = \"pi:ollama-cloud/minimax-m3\"` returns `{harness:'pi',model:'minimax-m3',provider:'ollama-cloud',alias:'minimax'}`, computeConfig(root).aliases.minimax.provider==='ollama-cloud', and a claude alias has provider:null."
 - suggestedModel: standard
 - dependsOn: ["T231"]
 - ledgerRefs: ["goals:G29","defects:D36"]
+- resultCommit: 8ee5cd8
+- completion: "Threaded provider:string|null through @cq/ledger configCapability structural interfaces (ResolvedReviewer/ResolvedPlanner/GetConfigResult aliases+tier-slots) + ledger-mcp computeReviewers/computePlanners/projectConfig. 5 new tests. @cq/config already carried provider."
+- sessionLogs: ["docs/logs/20260608-095457-a8d59c45434698354.md","docs/logs/20260608-095457-ae6469bea28849ed7.md"]
 
-### T233 — planned
+### T233 — done
 
 - createdAt: 2026-06-08T00:39:26.926Z
-- updatedAt: 2026-06-08T00:52:17.949Z
+- updatedAt: 2026-06-08T09:56:13.178Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: $CLAUDE_CODE_SESSION_ID
 - headline: Reject bare pi in the cq-subagent-dispatch extension's inlined mirror (tokenToChildModel)
 - description: |
     Keep the extension's inlined mirror in sync with @cq/config (K46 mirror-don't-import). In `nix/pkg/pi-extensions/cq-subagent-dispatch.ts`, `tokenToChildModel` currently splits the model on `/` to emit provider+model but, when there is NO slash, FALLS BACK to `{provider:null, model}` — i.e. it accepts a bare `pi:<model>` and dispatches provider-less (exactly D36). Change it so a bare pi token is REFUSED, mirroring @cq/config's THROW-on-bare:
@@ -419,6 +422,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T231"]
 - ledgerRefs: ["goals:G29","defects:D36"]
+- resultCommit: "6461752"
+- completion: "Extension mirror tokenToChildModel now refuses bare/empty-half pi (returns null — the D36 fix), qualified→{provider,model}, claude→null; mirrors T231 parseReviewerToken per K50. JSDoc rewritten. Standalone tsc --strict clean."
+- sessionLogs: ["docs/logs/20260608-095457-a79a8c8f57c81d87d.md","docs/logs/20260608-095457-a281af6ad41c764a2.md"]
 
 ### T234 — planned
 
@@ -444,12 +450,12 @@ archives:
 - dependsOn: ["T231","T232"]
 - ledgerRefs: ["goals:G29","defects:D36"]
 
-### T235 — planned
+### T235 — wip
 
 - createdAt: 2026-06-08T00:39:42.462Z
-- updatedAt: 2026-06-08T00:52:52.932Z
+- updatedAt: 2026-06-08T09:42:29.632Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: $CLAUDE_CODE_SESSION_ID
 - headline: Adapt the pre-existing @cq/config tests broken by the breaking grammar
 - description: |
     The breaking grammar invalidates EXISTING fixtures across the workspace that use bare pi tokens and assertions expecting the old `{harness,model}` (no provider) shape. Migrate ALL of them — not only the @cq/config file:
@@ -466,18 +472,19 @@ archives:
 - dependsOn: ["T231"]
 - ledgerRefs: ["goals:G29","defects:D36"]
 
-### T236 — planned
+### T236 — done
 
 - createdAt: 2026-06-08T00:39:47.889Z
-- updatedAt: 2026-06-08T00:53:00.920Z
+- updatedAt: 2026-06-08T09:42:28.691Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: $CLAUDE_CODE_SESSION_ID
 - headline: "Record a decisions item: the @cq/config grammar and the extension mirror MUST agree"
 - description: "Per Q133/K46 (the extension is a standalone store-path file that cannot import @cq/config), create a `locked` decisions item under M94/M92 capturing the contract BOTH copies implement: pi token grammar is `pi:<provider>/<model>` ONLY (slash, Q132); bare `pi:<model>` rejected (Q134, breaking); provider qualifier is pi-only and an error on claude: (Q135); provider extraction = split the model segment on the FIRST `/`, both halves non-empty. State that parseReviewerToken (THROWS on bare) and tokenToChildModel (returns null on bare — both REFUSE bare) are deliberate copies that must stay byte-parallel in GRAMMAR, and reference the cross-layer consistency test (T238) as the regression guard. EMPIRICAL ANCHOR (Q136): cite T225's recorded live evidence that pi dispatched minimax with `--provider ollama-cloud` successfully — that run is the empirical confirmation that the qualified form resolves correctly and is the reason no NEW live demo is required for this decision."
 - acceptance: "A `decisions` item exists (status `locked`, ledgerRefs goals:G29 + defects:D36) whose rationale names: the slash separator, the bare-pi rejection (breaking), the pi-only qualifier (claude rejects it), the FIRST-`/` both-halves-non-empty extraction, the @cq/config↔extension mirror obligation (parseReviewerToken THROWS / tokenToChildModel returns null — both refuse bare), T238 as the regression guard, AND cites T225's recorded live `--provider ollama-cloud` evidence (Q136) as the empirical anchor."
 - suggestedModel: fast
 - dependsOn: ["T231"]
 - ledgerRefs: ["goals:G29","defects:D36"]
+- completion: "Created locked decision K50 (the @cq/config grammar ↔ extension-mirror agreement contract: slash grammar, bare-pi reject, pi-only qualifier, first-'/' extraction; T238 regression guard; T225 live-evidence anchor). Ledger-only task."
 
 ### T237 — planned
 
@@ -579,10 +586,10 @@ archives:
 
 ## M99
 
-### T248 — planned
+### T248 — done
 
 - createdAt: 2026-06-08T08:35:12.398Z
-- updatedAt: 2026-06-08T08:35:12.398Z
+- updatedAt: 2026-06-08T09:56:15.627Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add user-action-required to the WARNING set in ledger-tui status.ts
@@ -591,11 +598,14 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: f5ba9d2
+- completion: ledger-tui status.ts WARNING set gains user-action-required → 'warning' (magenta) bucket.
+- sessionLogs: ["docs/logs/20260608-095457-a4bd5b603bd673065.md"]
 
-### T249 — planned
+### T249 — done
 
 - createdAt: 2026-06-08T08:35:17.115Z
-- updatedAt: 2026-06-08T08:35:17.115Z
+- updatedAt: 2026-06-08T09:56:18.486Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add user-action-required to the WARNING set in ledger-web status.ts (mirror)
@@ -604,6 +614,9 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 54bbf1a
+- completion: ledger-web status.ts WARNING set gains user-action-required → 'warning' (lw-status-warning/amber) bucket; mirrored with tui.
+- sessionLogs: ["docs/logs/20260608-095457-a3551001d3e2a1d51.md"]
 
 ### T250 — planned
 
@@ -620,10 +633,10 @@ archives:
 
 ## M100
 
-### T251 — planned
+### T251 — done
 
 - createdAt: 2026-06-08T08:35:37.823Z
-- updatedAt: 2026-06-08T08:35:37.823Z
+- updatedAt: 2026-06-08T09:56:21.715Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Full treatment of user-action-required in cq/advance.md (status table + stop-condition prose)
@@ -632,6 +645,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 331c49b
+- completion: advance.md threads user-action-required through the §Provenance status table, §End-of-run report (BLOCKED-ON-USER-ACTION + mixed composition), and §Stop-condition gate (narrow legal stop + anti-laundering, no-effort-gate intact, distinct from answers-required).
+- sessionLogs: ["docs/logs/20260608-095457-a1234ac8ea9a07864.md","docs/logs/20260608-095457-a7996c3617e26840c.md"]
 
 ### T252 — planned
 

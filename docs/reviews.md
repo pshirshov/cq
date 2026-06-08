@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 292
+  item: 298
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -639,3 +639,78 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T231","goals:G29"]
 - sessionLogs: ["docs/logs/20260608-093215-ad95591b7354885bc.md","docs/logs/20260608-093215-pi-grok-T231.md","docs/logs/20260608-093215-pi-minimax-T231.md"]
+
+### R292 — go-ahead
+
+- createdAt: 2026-06-08T09:42:25.832Z
+- updatedAt: 2026-06-08T09:42:25.832Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T236 GO-AHEAD (orchestrator-verified ledger task). Locked decision K50 records the @cq/config↔extension mirror contract: pi:<provider>/<model> slash grammar (Q132), bare-pi rejected (Q134), pi-only qualifier (Q135), first-'/' both-halves-non-empty extraction; parseReviewerToken THROWS / tokenToChildModel returns null — both REFUSE bare; T238 is the regression guard; cites T225's live --provider ollama-cloud evidence (Q136). Meets every acceptance clause."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T236","goals:G29"]
+
+### R293 — go-ahead
+
+- createdAt: 2026-06-08T09:55:43.379Z
+- updatedAt: 2026-06-08T09:55:43.379Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T232 APPROVE (opus implement-reviewer). provider threaded through configCapability: added readonly provider:string|null to ResolvedReviewer/ResolvedPlanner/GetConfigResult aliases+tier-slots (@cq/ledger, config-agnostic); ledger-mcp computeReviewers/computePlanners map token.provider + projectConfig copies it; @cq/config resolvers already carry provider so config.ts untouched. 5 new tests assert end-to-end (ollama-cloud + claude→null). typecheck+lint clean; 23 legacy fixtures deferred T235. Surgical."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T232","goals:G29"]
+- sessionLogs: ["docs/logs/20260608-095457-ae6469bea28849ed7.md"]
+
+### R294 — go-ahead
+
+- createdAt: 2026-06-08T09:55:48.557Z
+- updatedAt: 2026-06-08T09:55:48.557Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T233 APPROVE (opus implement-reviewer). cq-subagent-dispatch.ts tokenToChildModel now refuses bare/empty-half pi (returns null, the D36 fix — was {provider:null,model}); qualified→{provider,model}; claude→null unchanged. Grammar mirrors T231 parseReviewerToken (first-slash, both-halves-non-empty, lenient null-vs-throw per K50). JSDoc/param/inline comments rewritten to qualified-only grammar + bare-pi refusal + mirror obligation. Standalone tsc --strict vs pi 0.78.0 clean; 6/6 cases pass."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T233","goals:G29"]
+- sessionLogs: ["docs/logs/20260608-095457-a281af6ad41c764a2.md"]
+
+## M100
+
+### R295 — go-ahead
+
+- createdAt: 2026-06-08T09:55:53.855Z
+- updatedAt: 2026-06-08T09:55:53.855Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T251 APPROVE (opus implement-reviewer). user-action-required threaded through advance.md (Q138/Q139): §Provenance status-table row; §End-of-run BLOCKED-ON-USER-ACTION outcome + mixed/handoffReasons composition; §Stop-condition narrowly-pinned LEGAL stop (named item + exact user command + all autonomous steps done), forbidden-look-alikes enumerated (magnitude/proportion/scope/disposition/natural-stopping-point), no-effort-stop gate INTACT, distinct from answers-required, listed among legal statuses. Anti-laundering sound; enforcement (D39) out of scope. Token verbatim 15x; typecheck+lint clean."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T251","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-095457-a7996c3617e26840c.md"]
+
+## M99
+
+### R296 — go-ahead
+
+- createdAt: 2026-06-08T09:55:57.591Z
+- updatedAt: 2026-06-08T09:55:57.591Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T248 GO-AHEAD (orchestrator-verified trivial one-liner). ledger-tui/src/status.ts WARNING set `[\"revise\"]`→`[\"revise\",\"user-action-required\"]` so statusBucket('user-action-required') returns 'warning' (magenta) not green 'done'; other statuses unchanged. ledger-tui status tests 25/0; bun run check green."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T248","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-095457-a4bd5b603bd673065.md"]
+
+### R297 — go-ahead
+
+- createdAt: 2026-06-08T09:56:00.957Z
+- updatedAt: 2026-06-08T09:56:00.957Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: T249 GO-AHEAD (orchestrator-verified trivial one-liner). ledger-web/src/status.ts WARNING set gains `user-action-required` → 'warning' bucket → lw-status-warning (amber); mirrored with tui (both status.ts WARNING sets in sync). ledger-web status tests 8/0; typecheck+lint clean. (Worker also re-touched the tui file already done by T248; only the ledger-web hunk was merged to avoid duplication.)
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T249","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-095457-a3551001d3e2a1d51.md"]
