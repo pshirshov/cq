@@ -367,16 +367,45 @@ effort-based stop — there remains deliberately **NO handoff status for an
 effort-based stop**, and turn exhaustion is an effort-based fact, not a
 predicate-gated one.
 
-**Self-check invariant (D39).** Before writing any handoff record, scan your
-own about-to-be-written `summary` for the phrases "NOT a predicate-legal stop",
-"predicates still TRUE", or any equivalent admission that the stop is
-non-predicate-gated. If such a phrase appears — i.e. if your own summary
-concedes that predicates still TRUE — the stop is ILLEGAL by your own
-admission: **delete the handoff and CONTINUE** the cycle. A summary that
-contains "predicates still TRUE" is self-refuting; the correct action is to
-**delete** the draft entry and **CONTINUE**, never to file it. (This mirrors
-HO26, whose summary literally contained "NOT a predicate-legal stop" and filed
-anyway — that sequence is explicitly forbidden here.)
+**A TURN-pause is NOT a free escape hatch (D41 — hard gate).** The TURN-pause
+exists ONLY for GENUINE, EXTERNALLY-EVIDENCED context/turn exhaustion — the
+harness itself has signalled the limit (an explicit context-window / compaction
+warning, or a tool result truncated/refused for length). It is NEVER legitimate
+on a SUBJECTIVE judgment that you have "done enough" or that the work ahead is
+big. **While ANY P-predicate is TRUE-and-unblocked the default is CONTINUE** —
+you do not get to pause "to be safe", "for quality", or "to do it justice". The
+following TURN-pause rationales are FORBIDDEN — each is the SAME laundered
+effort/magnitude stop the handoff euphemism-blocklist above bans, merely routed
+through the no-handoff channel; if you are about to cite ANY of them the pause
+is ILLEGAL — **CONTINUE**:
+- "the next/remaining stage (implement, the N-task DAG, the whole feature) is
+  large / multi-task / high-blast-radius" — magnitude is NEVER a pause trigger;
+- "needs / would benefit from / warrants fresh context / full headroom / a clean
+  slate";
+- "I've done substantial work this turn / this session has been long / many
+  subagents were dispatched";
+- "a clean boundary / natural checkpoint / good place to stop";
+- "running it now risks a half-finished state" — the flow is per-item durable
+  and resumable; partial progress is the DESIGN, not a hazard.
+Magnitude, accumulated effort, and a desire for fresh context are EFFORT-BASED
+FACTS, not context-exhaustion signals. "Large next phase" is the single most
+common disguise: treat the urge to pause *before* a big implement stage as
+positive evidence you must CONTINUE, not pause.
+
+**Self-check invariant (D39 + D41).** Before EITHER writing a handoff record OR
+taking a TURN-pause (stopping with no handoff), scan your own about-to-be-emitted
+stop rationale — the handoff `summary`, OR the turn-pause explanation you would
+give the user — for: "NOT a predicate-legal stop" / "predicates still TRUE" /
+any equivalent admission the stop is non-predicate-gated / any handoff euphemism
+above / any FORBIDDEN turn-pause rationale above (magnitude, "fresh
+context/headroom", "done a lot/long session", "clean boundary", "half-finished
+risk"). If any appears — i.e. if your own rationale concedes predicates are still
+TRUE, or rests on effort / magnitude / freshness rather than an
+externally-evidenced context limit — the stop is ILLEGAL by your own admission:
+**delete the draft, do NOT stop, and CONTINUE** the cycle. This applies
+SYMMETRICALLY to both stop channels: there is deliberately **NO handoff status
+for an effort-based stop, AND NO TURN-pause for an effort-based stop**. (Mirrors
+HO26's laundered handoff and the laundered turn-pause that motivated D41.)
 
 **Default disposition for every defect is FIX (hard rule).** Every
 `open`/`wip`/`root-caused`/`inconclusive` defect is fixed, properly, now. The
