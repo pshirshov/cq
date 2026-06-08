@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 115
+  item: 121
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -597,3 +597,43 @@ archives:
 - createdAt: 2026-06-08T21:39:32.717Z
 - updatedAt: 2026-06-08T21:39:32.717Z
 - title: "Plan: optional thinking-effort suffix in cq model-identifier tokens"
+
+### M116 — open
+
+- createdAt: 2026-06-08T23:39:42.624Z
+- updatedAt: 2026-06-08T23:39:42.624Z
+- title: "G34-ff2 W1: get_agent_models server capability (live model overlay)"
+
+### M117 — open
+
+- createdAt: 2026-06-08T23:39:47.655Z
+- updatedAt: 2026-06-08T23:39:47.655Z
+- title: "G36 W1: effort grammar — @cq/config core (parse/format/identity/enums)"
+
+### M118 — open
+
+- createdAt: 2026-06-08T23:39:50.939Z
+- updatedAt: 2026-06-08T23:39:50.939Z
+- title: "G34-ff2 W2: ledger-web LedgerClient + live overlay render"
+- dependsOn: ["M116"]
+
+### M119 — open
+
+- createdAt: 2026-06-08T23:39:58.576Z
+- updatedAt: 2026-06-08T23:39:58.576Z
+- title: "G36 W2: effort wire-through — MCP capability + cq-subagent-dispatch"
+- dependsOn: ["M117"]
+
+### M120 — open
+
+- createdAt: 2026-06-08T23:40:02.298Z
+- updatedAt: 2026-06-08T23:40:02.298Z
+- title: "G34-ff2 W3: narrow build-time catalogue to static fallback + verify"
+- dependsOn: ["M118"]
+
+### M121 — open
+
+- createdAt: 2026-06-08T23:40:05.960Z
+- updatedAt: 2026-06-08T23:40:05.960Z
+- title: "G36 W3: docs, cq.toml.example, full check + nix build"
+- dependsOn: ["M119"]

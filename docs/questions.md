@@ -504,148 +504,160 @@ archives:
 - ledgerRefs: ["goals:G34"]
 - answer: as recommended
 
-### Q154 — open
+### Q154 — answered
 
 - createdAt: 2026-06-08T21:36:43.532Z
-- updatedAt: 2026-06-08T21:36:43.532Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:05.858Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — server CAPABILITY shape: should the live model resolution be a NEW dedicated MCP tool `get_agent_models` (server resolves each agent's class + per-harness token mappings and returns the finished overlay table), OR an EXTENSION of the existing `get_config` to expose the raw inputs the client needs to resolve itself — i.e. agent_tiers + the full inverted [tiers] classifier entries + the alias-resolved planners/reviewers tokens?"
 - context: "Grounded in packages/ledger-mcp/src/configCapability.ts: today get_config (computeConfig/projectConfig) returns { configured, aliases, reviewers(alias names), planners(alias names), tiers, agentTiers }. CRITICAL: the `tiers` field is a T268 MINIMAL BRIDGE — it collapses the inverted classifier into the OLD per-slot {fast,standard,frontier} shape by picking the FIRST token of each class, so it does NOT carry the full classifier `entries` (token->class) the client would need for classifyToken, and it gives no alias-resolved planner/reviewer TOKENS (only alias-name lists). So get_config AS-IS cannot reproduce the build-time derivation client-side. The build-time logic (gen-agents-catalogue.ts deriveModelClass=resolveAgentTier, deriveModelMappings=classifyToken over union(planners∪reviewers) grouped by harness) is exactly what must move to runtime. A dedicated get_agent_models would keep ALL resolution (resolveAgentTier/classifyToken/selectTokensForTier) server-side (where @cq/config already lives) and ship the finished {id->{class, mappings}} table; extending get_config keeps one tool but moves resolution INTO ledger-web (a pure MCP client that would then import @cq/config resolvers in the browser bundle)."
 - suggestions: ["(a) NEW dedicated `get_agent_models` tool: server resolves per-agent class + per-harness mappings (reusing resolveAgentTier/classifyToken/selectTokensForTier against the LIVE cq.toml) and returns the finished overlay table keyed by agent id; ledger-web does no resolution","(b) EXTEND `get_config`: rework the `tiers` wire field to carry the full classifier entries (token->class) AND add alias-resolved planner/reviewer token lists, so ledger-web reproduces deriveModelClass/deriveModelMappings client-side","(c) something else — describe the intended capability + responsibility split"]
 - recommendation: "(a) A dedicated get_agent_models. The server already OWNS the live config + every resolver (resolveAgentTier/classifyToken/selectTokensForTier); returning the finished {agent id -> {class, perHarnessMappings}} table keeps that logic server-side (one place, tested in @cq/config), avoids pulling @cq/config resolution into the browser bundle, and gives ledger-web a trivial mount-time overlay. It also leaves get_config's existing T268 bridge wire shape untouched (no risk to get_planners/get_reviewers consumers). The agent-id roster the tool resolves is question (e)."
 - ledgerRefs: ["goals:G34"]
+- answer: as recommended
 
-### Q155 — open
+### Q155 — answered
 
 - createdAt: 2026-06-08T21:36:55.810Z
-- updatedAt: 2026-06-08T21:36:55.810Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:07.580Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — FALLBACK when the runtime overlay is unavailable: when the server/capability cannot supply live model data (older server without the new tool, fetch error, or get_agent_models throws), should ledger-web (1) KEEP the build-time-generated model/modelMappings fields as a static fallback and render those, or (2) DROP the build-time model fields entirely (gen-agents stops emitting model/modelMappings) and render 'default / not configured' until the live fetch resolves?"
 - context: The goal text says 'KEEP the static fields (kind/description/inputs/outputs/ioSchema/prompt-template/privilege/exposedTools) build-time-generated... ONLY model class + mappings move to runtime' and 'the freshness test then only guards the static fields'. That phrasing implies the build-time catalogue STOPS carrying model/modelMappings (so they can't go stale and the T277 freshness test no longer guards them). But it does not explicitly state the no-server fallback. Today AgentRole.model/modelMappings are required fields baked into agentsCatalogue.gen.ts from cq.toml.example. Dropping them means the AgentRole type changes (model/modelMappings become runtime-only / optional) and gen-agents-catalogue.ts deletes deriveModelClass/deriveModelMappings + the cq.toml.example read; keeping them as fallback means the example-vs-live divergence the follow-up wants to eliminate still shows when offline.
 - suggestions: ["DROP the build-time model fields: gen-agents stops emitting model/modelMappings (remove deriveModelClass/deriveModelMappings + the cq.toml.example read); AgentRole carries no static model data; when the live overlay is unavailable the tab shows 'default / not configured'. Matches the goal's 'freshness test only guards the static fields'.","KEEP a static fallback: gen-agents still emits model/modelMappings from cq.toml.example; the live overlay replaces them when present, else the build-time values render (offline-resilient, but reintroduces the example-vs-live divergence when the server is unavailable)"]
 - recommendation: DROP the build-time model fields. It is what the goal text directs ('ONLY model class + mappings move to runtime'; 'freshness test then only guards the static fields'), and it actually ELIMINATES the example-vs-live divergence + staleness the follow-up targets — a static fallback would silently re-expose exactly the dead/example tokens the follow-up exists to remove. When the overlay is unavailable the cards show 'default / not configured', which is honest. Please confirm the AgentRole type + gen-agents may drop model/modelMappings.
 - ledgerRefs: ["goals:G34"]
+- answer: as recommended
 
-### Q156 — open
+### Q156 — answered
 
 - createdAt: 2026-06-08T21:37:15.604Z
-- updatedAt: 2026-06-08T21:37:15.604Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:08.295Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — the CANDIDATE TOKEN SET for the per-harness mappings: which live-config tokens should the runtime resolution classify-and-group to populate a role's per-harness mappings? Today the build-time code uses the UNION of the config's resolved `planners` + `reviewers` alias lists (deriveModelMappings in gen-agents-catalogue.ts). Should the runtime keep exactly that union(planners∪reviewers), or use a different candidate set — e.g. ALL [aliases] entries, or only the role-relevant set (planners for the planner role, reviewers for the reviewer roles)?"
 - context: "deriveModelMappings(config, modelClass) currently builds candidates = union of resolvePlanners + resolveReviewers (alias-resolved tokens), classifies each via classifyToken, keeps those matching the role's class, then groups by harness and de-dups+sorts. That answers 'which configured tokens of this class exist, per harness' but is the SAME set for every role of a given class (it's keyed only on class, not on whether the role is a planner vs reviewer vs worker). Using ALL [aliases] would show classified-but-unused tokens (incl. dead ones like grok-build) — the follow-up explicitly wants dead/unclassified tokens to show as 'not configured', so feeding ALL aliases risks re-advertising tokens that aren't actually in the active planner/reviewer set. A role-relevant split (planner role <- planners only; reviewer roles <- reviewers only) is more precise per-card but the worker/orchestrator roles have no natural list. Keeping the union matches the current behavior and the Q149 'classifier' model (selectTokensForTier over the active set)."
 - suggestions: ["UNION of resolved planners + reviewers (unchanged from build-time): one candidate set = the active dispatch tokens; classify by the role's class, group by harness. Same set across roles of equal class.","ALL [aliases] entries: classify every declared alias regardless of whether it's an active planner/reviewer (broadest; risks showing dead/unused tokens the follow-up wants hidden)","ROLE-RELEVANT split: the planner role draws candidates from `planners`, the reviewer roles from `reviewers`; worker/orchestrator roles fall back to the union (or 'default')"]
 - recommendation: UNION of resolved planners + reviewers — keep exactly the current build-time candidate set, just sourced from the LIVE cq.toml at runtime. It mirrors the Q149 classifier model (the active dispatch set is authoritative), it is the minimal behavioral change (only the config SOURCE moves example->live), and — because it draws ONLY from the active planners/reviewers — a declared-but-inactive or dead alias (e.g. grok-build) naturally falls out unless it is actually an active planner/reviewer, satisfying the 'dead token shows unclassified' aim. Please confirm, or pick a role-relevant split if you want per-card precision.
 - ledgerRefs: ["goals:G34"]
+- answer: as recommended
 
-### Q157 — open
+### Q157 — answered
 
 - createdAt: 2026-06-08T21:37:31.025Z
-- updatedAt: 2026-06-08T21:37:31.025Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:10.256Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — UNCONFIGURED / embedded-mode rendering: in embedded web mode (the server is co-hosted in ledger-web's own process per main.ts attachMcpHttp, reading the live gitignored cq.toml) what should the tab show across these distinct states: (1) NO cq.toml present (configured:false); (2) cq.toml present but a role's [agent_tiers] tier has NO live token of that class in the active set; (3) a role that is not model-configurable at all (every orchestrator command, model='N/A' today)? Should all of (1)/(2) render the SAME 'default / not configured' string, or should they be visibly distinguished (e.g. 'not configured' for no-cq.toml vs 'no live token for tier X' for a configured-but-empty tier)?"
 - context: "configCapability.computeConfig returns configured:false with empty tiers/agentTiers when loadConfig returns null (no cq.toml). The follow-up text wants 'default / not configured' when unconfigured OR when a tier has no live token (so a dead token like grok-build shows as unclassified rather than a confident mapping). Embedded web is the default deploy: serve.ts co-hosts the MCP server over the same live root, so the capability reads the user's real cq.toml. The three states above are semantically different (no config at all / configured-but-this-tier-empty / role-not-model-configurable) and the cards already show model='N/A' for orchestrators per Q148. Whether to collapse states 1+2 into one label or distinguish them is a UX decision affecting the capability's return shape (does it need to report WHY a mapping is empty?) and the AgentRole/overlay typing."
 - suggestions: ["COLLAPSE: states (1) and (2) both render 'default / not configured'; state (3) keeps the existing 'N/A' (not model-configurable). Capability need only return class-or-null + mappings-or-empty.","DISTINGUISH: (1) -> 'not configured (no cq.toml)', (2) -> 'no live token for <tier>', (3) -> 'N/A'. Capability returns a reason/enum so the UI can label precisely.","Some other split — describe the exact labels per state"]
 - recommendation: COLLAPSE (1)+(2) into 'default / not configured', keep (3) as the existing 'N/A' for non-model-configurable roles (consistent with Q148). From the user's standpoint 'no cq.toml' and 'configured but this tier has no live token' both mean 'cq will fall back to the host default for this role' — the same operational truth — so one honest label suffices and keeps the capability's return shape minimal (class-or-null + per-harness mappings, empty when none). If you'd rather see WHY a mapping is empty, pick DISTINGUISH and the capability will carry a reason. Confirm the label set.
 - ledgerRefs: ["goals:G34"]
+- answer: "DISTINGUISH: (1) -> 'not configured (no cq.toml)', (2) -> 'no live token for <tier>', (3) -> 'N/A'. Capability returns a reason/enum so the UI can label precisely."
 
-### Q158 — open
+### Q158 — answered
 
 - createdAt: 2026-06-08T21:37:48.675Z
-- updatedAt: 2026-06-08T21:37:48.675Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:11.030Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — WHO owns the agent-id roster the live capability resolves? The overlay must join live model data onto the static catalogue by agent id. Should the server-side capability resolve a roster it derives ITSELF (e.g. the [agent_tiers] keys present in the live cq.toml, plus 'N/A' for everything else), OR should it resolve exactly the codegen's fixed 19-role roster (the ROLES table in gen-agents-catalogue.ts, of which only the 7 subagents carry an agentTierKey)? And how does the overlay key the join — by the AgentRole.id (asset basename, e.g. 'implement-worker') which is ALSO the [agent_tiers] key for subagents?"
 - context: "gen-agents-catalogue.ts ROLES is the canonical 19-role roster (7 agents/*.md subagents with agentTierKey = their name, + 12 commands/cq/*.md with agentTierKey=null). resolveAgentTier looks up [agent_tiers][agentName]. AgentRole.id for subagents equals the asset basename which equals the [agent_tiers] key (e.g. 'implement-worker', 'plan-reviewer'); orchestrator ids are command paths ('plan/advance') with no tier key. If the server derives the roster from live [agent_tiers] keys alone, it could surface a tier key the static catalogue has no card for (or miss a role), so the join must be anchored to the STATIC roster (the source of cards). The capability most likely should accept/emit results keyed by the SAME 19 ids the catalogue uses, marking the 12 commands 'N/A', so the overlay is a clean id->data join with no orphans."
 - suggestions: ["Capability resolves the codegen's fixed 19-role roster (subagent ids = [agent_tiers] keys; commands -> N/A) and returns data keyed by those exact ids; the overlay joins by AgentRole.id with no orphans","Capability derives its own roster from live [agent_tiers] keys; the overlay joins what it can and shows 'default/not configured' for static cards with no match (risk: server roster and static roster drift)","Other — describe how the roster + join key are owned"]
 - recommendation: "Resolve the codegen's fixed 19-role roster, keyed by AgentRole.id — the subagent id IS its [agent_tiers] key, so the server resolves class+mappings for those 7 and returns 'N/A'/empty for the 12 commands; the overlay is then a total, orphan-free join by id. The static catalogue is the authoritative card list (it owns inputs/outputs/ioSchema/privilege/tools), so the live data must conform to ITS ids, not the reverse. This also means adding/removing a role is still a single edit to the codegen ROLES table. Please confirm the roster is owned by the static catalogue and the join key is AgentRole.id."
 - ledgerRefs: ["goals:G34"]
+- answer: as recommended
 
-### Q159 — open
+### Q159 — answered
 
 - createdAt: 2026-06-08T21:38:03.153Z
-- updatedAt: 2026-06-08T21:38:03.153Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:11.864Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Follow-up #2 — ACCEPTANCE / TEST bar for the runtime overlay. The existing Agents-tab test (test/agentsTab.test.tsx) is explicitly STATIC-DATA-ONLY ('no async MCP fetch is needed') and asserts the build-time model text via `role.model`. Moving model+mappings to runtime breaks that contract: the test must drive an async overlay. What is the required test bar: (1) extend the FakeClient (test/fakeClient) with the new capability returning a synthetic LIVE-config table and assert the tab OVERLAYS those live values onto the static cards (the configured case); (2) ALSO assert the unconfigured/no-overlay case renders 'default / not configured'; and is a server-side @cq/config / capability unit test for the resolution (live cq.toml -> per-agent class+mappings) ALSO required, or is the happy-dom overlay test plus existing @cq/config resolver tests sufficient?"
 - context: The web client LedgerClient interface (src/types.ts) currently has NO config/planner/reviewer method, so a new method (e.g. getAgentModels) must be added to the interface AND the test FakeClient must implement it — otherwise the existing suite won't typecheck. agentsTab.test.tsx asserts text.toContain(role.model) for implement-worker; once model is runtime, that assertion must come from the fake's returned overlay, not role.model. Server-side, configCapability.ts + @cq/config already have resolver tests; the NEW resolution (per-agent class+mappings over live config) needs its own coverage if a new computeAgentModels is added. The T277 freshness test must also be updated to NO LONGER guard model/modelMappings (they leave the gen file).
 - suggestions: ["happy-dom overlay test (FakeClient returns a synthetic live table; assert configured-overlay AND unconfigured 'default/not configured') + a server-side unit test for the new resolution (live config -> per-agent class+mappings) + update T277 freshness to drop model/modelMappings","happy-dom overlay test only (configured + unconfigured), relying on existing @cq/config resolver tests for the resolution logic; update T277 freshness","Other — name the exact required tests"]
 - recommendation: "The first option (full bar): a happy-dom test that drives the new client method via an extended FakeClient and asserts BOTH the configured overlay (live values replace the static cards) AND the unconfigured 'default / not configured' path, PLUS a focused server-side unit test for the new resolution (a fixture live cq.toml -> expected per-agent class + per-harness mappings), PLUS updating the T277 freshness test to stop guarding model/modelMappings (since they leave the generated file). This keeps the operational 'shows ACTUAL configured models' claim genuinely tested at both the server (resolution) and client (overlay) boundaries. Please confirm this is the intended test bar."
 - ledgerRefs: ["goals:G34"]
+- answer: as recommended
 
 ## M115
 
-### Q160 — open
+### Q160 — answered
 
 - createdAt: 2026-06-08T21:41:24.198Z
-- updatedAt: 2026-06-08T21:41:24.198Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:21.471Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Effort-suffix syntax and separator: what exact delimiter introduces the optional trailing effort, and does it apply to BOTH pi and claude tokens?"
 - context: "parseReviewerToken (packages/cq-config/src/config.ts:62) splits on the FIRST ':' (harness | modelSegment), then on the FIRST '/' (provider | model for pi). Its doc explicitly says 'Further colons in the model segment (after the first \":\") are preserved' — so the model currently absorbs everything after the harness colon verbatim (e.g. claude:opus-4.8[1m] -> model='opus-4.8[1m]'). There is no reserved second colon today. A trailing ':<effort>' is therefore ambiguous: should the effort be the segment after the LAST ':' (so 'pi:grok-build/grok-build:xhigh' -> effort='xhigh', but a model that itself contained a colon would mis-split), or after a different/dedicated delimiter? Current model names I can see use '[1m]' brackets but no colons. I need the rule pinned to keep parsing unambiguous and round-trippable (formatReviewerToken at config.ts:390 must reproduce the input)."
 - suggestions: ["Trailing ':<effort>' parsed off the END (last colon): pi:<provider>/<model>:<effort>, claude:<model>:<effort> — applies to BOTH harnesses; document that ':' is now reserved and may not appear in a model name","Dedicated non-colon delimiter to avoid any collision, e.g. '@' (claude:opus-4.8[1m]@high, pi:prov/model@high) or '#'","pi-only effort suffix (claude effort handled differently or out of scope), since pi has an explicit reasoning-effort flag"]
 - recommendation: "Trailing ':<effort>' parsed off the LAST colon, applied to BOTH pi and claude tokens (matches the goal's examples pi:grok-build/grok-build:xhigh and claude:<model>:<effort>); reserve ':' so a model name may not contain one, and have formatReviewerToken re-append ':<effort>' when present."
 - ledgerRefs: ["goals:G36"]
+- answer: as recommended
 
-### Q161 — open
+### Q161 — answered
 
 - createdAt: 2026-06-08T21:41:33.616Z
-- updatedAt: 2026-06-08T21:41:33.616Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:21.570Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Allowed effort VALUE set: a fixed validated enum, or an opaque per-harness pass-through string?"
 - context: The new optional ReviewerToken.effort field can either be validated at parse time against a closed vocabulary (like isHarness/isTier do today in types.ts) — failing fast on cq.toml load with a precise CqConfigError — or be carried verbatim as an opaque string and handed to the harness, letting the harness reject unknown values at invocation time. Different harnesses/providers expose different effort vocabularies (e.g. an xhigh/high/medium/low/minimal-style ladder vs provider-specific names vs a numeric thinking budget), so a single fixed enum may not fit all providers. This decision determines whether @cq/config needs an isEffort() guard + a canonical TIERS-like constant, and whether the pi-extension's lenient inlined parser must mirror it.
 - suggestions: ["Fixed validated enum (e.g. minimal | low | medium | high | xhigh) — fail fast at config load, mirrored by an isEffort() guard in types.ts","Opaque pass-through string per harness — no validation in @cq/config; the harness validates at invocation","Hybrid: validate non-empty + a charset, but treat the value space as open/per-harness"]
 - recommendation: Opaque pass-through string (validate only non-empty + a safe charset). Effort vocabularies are provider-specific and evolve faster than cq.toml; let each harness's invocation map/reject it (see the harness-mapping question), keeping @cq/config a pure carrier.
 - ledgerRefs: ["goals:G36"]
+- answer: we should have fixed validated per-harness enums
 
-### Q162 — open
+### Q162 — answered
 
 - createdAt: 2026-06-08T21:41:43.493Z
-- updatedAt: 2026-06-08T21:41:43.493Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:21.613Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Does effort participate in token IDENTITY/equality — i.e. is claude:opus:high a DIFFERENT token from claude:opus:low for reviewerTokensEqual, the D42 dup-token guard, and the [tiers] classifier?"
 - context: "reviewerTokensEqual (config.ts:297) compares harness+model+provider only. It is consumed by: (a) parseTiers' D42 duplicate-token guard (config.ts:181) which fails loud if two [tiers] keys resolve to the same token; and (b) classifyToken (config.ts:316) which looks a candidate token up in the [tiers] classifier by structural equality. If effort is part of identity, then claude:opus:high and claude:opus:low are two distinct tokens — they could be classified into different tiers and would NOT trip the D42 dup guard. If effort is NOT part of identity, the two collapse to one token (effort becomes a non-identifying annotation): they'd trip D42 if both appear in [tiers], and classifyToken would match regardless of effort. This choice changes test expectations and the [tiers] semantics."
 - suggestions: ["Effort IS identifying: include it in reviewerTokensEqual so claude:opus:high != claude:opus:low (distinct classification, no D42 collision between them)","Effort is NOT identifying: exclude it from reviewerTokensEqual (effort is a pure annotation; the two collapse, D42 fires if both keyed, classify ignores effort)","Effort identifying for equality/dedup but classifyToken matches effort-agnostically (asymmetric — likely confusing, listed for completeness)"]
 - recommendation: "Effort IS part of token identity (include it in reviewerTokensEqual). This lets a config legitimately classify claude:opus:high as frontier and claude:opus:low as standard, which is the natural use of effort tiers; D42 still protects against literal duplicates of the SAME effort."
 - ledgerRefs: ["goals:G36"]
+- answer: as recommended
 
-### Q163 — open
+### Q163 — answered
 
 - createdAt: 2026-06-08T21:41:54.840Z
-- updatedAt: 2026-06-08T21:41:54.840Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:22.452Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: How does effort map to each harness's ACTUAL invocation flag, and what happens when a provider/model does not support the requested effort — error or silently ignore?
 - context: "In nix/pkg/pi-extensions/cq-subagent-dispatch.ts, tokenToChildModel (line 327) maps a pi token to child '--provider'/'--model' args; effort would need to emit an ADDITIONAL pi flag (the reasoning/thinking-effort flag — exact flag name to confirm). The claude path there returns null and falls back to the PARENT model (a child pi process cannot drive claude), so a claude:<model>:<effort> token never reaches a pi invocation — where (if anywhere) does claude effort get applied (the parent Claude session's thinking budget?) or is claude effort simply recorded-but-inert in the pi-extension and only meaningful in a native-Claude dispatch path? Also: if a provider/model rejects or doesn't recognize the effort value, should cq fail the dispatch loudly or drop the effort and proceed at default?"
 - suggestions: ["pi: emit the pi reasoning-effort CLI flag (confirm exact flag); claude effort applies only on the native-Claude dispatch path (not the pi-extension, which falls back to parent) — pi-extension records it inertly","On unsupported effort: fail fast (loud error) — consistent with the repo's fail-fast principle","On unsupported effort: drop effort + proceed at provider default (graceful), since effort is an optional hint","Need the exact pi flag name and the claude thinking/effort knob confirmed before deciding"]
 - recommendation: "pi: pass effort through to the pi reasoning-effort flag (confirm the precise flag name during implementation); claude effort is meaningful only where a native Claude invocation is constructed (the pi-extension keeps falling back to the parent model and records effort inertly). For an unsupported value: fail fast at the harness boundary rather than silently downgrading, matching repo fail-fast policy — but confirm, since 'optional hint' arguably favors graceful ignore."
 - ledgerRefs: ["goals:G36"]
+- answer: as recommended
 
-### Q164 — open
+### Q164 — answered
 
 - createdAt: 2026-06-08T21:42:05.144Z
-- updatedAt: 2026-06-08T21:42:05.144Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:23.388Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Should the MCP wire shapes (get_planners / get_reviewers / get_config) carry the effort, and where may an effort suffix legally APPEAR in cq.toml — only in [aliases] token values, or also directly in [tiers] keys and reviewers/planners entries?"
 - context: "get_planners/get_reviewers currently return { harness, model, alias } per token and get_config returns { aliases, reviewers, planners } (the wire shape advertised by the MCP tools — note it does not even expose 'provider' today). If effort must be observable to the orchestrator/TUI/web, these shapes need a new optional effort field. Separately: tokens enter from [aliases] values, but [tiers] KEYS are ALSO parsed as tokens (config.ts:167-168, via parseReviewerToken when not an alias name), and reviewers/planners are alias-name lists. So an effort suffix could appear (a) only inside [aliases] token strings, (b) also in a direct [tiers] key like 'claude:opus:high = \"frontier\"', and/or (c) nowhere else. Pinning the legal locations bounds the parser/test surface and the cq.toml.example + docs updates."
 - suggestions: ["Add optional effort to get_planners/get_reviewers token shape AND get_config; allow effort in [aliases] values and in direct [tiers] keys (anywhere a token is parsed)","Allow effort only in [aliases] token values (single point of truth); [tiers] keys reference by alias name; still surface effort on the wire","Do NOT change the MCP wire shape (effort is internal to dispatch only) — surface it later if needed"]
 - recommendation: "Allow an effort suffix anywhere parseReviewerToken runs (both [aliases] values and direct [tiers] keys), and add an optional effort field to the get_planners/get_reviewers token shape + get_config so the active set is fully observable. Confirm whether changing the wire shape is in scope for THIS goal or deferred."
 - ledgerRefs: ["goals:G36"]
+- answer: as recommended
 
-### Q165 — open
+### Q165 — answered
 
 - createdAt: 2026-06-08T21:42:13.527Z
-- updatedAt: 2026-06-08T21:42:13.527Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T23:41:24.310Z
+- author: user
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - question: "Acceptance / test bar: what concretely must pass for this goal to be 'done'?"
 - context: The goal touches @cq/config (parser + types + equality + classifier), the MCP get_* wire shapes, the pi-extension's inlined resolver, plus cq.toml.example and the token-format docs. The repo bar is 'bun run check' (typecheck + lint + tests, from nix/pkg/cq-ledgers/) and nix build for products. I want the verification surface pinned so each task gets a testable acceptance criterion.
 - suggestions: ["bun test covers: parseReviewerToken effort round-trip (parse+format) for pi and claude, omitted-effort default, malformed-suffix rejection, reviewerTokensEqual/classifyToken/D42 behavior under the chosen identity rule","Plus a pi-extension unit test for the inlined parseCqToken/tokenToChildModel mirror emitting the effort flag for a pi token and staying inert/fallback for claude","Plus cq.toml.example updated with an effort example and the token-format doc/comment updated; bun run check + nix build .#ledger-mcp green","All of the above"]
 - recommendation: "All of the above: parser round-trip + equality/classifier/D42 tests in @cq/config; a mirror test for the pi-extension resolver; updated cq.toml.example + token-format docs; green 'bun run check' and 'nix build .#ledger-mcp'. Confirm whether the pi-extension (outside the bun workspace) has an existing test harness or if a documented manual repro suffices."
 - ledgerRefs: ["goals:G36"]
+- answer: as recommended

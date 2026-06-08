@@ -236,10 +236,10 @@ archives:
 
 ## M108
 
-### G34 — clarifying
+### G34 — planned
 
 - createdAt: 2026-06-08T15:05:54.899Z
-- updatedAt: 2026-06-08T21:38:44.383Z
+- updatedAt: 2026-06-08T23:47:22.157Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - title: Help-popup item-states rename + new Agents tab + cq.toml tiers triplet mapping
@@ -257,8 +257,8 @@ archives:
     
     ## Follow-up (2026-06-08 #2) — show LIVE-configured models, not the example
     The Agents tab currently shows model class + per-harness mappings generated at BUILD TIME from cq.toml.example (the committed template), which diverges from the user's LIVE (gitignored) cq.toml and can advertise dead/uncredentialed tokens. Make the tab show the ACTUALLY-configured models. The model class + per-harness mappings are live-config-dependent ([agent_tiers]/[tiers]), so resolve them at RUNTIME via the MCP server (which owns the live config + the resolveAgentTier/classifyToken/selectTokensForTier logic), NOT at build time. Recommended shape: a server-side capability (e.g. a new get_agent_models, or extend get_config to expose agent_tiers + the [tiers] classifier) returning each agent's resolved class + per-harness token mappings; ledger-web (a pure MCP client) fetches it on mount and OVERLAYS the live model fields onto the static build-time catalogue, showing 'default / not configured' when unconfigured or a tier has no live token (so a dead token like grok-build shows as unclassified rather than a confident mapping). KEEP the static fields (kind/description/inputs/outputs/ioSchema/prompt-template/privilege/exposedTools) build-time-generated from cq-assets; ONLY model class + mappings move to runtime. Eliminates the example-vs-live divergence + the model-field staleness the build-time catalogue currently has (the freshness test then only guards the static fields).
-- sessionLogs: ["docs/logs/20260608-150928-abb5622a0a388a034.md","docs/logs/20260608-164941-a5d36f435cca65291.md","docs/logs/20260608-164941-pi-minimax.md","docs/logs/20260608-164941-pi-grok.md","docs/logs/20260608-171607-af1c0c727cb095306.md","docs/logs/20260608-171607-pi-minimax-review.md","docs/logs/20260608-171607-pi-grokbuild-reviewers.md","docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-172307-pi-minimax-review2.md","docs/logs/20260608-172840-a519de836685f06ad.md","docs/logs/20260608-173914-afe412ded4d773ce0.md","docs/logs/20260608-173914-pi-minimax-review3.md","docs/logs/20260608-213828-aea09588159dc453d.md"]
-- milestones: ["M109","M110","M111","M112"]
+- sessionLogs: ["docs/logs/20260608-150928-abb5622a0a388a034.md","docs/logs/20260608-164941-a5d36f435cca65291.md","docs/logs/20260608-164941-pi-minimax.md","docs/logs/20260608-164941-pi-grok.md","docs/logs/20260608-171607-af1c0c727cb095306.md","docs/logs/20260608-171607-pi-minimax-review.md","docs/logs/20260608-171607-pi-grokbuild-reviewers.md","docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-172307-pi-minimax-review2.md","docs/logs/20260608-172840-a519de836685f06ad.md","docs/logs/20260608-173914-afe412ded4d773ce0.md","docs/logs/20260608-173914-pi-minimax-review3.md","docs/logs/20260608-213828-aea09588159dc453d.md","docs/logs/20260608-222414-a58036787c4a70508.md","docs/logs/20260608-222414-pi-minimax-G34-planner.md"]
+- milestones: ["M109","M110","M111","M112","M116","M118","M120"]
 
 ## M113
 
@@ -282,10 +282,10 @@ archives:
 
 ## M115
 
-### G36 — clarifying
+### G36 — planned
 
 - createdAt: 2026-06-08T21:39:45.920Z
-- updatedAt: 2026-06-08T21:44:51.644Z
+- updatedAt: 2026-06-08T23:47:23.976Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - title: Optional thinking-effort parameter in cq model-identifier tokens
@@ -297,4 +297,5 @@ archives:
     This builds on G29's provider-qualified grammar (pi:<provider>/<model>, claude:<model>) — reconcile the separator (effort suffixed after the model with a colon vs the provider's slash) so parsing stays unambiguous (note: pi:<provider>/<model> already uses '/' between provider and model, and ':' between harness and the rest; an effort suffix as a final ':<effort>' must parse unambiguously against models whose names may contain characters like '[1m]'). Update cq.toml.example + the token-format docs + tests.
     
     Note: parseReviewerToken structural equality (reviewerTokensEqual) + the D42 dup-token guard + the [tiers] classifier all consume ReviewerToken — decide whether effort participates in token IDENTITY/equality (e.g. is claude:opus:high a different token from claude:opus:low for classification/dedup purposes?).
-- sessionLogs: ["docs/logs/20260608-214433-a707e2b139c1f08ab.md"]
+- sessionLogs: ["docs/logs/20260608-214433-a707e2b139c1f08ab.md","docs/logs/20260608-222414-aadaf1a943efd555c.md","docs/logs/20260608-222414-pi-minimax-G36-planner.md"]
+- milestones: ["M117","M119","M121"]

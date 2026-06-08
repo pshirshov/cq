@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 56
+  item: 58
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -270,6 +270,16 @@ archives:
 - rationale: "The follow-up extension to G34 (add per-role PRIVILEGE class RO/RW + EXPOSED TOOLS to the Agents-tab cards) reached unanimous go-ahead at review R326 (panel opus[claude] + minimax[pi:ollama-cloud]; grok-build excluded as a documented operational stall). Per locked answers Q151-Q153 the two fields are DERIVED MECHANICALLY (not authored): subagent privilege = RW iff none of {Write,Edit,MultiEdit,NotebookEdit,Bash} in disallowedTools else RO; command privilege = RW iff allowed-tools contains {Write,Edit,Bash} else RO; exposed tools shown RAW per-kind (disallowedTools+isolation for subagents / allowed-tools for commands / 'none declared'); the T275 parser is extended to read command allowed-tools. The extension folds into the existing W3 tasks T275/T276/T278/T279/T281 (no new tasks) and leaves the R325-approved base (W1/W2/W4, decision K54) and its sequencing intact. Known faithful consequence (recorded, not a defect): implement-reviewer's frontmatter omits Bash, so the strict rule derives it RW. G34 -> planned (extends K54)."
 - ledgerRefs: ["goals:G34"]
 
+### K57 — locked
+
+- createdAt: 2026-06-08T23:46:57.362Z
+- updatedAt: 2026-06-08T23:46:57.362Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "G34 follow-up #2 plan LOCKED (go-ahead R343): live-model Agents-tab overlay via runtime get_agent_models"
+- rationale: "Plan for G34 follow-up #2 locked after a 2-round multi-planner/reviewer cycle (planners opus+minimax synthesized by the orchestrator, grok abstained; reviewers opus go-ahead + minimax abstained R2, grok/codex abstained — no API keys). 3 work milestones (M116 server / M118 web / M120 codegen), 10 tasks T283-T300. Architecture: NEW dedicated get_agent_models MCP tool (server-resolved 4-state overlay: resolved/not-configured/no-live-token/not-model-configurable) over the fixed 19-role roster keyed by AgentRole.id; ledger-web overlays it and DROPS the build-time model/modelMappings entirely (Q155), rendering distinguished labels (incl. 'default / not configured' on overlay-unavailable) with a catch-ANY-error fallback. R341 corrected the candidate planners' KEEP-as-fallback misread of Q155 + a LedgerToolError-narrowing gap + a false enum-identity claim + test-coverage gaps; R343 confirmed go-ahead."
+- ledgerRefs: ["goals:G34"]
+
 ## M113
 
 ### K56 — locked
@@ -281,3 +291,15 @@ archives:
 - headline: "G35 plan review: approved"
 - rationale: "G35 (defect-seeded fix for D42 — fail-loud on duplicate-token [tiers] classification in parseTiers) reached go-ahead at plan review (opus[claude] authoritative; grok-build stall, minimax not run for this tiny fully-specified plan). Locked plan: 1 work milestone M114, 1 task T282 (parseTiers throws CqConfigError naming both conflicting keys on a duplicate-token classification + tests: dup-throws, single-no-throw, existing-fixtures-still-parse). Grounded in confirmed root cause H30. G35 -> planned."
 - ledgerRefs: ["goals:G35"]
+
+## M115
+
+### K58 — locked
+
+- createdAt: 2026-06-08T23:47:06.291Z
+- updatedAt: 2026-06-08T23:47:06.291Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "G36 plan LOCKED (go-ahead R344): optional thinking-effort suffix in cq model-identifier tokens"
+- rationale: "Plan for G36 locked after a 2-round multi-planner/reviewer cycle (planners opus+minimax synthesized, grok abstained; reviewers opus+minimax both go-ahead R2, grok/codex abstained — no API keys). 3 work milestones (M117 @cq/config core / M119 wire+extension / M121 docs+check), 8 tasks T284-T298. Locked design: trailing ':<effort>' off the LAST colon (Q160), gated by isEffort(harness,suffix) so opus-4.8[1m] stays unambiguous; ':' RESERVED in BOTH model halves; FIXED VALIDATED PER-HARNESS enums (Q161 — PI_EFFORTS off/minimal/low/medium/high/xhigh, CLAUDE_EFFORTS low/medium/high/xhigh/max) w/ fail-fast; effort IS part of token identity (reviewerTokensEqual; Q162); pi emits effort via the '--model provider/model:<effort>' SHORTHAND (R342 correction — NOT a --thinking flag), claude path inert in the pi-extension (Q163); optional effort on get_planners/get_reviewers/get_config (Q164). R342 corrected the wrong '--thinking' emission + 2 spurious dependsOn edges + the pi-model-half colon-reservation gap; R344 confirmed go-ahead."
+- ledgerRefs: ["goals:G36"]

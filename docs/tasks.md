@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 282
+  item: 300
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -443,3 +443,259 @@ archives:
 - resultCommit: 2b1a2e0
 - completion: "Satisfied within T267's commit (2b1a2e0): the T267 worker updated packages/ledger-web/test/{helpTabs.test.tsx,stateMachineTab.test.tsx} to the new item-states testids (help-tab-item-states / help-item-states / help-item-state-<ledger>) with per-ledger diagram coverage preserved, to keep `bun run check` green. Verified on main: `rg statemachine packages/ledger-web/test` returns nothing; the tests assert the renamed testids + per-ledger rendering; integrated bun run check green 1135/1skip/0. Those test files were part of the R327-reviewed T267 diff (reviewer noted coverage preserved). No separate worker needed."
 - sessionLogs: ["docs/logs/20260608-180917-a27f1b85731cda97f.md"]
+
+## M116
+
+### T283 — done
+
+- createdAt: 2026-06-08T23:42:01.475Z
+- updatedAt: 2026-06-08T23:47:51.207Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Define the AgentModelsResult wire shape + status enum in @cq/ledger
+- description: "In @cq/ledger add the server-resolved overlay types for the new get_agent_models tool. Define: (a) AgentModelStatus union with exactly four variants (Q157+Q158) — 'resolved' / 'not-configured' (no cq.toml) / 'no-live-token' (cq.toml present, role's tier has no live token of that class) / 'not-model-configurable' (no agentTierKey, orchestrator commands -> N/A); (b) AgentModelEntry = { id: string; status: AgentModelStatus; modelClass: 'frontier'|'standard'|'fast'|null; modelMappings: { claude?: string[]; pi?: string[] } } (id = AgentRole.id / [agent_tiers] key); (c) AgentModelsResult = { configured: boolean; agents: AgentModelEntry[] }. Add computeAgentModels to the ConfigCapability interface. NOTE (R341): do NOT claim enum identity with the web ModelClass; the client owns a single status->render-label mapping."
+- acceptance: bun run typecheck passes; AgentModelStatus/AgentModelEntry/AgentModelsResult + ConfigCapability.computeAgentModels importable from @cq/ledger; grep shows the four-variant union verbatim; doc comment states client maps status->label.
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G34"]
+- resultCommit: 144abf9
+- completion: Added AgentModelsResult/AgentModelEntry/AgentModelStatus (4-variant) wire shape + computeAgentModels on ConfigCapability (T285-stubbed) to @cq/ledger; merged to main.
+- sessionLogs: ["docs/logs/20260608-224554-a9893f49215c88bc3.md","docs/logs/20260608-224554-a3776cab04afb9430.md","docs/logs/20260608-224554-pi-minimax-T283.md"]
+
+### T285 — done
+
+- createdAt: 2026-06-08T23:42:24.478Z
+- updatedAt: 2026-06-08T23:47:53.080Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Implement computeAgentModels in ledger-mcp configCapability.ts over the fixed 19-role roster
+- description: "In packages/ledger-mcp/src/configCapability.ts add computeAgentModels(repoRoot): AgentModelsResult and wire it into createConfigCapability (replacing the T283 throwing stub). Role roster = the SAME fixed 19-role set the codegen uses (Q158): extract (id, agentTierKey) into a SHARED constant (in @cq/config) so server and gen-agents agree (anti-drift), not a duplicated list. Per role: agentTierKey null -> 'not-model-configurable'; loadConfig null -> 'not-configured'; else resolve union(planners∪reviewers) via [aliases] (Q156), tier via resolveAgentTier, tokens via selectTokensForTier grouped per harness; empty -> 'no-live-token' (modelClass=tier); else 'resolved' (modelClass=tier, mappings deduped/sorted/pi-provider-qualified EXACTLY as deriveModelMappings). Re-read cq.toml per call; configured = (config !== null)."
+- acceptance: "Unit tests: fixture cq.toml -> 'resolved' entries w/ expected per-harness tokens for >=1 subagent; no-live-token case; orchestrator roles 'not-model-configurable'; absent cq.toml -> all model-configurable 'not-configured'. Round-2 added a multi-harness resolved test + deterministic sort-order test. bun test green."
+- suggestedModel: frontier
+- dependsOn: ["T283"]
+- ledgerRefs: ["goals:G34"]
+- resultCommit: 22db64f
+- completion: Real computeAgentModels over the shared 19-role roster (AGENT_ROLE_TIERS) w/ 4-state resolution + deriveModelMappings parity + anti-drift codegen guard; merged to main (integrated check 1253/0).
+- sessionLogs: ["docs/logs/20260608-230534-ace7c3cf65017fd97.md","docs/logs/20260608-232207-adfabb9f40e11648d.md","docs/logs/20260608-232207-T285-opus-review.md","docs/logs/20260608-232207-pi-minimax-T285-review.md"]
+
+### T287 — wip
+
+- createdAt: 2026-06-08T23:42:41.984Z
+- updatedAt: 2026-06-08T23:47:36.228Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Register the get_agent_models MCP tool wired to computeAgentModels
+- description: "Register a new get_agent_models MCP tool alongside get_config/get_planners/get_reviewers in @cq/ledger's tool factory (createLedgerMcpTools + registerLedgerStdioTools), identical pattern to get_config: empty input schema, returns AgentModelsResult JSON text block (calls ConfigCapability.computeAgentModels), same 'not-implemented' error when no ConfigCapability injected. Tool description documents the four status variants. Exposed in BOTH stdio and HTTP wiring (embedded web server main.ts attachMcpHttp serves it). Bump the tool-count constant/drift test."
+- acceptance: ledger-mcp server-level test calls get_agent_models via in-memory/stdio with a fixture repo root -> parseable AgentModelsResult with 19 entries; no-capability server returns the not-implemented error shape; bun test green.
+- suggestedModel: standard
+- dependsOn: ["T285"]
+- ledgerRefs: ["goals:G34"]
+
+## M117
+
+### T284 — done
+
+- createdAt: 2026-06-08T23:42:10.972Z
+- updatedAt: 2026-06-08T23:47:51.246Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Define per-harness effort enums + isEffort guard in @cq/config types.ts
+- description: "In packages/cq-config/src/types.ts add two closed effort vocabularies (SINGLE SOURCE OF TRUTH per R342), modelled on the HARNESSES/TIERS `as const` + guard pattern: PI_EFFORTS = ['off','minimal','low','medium','high','xhigh'] as const; CLAUDE_EFFORTS = ['low','medium','high','xhigh','max'] as const ('ultracode' excluded). Export PiEffort/ClaudeEffort/Effort types + harness-keyed guard isEffort(harness, value): value is Effort. Add optional `effort?: Effort | null` to ReviewerToken (null/omitted = default; current behavior unchanged). Export new symbols from index.ts. The inlined pi-extension mirror (T294) copies the enum lists with a keep-in-sync note. Re-confirm pi vocabulary against the installed CLI before pinning."
+- acceptance: bun run typecheck passes; tests assert isEffort('pi','xhigh')===true, isEffort('claude','xhigh')===true, isEffort('pi','max')===false, isEffort('claude','off')===false, isEffort('pi','bogus')===false; ReviewerToken has optional effort; PI_EFFORTS/CLAUDE_EFFORTS/isEffort/Effort/PiEffort/ClaudeEffort re-exported from @cq/config.
+- suggestedModel: standard
+- ledgerRefs: ["goals:G36"]
+- resultCommit: 005c19c
+- completion: Added PI_EFFORTS/CLAUDE_EFFORTS enums + isEffort guard + optional ReviewerToken.effort + effort.test.ts to @cq/config; merged to main.
+- sessionLogs: ["docs/logs/20260608-224554-a494f4d6d135fcfd0.md","docs/logs/20260608-224554-a1296c5cb2387a4b5.md","docs/logs/20260608-224554-pi-minimax-T284.md"]
+
+### T286 — done
+
+- createdAt: 2026-06-08T23:42:33.965Z
+- updatedAt: 2026-06-08T23:47:56.326Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "Parse trailing :<effort> in parseReviewerToken with fail-fast per-harness validation"
+- description: "Rewrite parseReviewerToken in config.ts so the LAST ':' delimits an OPTIONAL effort suffix (Q160): (1) split harness off the FIRST ':'; (2) split a candidate suffix off the LAST ':' on the remainder, treat as effort ONLY IF isEffort(harness, suffix) (bracket suffixes like [1m] have no ':' so claude:opus-4.8[1m] -> effort null); (3) ':' RESERVED in the residual model on BOTH the claude model AND the pi model half (R342) -> a residual ':' that is not a valid effort throws CqConfigError; (4) pi provider-'/' split + claude no-'/' rule; (5) FAIL FAST naming bad effort + legal set. Omitted -> effort:null. Replace the old 'further colons preserved' jsdoc."
+- acceptance: "Tests: pi:grok-build/grok-build:xhigh -> effort 'xhigh'; claude:opus-4.8[1m]:high -> effort 'high'; claude:opus-4.8[1m] + pi:ollama-cloud/minimax-m3 -> null. Rejections (CqConfigError naming value+legal set): claude:opus:off, pi:p/m:max, claude:opus:bogus, a claude model w/ stray ':', and a pi model half w/ ':' (pi:prov/mo:del)."
+- suggestedModel: frontier
+- dependsOn: ["T284"]
+- ledgerRefs: ["goals:G36"]
+- resultCommit: 84d8942
+- completion: "parseReviewerToken parses an optional trailing :<effort> (last-colon + isEffort gate; ':' reserved on both model halves R342; fail-fast); merged to main (integrated check 1253/0)."
+- sessionLogs: ["docs/logs/20260608-230534-ab4baeed6d61bcb18.md","docs/logs/20260608-232207-ac75086100dd23950.md","docs/logs/20260608-232207-T286-opus-review.md","docs/logs/20260608-232207-pi-minimax-T286-review.md"]
+
+### T288 — wip
+
+- createdAt: 2026-06-08T23:42:51.603Z
+- updatedAt: 2026-06-08T23:47:37.409Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Round-trip effort in formatReviewerToken
+- description: "Update formatReviewerToken in config.ts to re-append `:${token.effort}` when effort is non-null, for BOTH the claude (harness:model) and pi (harness:provider/model) branches, so parse∘format is identity (Q160 round-trip-safe). When effort is null, output is byte-identical to today. Pure render; no validation (token already validated at parse). Keep diff confined to formatReviewerToken + tests (do NOT touch reviewerTokensEqual — T290 — to avoid a config.ts merge conflict)."
+- acceptance: "Round-trip tests: for pi:grok-build/grok-build:xhigh, claude:opus-4.8[1m]:high, pi:ollama-cloud/minimax-m3, claude:opus-4.8[1m], formatReviewerToken(parseReviewerToken(s))===s. effort:null emits no trailing :<effort>. bun run check green."
+- suggestedModel: standard
+- dependsOn: ["T286"]
+- ledgerRefs: ["goals:G36"]
+
+### T290 — planned
+
+- createdAt: 2026-06-08T23:43:12.225Z
+- updatedAt: 2026-06-08T23:43:12.225Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Make effort part of token identity in reviewerTokensEqual + verify classify/D42
+- description: "Update reviewerTokensEqual in config.ts to also compare `effort` (Q162: effort IS part of token identity), so claude:opus:high != claude:opus:low for classifyToken and the parseTiers D42 dup-guard, while two literal occurrences of the SAME effort still collide (D42 fires). classifyToken + the parseTiers dup-find both delegate to reviewerTokensEqual, so no further code change — confirm + add tests. Treat undefined (omitted) and null as the same equivalence class. Update the jsdoc."
+- acceptance: "Tests: reviewerTokensEqual(parse('claude:opus-4.8[1m]:high'), parse('claude:opus-4.8[1m]:low'))===false; ===true for two parses of the same high; ===true for two effortless parses. parseTiers throws the dup-guard on two keys resolving to the SAME (harness,provider,model,effort) token but ACCEPTS two keys differing only in effort. classifyToken returns distinct classes for the same model at different efforts. bun run check green."
+- suggestedModel: frontier
+- dependsOn: ["T286"]
+- ledgerRefs: ["goals:G36"]
+
+## M118
+
+### T289 — planned
+
+- createdAt: 2026-06-08T23:43:02.233Z
+- updatedAt: 2026-06-08T23:43:02.233Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Add getAgentModels to the web LedgerClient interface + McpLedgerClient
+- description: "In packages/ledger-web/src/types.ts add getAgentModels(): Promise<AgentModelsResult> to LedgerClient + re-export the AgentModelsResult/AgentModelEntry/AgentModelStatus types (type-only) from @cq/ledger. In mcpClient.ts implement via this.call<AgentModelsResult>('get_agent_models', {}). Per R341: the caller must fall back on ANY thrown error — NOT only LedgerToolError. An older/embedded server lacking the tool throws a generic SDK unknown-tool/method-not-found error (McpLedgerClient only builds LedgerToolError on an isError result), so getAgentModels must surface whatever it throws unchanged (do NOT swallow); the UI (T293) catches ANY error and falls back (Q155)."
+- acceptance: bun run typecheck passes for ledger-web; McpLedgerClient implements the new member; one get_agent_models tool call, JSON-decoded; a thrown error (LedgerToolError OR generic SDK unknown-tool) propagates rather than being swallowed.
+- suggestedModel: standard
+- dependsOn: ["T287"]
+- ledgerRefs: ["goals:G34"]
+
+### T291 — planned
+
+- createdAt: 2026-06-08T23:43:21.202Z
+- updatedAt: 2026-06-08T23:43:40.614Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Implement getAgentModels in the test FakeClient returning a synthetic live overlay
+- description: "In packages/ledger-web/test/fakeClient.ts implement getAgentModels to satisfy the extended LedgerClient interface. Per R341 the fake must drive ALL FOUR Q157 states so the distinguished-fallback test can assert each: 'resolved' (a synthetic LIVE entry that DIFFERS from the dropped build-time value for at least implement-worker and plan-reviewer — distinct modelClass + per-harness token), 'no-live-token' (>=1 entry), 'not-configured' (configured:false switch), and 'not-model-configurable' (orchestrator-command roles). Expose a switch so a test can make getAgentModels REJECT (throw) to exercise the catch-any-error -> distinguished offline path (Q155)."
+- acceptance: bun run typecheck passes; FakeClient implements LedgerClient incl. getAgentModels and can emit each of the four states plus a throwing mode; existing agentsTab/flowsTab tests still compile and run. bun test green for the unchanged suites.
+- suggestedModel: standard
+- dependsOn: ["T289"]
+- ledgerRefs: ["goals:G34"]
+
+### T293 — planned
+
+- createdAt: 2026-06-08T23:43:59.290Z
+- updatedAt: 2026-06-08T23:44:20.258Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Fetch get_agent_models on mount and overlay live model fields onto the static AGENT_ROLES in AppState
+- description: "In App.tsx fetch client.getAgentModels() once on mount into { overlay: Map<id,AgentModelEntry>|null, overlayError: boolean }. Per R341 (Q155 = DROP): AgentRole no longer carries model/modelMappings (T299), so NO static model fallback. On success store the map; on ANY thrown error (LedgerToolError OR generic SDK unknown-tool from older/embedded server) set overlayError=true (catch-all). Build the model view PURELY from the overlay entry: 'resolved' -> modelClass + modelMappings; 'no-live-token' -> 'no live token for <tier>'; 'not-configured' -> 'not configured (no cq.toml)'; 'not-model-configurable' -> 'N/A'; overlayError -> 'default / not configured'. Keep all OTHER fields from static AGENT_ROLES."
+- acceptance: With FakeClient 'resolved' overlay, help-agent-implement-worker model cell shows the live modelClass/token; with the throwing mode it shows 'default / not configured' (no build-time value); each of the four states renders its distinguished label (verified by T297). bun run typecheck passes.
+- suggestedModel: frontier
+- dependsOn: ["T291"]
+- ledgerRefs: ["goals:G34"]
+
+### T295 — planned
+
+- createdAt: 2026-06-08T23:44:44.382Z
+- updatedAt: 2026-06-08T23:44:44.382Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Render the distinguished model-state labels in the AgentsTab card
+- description: "Update the AgentsTab render in App.tsx so the model cell renders the overlay-driven value via a SINGLE status->label mapping (the source of truth per R341): 'resolved' -> tier class + per-harness token chips; 'no-live-token' -> 'no live token for <tier>'; 'not-configured' -> 'not configured (no cq.toml)'; 'not-model-configurable' -> 'N/A'; overlay-unavailable (overlayError) -> 'default / not configured'. There is NO build-time model fallback (Q155 = DROP; AgentRole carries no model field after T299). Preserve existing testids (help-agent-<id>, -privilege, -tools, -prompt) and add a stable help-agent-<id>-model testid."
+- acceptance: bun run typecheck + bun run lint pass; help-agent-<id>-model testid present for every role; the five label outcomes appear verbatim for the corresponding FakeClient states; no code path reads a removed AgentRole.model field.
+- suggestedModel: standard
+- dependsOn: ["T293"]
+- ledgerRefs: ["goals:G34"]
+
+### T297 — planned
+
+- createdAt: 2026-06-08T23:45:02.882Z
+- updatedAt: 2026-06-08T23:45:02.882Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "Extend agentsTab.test.tsx: assert live overlay AND distinguished fallback labels"
+- description: "Update packages/ledger-web/test/agentsTab.test.tsx (Q159 bar, per R341): (1) with FakeClient 'resolved' overlay assert help-agent-implement-worker-model shows the live modelClass + token; (2) with the throwing mode assert the model cell shows 'default / not configured' (overlay-unavailable; NOT a build-time value); (3) assert 'not-configured' renders 'not configured (no cq.toml)' and a 'no-live-token' role renders 'no live token for <tier>'; (4) assert a 'not-model-configurable' role (one of 12 orchestrator-command roles, no agentTierKey) renders 'N/A'; (5) keep the static-field assertions unchanged. Use the mount/flush/openAgentsTab harness, awaiting the mount fetch."
+- acceptance: bun test agentsTab.test.tsx green with all five new assertions incl. the not-model-configurable (N/A) branch; the resolved-overlay test fails if the UI renders a static value; no assertion references a removed AgentRole.model field.
+- suggestedModel: standard
+- dependsOn: ["T295"]
+- ledgerRefs: ["goals:G34"]
+
+## M119
+
+### T292 — planned
+
+- createdAt: 2026-06-08T23:43:51.569Z
+- updatedAt: 2026-06-08T23:43:51.569Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Add optional effort to get_planners/get_reviewers/get_config wire shapes
+- description: "Q164: surface effort over MCP. In @cq/ledger (defines ResolvedReviewer/ResolvedPlanner/GetReviewersResult/GetPlannersResult/GetConfigResult; imported by ledger-mcp/src/configCapability.ts) add an OPTIONAL `effort?: string | null` to: the per-reviewer/per-planner resolved shape, the [aliases] entry shape in GetConfigResult, and each [tiers] slot shape. Thread it through configCapability.ts: computeReviewers/computePlanners map token.effort; projectConfig copies token.effort into each alias entry + derived tier slot. Preserve current output exactly when effort is null. Update any JSON-schema backing the MCP tools."
+- acceptance: "bun run typecheck + bun test green. A configCapability test with an alias pi:grok-build/grok-build:xhigh shows get_reviewers/get_planners/get_config emit effort:'xhigh' on the corresponding entries, effort:null (or omitted) for an effortless alias; no diff in output fields for an all-effortless config beyond the new optional key."
+- suggestedModel: standard
+- dependsOn: ["T286"]
+- ledgerRefs: ["goals:G36"]
+
+### T294 — planned
+
+- createdAt: 2026-06-08T23:44:34.976Z
+- updatedAt: 2026-06-08T23:44:34.976Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "Thread effort through the cq-subagent-dispatch inlined resolver; emit pi effort via the --model :<effort> shorthand"
+- description: "In nix/pkg/pi-extensions/cq-subagent-dispatch.ts mirror the @cq/config change in the INLINED resolver (copied, NOT imported — standalone nix-store .ts; keep an inlined mirror with a 'mirror of @cq/config — keep in sync' note copying PI_EFFORTS/CLAUDE_EFFORTS). (1) Add effort:string|null to CqToken. (2) parseCqToken: split optional trailing-LAST-':' effort, validate against inlined per-harness sets; reserve ':' in the residual model (both claude model + pi model half, mirroring T286); pin+document the unsupported-effort behavior (Q163 fail-fast vs lenient policy). (3) tokenToChildModel: pi token -> {provider,model,effort}; claude path returns null (parent fallback, effort inert). (4) EMISSION (R342 CORRECTION): pi reasoning-effort is the thinking-level SHORTHAND on the model token — child --model value becomes <provider>/<model>:<effort> — NOT a separate '--thinking' flag; append ':<effort>' to the --model arg, do NOT push '--thinking'. Confirm shorthand vs installed pi CLI. Record childEffort on DispatchDetails. claude fallback: ignore effort, no flag, no error, record inertly."
+- acceptance: "Unit test (pure resolver, no spawn) — the Q165 pi-extension mirror test: (a) parseCqToken('pi:grok-build/grok-build:xhigh') -> effort 'xhigh' and child --model is 'grok-build/grok-build:xhigh' (NO '--thinking' token); (b) claude:opus-4.8[1m]:high -> tokenToChildModel null (parent fallback), no effort to child, no error, details record 'high' inertly; (c) effortless pi token -> no ':<effort>' suffix; (d) documented unsupported-effort behavior asserted."
+- suggestedModel: frontier
+- dependsOn: ["T286"]
+- ledgerRefs: ["goals:G36"]
+
+## M121
+
+### T296 — planned
+
+- createdAt: 2026-06-08T23:44:53.948Z
+- updatedAt: 2026-06-08T23:44:53.948Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: Update cq.toml.example and the token-format docs for the effort suffix
+- description: "Locate cq.toml.example + the token-format docs/comments (parseReviewerToken module header; token-grammar doc/markdown; cq.toml comment block). Document the OPTIONAL trailing :<effort> suffix: grammar harness:[provider/]model[:effort]; ':' RESERVED in model names (BOTH the claude model and the pi model half); per-harness legal enums (pi: off/minimal/low/medium/high/xhigh; claude: low/medium/high/xhigh/max); omitted = provider/model default (unchanged). Per R342: describe the pi invocation as the '--model provider/model:<effort>' thinking-level SHORTHAND (NOT a '--thinking' flag) + the claude-inert-in-pi-extension caveat (Q163). Add >=1 pi and >=1 claude alias carrying an effort suffix to cq.toml.example. Surgical edits."
+- acceptance: "cq.toml.example has >=1 pi and >=1 claude alias w/ an effort suffix and still parses without error (example-load test passes). Docs describe the [:effort] grammar, reserved ':' on both halves, both enums, and the pi '--model …:<effort>' shorthand (no '--thinking'). bun run lint passes."
+- suggestedModel: fast
+- dependsOn: ["T292","T294"]
+- ledgerRefs: ["goals:G36"]
+
+### T298 — planned
+
+- createdAt: 2026-06-08T23:45:11.084Z
+- updatedAt: 2026-06-08T23:45:11.084Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "Full green check: bun run check + nix build .#ledger-mcp"
+- description: "Run the full verification bar (Q165). From nix/pkg/cq-ledgers/: bun run check (typecheck + lint + bun test) must pass with the new effort tests. From repo root: nix build .#ledger-mcp must succeed (the MCP wire-shape change must build under Nix). Triage/fix any regression (e.g. a token test that assumed colons preserved verbatim in the model, or a get_config snapshot now carrying the optional effort key). Do NOT refresh the FOD hash unless deps changed (this goal adds none)."
+- acceptance: bun run check exits 0 from nix/pkg/cq-ledgers/; nix build .#ledger-mcp exits 0; no skipped/xfail effort tests; any pre-existing test broken by the grammar change updated to the new contract (not deleted).
+- suggestedModel: standard
+- dependsOn: ["T296"]
+- ledgerRefs: ["goals:G36"]
+
+## M120
+
+### T299 — planned
+
+- createdAt: 2026-06-08T23:45:22.171Z
+- updatedAt: 2026-06-08T23:45:22.171Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: DROP model/modelMappings from gen-agents + AgentRole; shrink freshness test to static-only fields
+- description: "Per R341, Q155 = DROP (NOT keep-as-fallback): model class + mappings resolve at RUNTIME, so remove them from the build-time catalogue. (1) gen-agents-catalogue.ts: stop emitting model/modelMappings (remove deriveModelClass/deriveModelMappings from the generated output) + regenerate agentsCatalogue.gen.ts so the committed file no longer carries them. (2) agentsCatalogue.ts: remove model/modelMappings from AgentRole (and ModelClass/HarnessModelMappings if now unused). (3) update every consumer of role.model/role.modelMappings (App.tsx uses the overlay only). (4) Narrow the catalogue FRESHNESS test (agentsCatalogue.gen.test.ts — full-file byte diff + the Part-(a) `model`-field assertion): remove/replace the model-field assertion, guard ONLY static fields. NOTE: the T285 shared roster (AGENT_ROLE_TIERS) + assertRosterMatchesShared are SEPARATE and stay."
+- acceptance: bun run check green; agentsCatalogue.gen.ts no longer contains model/modelMappings; AgentRole has no model/modelMappings field; freshness test passes + no longer references cq.toml.example-derived model data; grep confirms no remaining read of AgentRole.model/modelMappings in src/.
+- suggestedModel: standard
+- dependsOn: ["T297"]
+- ledgerRefs: ["goals:G34"]
+
+### T300 — planned
+
+- createdAt: 2026-06-08T23:45:29.275Z
+- updatedAt: 2026-06-08T23:45:29.275Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "Full verification: bun run check + nix build of ledger-mcp and ledger-web"
+- description: "Run the whole suite + the two Nix product builds to confirm ff#2 is green end to end and the embedded-mode web server serves the new capability. From nix/pkg/cq-ledgers/: bun run check. From repo root: nix build .#ledger-mcp and nix build .#ledger-web. Fix any fallout (missing not-implemented branch, a leaked node import into the browser bundle, or a stale FOD hash if deps changed)."
+- acceptance: "bun run check exits 0; nix build .#ledger-mcp and .#ledger-web both succeed; no new lint/type errors; the browser bundle imports no node:* builtins."
+- suggestedModel: standard
+- dependsOn: ["T299"]
+- ledgerRefs: ["goals:G34"]

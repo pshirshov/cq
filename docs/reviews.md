@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 340
+  item: 348
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -744,6 +744,30 @@ archives:
 - ledgerRefs: ["goals:G34"]
 - sessionLogs: ["docs/logs/20260608-173914-afe412ded4d773ce0.md","docs/logs/20260608-173914-pi-minimax-review3.md"]
 
+### R341 — revise
+
+- createdAt: 2026-06-08T23:45:49.795Z
+- updatedAt: 2026-06-08T23:45:49.795Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "revise (opus+minimax concur; grok+codex abstained — no key): the ff#2 plan CONTRADICTS the authoritative Q155 answer (DROP build-time model fields) by keeping them as a static fallback; plus a fallback error-type gap and a server/web modelClass enum mismatch. [round 1]"
+- new_questions: []
+- criticism: ["[opus+minimax] Q155 is answered 'as recommended' = DROP the build-time model/modelMappings fields; the plan does the OPPOSITE (T299 keeps gen-agents emitting them, T293/T295 render the static value on overlay error). Rework T283/T293/T295/T299 to DROP + render the distinguished states on the no-overlay path. Q155 is already answered — conform, do NOT bounce to the user.","[opus] T289/T293 key the overlay fallback on a thrown LedgerToolError, but an older/embedded server lacking get_agent_models surfaces a generic JSON-RPC unknown-tool error (not LedgerToolError); the mount fetch must catch ANY thrown error.","[opus] T283 falsely claims server modelClass enum identity with the web ModelClass ('N/A'/'default' exist only client-side); the status->label mapping (T293/T295) is the source of truth.","[minimax] T297 omits the 'not-model-configurable' (N/A) test branch that 12/19 roles hit (Q158) — add it.","[minimax] FakeClient (T291) should drive ALL FOUR states, not just an error switch + configured:false."]
+- ledgerRefs: ["goals:G34"]
+- sessionLogs: ["docs/logs/20260608-222414-ada3efe664c6d902e.md","docs/logs/20260608-222414-pi-minimax-G34-review.md"]
+
+### R343 — go-ahead
+
+- createdAt: 2026-06-08T23:46:09.775Z
+- updatedAt: 2026-06-08T23:46:09.775Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (round 2; opus go-ahead, minimax abstained [unparseable], grok+codex abstained [no key]). All five R341 criticisms resolved: Q155 DROP honored (T299 removes model/modelMappings from gen-agents + AgentRole, narrows freshness test; T283/T293/T295 no build-time fallback, distinguished states incl. 'default / not configured'); catch-ANY-error fallback (T289/T293); false enum-identity claim dropped (T283); T297 adds the N/A branch; T291 FakeClient drives all 4 states. DAG linear/acyclic; T300 = bun run check + nix build .#ledger-mcp/.#ledger-web."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G34"]
+- sessionLogs: ["docs/logs/20260608-223229-a613b3ee33ccc93fe.md","docs/logs/20260608-223229-pi-minimax-G34-review2.md"]
+
 ## M109
 
 ### R327 — go-ahead
@@ -771,3 +795,81 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G35","defects:D42"]
 - sessionLogs: ["docs/logs/20260608-204503-G35-plan-review.md"]
+
+## M115
+
+### R342 — revise
+
+- createdAt: 2026-06-08T23:46:01.349Z
+- updatedAt: 2026-06-08T23:46:01.349Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "revise (opus+minimax concur; grok+codex abstained — no key): the effort plan is sound but T294 emits the pi effort as a wrong '--thinking <effort>' flag (pi uses the '--model provider/model:level' shorthand), and T292/T294 carry spurious dependsOn edges. [round 1]"
+- new_questions: []
+- criticism: ["[opus; minimax-corroborated] T294 hard-asserts a separate '--thinking <effort>' flag; pi's mechanism is the thinking-level SHORTHAND on the model token ('--model provider/model:high', same trailing-colon syntax) — NOT a flag. Rewrite T294's emission + acceptance to append ':<effort>' to --model; fix T296 docs.","[opus+minimax] T292 dependsOn [T288,T290] but projecting effort onto the wire shapes only needs the parsed effort field (T286) — repoint to [T286].","[opus] T294 dependsOn [T288] but the inlined resolver shares no code with formatReviewerToken; its prerequisite is the T286 parse/reserved-':' design — repoint to [T286].","[opus] T286 + the T294 mirror should reserve ':' in the pi MODEL HALF too (the shorthand collides if the model id carried a ':'); cover a colon in the pi model half in the reserved-':' test.","[minimax] Pin the per-harness enums as the single source of truth (types.ts exports; the inlined mirror copies w/ a keep-in-sync note).","[minimax] T294 should enumerate its test surface (pi->--model:effort; claude->inert no-flag; unsupported->documented)."]
+- ledgerRefs: ["goals:G36"]
+- sessionLogs: ["docs/logs/20260608-222414-af7713bef5bb3a3fa.md","docs/logs/20260608-222414-pi-minimax-G36-review.md"]
+
+### R344 — go-ahead
+
+- createdAt: 2026-06-08T23:46:16.830Z
+- updatedAt: 2026-06-08T23:46:16.830Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (round 2; opus + minimax both go-ahead, grok+codex abstained [no key]). All six R342 criticisms resolved: T294 emits pi effort via the '--model provider/model:<effort>' shorthand (no --thinking) + confirm-against-CLI; T296 docs match; T292/T294 dependsOn repointed to [T286]; ':' reserved in the pi model half too w/ a CqConfigError test; T284 pins PI_EFFORTS/CLAUDE_EFFORTS as single source of truth + keep-in-sync mirror; T294 enumerates its test surface. DAG acyclic; T298 = bun run check + nix build .#ledger-mcp."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G36"]
+- sessionLogs: ["docs/logs/20260608-223229-a774de5084c76524c.md","docs/logs/20260608-223229-pi-minimax-G36-review2.md"]
+
+## M116
+
+### R345 — go-ahead
+
+- createdAt: 2026-06-08T23:46:25.589Z
+- updatedAt: 2026-06-08T23:46:25.589Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T283 types-only: AgentModelStatus four-variant union + AgentModelEntry/AgentModelsResult + computeAgentModels on ConfigCapability + index re-exports; throwing T285-marked stub in the concrete impl; bun run check green 1224/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T283","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-224554-a3776cab04afb9430.md","docs/logs/20260608-224554-pi-minimax-T283.md"]
+
+### R347 — go-ahead
+
+- createdAt: 2026-06-08T23:46:40.181Z
+- updatedAt: 2026-06-08T23:46:40.181Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: go-ahead after 1 criticism round (opus approve r1+r2; minimax disapprove r1 -> approve r2 after hardening; grok+codex abstained). T285 real computeAgentModels over the shared 19-role roster (AGENT_ROLE_TIERS, anti-drift via assertRosterMatchesShared); 4 statuses; deriveModelMappings parity; +multi-harness resolved test +sort-order test. bun run check green 1244/0. minimax r1 false-premise/out-of-scope items adjudicated rejected; legitimate test-hardening addressed.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T285","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-230534-ace7c3cf65017fd97.md","docs/logs/20260608-232207-adfabb9f40e11648d.md","docs/logs/20260608-232207-T285-opus-review.md","docs/logs/20260608-232207-pi-minimax-T285-review.md"]
+
+## M117
+
+### R346 — go-ahead
+
+- createdAt: 2026-06-08T23:46:32.102Z
+- updatedAt: 2026-06-08T23:46:32.102Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T284: PI_EFFORTS/CLAUDE_EFFORTS enums + isEffort harness-keyed guard + optional ReviewerToken.effort + index re-exports + effort.test.ts (5 acceptance cases); parseReviewerToken untouched (T286 boundary); bun run check green 1236/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T284","goals:G36"]
+- sessionLogs: ["docs/logs/20260608-224554-a1296c5cb2387a4b5.md","docs/logs/20260608-224554-pi-minimax-T284.md"]
+
+### R348 — go-ahead
+
+- createdAt: 2026-06-08T23:46:47.480Z
+- updatedAt: 2026-06-08T23:46:47.480Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead after 1 criticism round (opus approve r1+r2; minimax disapprove r1 -> approve r2; grok+codex abstained). T286 parseReviewerToken optional trailing effort (last-colon + isEffort gate; ':' reserved on BOTH model halves R342; fail-fast). minimax r1 reduced to one real finding (mislabeled rejection-path test comment) + answered confirmation-questions; criticism round relabeled the pi:prov/mo:del test + tightened the R342 pi:prov/m:o:high test. bun run check green 1246/0; parseReviewerToken logic unchanged in r2."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T286","goals:G36"]
+- sessionLogs: ["docs/logs/20260608-230534-ab4baeed6d61bcb18.md","docs/logs/20260608-232207-ac75086100dd23950.md","docs/logs/20260608-232207-T286-opus-review.md","docs/logs/20260608-232207-pi-minimax-T286-review.md"]
