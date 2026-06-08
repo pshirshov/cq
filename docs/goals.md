@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 35
+  item: 36
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -279,3 +279,22 @@ archives:
     **Acceptance:** `bun run check` green (from nix/pkg/cq-ledgers/) with the new dup-token-classification CqConfigError + the tests above; the error message names both conflicting [tiers] keys. Tasks must ledgerRef defects:D42.
 - milestones: ["M114"]
 - sessionLogs: ["docs/logs/20260608-204503-G35-plan-review.md"]
+
+## M115
+
+### G36 — clarifying
+
+- createdAt: 2026-06-08T21:39:45.920Z
+- updatedAt: 2026-06-08T21:44:51.644Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- title: Optional thinking-effort parameter in cq model-identifier tokens
+- description: |
+    Add an OPTIONAL thinking-effort parameter to the cq model-identifier token grammar. Today a token is harness:[provider/]model (e.g. pi:grok-build/grok-build, claude:opus-4.8[1m]) with no way to set thinking/reasoning effort, so the provider default is always used. Extend the grammar so a token may carry an optional trailing effort suffix, e.g. pi:grok-build/grok-build:xhigh (and claude:<model>:<effort>). The parameter is OPTIONAL — omitted means the provider/model default effort (current behavior unchanged).
+    
+    The effort must thread through the @cq/config token parser (parseReviewerToken + the ReviewerToken type — a new OPTIONAL effort field) and everywhere tokens are consumed: the [aliases]/[tiers]/planners/reviewers resolution, get_planners/get_reviewers/get_config, AND the cq-subagent-dispatch pi extension's inlined token resolver (which must pass the effort to the actual pi/claude invocation, e.g. the reasoning-effort/thinking flag).
+    
+    This builds on G29's provider-qualified grammar (pi:<provider>/<model>, claude:<model>) — reconcile the separator (effort suffixed after the model with a colon vs the provider's slash) so parsing stays unambiguous (note: pi:<provider>/<model> already uses '/' between provider and model, and ':' between harness and the rest; an effort suffix as a final ':<effort>' must parse unambiguously against models whose names may contain characters like '[1m]'). Update cq.toml.example + the token-format docs + tests.
+    
+    Note: parseReviewerToken structural equality (reviewerTokensEqual) + the D42 dup-token guard + the [tiers] classifier all consume ReviewerToken — decide whether effort participates in token IDENTITY/equality (e.g. is claude:opus:high a different token from claude:opus:low for classification/dedup purposes?).
+- sessionLogs: ["docs/logs/20260608-214433-a707e2b139c1f08ab.md"]

@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 114
+  item: 115
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -591,3 +591,9 @@ archives:
 - createdAt: 2026-06-08T20:42:12.810Z
 - updatedAt: 2026-06-08T20:42:12.810Z
 - title: "Plan: fix D42 — fail-loud on duplicate-token [tiers] classification in parseTiers"
+
+### M115 — open
+
+- createdAt: 2026-06-08T21:39:32.717Z
+- updatedAt: 2026-06-08T21:39:32.717Z
+- title: "Plan: optional thinking-effort suffix in cq model-identifier tokens"
