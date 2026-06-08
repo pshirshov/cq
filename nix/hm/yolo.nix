@@ -41,8 +41,16 @@ let
     map (e: { inherit (e) target tags prompt; }) (lib.filter (e: e.when) cfg.yolo.promptExtensions)
   );
 
+  # Host pre-start hooks as a JSON array of { command, tags }. yolo.sh runs them
+  # on the host (before an agent session), dropping tags in the `--disable` set.
+  prehooksJson = builtins.toJSON cfg.yolo.hooks.pre-start.host;
+
+  # codegraph passed into the sandbox via the package set (no dedicated binary
+  # env anymore); the per-project index bootstrap is a pre-start host hook
+  # (contributed in config below). null disables all codegraph integration.
+  codegraphSet = cfg.yolo.codegraph != null;
+
   yoloPkg = pkgs.callPackage ../pkg/yolo/default.nix {
-    codegraph = codegraphPkg;
     podmanSocketPath = cfg.podman.socketPath;
     podmanSocketUri = cfg.podman.socketUri;
     # The remote-worker SSH key is just another read-only bind.
@@ -50,14 +58,17 @@ let
     extraReadWritePaths = cfg.yolo.extraReadWritePaths;
     # Device paths bound with device access (bwrap --dev-bind), e.g. GPU nodes.
     extraDevicePaths = cfg.yolo.extraDevicePaths;
-    # Extra packages exposed ONLY inside the sandbox (not the host profile).
-    sandboxPackages = cfg.yolo.packages;
+    # Extra packages exposed ONLY inside the sandbox (not the host profile);
+    # codegraph rides along here so its CLI / `init -i` work inside the sandbox.
+    sandboxPackages = cfg.yolo.packages ++ lib.optional codegraphSet cfg.yolo.codegraph;
     # Declarative env vars set inside the sandbox session.
     sessionVariables = cfg.yolo.sessionVariables;
     # Secret-file-backed env vars composed + sourced inside the sandbox.
     secretSessionVariables = cfg.yolo.secretSessionVariables;
     # Tagged, runtime-suppressible system-prompt additions (see promptExtensions).
     inherit promptJson;
+    # Tagged host pre-start hooks (see hooks.pre-start.host).
+    inherit prehooksJson;
   };
 in
 {
@@ -284,6 +295,49 @@ in
         for multi-line key files.
       '';
     };
+
+    smind.hm.dev.llm.yolo.codegraph = lib.mkOption {
+      type = lib.types.nullOr lib.types.package;
+      default = codegraphPkg;
+      defaultText = lib.literalExpression "inputs.codegraph.packages.\${system}.default";
+      description = ''
+        The codegraph package, or null to disable codegraph integration. When
+        set, codegraph is added to the sandbox package set (its CLI / `init -i`
+        work inside the sandbox), the per-project index bootstrap is registered
+        as a `codegraph`-tagged pre-start host hook (run `yolo --disable=codegraph`
+        to skip it), and a `codegraph`-tagged usage note is added to
+        {option}`smind.hm.dev.llm.yolo.promptExtensions`. null removes all three.
+        The codegraph MCP server is configured separately (in tools.nix) and is
+        unaffected by this option.
+      '';
+    };
+
+    smind.hm.dev.llm.yolo.hooks.pre-start.host = lib.mkOption {
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          command = lib.mkOption {
+            type = lib.types.lines;
+            description = "Shell command run on the host (via `bash -c`, cwd = the launch dir).";
+          };
+          tags = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "codegraph" ];
+            description = "Suppression tags; the hook is skipped if any is in the `--disable` set.";
+          };
+        };
+      });
+      default = [ ];
+      description = ''
+        Commands run ON THE HOST (in the launch directory) before the sandbox
+        starts, for agent subcommands only (claude/codex/pi; shell/cmd skip
+        them). Run in declaration order, best-effort (a failure warns but does
+        not abort). A hook is skipped if any of its `tags` is in the runtime
+        `yolo --disable=<tag>` set. List-merges across modules: the per-project
+        codegraph index bootstrap is contributed here (tag "codegraph") when
+        {option}`smind.hm.dev.llm.yolo.codegraph` is non-null.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -310,8 +364,38 @@ in
           tags = [ "github" ];
           prompt = ''A GitHub token is available in the GH_TOKEN environment variable. It belongs to a GitHub account created specifically for autonomous agentic work — it is NOT the user's personal account. Use it (via the `gh` CLI, which reads GH_TOKEN, or the token directly) for GitHub operations carried out on the agent's own behalf.'';
         }
+        ++ lib.optional codegraphSet {
+          target = "*";
+          tags = [ "codegraph" ];
+          prompt = ''When the codegraph MCP is available, prefer `codegraph_status`/`codegraph_context`/`codegraph_search` over grep/Read for symbol lookups and "where is X / what calls X / which sites set X" questions — it is a pre-built index and usually answers in 2–3 calls. But first confirm the current repo is actually indexed: check `codegraph_status` for the repo's language in the index and verify the index points at this working tree (e.g. a probe `codegraph_search`/`codegraph_files` returns hits). If the language isn't indexed yet, or the index targets a different tree, skip codegraph and use `rg`/Read — don't burn calls on an uncovered repo.'';
+        }
       );
     }
+    # codegraph per-project index bootstrap as a pre-start host hook (tag
+    # "codegraph"). Idempotent + cheap on the warm path; `--disable=codegraph`
+    # skips it. Tool paths are interpolated, so the hook is self-contained.
+    (lib.mkIf codegraphSet {
+      smind.hm.dev.llm.yolo.hooks.pre-start.host = lib.mkBefore [
+        {
+          tags = [ "codegraph" ];
+          command = ''
+            cg=${cfg.yolo.codegraph}/bin/codegraph
+            jq=${pkgs.jq}/bin/jq
+            read -r initialized file_count < <("$cg" status --json 2>/dev/null | "$jq" -r '"\(.initialized // false) \(.fileCount // 0)"' 2>/dev/null)
+            if [ "$initialized" = "true" ] && [ "''${file_count:-0}" -gt 0 ]; then
+              echo "yolo: syncing CodeGraph index for $PWD…" >&2
+              "$cg" sync >&2 || echo "warning: codegraph sync failed; continuing with the existing index" >&2
+            else
+              echo "yolo: building CodeGraph index for $PWD (one-time; pass --disable=codegraph to skip)…" >&2
+              if [ "$initialized" != "true" ]; then
+                "$cg" init >&2 || { echo "warning: codegraph init failed; launching without a code index" >&2; exit 0; }
+              fi
+              "$cg" index >&2 || echo "warning: codegraph index failed; launching without a code index" >&2
+            fi
+          '';
+        }
+      ];
+    })
     # The sandbox is Linux-only (bubblewrap); on Darwin claude-code uses its own
     # sandbox wrapper, wired in dev-llm.nix. Gated on the shared harness enable.
     (lib.mkIf (cfg.enable && isLinux) {

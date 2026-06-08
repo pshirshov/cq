@@ -477,10 +477,10 @@
           codex = pkgs.callPackage ./nix/pkg/codex/package.nix { };
           pi-coding-agent = pkgs.callPackage ./nix/pkg/pi-coding-agent/package.nix { };
           reattach-llm = pkgs.callPackage ./nix/pkg/reattach-llm/default.nix { };
-          # yolo builds its internal llm-sandbox helper itself.
-          yolo = pkgs.callPackage ./nix/pkg/yolo/default.nix {
-            codegraph = inputs.codegraph.packages.${system}.default;
-          };
+          # yolo builds its internal llm-sandbox helper itself. codegraph is no
+          # longer a package input — it rides in via sandboxPackages (wired by
+          # the home-manager module), so the bare package needs no args.
+          yolo = pkgs.callPackage ./nix/pkg/yolo/default.nix { };
         };
 
         apps.default = {

@@ -227,7 +227,8 @@ in
       home.packages = [
         pkgs.gh
         pkgs.nodejs # required by claude-code plugins (.mjs scripts)
-        codegraphPkg # for `codegraph init -i` per-project bootstrap
+        codegraphPkg # codegraph CLI on the host PATH (the per-project index
+        # bootstrap inside yolo is a pre-start hook; see nix/hm/yolo.nix)
       ]
       ++ ledgerTools
       ++ lib.optionals isDarwin [

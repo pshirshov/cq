@@ -6,7 +6,6 @@
 #   YOLO_SECRETS_EXEC          - path to the in-sandbox secrets-loading entrypoint (yolo-secrets-exec)
 #   YOLO_NIX_LD                 - path to nix-ld binary (bound as /lib64/ld-linux-x86-64.so.2)
 #   YOLO_JQ                     - path to jq binary
-#   YOLO_CODEGRAPH_BIN          - path to codegraph binary (per-project index bootstrap)
 #
 # Optional env vars:
 #   YOLO_PODMAN_SOCKET_PATH - rootless podman socket path (enables container forwarding)
@@ -25,12 +24,13 @@
 #   YOLO_PROMPT_JSON         - JSON array of { target, tags, prompt } objects (smind.hm.dev.llm.yolo.
 #                              promptExtensions); yolo.sh composes each agent's --append-system-prompt
 #                              with jq, dropping objects whose tags hit the --disable set
+#   YOLO_PREHOOKS_JSON       - JSON array of { command, tags } host hooks (smind.hm.dev.llm.yolo.
+#                              hooks.pre-start.host) run before an agent session, dropping --disable'd tags
 
 : "${YOLO_LLM_SANDBOX:?must be set}"
 : "${YOLO_SECRETS_EXEC:?must be set}"
 : "${YOLO_NIX_LD:?must be set}"
 : "${YOLO_JQ:?must be set}"
-: "${YOLO_CODEGRAPH_BIN:?must be set}"
 
 # PROFILE selects an isolated config namespace. Empty means the default
 # profile: agents read their real home dirs (~/.claude, ~/.codex, ...).
@@ -38,16 +38,15 @@
 # bound onto the standard in-sandbox paths so agents need no profile-specific
 # env. `--work`/`-w` is a backward-compatible alias for `--profile work`.
 PROFILE=""
-MOBILE_MODE=0
 # Refuse to launch with $PWD == $HOME by default: BASE_ARGS binds $PWD
 # read-write, so running from the home directory would mount the entire home
 # (credentials, keys, history) into the sandbox. --unsafe-share-home overrides.
 UNSAFE_SHARE_HOME=0
-# CodeGraph per-project index bootstrap is on by default; --no-cg opts out.
-CG_MODE=1
 # Feature suppression: --disable=TAG (repeatable, comma-separated) drops every
-# device bind (extraDevicePaths) AND prompt fragment (promptExtensions) carrying
-# TAG. Audio is tagged "audio" and on by default, so `--disable=audio` mutes it.
+# device bind (extraDevicePaths), prompt fragment (promptExtensions) and host
+# pre-start hook (hooks.pre-start.host) carrying TAG. Audio is tagged "audio"
+# (on by default → `--disable=audio` mutes it); the codegraph index bootstrap is
+# tagged "codegraph" (`--disable=codegraph` skips it).
 DISABLE_TAGS=()
 ENV_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -58,8 +57,6 @@ while [[ $# -gt 0 ]]; do
       fi
       PROFILE="$2"; shift 2 ;;
     --work|-w) PROFILE="work"; shift ;;
-    --mobile) MOBILE_MODE=1; shift ;;
-    --no-cg) CG_MODE=0; shift ;;
     --disable=*)
       IFS=',' read -ra _dtags <<< "${1#*=}"
       DISABLE_TAGS+=("${_dtags[@]}")
@@ -135,17 +132,8 @@ clear_reshare_leftovers() {
   done
 }
 
-if [[ $MOBILE_MODE -eq 1 ]]; then
-  if [[ -n "${TMUX:-}" ]]; then
-    tmux set-window-option window-size manual
-    tmux resize-window -x 59 -y 33
-  else
-    echo "warning: --mobile requires tmux, ignoring" >&2
-  fi
-fi
-
 if [[ $# -eq 0 ]]; then
-  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--mobile] [--no-cg] [--disable=TAG]... [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
+  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--disable=TAG]... [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
   exit 1
 fi
 
@@ -488,54 +476,27 @@ ensure_codex_config() {
   chmod u+w "$out_file"
 }
 
-# CodeGraph per-project index bootstrap. The codegraph MCP server (wired into
-# every agent CLI) reads .codegraph/codegraph.db in the project root, but never
-# creates it — building the per-project index is an explicit step. On the first
-# agent launch in a project we initialize and index so the agent's codegraph_*
-# tools work immediately; later launches find a populated DB and skip in one
-# cheap `status` call. The on-host index lives in $PWD (rw-bound into the
-# sandbox) and is shared with the in-sandbox `serve` process. --no-cg opts out.
-#
-# `codegraph status --json` reports {"initialized":false} when no DB exists.
-# Two partial states also need indexing: a bare `init` (no -i) leaves the DB
-# initialized with fileCount==0, and `init -i` refuses to re-index an already
-# initialized project. So we drive init and index as separate steps keyed off
-# (initialized, fileCount) rather than relying on `init -i`'s one-shot.
-maybe_init_codegraph() {
-  [[ $CG_MODE -eq 1 ]] || return 0
-  [[ -x "$YOLO_CODEGRAPH_BIN" ]] || return 0
-
-  local initialized file_count
-  read -r initialized file_count < <(
-    "$YOLO_CODEGRAPH_BIN" status --json 2>/dev/null \
-      | "$YOLO_JQ" -r '"\(.initialized // false) \(.fileCount // 0)"' 2>/dev/null
+# Host pre-start hooks. Run on the host (in $PWD), before the sandbox launches,
+# for agent subcommands only (claude/codex/pi; shell/cmd skip them). Configured
+# via smind.hm.dev.llm.yolo.hooks.pre-start.host -> YOLO_PREHOOKS_JSON, a JSON
+# array of { command, tags } objects; a hook is skipped if any of its tags is in
+# the --disable set. The codegraph per-project index bootstrap is one such hook
+# (tag "codegraph"). Hooks are best-effort: a failure warns but does not abort.
+run_prestart_hooks() {
+  [[ -z "${YOLO_PREHOOKS_JSON:-}" ]] && return 0
+  local dis _hook
+  dis="$("$YOLO_JQ" -nc '$ARGS.positional' --args "${DISABLE_TAGS[@]}")"
+  while IFS= read -r -d '' _hook; do
+    [[ -z "$_hook" ]] && continue
+    bash -c "$_hook" || echo "warning: yolo pre-start hook failed (continuing)" >&2
+  done < <(
+    printf '%s' "$YOLO_PREHOOKS_JSON" \
+      | "$YOLO_JQ" -j --argjson dis "$dis" '.[] | select((.tags - $dis) == .tags) | .command + "\u0000"'
   )
-
-  # DB already exists and is populated: refresh it incrementally so the agent
-  # sees changes made since the last index, then proceed. `sync` diffs against
-  # the last index and is cheap; a failure is non-fatal (use the stale index).
-  if [[ "$initialized" == "true" && "${file_count:-0}" -gt 0 ]]; then
-    echo "yolo: syncing CodeGraph index for ${PWD}…" >&2
-    "$YOLO_CODEGRAPH_BIN" sync >&2 \
-      || echo "warning: codegraph sync failed; continuing with the existing index" >&2
-    return 0
-  fi
-
-  echo "yolo: building CodeGraph index for ${PWD} (one-time; pass --no-cg to skip)…" >&2
-  if [[ "$initialized" != "true" ]]; then
-    if ! "$YOLO_CODEGRAPH_BIN" init >&2; then
-      echo "warning: codegraph init failed; launching without a code index" >&2
-      return 0
-    fi
-  fi
-  "$YOLO_CODEGRAPH_BIN" index >&2 \
-    || echo "warning: codegraph index failed; launching without a code index" >&2
 }
 
-# Agent subcommands run an MCP-enabled CLI that can use the codegraph server;
-# shell/cmd do not, so they skip the index bootstrap.
 case "$SUBCMD" in
-  claude|codex|pi) maybe_init_codegraph ;;
+  claude|codex|pi) run_prestart_hooks ;;
 esac
 
 case "$SUBCMD" in

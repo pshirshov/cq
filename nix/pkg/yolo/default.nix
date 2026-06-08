@@ -3,13 +3,13 @@
   pkgs,
   nix-ld,
   jq,
-  codegraph,
   podmanSocketPath ? null,
   podmanSocketUri ? null,
   extraReadOnlyPaths ? [ ],
   extraReadWritePaths ? [ ],
   extraDevicePaths ? [ ],
   promptJson ? "[]",
+  prehooksJson ? "[]",
   secretSessionVariables ? { },
   sandboxPackages ? [ ],
   sessionVariables ? { },
@@ -90,13 +90,18 @@ let
   promptJsonExports = lib.optionalString (promptJson != "[]") ''
     export YOLO_PROMPT_JSON=${lib.escapeShellArg promptJson}
   '';
+  # Host pre-start hooks as a JSON array of { command, tags } objects (the
+  # home-manager module builds the JSON). yolo.sh runs them on the host before an
+  # agent session, dropping hooks whose tags are in the `--disable` set.
+  prehooksJsonExports = lib.optionalString (prehooksJson != "[]") ''
+    export YOLO_PREHOOKS_JSON=${lib.escapeShellArg prehooksJson}
+  '';
 in
 pkgs.writeShellScriptBin "yolo" ''
   export YOLO_LLM_SANDBOX="${llmSandbox}/bin/llm-sandbox"
   export YOLO_SECRETS_EXEC="${secretsExec}/bin/yolo-secrets-exec"
   export YOLO_NIX_LD="${nix-ld}/bin/nix-ld"
   export YOLO_JQ="${jq}/bin/jq"
-  export YOLO_CODEGRAPH_BIN="${codegraph}/bin/codegraph"
   ${podmanExports}
   ${extraRoExports}
   ${extraRwExports}
@@ -105,5 +110,6 @@ pkgs.writeShellScriptBin "yolo" ''
   ${sandboxBinExports}
   ${sessionVarsExports}
   ${promptJsonExports}
+  ${prehooksJsonExports}
   exec bash ${yoloScript} "$@"
 ''
