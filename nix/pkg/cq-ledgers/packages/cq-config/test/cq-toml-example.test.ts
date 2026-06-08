@@ -123,6 +123,7 @@ describe("cq.toml.example — T234 provider-qualification checks", () => {
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
   });
 
@@ -133,6 +134,7 @@ describe("cq.toml.example — T234 provider-qualification checks", () => {
       harness: "pi",
       model: "grok-build",
       provider: "grok-build",
+      effort: null,
     });
   });
 
@@ -143,6 +145,7 @@ describe("cq.toml.example — T234 provider-qualification checks", () => {
       harness: "pi",
       model: "grok-build",
       provider: "grok-build",
+      effort: null,
     });
   });
 });

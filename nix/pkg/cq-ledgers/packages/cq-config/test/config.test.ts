@@ -81,6 +81,7 @@ describe("parseReviewerToken — provider qualifier (T231)", () => {
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
   });
 
@@ -90,6 +91,7 @@ describe("parseReviewerToken — provider qualifier (T231)", () => {
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,
+      effort: null,
     });
   });
 
@@ -109,13 +111,90 @@ describe("parseReviewerToken — provider qualifier (T231)", () => {
     expect(() => parseReviewerToken("pi:p/")).toThrow(CqConfigError);
   });
 
-  it("preserves colons inside the model segment (pi:prov/a:b)", () => {
-    const tok: ReviewerToken = parseReviewerToken("pi:prov/a:b");
+  it("rejects a reserved ':' inside the pi model segment (pi:prov/a:b)", () => {
+    // T286/R342: `:` is reserved inside the pi model half. `b` is not a pi
+    // effort, so the trailing-':' suffix is rejected (no longer preserved).
+    expect(() => parseReviewerToken("pi:prov/a:b")).toThrow(CqConfigError);
+  });
+});
+
+// T286 (Q160 + R342): optional trailing `:<effort>` suffix; `:` reserved in
+// the residual model on BOTH the claude model and the pi model half.
+describe("parseReviewerToken — effort suffix (T286)", () => {
+  it("parses a pi token with a valid trailing effort", () => {
+    const tok: ReviewerToken = parseReviewerToken("pi:grok-build/grok-build:xhigh");
     expect(tok).toEqual({
       harness: "pi",
-      model: "a:b",
-      provider: "prov",
+      provider: "grok-build",
+      model: "grok-build",
+      effort: "xhigh",
     });
+  });
+
+  it("parses a claude token with a bracket model AND a valid trailing effort", () => {
+    const tok: ReviewerToken = parseReviewerToken("claude:opus-4.8[1m]:high");
+    expect(tok).toEqual({
+      harness: "claude",
+      provider: null,
+      model: "opus-4.8[1m]",
+      effort: "high",
+    });
+  });
+
+  it("sets effort:null when a claude bracket model has no trailing suffix", () => {
+    const tok: ReviewerToken = parseReviewerToken("claude:opus-4.8[1m]");
+    expect(tok).toEqual({
+      harness: "claude",
+      provider: null,
+      model: "opus-4.8[1m]",
+      effort: null,
+    });
+  });
+
+  it("sets effort:null when a pi token has no trailing suffix", () => {
+    const tok: ReviewerToken = parseReviewerToken("pi:ollama-cloud/minimax-m3");
+    expect(tok).toEqual({
+      harness: "pi",
+      provider: "ollama-cloud",
+      model: "minimax-m3",
+      effort: null,
+    });
+  });
+
+  it("rejects a claude effort not in the claude enum (claude:opus:off)", () => {
+    // `off` is a pi effort, not a claude effort → fail fast naming the set.
+    expect(() => parseReviewerToken("claude:opus:off")).toThrow(CqConfigError);
+    expect(() => parseReviewerToken("claude:opus:off")).toThrow(/off/);
+    expect(() => parseReviewerToken("claude:opus:off")).toThrow(/max/);
+  });
+
+  it("rejects a pi effort not in the pi enum (pi:p/m:max)", () => {
+    // `max` is a claude effort, not a pi effort.
+    expect(() => parseReviewerToken("pi:p/m:max")).toThrow(CqConfigError);
+    expect(() => parseReviewerToken("pi:p/m:max")).toThrow(/max/);
+    expect(() => parseReviewerToken("pi:p/m:max")).toThrow(/xhigh/);
+  });
+
+  it("rejects a bogus claude effort (claude:opus:bogus)", () => {
+    expect(() => parseReviewerToken("claude:opus:bogus")).toThrow(CqConfigError);
+    expect(() => parseReviewerToken("claude:opus:bogus")).toThrow(/bogus/);
+  });
+
+  it("rejects a claude model with a stray reserved ':' that is not an effort", () => {
+    // `claude:a:b:high` → last ':' splits valid effort 'high', residual model
+    // 'a:b' still contains a reserved ':' → R342 reject.
+    expect(() => parseReviewerToken("claude:a:b:high")).toThrow(CqConfigError);
+  });
+
+  it("rejects a pi model half containing a ':' that is not a valid effort (pi:prov/mo:del)", () => {
+    expect(() => parseReviewerToken("pi:prov/mo:del")).toThrow(CqConfigError);
+    expect(() => parseReviewerToken("pi:prov/mo:del")).toThrow(/del/);
+  });
+
+  it("rejects a pi model half with a reserved ':' even when a valid effort follows", () => {
+    // `pi:prov/m:o:high` → splits valid 'high', residual model half 'm:o' has
+    // a reserved ':' → R342 reject.
+    expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(CqConfigError);
   });
 });
 
@@ -130,17 +209,17 @@ describe("loadConfig", () => {
     expect(config).not.toBeNull();
     const cfg = config as CqConfig;
     expect(cfg.aliases).toEqual({
-      codex: { harness: "pi", model: "grok-build", provider: "grok-build" },
-      grok: { harness: "pi", model: "grok-build", provider: "grok-build" },
-      opus: { harness: "claude", model: "opus-4.8", provider: null },
+      codex: { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      grok: { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      opus: { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     });
     // CqConfig.reviewers holds the raw ALIAS names (not yet resolved).
     expect(cfg.reviewers).toEqual(["codex", "grok", "opus"]);
     // Resolution through [aliases] yields the ReviewerToken[].
     expect(resolveReviewers(cfg)).toEqual([
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "claude", model: "opus-4.8", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     ]);
   });
 
@@ -175,9 +254,9 @@ describe("resolveReviewers", () => {
     const config = parseConfig(VALID_TOML);
     const resolved: ReviewerToken[] = resolveReviewers(config);
     expect(resolved).toEqual([
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "claude", model: "opus-4.8", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     ]);
   });
 });
@@ -221,7 +300,7 @@ describe("resolvePlanners", () => {
     const config = parseConfig(VALID_TOML_WITH_PLANNERS);
     const resolved: ReviewerToken[] = resolvePlanners(config);
     expect(resolved).toEqual([
-      { harness: "claude", model: "opus-4.8", provider: null },
+      { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     ]);
   });
 
@@ -328,7 +407,7 @@ describe("loadConfig with planners", () => {
     const cfg = config as CqConfig;
     expect(cfg.planners).toEqual(["opus"]);
     expect(resolvePlanners(cfg)).toEqual([
-      { harness: "claude", model: "opus-4.8", provider: null },
+      { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     ]);
   });
 
@@ -376,6 +455,7 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
   });
 
@@ -389,6 +469,7 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
       harness: "pi",
       model: "grok-build",
       provider: "grok-build",
+      effort: null,
     });
     // 'frontier' = "opus" — a name in [aliases] -> claude:opus-4.8[1m]
     const frontierEntry = config.tiers!.entries.find(
@@ -398,6 +479,7 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,
+      effort: null,
     });
   });
 
@@ -569,9 +651,9 @@ describe("additive-only regression (T223 acceptance d)", () => {
     const config = parseConfig(VALID_TOML);
     // existing fields intact
     expect(config.aliases).toEqual({
-      codex: { harness: "pi", model: "grok-build", provider: "grok-build" },
-      grok: { harness: "pi", model: "grok-build", provider: "grok-build" },
-      opus: { harness: "claude", model: "opus-4.8", provider: null },
+      codex: { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      grok: { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      opus: { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     });
     expect(config.reviewers).toEqual(["codex", "grok", "opus"]);
     expect(config.planners).toEqual([]);
@@ -580,9 +662,9 @@ describe("additive-only regression (T223 acceptance d)", () => {
     expect(config.agentTiers).toBeNull();
     // resolveReviewers still works
     expect(resolveReviewers(config)).toEqual([
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "pi", model: "grok-build", provider: "grok-build" },
-      { harness: "claude", model: "opus-4.8", provider: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+      { harness: "claude", model: "opus-4.8", provider: null, effort: null },
     ]);
   });
 
@@ -629,6 +711,7 @@ describe("T273 — inverted [tiers] classifier grammar: token-keyed parse", () =
       harness: "claude",
       model: "haiku-4.5",
       provider: null,
+      effort: null,
     });
     expect(entry!.raw).toBe("claude:haiku-4.5");
     expect(entry!.class).toBe("frontier");
@@ -645,6 +728,7 @@ describe("T273 — inverted [tiers] classifier grammar: token-keyed parse", () =
       harness: "pi",
       model: "grok-build",
       provider: "grok-build",
+      effort: null,
     });
     expect(entry!.raw).toBe("pi:grok-build/grok-build");
     expect(entry!.class).toBe("standard");
@@ -662,6 +746,7 @@ describe("T273 — inverted [tiers] classifier grammar: token-keyed parse", () =
       harness: "claude",
       model: "haiku-4.5",
       provider: null,
+      effort: null,
     });
     expect(entry.raw).toBe("claude:haiku-4.5");
     expect(entry.class).toBe("fast");
@@ -681,6 +766,7 @@ opus = "frontier"
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,
+      effort: null,
     });
     expect(entry.raw).toBe("opus");
     expect(entry.class).toBe("frontier");
@@ -1128,8 +1214,8 @@ opus   = "claude:opus-4.8[1m]"
     const config = parseConfig(NO_TIERS_TOML);
     expect(config.reviewers).toEqual(["sonnet", "opus"]);
     expect(resolveReviewers(config)).toEqual([
-      { harness: "claude", model: "sonnet-4.5", provider: null },
-      { harness: "claude", model: "opus-4.8[1m]", provider: null },
+      { harness: "claude", model: "sonnet-4.5", provider: null, effort: null },
+      { harness: "claude", model: "opus-4.8[1m]", provider: null, effort: null },
     ]);
   });
 
@@ -1137,7 +1223,7 @@ opus   = "claude:opus-4.8[1m]"
     const config = parseConfig(NO_TIERS_TOML);
     expect(config.planners).toEqual(["opus"]);
     expect(resolvePlanners(config)).toEqual([
-      { harness: "claude", model: "opus-4.8[1m]", provider: null },
+      { harness: "claude", model: "opus-4.8[1m]", provider: null, effort: null },
     ]);
   });
 

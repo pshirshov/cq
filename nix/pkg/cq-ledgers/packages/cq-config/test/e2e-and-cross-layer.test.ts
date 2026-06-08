@@ -57,12 +57,14 @@ describe("end-to-end resolve — minimax alias through reviewers/planners (T238)
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
     // second reviewer (opus) is claude
     expect(resolved[1]).toEqual({
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,
+      effort: null,
     });
   });
 
@@ -74,6 +76,7 @@ describe("end-to-end resolve — minimax alias through reviewers/planners (T238)
         harness: "pi",
         model: "minimax-m3",
         provider: "ollama-cloud",
+        effort: null,
       },
     ]);
   });
@@ -86,6 +89,7 @@ describe("end-to-end resolve — minimax alias through reviewers/planners (T238)
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
   });
 
@@ -98,6 +102,7 @@ describe("end-to-end resolve — minimax alias through reviewers/planners (T238)
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,
+      effort: null,
     });
   });
 
@@ -107,6 +112,7 @@ describe("end-to-end resolve — minimax alias through reviewers/planners (T238)
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
+      effort: null,
     });
   });
 });

@@ -16,9 +16,13 @@ import * as path from "node:path";
 import { parseToml, type RawWebui } from "./toml.js";
 import {
   isHarness,
+  isEffort,
   isTier,
   DEFAULT_TIER,
+  PI_EFFORTS,
+  CLAUDE_EFFORTS,
   type CqConfig,
+  type Effort,
   type ReviewerToken,
   type Tier,
   type TierEntry,
@@ -44,10 +48,10 @@ export class CqConfigError extends Error {
 /**
  * Parse a reviewer token string into a typed ReviewerToken.
  *
- * Token grammar (T237 BREAKING change):
+ * Token grammar (T237 BREAKING change + T286 effort suffix):
  *  - pi tokens MUST be `pi:<provider>/<model>` where:
  *    - The FIRST `:` separates the harness from the model segment.
- *    - The FIRST `/` in the model segment separates provider from model.
+ *    - The FIRST `/` in the residual model separates provider from model.
  *    - Both provider and model must be non-empty.
  *    - A bare pi token (missing `/`) is rejected as a CqConfigError (BREAKING).
  *  - claude tokens MUST be `claude:<model>` where:
@@ -55,9 +59,27 @@ export class CqConfigError extends Error {
  *    - No `/` is permitted in the model (provider qualifiers are pi-only).
  *    - A `/` in the model is rejected as a CqConfigError.
  *
- * Further colons in the model segment (after the first `:`) are preserved.
+ * EFFORT SUFFIX (T286, Q160): an OPTIONAL trailing `:<effort>` may follow the
+ * full token. After the harness is split off the FIRST `:`, the LAST `:` in
+ * the remainder delimits a candidate suffix; that suffix is treated as the
+ * effort ONLY IF {@link isEffort}(harness, suffix) holds. Bracketed model
+ * suffixes such as `[1m]` contain no `:`, so `claude:opus-4.8[1m]` parses with
+ * `effort: null` and `claude:opus-4.8[1m]:high` parses with `effort: "high"`.
+ * An omitted suffix yields `effort: null`.
+ *
+ * `:` is RESERVED inside a model name. After stripping a valid effort suffix,
+ * a residual `:` in the model is a CqConfigError — on BOTH halves: the claude
+ * model and the pi MODEL half (the part after `/`) — because a colon there
+ * would collide with the `--model provider/model:effort` shorthand the pi
+ * extension emits (review R342).
+ *
+ * FAIL FAST: a trailing-`:` suffix that is present but is NOT a valid effort
+ * for this harness throws a precise CqConfigError naming the bad effort and the
+ * harness's legal set (it is not silently folded back into the model).
+ *
  * Throws a `CqConfigError` if the harness is unknown, the token format is
- * invalid, or any required segment is empty.
+ * invalid, any required segment is empty, an effort suffix is invalid, or a
+ * reserved `:` survives in the residual model.
  */
 export function parseReviewerToken(token: string): ReviewerToken {
   const sep = token.indexOf(":");
@@ -67,17 +89,36 @@ export function parseReviewerToken(token: string): ReviewerToken {
     );
   }
   const harness = token.slice(0, sep);
-  const modelSegment = token.slice(sep + 1);
+  const remainder = token.slice(sep + 1);
   if (harness === "") {
     throw new CqConfigError(`token "${token}" has an empty harness`);
   }
-  if (modelSegment === "") {
+  if (remainder === "") {
     throw new CqConfigError(`token "${token}" has an empty model`);
   }
   if (!isHarness(harness)) {
     throw new CqConfigError(
       `unknown harness "${harness}" in token "${token}" (expected "claude" or "pi")`,
     );
+  }
+
+  // Split a candidate effort suffix off the LAST `:` of the harness-stripped
+  // remainder. Recognised as effort ONLY when isEffort(harness, suffix);
+  // otherwise the `:` is treated as a reserved colon in the residual model
+  // (rejected below) — never silently absorbed.
+  let modelSegment = remainder;
+  let effort: Effort | null = null;
+  const lastColon = remainder.lastIndexOf(":");
+  if (lastColon >= 0) {
+    const candidate = remainder.slice(lastColon + 1);
+    if (isEffort(harness, candidate)) {
+      effort = candidate;
+      modelSegment = remainder.slice(0, lastColon);
+    } else {
+      throw new CqConfigError(
+        `token "${token}" has an invalid effort suffix "${candidate}" for harness "${harness}" (legal: ${legalEfforts(harness)})`,
+      );
+    }
   }
 
   const slash = modelSegment.indexOf("/");
@@ -100,7 +141,14 @@ export function parseReviewerToken(token: string): ReviewerToken {
         `pi token "${token}" has an empty model (after '/')`,
       );
     }
-    return { harness, model, provider };
+    // R342: `:` is reserved inside the pi model half (collides with the
+    // `--model provider/model:effort` shorthand the extension emits).
+    if (model.includes(":")) {
+      throw new CqConfigError(
+        `pi token "${token}" has a reserved ':' in its model "${model}" that is not a valid effort (legal effort: ${legalEfforts(harness)})`,
+      );
+    }
+    return { harness, model, provider, effort };
   }
 
   // harness === "claude": provider qualifiers are pi-only.
@@ -109,7 +157,18 @@ export function parseReviewerToken(token: string): ReviewerToken {
       `claude token "${token}" must not contain a provider qualifier '/' (provider qualifiers are pi-only)`,
     );
   }
-  return { harness, model: modelSegment, provider: null };
+  // `:` is reserved inside the claude model after stripping a valid effort.
+  if (modelSegment.includes(":")) {
+    throw new CqConfigError(
+      `claude token "${token}" has a reserved ':' in its model "${modelSegment}" that is not a valid effort (legal effort: ${legalEfforts(harness)})`,
+    );
+  }
+  return { harness, model: modelSegment, provider: null, effort };
+}
+
+/** The legal effort set for a harness, rendered for error messages. */
+function legalEfforts(harness: ReviewerToken["harness"]): string {
+  return (harness === "pi" ? PI_EFFORTS : CLAUDE_EFFORTS).join(" | ");
 }
 
 /**
