@@ -333,13 +333,15 @@ Summarize the round concisely:
 > **Your stop is PROGRESS-bounded, never EFFORT-bounded.** Stop ONLY when this
 > flow's own stop predicate fires — a node is `confirmed` and the fix goal is
 > seeded (file-and-defer), the tree is exhausted with no adjudicable lead left,
-> or the defect is parked on an `open` user question — NEVER because the run is
-> long, costly, used many explorers, reached "a natural milestone", or the
-> remaining work feels disproportionate. The handoff status you write is the
-> gate: one of `drained` / `answers-required` / `mixed` / `illness-detected`,
-> each requiring a real predicate condition — there is no status for an
-> effort-based stop. If tempted to stop while an `uncertain`/`open` leaf is still
-> adjudicable, CONTINUE. (See llm/commands/cq/advance.md §Stop condition.)
+> the defect is parked on an `open` user question, or every autonomous
+> investigate step is done and the sole remaining step is a specific named user
+> action — NEVER because the run is long, costly, used many explorers, reached
+> "a natural milestone", or the remaining work feels disproportionate. The
+> handoff status you write is the gate: one of `drained` / `answers-required` /
+> `user-action-required` / `mixed` / `illness-detected`, each requiring a real
+> predicate condition — there is no status for an effort-based stop. If tempted
+> to stop while an `uncertain`/`open` leaf is still adjudicable, CONTINUE.
+> (See llm/commands/cq/advance.md §Stop condition.)
 
 Whether you write a `handoffs` record at your stop depends ENTIRELY on your
 invocation context — there is **no env var or process signal** to read. You,
@@ -352,19 +354,40 @@ command in the SAME inline session, so you already KNOW which context you are in
   `create_item("handoffs", <defectMilestone>, <status>, <fields>)` — mapping
   your stop classification to the handoff `status`:
 
-  | This round's stop                                                              | handoff `status`   |
-  | ------------------------------------------------------------------------------ | ------------------ |
-  | nothing left to drill / fully adjudicated (root-caused, or all leaves resolved) | `drained`          |
-  | parked on an `open` question (step 6 — NEEDS user input)                       | `answers-required` |
-  | both at once — some defect(s) root-caused/drained, other(s) parked             | `mixed`            |
-  | a defect or invariant violation you could not get past                         | `illness-detected` |
+  | This round's stop                                                              | handoff `status`        |
+  | ------------------------------------------------------------------------------ | ----------------------- |
+  | nothing left to drill / fully adjudicated (root-caused, or all leaves resolved) | `drained`               |
+  | parked on an `open` question (step 6 — NEEDS user input)                       | `answers-required`      |
+  | all autonomous steps done; sole remaining step is a specific named user action  | `user-action-required`  |
+  | both at once — some defect(s) root-caused/drained, other(s) parked             | `mixed`                 |
+  | a defect or invariant violation you could not get past                         | `illness-detected`      |
+
+  **`user-action-required` — narrowly pinned (Q138/Q139).** Legal ONLY when a
+  SPECIFIC, NAMED item cannot progress because its next physical step is
+  *exclusively the user's* — re-activate an environment, provision a
+  credential/secret, or run a privileged/external command the agent cannot run
+  (e.g. D37's `home-manager switch`) — AND the agent has already done every
+  autonomous investigate step for that item. You MUST name the EXACT
+  command/action the user runs AND the EXACT item it unblocks; if you cannot
+  name both, it is NOT `user-action-required` — **CONTINUE**.
+
+  **Distinct from `answers-required`:** `answers-required` is gated on an
+  `open` `questions` item (a user REQUIREMENTS/clarification answer);
+  `user-action-required` involves **no** `questions` item — it is a
+  manual/environment action, not a requirements answer.
+
+  **Co-occurrence → `mixed`:** when both a user action AND an open question
+  block progress (or when work landed AND a user action is pending), classify
+  `mixed` and list both components in `handoffReasons` (e.g.
+  `[drained, answers-required, user-action-required]`).
 
   Field set (per `HANDOFFS_SCHEMA`; consistent with advance.md §Provenance):
   `summary` (**required** — the why-it-stopped prose, mirror the §Report);
   `flow` = `investigate`; `ledgerRefs` = the stop-causing items (`defects:<D>`,
   defect-seeded `goals:<G>`); `blockingQuestions` = the `open` question ids for
   an `answers-required`/`mixed` stop; `handoffReasons` = the component reasons
-  for a `mixed` stop (e.g. `[drained, answers-required]`); `sessionLogs` = the
+  for a `mixed` stop (e.g. `[drained, answers-required]` or
+  `[drained, answers-required, user-action-required]`); `sessionLogs` = the
   `docs/logs/<ts>-<agent-id>.md` path(s) written this round — populate them in
   the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
   once at the stop, never updated. **Then commit the ledger** (§Commit the
