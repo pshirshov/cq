@@ -79,6 +79,11 @@ archives:
     summary: "Investigate D2 (mcp-fails-uninitialized-ledger) complete: D2 resolved (backup-and-reinit on schema divergence); hypothesis tree closed — H1/H2 wrong, H4 confirmed (BootstrapViolationError on schema divergence), H3 (environmental/version-skew direction) confirmed by H4 + the D2 fix; Q37 answered. All items terminal."
     title: "Investigate: mcp-fails-uninitialized-ledger"
     status: done
+  - id: M110
+    path: ./archive/hypothesis/M110.md
+    summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
+    title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+    status: done
 ---
 
 # hypothesis
@@ -107,16 +112,3 @@ archives:
 - description: "Known-cause user-action defect: the fix is `home-manager switch` (re-activation), not a repo code change. This round verifies (a) the documented cause and (b) that the user's reported re-deploy (Q143 answer: \"I've redeployed.\") actually remediated it, by direct static inspection of the live environment."
 - evidence: ["[correct] ~/.pi/agent/settings.json `extensions[]` now lists `/nix/store/zs2p73sj31k2140y4ylb245wn433wigb-cq-subagent-dispatch.ts` (read 2026-06-08 from the live home-manager-activated file) — i.e. activation regenerated settings.json after the merge, pointing the dispatch extension at a current store path, not the stale pre-T225 one D37 reported.","[correct] `diff /nix/store/zs2p73sj31k2140y4ylb245wn433wigb-cq-subagent-dispatch.ts nix/pkg/pi-extensions/cq-subagent-dispatch.ts` exits 0 (byte-identical, 30452 bytes) — the registered extension is exactly the repo's current MERGED post-T222/T224/T225 source, confirming the stale-path condition no longer holds and the merged extension is what the locally-installed pi now loads (no PI_CODING_AGENT_DIR override needed).","[correct] Q143 (status:answered, author:user) answer = \"I've redeployed.\" — its step (1) is `home-manager switch` annotated \"(RESOLVES D37)\"; the static evidence above confirms that activation took effect."]
 - ledgerRefs: ["defects:D37"]
-
-## M110
-
-### H30 — confirmed
-
-- createdAt: 2026-06-08T20:41:58.227Z
-- updatedAt: 2026-06-08T20:41:58.227Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "D42 root cause = parseTiers accepts a duplicate-token [tiers] classification (no dedup) and classifyToken silently returns the first .find() match — order-dependent silent classification of a contradictory config"
-- description: Confirmed by direct read of nix/pkg/cq-ledgers/packages/cq-config/src/config.ts (current main).
-- evidence: ["[correct] config.ts:175 — parseTiers does `entries.push({ token, raw: key, class: value })` per [tiers] entry with NO check that `token` is structurally equal to an already-pushed entry's token. So a config classifying the SAME resolved token under two classes (e.g. a direct key + an alias key resolving to it) is accepted without error.","[correct] config.ts:304-312 — classifyToken does `config.tiers.entries.find((e) => reviewerTokensEqual(e.token, token))` — returns the FIRST matching entry in document/key order. So when a token is classified twice, the result is silently order-dependent (no fail-loud), violating the project's fail-fast / no-silent-ambiguity principle for internal/config logic.","[correct] reviewerTokensEqual (config.ts:285) compares harness+model+provider — the structural-equality basis a dedup check would reuse."]
-- ledgerRefs: ["defects:D42"]

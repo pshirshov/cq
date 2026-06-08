@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 339
+  item: 340
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -464,6 +464,16 @@ archives:
     summary: "G34 W3 complete: Agents-tab build-time catalogue codegen + new web Agents tab. T275 (AgentRole model + parseAgentMarkdown + formatExposedTools), T281 (## Catalogue blocks in all 19 role assets), T276 (gen-agents codegen → committed agentsCatalogue.gen.ts, 19 roles), T277 (freshness/drift test), T278 (Agents tab in HelpOverlay — privilege badge + exposed tools + folded prompt), T279 (happy-dom tests) all done; reviews R333-R338 go-ahead. bun run check green; nix build .#ledger-web green."
     title: "G34-W3: Agents tab — build-time catalogue codegen from cq-assets + new web Agents tab"
     status: done
+  - id: M114
+    path: ./archive/reviews/M114.md
+    summary: "G35 W1 complete (fixes D42): T282 added a class-agnostic duplicate-token guard to parseTiers (throws CqConfigError naming both conflicting [tiers] keys before entries.push) + tests; reworked the pre-existing contradictory VALID_TOML_WITH_TIERS fixture. R340 go-ahead. D42 resolved. bun run check green 1224/0."
+    title: "G35-W1: fail-loud dup-token [tiers] classification in parseTiers + tests"
+    status: done
+  - id: M110
+    path: ./archive/reviews/M110.md
+    summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
+    title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+    status: done
 ---
 
 # reviews
@@ -747,68 +757,6 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T267","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-181727-a0ebdfdbc5ec7ed80.md","docs/logs/20260608-181727-pi-minimax-T267.md"]
-
-## M110
-
-### R328 — go-ahead
-
-- createdAt: 2026-06-08T18:18:11.979Z
-- updatedAt: 2026-06-08T18:18:11.979Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "T268 implement review APPROVE (panel: opus[claude] + minimax[pi:ollama-cloud] both approve; grok+codex[pi:grok-build] excluded, documented stall). TiersConfig TYPE inverted to token-keyed classifier (entries: ReadonlyArray<TierEntry>); no per-tier ReviewerToken slot remains in types.ts; four minimal compile-bridges (parseTiers/resolveTierToken/configCapability wire-slots/2 test assertions) within the sanctioned scope-guard envelope, downstream rework correctly deferred to T270/T271/T272/T273; bun run check green (1135 pass/1 skip/0 fail)."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T268","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-181727-a5a19d637a6699421.md","docs/logs/20260608-181727-pi-minimax-T268.md"]
-
-### R329 — go-ahead
-
-- createdAt: 2026-06-08T18:35:10.440Z
-- updatedAt: 2026-06-08T18:35:10.440Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "T270 implement review APPROVE (panel: opus[claude] + minimax[pi:ollama-cloud] both approve; grok+codex[pi:grok-build] excluded, documented stall). parseTiers rewritten to the inverted token-keyed classifier: KEY→token (alias-then-parseReviewerToken G29 grammar), VALUE→Tier via isTier, building TierEntry[] {token,raw,class}; non-Tier value + malformed/unknown key both throw CqConfigError; scope confined to parseTiers + toml.ts + minimal fixture/cq.toml.example inversions; resolveTierToken left intact (T271); bun run check green 1136/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T270","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-183431-a985728ce61704eae.md","docs/logs/20260608-183431-pi-minimax-T270.md"]
-
-### R330 — go-ahead
-
-- createdAt: 2026-06-08T18:47:09.517Z
-- updatedAt: 2026-06-08T18:47:09.517Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "T271 implement review APPROVE (reconciled). Panel: opus[claude] APPROVE (thorough: resolveTierToken gone repo-wide, classifyToken structural-equality sound, selectTokensForTier candidate-order tie-break documented, resolveAgentModel throws precise CqConfigError on no-match; check green 1138/0). minimax[pi:ollama-cloud] returned an OFF-CONTRACT 'disapprove' (empty criticism + empty questions; all 3 findings in defects[], which the rubric makes file-and-defer / verdict-independent) — so its blocking content is empty; effective verdict approve-with-defects. grok+codex[pi:grok-build] excluded (documented stall). Reconciled APPROVE (opus authoritative; minimax findings non-blocking by rubric). minimax's genuine concern (silent first-match on a token classified under two [tiers] entries vs fail-loud) filed as defect D42 (file-and-defer, FIX). resolveTierToken removed; classifyToken/selectTokensForTier added; resolveAgentModel re-pointed (now requires a candidates arg); no external consumers."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T271","goals:G34","defects:D42"]
-- sessionLogs: ["docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]
-
-### R331 — go-ahead
-
-- createdAt: 2026-06-08T18:58:08.369Z
-- updatedAt: 2026-06-08T18:58:08.369Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "T273 implement review APPROVE (panel: opus[claude] + minimax[pi:ollama-cloud] both approve; grok+codex[pi:grok-build] excluded, documented stall). 32 test-only additions to config.test.ts cover all six [tiers]-classifier areas (token-keyed parse incl claude/pi/haiku-fast/alias keys; classifyToken correct+undefined incl structural model/provider mismatch; selectTokensForTier candidate-order tie-break as a real discriminator; resolveAgentModel end-to-end + exact-message no-match throw; unknown class VALUE + 3 malformed-KEY cases with verbatim CqConfigError messages; no-[tiers] config-load => tiers=null with reviewers/planners intact). Non-vacuous, exact-message via .message toBe; D42 contradictory edge correctly omitted (single-class fixtures). bun run check green 1170/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T273","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]
-
-### R332 — go-ahead
-
-- createdAt: 2026-06-08T19:15:04.745Z
-- updatedAt: 2026-06-08T19:15:04.745Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "T274 implement review APPROVE (reconciled, after 1 revise round). Panel opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded (documented stall). Round 1 DISAPPROVE (minimax: C1 doc/example alias-vs-token inconsistency; C2 vacuous per-entry assertion) — orchestrator filtered minimax's out-of-scope points (tie-break=T273, D42=deferred). Round 2 APPROVE (both): C1 resolved (example shows 1 alias-keyed + 2 full-token-keyed [tiers] entries, each a distinct single-classed token, no D42 dup); C2 resolved (classifyToken opus→frontier, minimax→fast, resolveAgentModel plan-reviewer→opus — non-vacuous classifier-exercising assertions). cq.toml.example token-keyed classifier + explanatory comment + token-grammar [tiers]-key doc note; bun run check green 1177/0. (opus noted a stale-dist test-invocation path artifact — canonical bun run check rebuilds + passes; not a defect.)"
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T274","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
 
 ## M113
 

@@ -509,6 +509,16 @@ archives:
     summary: "G34 W4 complete: integration verification (T280). gen-agents no-drift + bun run check green (1218/1skip/0) + nix build .#ledger-web/.#ledger-mcp/.#ledger-tui all green. Final cross-product gate for the G34 plan passed."
     title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
     status: done
+  - id: M114
+    path: ./archive/milestones/M114.md
+    summary: "G35 W1 complete (fixes D42): T282 added a class-agnostic duplicate-token guard to parseTiers (throws CqConfigError naming both conflicting [tiers] keys before entries.push) + tests; reworked the pre-existing contradictory VALID_TOML_WITH_TIERS fixture. R340 go-ahead. D42 resolved. bun run check green 1224/0."
+    title: "G35-W1: fail-loud dup-token [tiers] classification in parseTiers + tests"
+    status: done
+  - id: M110
+    path: ./archive/milestones/M110.md
+    summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
+    title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+    status: done
 ---
 
 # milestones
@@ -576,20 +586,8 @@ archives:
 - updatedAt: 2026-06-08T18:19:57.755Z
 - title: "G34-W1: ledger-web help popup — rename State Machines → Item States (label + ids/testids/CSS)"
 
-### M110 — open
-
-- createdAt: 2026-06-08T16:56:34.752Z
-- updatedAt: 2026-06-08T16:56:34.752Z
-- title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
-
 ### M113 — open
 
 - createdAt: 2026-06-08T20:42:12.810Z
 - updatedAt: 2026-06-08T20:42:12.810Z
 - title: "Plan: fix D42 — fail-loud on duplicate-token [tiers] classification in parseTiers"
-
-### M114 — open
-
-- createdAt: 2026-06-08T20:43:11.482Z
-- updatedAt: 2026-06-08T20:43:11.482Z
-- title: "G35-W1: fail-loud dup-token [tiers] classification in parseTiers + tests"

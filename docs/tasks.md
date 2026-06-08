@@ -354,6 +354,16 @@ archives:
     summary: "G34 W4 complete: integration verification (T280). gen-agents no-drift + bun run check green (1218/1skip/0) + nix build .#ledger-web/.#ledger-mcp/.#ledger-tui all green. Final cross-product gate for the G34 plan passed."
     title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
     status: done
+  - id: M114
+    path: ./archive/tasks/M114.md
+    summary: "G35 W1 complete (fixes D42): T282 added a class-agnostic duplicate-token guard to parseTiers (throws CqConfigError naming both conflicting [tiers] keys before entries.push) + tests; reworked the pre-existing contradictory VALID_TOML_WITH_TIERS fixture. R340 go-ahead. D42 resolved. bun run check green 1224/0."
+    title: "G35-W1: fail-loud dup-token [tiers] classification in parseTiers + tests"
+    status: done
+  - id: M110
+    path: ./archive/tasks/M110.md
+    summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
+    title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+    status: done
 ---
 
 # tasks
@@ -433,121 +443,3 @@ archives:
 - resultCommit: 2b1a2e0
 - completion: "Satisfied within T267's commit (2b1a2e0): the T267 worker updated packages/ledger-web/test/{helpTabs.test.tsx,stateMachineTab.test.tsx} to the new item-states testids (help-tab-item-states / help-item-states / help-item-state-<ledger>) with per-ledger diagram coverage preserved, to keep `bun run check` green. Verified on main: `rg statemachine packages/ledger-web/test` returns nothing; the tests assert the renamed testids + per-ledger rendering; integrated bun run check green 1135/1skip/0. Those test files were part of the R327-reviewed T267 diff (reviewer noted coverage preserved). No separate worker needed."
 - sessionLogs: ["docs/logs/20260608-180917-a27f1b85731cda97f.md"]
-
-## M110
-
-### T268 — done
-
-- createdAt: 2026-06-08T16:57:07.395Z
-- updatedAt: 2026-06-08T18:18:17.878Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "Invert TiersConfig type: token-keyed [tiers] classifier ((harness+provider+model) token -> Tier class)"
-- description: "In nix/pkg/cq-ledgers/packages/cq-config/src/types.ts, REPLACE the current `TiersConfig` (class -> ReviewerToken: the {fast|standard|frontier: ReviewerToken|undefined} shape) with the inverted CLASSIFIER shape per Q149/Q150: a token->class map keyed by the parseReviewerToken token-grammar STRING (e.g. \"claude:opus-4.8[1m]\"=\"frontier\", \"pi:ollama-cloud/minimax-m3\"=\"standard\", \"claude:haiku-4.5\"=\"fast\"). Model it so each entry preserves the PARSED ReviewerToken plus its assigned Tier and the raw key, e.g. `readonly entries: ReadonlyArray<{ token: ReviewerToken; raw: string; class: Tier }>`, so a token can be classified AND tokens-of-a-class enumerated. Keep Tier/TIERS/isTier/DEFAULT_TIER unchanged; keep agentTiers (agent-name -> Tier) unchanged. Update the CqConfig.tiers doc comment to describe the classifier. BREAKING: no dual-shape, no migration field (project policy; live cq.toml tiers=null)."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run typecheck` green with the new TiersConfig shape; types.ts exports the inverted classifier type; no reference to the removed per-tier ReviewerToken slots remains in types.ts."
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 47824b6
-- completion: "Inverted the TiersConfig TYPE (cq-config/src/types.ts) to a token-keyed classifier (entries: ReadonlyArray<{token,raw,class}>, new TierEntry export); old per-tier ReviewerToken slots removed. Minimal compile-bridges in config.ts/index.ts/ledger-mcp configCapability.ts + 2 test assertions keep bun run check green; full parser/resolver/consumer/test rework deferred to T270/T271/T272/T273. Cherry-picked onto main (clean). Reviewed APPROVE; integrated check green 1135/1skip/0."
-- sessionLogs: ["docs/logs/20260608-180917-a8a9ef0963751a6ef.md","docs/logs/20260608-181727-a5a19d637a6699421.md","docs/logs/20260608-181727-pi-minimax-T268.md"]
-
-### T270 — done
-
-- createdAt: 2026-06-08T16:57:23.755Z
-- updatedAt: 2026-06-08T18:35:13.275Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Rewrite parseTiers to parse the token-keyed classifier and validate class values
-- description: "In nix/pkg/cq-ledgers/packages/cq-config/src/config.ts, rewrite `parseTiers(raw, aliases)` for the inverted [tiers]: each KEY is resolved EXACTLY as the old code resolved tier VALUES today — first try the [aliases] table (the `aliases` arg already passed to parseTiers; an alias name maps to a token string), else parse the KEY directly via parseReviewerToken (the G29 grammar: claude:<model> | pi:<provider>/<model>). Each VALUE is a class name validated via isTier (precise CqConfigError on an unknown class). Record {token, raw, class}. Reject a non-Tier value and a malformed/unknown token key (let alias-miss + parseReviewerToken throw with a precise message). The toml.ts RawToml.tiers becomes Record<string,string> (key=token-or-alias, value=class) — confirm parseStringTable fits or adjust; update toml.ts doc comments describing [tiers] as token->class. Keep parseConfig wiring (`raw.tiers === null ? null : parseTiers(...)`)."
-- acceptance: "From nix/pkg/cq-ledgers/: a cq.toml [tiers] with `\"claude:opus-4.8[1m]\" = \"frontier\"`, `\"pi:ollama-cloud/minimax-m3\" = \"standard\"`, and an ALIAS key (e.g. `opus = \"frontier\"` resolving via [aliases]) all parse without error; a non-Tier VALUE throws CqConfigError; a malformed/unknown token-or-alias KEY throws; `bun run typecheck` green. (Behaviour asserted by the W2 test task T273.)"
-- suggestedModel: frontier
-- dependsOn: ["T268"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 9908c5c
-- completion: "Rewrote parseTiers(raw,aliases) for the inverted token-keyed [tiers]: iterates the record resolving each KEY→token (alias via [aliases], else parseReviewerToken G29 grammar) and validating each VALUE→Tier via isTier into TierEntry[] {token,raw:key,class}; non-Tier value + malformed/unknown key throw CqConfigError; dropped the now-unused TIERS import; updated toml.ts doc comments (RawToml.tiers stays Record<string,string>). Minimal [tiers] fixture inversions in 3 tests + cq.toml.example to keep check green. resolveTierToken left intact (T271). FF-merged to main (worktree based on HEAD); bun run check green 1136/0."
-- sessionLogs: ["docs/logs/20260608-183431-a416a06bdb13b79c1.md","docs/logs/20260608-183431-a985728ce61704eae.md","docs/logs/20260608-183431-pi-minimax-T270.md"]
-
-### T271 — done
-
-- createdAt: 2026-06-08T16:57:36.302Z
-- updatedAt: 2026-06-08T18:47:15.137Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Replace resolveTierToken/resolveAgentModel with classifyToken + selectTokensForTier (documented tie-break)
-- description: "In nix/pkg/cq-ledgers/packages/cq-config/src/config.ts, remove the old `resolveTierToken` (tier -> single ReviewerToken) and rework `resolveAgentModel` per Q149 (classifier model, NOT a tier->single-model lookup). Add: (1) `classifyToken(config, token): Tier | undefined` — look a token up in the inverted [tiers] classifier (compare by normalized token string / structural ReviewerToken equality), returning its class or undefined; (2) `selectTokensForTier(config, tier, candidates): ReviewerToken[]` — filter `candidates` (the active planners/reviewers token list) to those classifying to `tier`, in a DOCUMENTED deterministic tie-break (preserve candidates' configured order; document in JSDoc). Re-point `resolveAgentModel` to: agent-name -> resolveAgentTier (agent_tiers, unchanged) -> selectTokensForTier over the relevant active set -> deterministic first match (precise CqConfigError when no active token classifies to the agent's tier). Update src/index.ts exports: drop resolveTierToken, add classifyToken/selectTokensForTier, keep resolveAgentTier/resolveAgentModel. Update module/JSDoc."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run typecheck` green; `rg -n 'resolveTierToken' packages/cq-config/src` returns no matches; src/index.ts no longer exports resolveTierToken and exports classifyToken/selectTokensForTier. Behaviour (classify correct/undefined; tie-break order; resolveAgentModel throws on no match) asserted by the W2 test task."
-- suggestedModel: frontier
-- dependsOn: ["T270"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: "1384611"
-- completion: "Removed resolveTierToken; added classifyToken(config,token):Tier|undefined (structural ReviewerToken equality vs the inverted [tiers] entries) + selectTokensForTier(config,tier,candidates):ReviewerToken[] (candidate-order tie-break, documented in JSDoc); re-pointed resolveAgentModel to agent→resolveAgentTier→selectTokensForTier(candidates)→first match, throwing precise CqConfigError on no-match. resolveAgentModel signature now requires a candidates:readonly ReviewerToken[] arg (Q149 classifier model). index.ts drops resolveTierToken, adds classifyToken/selectTokensForTier. No external consumers existed (all call sites in cq-config). FF-merged to main; bun run check green 1138/0. Review APPROVE (opus; minimax off-contract disapprove→findings filed as D42). Filed D42 (fail-loud on duplicate-token classification, file-and-defer)."
-- sessionLogs: ["docs/logs/20260608-183431-a43fc183c4d5d34c7.md","docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]
-
-### T272 — done
-
-- createdAt: 2026-06-08T16:57:46.346Z
-- updatedAt: 2026-06-08T18:48:47.372Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: Update the ACTUAL TS consumers of the changed tier API (cq-config internals + ledger-mcp config capability)
-- description: "Grep the workspace for every TS reference to resolveTierToken / resolveAgentModel / TiersConfig: `cd nix/pkg/cq-ledgers && rg -n 'resolveTierToken|resolveAgentModel|TiersConfig' packages`. The reachable consumers are: (1) cq-config itself (config.ts/index.ts — the resolvers + exports, handled by T271); (2) @cq/ledger-mcp's config capability that backs get_config/get_planners/get_reviewers — if it serialized the OLD tier->token shape over MCP, update the serialized shape to the inverted token->class classifier so MCP clients (and the Agents-tab codegen) see token->class. Do NOT assume tui/cli are consumers (frontends are pure MCP clients; cq-cli does not depend on cq-config) — only touch files the rg actually surfaces. No backward-compat shims. Surgical."
-- acceptance: "From nix/pkg/cq-ledgers/: `rg -n 'resolveTierToken' packages` returns no matches; `bun run typecheck` green workspace-wide; the rg-surfaced consumer set is exactly the files edited (no consumer left on the old API); from repo root `nix build .#ledger-mcp` green."
-- suggestedModel: frontier
-- dependsOn: ["T271"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: n/a-verification (no code change required)
-- completion: "Consumer audit VERIFIED — no code change required. `rg resolveTierToken nix/pkg/cq-ledgers/packages` (excl node_modules) returns NONE; `resolveAgentModel` appears only in cq-config (src/{config,index}.ts + its 2 tests) — confirming the T271 worker's finding that NO external consumer exists (ledger-tui/cq-cli do not import these). The one capability that touches tiers — @cq/ledger-mcp configCapability — was already adapted by T268/T270 to derive its GetConfigResult wire slots from the inverted `entries`; the MCP wire shape (fast/standard/frontier slot view, derived from entries) was deliberately kept (no G34 consumer needs an inverted token->class wire shape — the Agents-tab codegen T276 reads cq.toml.example directly, not via MCP — and inverting the wire shape would be a breaking MCP-API change out of G34 scope). Acceptance met: workspace `bun run check` green (1138/0, covers typecheck) and `nix build .#ledger-mcp` exit 0 (result /nix/store/4ipal7f...-ledger-mcp). No worker needed."
-
-### T273 — done
-
-- createdAt: 2026-06-08T16:57:52.463Z
-- updatedAt: 2026-06-08T18:58:11.971Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "Add cq-config tests for the inverted [tiers] classifier grammar + class selection"
-- description: "In nix/pkg/cq-ledgers/packages/cq-config/test/, replace the old [tiers] tier->token cases (from T223) with inverted-classifier cases: (a) token-keyed [tiers] including a claude key, a pi:<provider>/<model> key, and `\"claude:haiku-4.5\"=\"fast\"` parses; (b) classifyToken returns the right Tier per token and undefined for an unclassified token; (c) selectTokensForTier returns class-matching active tokens in the documented tie-break order; (d) resolveAgentModel resolves agent-name -> tier -> a class-matching active token end-to-end, and throws CqConfigError when none matches; (e) an unknown class VALUE and a malformed token KEY each throw CqConfigError; (f) cq.toml without [tiers] still yields tiers=null with reviewers/planners intact. Assert exact error messages."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun test packages/cq-config` all green; cases cover: token-keyed parse (claude key + pi:<provider>/<model> key + claude:haiku-4.5=fast + an alias key); classifyToken correct/undefined; selectTokensForTier tie-break order; end-to-end resolveAgentModel + no-match throw; unknown class VALUE + malformed token KEY each throw CqConfigError; AND an explicit CONFIG-LOAD test that parseTiers/parseConfig on a config with NO [tiers] section yields tiers=null with reviewers/planners intact (not only the end-to-end path)."
-- suggestedModel: standard
-- dependsOn: ["T271"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: 5bdf02d
-- completion: "Added 32 comprehensive cq-config tests (config.test.ts, 6 describe blocks) for the inverted [tiers] classifier: token-keyed parse (claude/pi:<provider>/<model>/claude:haiku-4.5=fast/alias keys); classifyToken correct+undefined (incl structural model/provider mismatch); selectTokensForTier candidate-order tie-break; resolveAgentModel end-to-end + exact-message CqConfigError no-match throw; unknown class VALUE + 3 malformed-KEY cases (exact messages); explicit config-load no-[tiers] => tiers=null with reviewers/planners intact. Cherry-picked onto main (background committer had rebased main; ff not possible). bun run check green 1170/0. Review APPROVE (opus + minimax)."
-- sessionLogs: ["docs/logs/20260608-185640-a6f38505410fb5529.md","docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]
-
-### T274 — done
-
-- createdAt: 2026-06-08T16:57:59.114Z
-- updatedAt: 2026-06-08T19:15:10.289Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "Update cq.toml.example + token-format docs to the inverted [tiers] token->class grammar"
-- description: |
-    Rewrite the [tiers] section in cq.toml.example to the inverted token-keyed classifier, e.g.:
-    
-    [tiers]
-    "claude:opus-4.8[1m]" = "frontier"
-    "pi:ollama-cloud/minimax-m3" = "standard"
-    "claude:haiku-4.5" = "fast"
-    
-    Add a leading comment explaining the inversion (CLASSIFIER, not dispatch: it tells cq what tier a concrete (harness,provider,model) token is) and that a suggestedModel tier selects among the explicitly-listed planner/reviewer tokens whose class matches (documented tie-break). Update [agent_tiers] comment accordingly. Update any token-format doc (search for the existing token-grammar doc) to note [tiers] KEYS must be valid ReviewerTokens. Keep [aliases]/reviewers/planners/[agent_tiers] semantics intact. (Live cq.toml is gitignored with tiers=null; do not edit it here.) Add/extend a cq-config test that loads cq.toml.example and asserts no CqConfigError.
-- acceptance: "cq.toml.example [tiers] block uses token keys with class values + the explanatory comment; from nix/pkg/cq-ledgers/ a cq-config test loading cq.toml.example passes (no CqConfigError); token-grammar doc mentions the [tiers]-key requirement."
-- suggestedModel: standard
-- dependsOn: ["T271"]
-- ledgerRefs: ["goals:G34"]
-- resultCommit: dae5161
-- completion: "Updated cq.toml.example [tiers] to the inverted token-keyed classifier (demonstrating BOTH a full-token key — \"claude:opus-4.8[1m]\"=frontier, \"pi:grok-build/grok-build\"=standard — AND an alias key — minimax=fast, after round-2 criticism), with a classifier-not-dispatch explanatory comment + [agent_tiers] tie-break note + token-grammar [tiers]-key requirement doc note. Added cq-config regression tests (cq-toml-example.test.ts) that load repo-root cq.toml.example, assert parseConfig no-error, AND assert classifier semantics (classifyToken opus→frontier, minimax→fast; resolveAgentModel plan-reviewer→opus). 1 revise round (R1 disapprove on doc/example consistency + vacuous test). Cherry-picked range onto main (background committer rebases hashes). bun run check green 1177/0. Review APPROVE (opus + minimax round 2)."
-- sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
-
-## M114
-
-### T282 — planned
-
-- createdAt: 2026-06-08T20:43:27.881Z
-- updatedAt: 2026-06-08T20:43:27.881Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- headline: "parseTiers: fail-loud (CqConfigError) on a duplicate-token [tiers] classification + tests"
-- description: "Fixes D42. In nix/pkg/cq-ledgers/packages/cq-config/src/config.ts parseTiers: after resolving each [tiers] KEY to its ReviewerToken (alias-or-parseReviewerToken, existing logic) and validating its class, BEFORE/at `entries.push(...)`, detect a DUPLICATE token classification — a token structurally equal (via the existing reviewerTokensEqual) to an already-recorded entry's token — and throw a precise CqConfigError naming BOTH conflicting raw keys + their classes (fail-loud, symmetric to the existing CqConfigError throws in parseTiers). This makes a contradictory config (same resolved token classified under two classes, e.g. a direct token key + an alias key resolving to it) fail at load instead of being silently first-matched by classifyToken. Keep classifyToken as-is (with the dedup guard, no token can be double-classified, so first-match is now unambiguous). Read parseTiers + reviewerTokensEqual + the existing CqConfigError throw sites first to match the error style."
-- acceptance: "From nix/pkg/cq-ledgers/: `bun run check` green with: (a) a NEW cq-config test — a [tiers] with two entries resolving to the SAME token (one case: a direct token key + an alias key resolving to it; one case: two direct keys for the same token, differing classes) THROWS CqConfigError whose message names BOTH conflicting keys; (b) a single-token-one-class [tiers] does NOT throw; (c) the existing valid fixtures (incl. cq.toml.example via cq-toml-example.test.ts) still parse. `rg` confirms the dup-token guard is in parseTiers. typecheck + lint + all tests green."
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G35","defects:D42"]
