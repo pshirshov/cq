@@ -450,10 +450,10 @@ archives:
 - dependsOn: ["T231","T232"]
 - ledgerRefs: ["goals:G29","defects:D36"]
 
-### T235 — wip
+### T235 — done
 
 - createdAt: 2026-06-08T00:39:42.462Z
-- updatedAt: 2026-06-08T09:42:29.632Z
+- updatedAt: 2026-06-08T10:19:30.733Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Adapt the pre-existing @cq/config tests broken by the breaking grammar
@@ -471,6 +471,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T231"]
 - ledgerRefs: ["goals:G29","defects:D36"]
+- resultCommit: 92efd10
+- completion: Migrated all bare-pi legacy fixtures (config.test.ts + ledger-mcp/main.test.ts) to qualified form + added provider to deep-assertions + slash-based colon test. Full suite green (1058/0 integrated).
+- sessionLogs: ["docs/logs/20260608-101505-a92573c7296d106a5.md","docs/logs/20260608-101505-a5fa5e861c049d049.md"]
 
 ### T236 — done
 
@@ -571,10 +574,10 @@ archives:
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
 
-### T247 — planned
+### T247 — done
 
 - createdAt: 2026-06-08T08:35:02.973Z
-- updatedAt: 2026-06-08T08:42:57.374Z
+- updatedAt: 2026-06-08T10:19:34.123Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add a fixture-based test asserting HO records survive the additive schema widening
@@ -583,6 +586,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 3f64515
+- completion: Added committed CI regression test (handoffs-additive-widening-init.test.ts) proving an additive HANDOFFS_SCHEMA statusValue preserves HO history (no backup-reinit; HO1 survives). Teeth empirically verified.
+- sessionLogs: ["docs/logs/20260608-101505-ae7059ac1de10074a.md","docs/logs/20260608-101505-abfc87a49b1c437a7.md"]
 
 ## M99
 
@@ -618,10 +624,10 @@ archives:
 - completion: ledger-web status.ts WARNING set gains user-action-required → 'warning' (lw-status-warning/amber) bucket; mirrored with tui.
 - sessionLogs: ["docs/logs/20260608-095457-a3551001d3e2a1d51.md"]
 
-### T250 — planned
+### T250 — done
 
 - createdAt: 2026-06-08T08:35:22.257Z
-- updatedAt: 2026-06-08T08:43:01.554Z
+- updatedAt: 2026-06-08T10:19:37.848Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add TUI + web render tests asserting user-action-required renders warning (not green)
@@ -630,6 +636,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T248","T249"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 4002bd1
+- completion: Added TUI + web render tests positively asserting user-action-required → warning bucket/magenta/lw-status-warning + the other four unchanged; teeth verified (revert WARNING → failures).
+- sessionLogs: ["docs/logs/20260608-101505-ab03157bbe6b9f9a1.md","docs/logs/20260608-101505-ad88475efbcad5520.md"]
 
 ## M100
 
@@ -649,10 +658,10 @@ archives:
 - completion: advance.md threads user-action-required through the §Provenance status table, §End-of-run report (BLOCKED-ON-USER-ACTION + mixed composition), and §Stop-condition gate (narrow legal stop + anti-laundering, no-effort-gate intact, distinct from answers-required).
 - sessionLogs: ["docs/logs/20260608-095457-a1234ac8ea9a07864.md","docs/logs/20260608-095457-a7996c3617e26840c.md"]
 
-### T252 — planned
+### T252 — done
 
 - createdAt: 2026-06-08T08:35:42.984Z
-- updatedAt: 2026-06-08T08:43:08.290Z
+- updatedAt: 2026-06-08T10:19:40.331Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add user-action-required row to the plan/advance.md handoff status-table
@@ -661,11 +670,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 9e06a5a
+- completion: plan/advance.md §Handoff-record table gains the user-action-required row + narrow-pinning/distinct/mixed prose.
+- sessionLogs: ["docs/logs/20260608-101505-ab61d341a6ea0e8d3.md"]
 
-### T253 — planned
+### T253 — done
 
 - createdAt: 2026-06-08T08:35:46.822Z
-- updatedAt: 2026-06-08T08:43:11.151Z
+- updatedAt: 2026-06-08T10:19:42.564Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add user-action-required row to the investigate/advance.md handoff status-table
@@ -674,11 +686,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 5f611aa
+- completion: investigate/advance.md §Handoff-record table gains the user-action-required row + narrow-pinning (D37 example)/distinct/mixed prose.
+- sessionLogs: ["docs/logs/20260608-101505-a382abfe0e3b578cd.md"]
 
-### T254 — planned
+### T254 — done
 
 - createdAt: 2026-06-08T08:35:54.467Z
-- updatedAt: 2026-06-08T08:43:13.373Z
+- updatedAt: 2026-06-08T10:19:44.834Z
 - author: "opus-4.8[1m]"
 - session: $CLAUDE_CODE_SESSION_ID
 - headline: Add user-action-required row to the implement/advance.md handoff status-table
@@ -687,6 +702,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T245"]
 - ledgerRefs: ["goals:G30"]
+- resultCommit: 1c02178
+- completion: implement/advance.md §Handoff-record table gains the user-action-required row + narrow-pinning/distinct/mixed prose (untouched the §3c off-enum section).
+- sessionLogs: ["docs/logs/20260608-101505-ade34c4ec89fbe878.md"]
 
 ## M101
 

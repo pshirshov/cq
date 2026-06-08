@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 298
+  item: 304
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -675,6 +675,18 @@ archives:
 - ledgerRefs: ["tasks:T233","goals:G29"]
 - sessionLogs: ["docs/logs/20260608-095457-a281af6ad41c764a2.md"]
 
+### R298 — go-ahead
+
+- createdAt: 2026-06-08T10:19:02.460Z
+- updatedAt: 2026-06-08T10:19:02.460Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T235 APPROVE (opus). All bare-pi legacy fixtures migrated to qualified pi:<provider>/<model> (config.test.ts + ledger-mcp/main.test.ts); only two slash-free survivors remain, both inside .toThrow rejection cases; every ReviewerToken/config deep-assertion now asserts provider (null for claude); colon-preservation test replaced with pi:prov/a:b→model a:b (matches real parseReviewerToken first-/ split). No production change, no weakened assertions. Integrated `bun run check` GREEN: 1058 pass / 1 skip / 0 fail."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T235","goals:G29"]
+- sessionLogs: ["docs/logs/20260608-101505-a5fa5e861c049d049.md"]
+
 ## M100
 
 ### R295 — go-ahead
@@ -688,6 +700,42 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T251","goals:G30"]
 - sessionLogs: ["docs/logs/20260608-095457-a7996c3617e26840c.md"]
+
+### R301 — go-ahead
+
+- createdAt: 2026-06-08T10:19:16.419Z
+- updatedAt: 2026-06-08T10:19:16.419Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T252 GO-AHEAD (orchestrator-verified; symmetric to the opus-approved T251). plan/advance.md §Handoff-record table gains the user-action-required row (L580) with narrow-pinning trigger (specific named item + exact user command + all autonomous steps done), distinct-from-answers-required (L595: user ACTION not open-question answer, no questions item), mixed/handoffReasons co-occurrence (L599), gate-callout updated (L559). No new schema field (Q140). Integrated check green 1058/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T252","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-101505-ab61d341a6ea0e8d3.md"]
+
+### R302 — go-ahead
+
+- createdAt: 2026-06-08T10:19:20.011Z
+- updatedAt: 2026-06-08T10:19:20.011Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: T253 GO-AHEAD (orchestrator-verified; symmetric to the opus-approved T251). investigate/advance.md §Handoff-record table gains the user-action-required row (L361) with narrow-pinning trigger (D37 home-manager switch example, L365), distinct-from-answers-required (L376), mixed/handoffReasons co-occurrence (L382), gate-callout updated (L341). No new schema field (Q140). Integrated check green 1058/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T253","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-101505-a382abfe0e3b578cd.md"]
+
+### R303 — go-ahead
+
+- createdAt: 2026-06-08T10:19:23.523Z
+- updatedAt: 2026-06-08T10:19:23.523Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: T254 GO-AHEAD (orchestrator-verified; symmetric to the opus-approved T251). implement/advance.md §Handoff-record table gains the user-action-required row (L439) with narrow-pinning trigger (specific task + exact command + exact item unblocked), distinct-from-answers-required, mixed/handoffReasons co-occurrence (L440), callout + field description updated (L419/L449). Did NOT touch the §3c off-enum section (T242). No new schema field (Q140). Integrated check green 1058/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T254","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-101505-ade34c4ec89fbe878.md"]
 
 ## M99
 
@@ -714,3 +762,29 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T249","goals:G30"]
 - sessionLogs: ["docs/logs/20260608-095457-a3551001d3e2a1d51.md"]
+
+### R300 — go-ahead
+
+- createdAt: 2026-06-08T10:19:12.011Z
+- updatedAt: 2026-06-08T10:19:12.011Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T250 APPROVE (opus). TUI + web render tests POSITIVELY assert statusBucket('user-action-required',HANDOFFS_SCHEMA)='warning' + color (TUI magenta/ANSI 35; web lw-status-warning) AND that the other four handoff statuses bucket to 'done'. Genuine TEETH (empirically: reverting the TUI WARNING set → 3 failures, web → 2). Diff is the two test files only (+49/-2), no scope creep; suite 1058/0, typecheck+lint clean."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T250","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-101505-ad88475efbcad5520.md"]
+
+## M98
+
+### R299 — go-ahead
+
+- createdAt: 2026-06-08T10:19:07.735Z
+- updatedAt: 2026-06-08T10:19:07.735Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: "T247 APPROVE (opus). Committed CI regression test (handoffs-additive-widening-init.test.ts) proves an additive HANDOFFS_SCHEMA statusValue does not destroy HO history: primes a TEMP store with the canonical widened schema + seeded HO1(drained), re-init()s, asserts no docs/.backup/ + handoffs not emptied + HO1 readable. TEETH empirically verified (forced divergence fires backupAndReinit → backup created + HO1 lost). TEMP-only (no live-docs dependency); correctly models the post-migration no-divergence path. Surgical single new file; main 1058/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T247","goals:G30"]
+- sessionLogs: ["docs/logs/20260608-101505-abfc87a49b1c437a7.md"]
