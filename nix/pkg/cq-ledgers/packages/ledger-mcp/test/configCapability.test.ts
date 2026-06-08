@@ -126,8 +126,8 @@ describe("T232: provider threading — computeConfig tiers", () => {
         '  claude  = "claude:opus-4.8[1m]"',
         "",
         "[tiers]",
-        '  fast     = "minimax"',
-        '  standard = "claude"',
+        '  minimax = "fast"',
+        '  claude  = "standard"',
         "",
       ].join("\n"),
     );

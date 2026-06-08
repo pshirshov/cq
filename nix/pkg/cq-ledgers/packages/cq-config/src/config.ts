@@ -18,7 +18,6 @@ import {
   isHarness,
   isTier,
   DEFAULT_TIER,
-  TIERS,
   type CqConfig,
   type ReviewerToken,
   type Tier,
@@ -137,38 +136,43 @@ export function parseConfig(source: string): CqConfig {
 }
 
 /**
- * Parse the `[tiers]` raw string table into a `TiersConfig`.
+ * Parse the inverted, token-keyed `[tiers]` CLASSIFIER table into a
+ * `TiersConfig` (Q149/Q150; rewritten in T270).
  *
- * Each value is either an alias name (looked up in `aliases`) or a direct
- * `"<harness>:<model>"` token. Unknown keys (i.e. not fast/standard/frontier)
- * throw a `CqConfigError`.
+ * Each `[tiers]` entry is `KEY = VALUE` where:
+ *  - the KEY is a reviewer token, resolved EXACTLY as a `reviewers`/`planners`
+ *    or old per-slot tier value was: if the KEY names an entry in `[aliases]`,
+ *    use that alias's token; otherwise parse the KEY directly with
+ *    `parseReviewerToken` (the G29 grammar: `claude:<model>` |
+ *    `pi:<provider>/<model>`). An alias miss that is also a malformed token
+ *    throws a precise `CqConfigError` from `parseReviewerToken`.
+ *  - the VALUE is a tier CLASS name, validated by `isTier`. A value that is
+ *    not `fast`/`standard`/`frontier` throws a `CqConfigError`.
+ *
+ * The resulting `entries` array records, per configured token, the parsed
+ * {@link ReviewerToken}, the raw KEY string it was keyed by, and the assigned
+ * class — so a token can be classified (token -> class) and the tokens of a
+ * class can be enumerated (class -> tokens).
  */
 function parseTiers(
   raw: Record<string, string>,
   aliases: Record<string, ReviewerToken>,
 ): TiersConfig {
-  // NOTE (T268 minimal bridge): the FULL inverted-classifier parse (token-keyed
-  // `[tiers]` entries) is owned by the downstream parser-rewrite task T270.
-  // Here we keep the existing per-tier-slot keying semantics
-  // (fast/standard/frontier -> token) but emit the new `entries` classifier
-  // shape, so the workspace type-checks and existing config tests pass without
-  // prematurely implementing the token-keyed grammar.
-  const VALID_TIER_KEYS = new Set<string>(TIERS);
   const entries: TierEntry[] = [];
 
   for (const [key, value] of Object.entries(raw)) {
-    if (!VALID_TIER_KEYS.has(key)) {
+    // Resolve the KEY to a token: if the KEY names a known alias, use it;
+    // otherwise parse the KEY directly as a "<harness>:<model>" token. A
+    // malformed/unknown token key surfaces parseReviewerToken's precise error.
+    const token =
+      aliases[key] !== undefined ? aliases[key]! : parseReviewerToken(key);
+    // Validate the VALUE as a tier class name.
+    if (!isTier(value)) {
       throw new CqConfigError(
-        `unexpected key "${key}" in [tiers] (expected fast, standard, or frontier)`,
+        `tiers["${key}"] = "${value}" is not a valid tier class (expected fast, standard, or frontier)`,
       );
     }
-    // Resolve: if the value names a known alias, use it; otherwise parse
-    // the value directly as a "<harness>:<model>" token.
-    const token =
-      aliases[value] !== undefined
-        ? aliases[value]!
-        : parseReviewerToken(value);
-    entries.push({ token, raw: value, class: key as Tier });
+    entries.push({ token, raw: key, class: value });
   }
 
   return { entries };

@@ -8,7 +8,7 @@
 #   [aliases]        — table mapping alias names to reviewer tokens
 #   reviewers = [...] — top-level array of alias names to activate as reviewers
 #   planners  = [...] — top-level array of alias names to activate as planners
-#   [tiers]          — maps fast/standard/frontier -> <harness>:<model> token or alias
+#   [tiers]          — CLASSIFIER: maps each <harness>:<model> token (or alias) -> tier class
 #   [agent_tiers]    — maps agent-name -> tier name (default: "standard")
 
 # reviewers — List of ALIAS NAMES (keys from [aliases] below) to activate as reviewers.
@@ -42,17 +42,18 @@ planners = ["opus", "grok"]
   opus = "claude:opus-4.8[1m]"
   minimax = "pi:ollama-cloud/minimax-m3"
 
-# [tiers] — Map the three dispatch tiers to a concrete provider+model.
-# Values are either an alias name (from [aliases] above) or a direct token.
-# Absent tier slots are not configured; resolving them throws CqConfigError.
-# Default suggestion:
+# [tiers] — CLASSIFIER mapping each reviewer token to its dispatch tier class.
+# Each KEY is a <harness>:<model> token (or an alias name from [aliases] above);
+# each VALUE is the tier class it is assigned to. A token with no entry here is
+# unclassified; resolving an unconfigured class throws CqConfigError.
+# Tier classes:
 #   fast     — cheapest/fastest (e.g. a small Pi provider)
 #   standard — balanced (default tier for agents with no [agent_tiers] entry)
 #   frontier — most capable (e.g. Claude Opus or Grok)
 [tiers]
-  fast     = "minimax"
-  standard = "grok"
-  frontier = "opus"
+  minimax = "fast"
+  grok    = "standard"
+  opus    = "frontier"
 
 # [agent_tiers] — Map each named cq agent to its dispatch tier.
 # An agent with NO entry here falls back to the "standard" tier.

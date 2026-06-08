@@ -11,7 +11,9 @@
  *  - `reviewers` / `planners` are arrays of strings;
  *  - `webui` is a table with an optional string `host` and an optional
  *    integer `port` in 1..65535;
- *  - `tiers` is a table of `fast/standard/frontier = "<harness>:<model>"` or alias;
+ *  - `tiers` is an inverted CLASSIFIER table: each KEY is a reviewer token
+ *    (`"<harness>:<model>"`) or an `[aliases]` name, and each VALUE is the tier
+ *    CLASS it is assigned to (`fast`/`standard`/`frontier`);
  *  - `agent_tiers` is a table of `agent-name = "<tier>"` strings.
  *
  * Token grammar (BREAKING in T237):
@@ -48,7 +50,11 @@ export interface RawToml {
   readonly planners: readonly string[] | null;
   /** The `[webui]` table, or null if absent. */
   readonly webui: RawWebui | null;
-  /** The `[tiers]` table: tier name -> raw token string, or null if absent. */
+  /**
+   * The `[tiers]` CLASSIFIER table: raw token-or-alias KEY -> tier-class VALUE
+   * (both raw strings; the config layer resolves the key and validates the
+   * class). Null if absent.
+   */
   readonly tiers: Record<string, string> | null;
   /** The `[agent_tiers]` table: agent name -> tier name, or null if absent. */
   readonly agentTiers: Record<string, string> | null;

@@ -352,9 +352,9 @@ minimax = "pi:ollama-cloud/minimax-m3"
 grok = "pi:grok-build/grok-build"
 
 [tiers]
-fast = "pi:ollama-cloud/minimax-m3"
-standard = "minimax"
-frontier = "opus"
+"pi:ollama-cloud/minimax-m3" = "fast"
+minimax = "standard"
+opus = "frontier"
 
 [agent_tiers]
 investigate-explorer = "frontier"
@@ -405,20 +405,24 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
     expect(config.tiers).toBeNull();
   });
 
-  it("throws on an unknown key in [tiers]", () => {
+  it("throws on a non-tier VALUE in [tiers]", () => {
+    // T270 inverted keying: KEY is a token/alias, VALUE is the tier class.
+    // "ultra" is not a valid tier class.
     expect(() =>
       parseConfig(`
 [tiers]
-ultra = "claude:opus-4.8[1m]"
+"claude:opus-4.8[1m]" = "ultra"
 `),
-    ).toThrow(/unexpected key "ultra" in \[tiers\]/);
+    ).toThrow(/is not a valid tier class/i);
   });
 
-  it("throws on a tier value with an unknown harness", () => {
+  it("throws on a token KEY with an unknown harness", () => {
+    // T270 inverted keying: the KEY is the token; an unknown harness in the
+    // key surfaces parseReviewerToken's precise error.
     expect(() =>
       parseConfig(`
 [tiers]
-fast = "gemini:flash"
+"gemini:flash" = "fast"
 `),
     ).toThrow(/unknown harness/i);
   });
@@ -501,7 +505,7 @@ describe("resolveAgentModel end-to-end (T223 acceptance c)", () => {
   it("resolveTierToken throws when the requested tier slot is not configured", () => {
     const config = parseConfig(`
 [tiers]
-frontier = "claude:opus-4.8[1m]"
+"claude:opus-4.8[1m]" = "frontier"
 `);
     expect(() => resolveTierToken(config, "fast")).toThrow(CqConfigError);
   });

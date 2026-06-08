@@ -40,9 +40,9 @@ minimax = "pi:ollama-cloud/minimax-m3"
 opus    = "claude:opus-4.8[1m]"
 
 [tiers]
-fast     = "minimax"
-standard = "minimax"
-frontier = "opus"
+"pi:ollama-cloud/minimax-m3" = "fast"
+minimax = "standard"
+opus     = "frontier"
 
 [agent_tiers]
 implement-worker     = "standard"
@@ -129,11 +129,11 @@ minimax = "pi:minimax-m3"
     ).toThrow(CqConfigError);
   });
 
-  it("throws CqConfigError when [tiers] value is a bare pi token", () => {
+  it("throws CqConfigError when [tiers] KEY is a bare pi token", () => {
     expect(() =>
       parseConfig(`
 [tiers]
-standard = "pi:minimax-m3"
+"pi:minimax-m3" = "standard"
 `),
     ).toThrow(CqConfigError);
   });
