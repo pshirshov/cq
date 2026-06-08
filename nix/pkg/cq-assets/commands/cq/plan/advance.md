@@ -297,6 +297,19 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
           timeout: abstention keys ONLY on a RETURNED failure; a hung shellout is
           an operational stall, not a silent abstention. Reconcile (ii) over the
           reviewers that DID return a usable verdict.
+        - **Off-enum verdict ⇒ ABSTENTION (fail-loud, BEFORE reconcile).** After
+          parsing the verdict contract, VALIDATE the `verdict` string against the
+          closed plan-review enum `{go-ahead, revise}` (the literal enum in
+          `commands/cq/plan-review.md`). If `verdict` is NOT EXACTLY `go-ahead`
+          or `revise`, treat that reviewer as ABSTAINING — DROP it from the panel
+          (not counted `go-ahead`, not counted `revise`), exactly as the
+          abstention rule above drops an unparseable verdict, and LOG it with the
+          reviewer's alias + the raw off-enum value + cause (§Session logs). Do
+          NOT normalize or recover synonyms — an off-enum value is an ABSTENTION,
+          NEVER a value to coerce into a canonical enum (silent coercion would
+          defeat the fail-loud contract). This validation runs BEFORE the
+          reconcile string-equality (ii) so an off-enum value can never reach
+          reconcile.
       - **ii. Reconcile (Q91) — STRICTEST-WINS + tagged UNION, over SURVIVORS.**
         Combine the SURVIVING reviewers' verdicts (abstainers excluded from BOTH
         the verdict and the union) into one:
