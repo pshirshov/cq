@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 21-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 22-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. Stdio counterpart to `createLedgerMcpTools` (the in-process
  * Claude-SDK `tool()` factory in `./ledgerTools.ts`): identical operational
@@ -168,7 +168,7 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 21 ledger tools on the given MCP server. Identical
+ * Register the 22 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  *
  * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
@@ -578,7 +578,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  // ---- Config capability (2) ---------------------------------------------
+  // ---- Config capability (3) ---------------------------------------------
 
   server.registerTool(
     "get_reviewers",
@@ -628,6 +628,27 @@ ${QUERY_LANGUAGE_HELP}`,
     () => {
       if (configCapability === undefined) throw new ConfigNotImplementedError();
       return jsonResult(configCapability.computeConfig());
+    },
+  );
+
+  server.registerTool(
+    "get_agent_models",
+    {
+      description:
+        "Return the per-role model overlay for every agent in the 19-role roster. " +
+        "Returns { configured, agents: [{ id, status, modelClass, modelMappings }] }. " +
+        "Four status variants: " +
+        "'resolved' — a live token was found for the role's tier class; " +
+        "'not-configured' — no cq.toml is present; " +
+        "'no-live-token' — cq.toml is present but the role's tier has no live token; " +
+        "'not-model-configurable' — the role has no agentTierKey (orchestrator commands). " +
+        "Only available when the server has a cq.toml-capable config root; " +
+        "otherwise returns a not-implemented error.",
+      inputSchema: {},
+    },
+    () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeAgentModels());
     },
   );
 }

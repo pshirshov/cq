@@ -3,7 +3,7 @@
  *
  * Starts the server's `serveHttp` over Bun.serve on an ephemeral port,
  * connects a real `@modelcontextprotocol/sdk` Client through the
- * StreamableHTTPClientTransport, and asserts the 21-tool surface plus a
+ * StreamableHTTPClientTransport, and asserts the 22-tool surface plus a
  * full create → update → fetch → search round-trip works over HTTP and
  * persists to disk.
  */
@@ -64,7 +64,7 @@ function decode<T>(result: unknown): T {
 }
 
 describe("ledger-mcp Streamable HTTP", () => {
-  it("lists the 21 ledger tools over HTTP", async () => {
+  it("lists the 22 ledger tools over HTTP", async () => {
     await withClient(async (client) => {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
       expect(names).toEqual([...LEDGER_TOOL_NAMES].sort());

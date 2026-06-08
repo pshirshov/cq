@@ -3,7 +3,7 @@
  *
  * Returns an array of `tool()` instances for
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
- * The 21-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
+ * The 22-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
  * the stdio counterpart is `registerLedgerStdioTools` (./stdioLedgerTools.ts).
  *
  * Capability-gated tools:
@@ -583,7 +583,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  // ---- Config capability (2) ---------------------------------------------
+  // ---- Config capability (3) ---------------------------------------------
 
   const getReviewers = tool(
     "get_reviewers",
@@ -627,6 +627,24 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
+  const getAgentModels = tool(
+    "get_agent_models",
+    "Return the per-role model overlay for every agent in the 19-role roster. " +
+      "Returns { configured, agents: [{ id, status, modelClass, modelMappings }] }. " +
+      "Four status variants: " +
+      "'resolved' — a live token was found for the role's tier class; " +
+      "'not-configured' — no cq.toml is present; " +
+      "'no-live-token' — cq.toml is present but the role's tier has no live token; " +
+      "'not-model-configurable' — the role has no agentTierKey (orchestrator commands). " +
+      "Only available when the server has a cq.toml-capable config root; " +
+      "otherwise returns a not-implemented error.",
+    {} as Record<string, never>,
+    async () => {
+      if (configCapability === undefined) throw new ConfigNotImplementedError();
+      return jsonResult(configCapability.computeAgentModels());
+    },
+  );
+
   return [
     enumerateLedgers,
     fetchLedger,
@@ -649,6 +667,7 @@ ${QUERY_LANGUAGE_HELP}`,
     getReviewers,
     getPlanners,
     getConfig,
+    getAgentModels,
   ] as unknown as AnyTool[];
 }
 
@@ -675,4 +694,5 @@ export const LEDGER_TOOL_NAMES = [
   "get_reviewers",
   "get_planners",
   "get_config",
+  "get_agent_models",
 ] as const;

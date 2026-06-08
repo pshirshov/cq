@@ -3,7 +3,7 @@
  *
  * Spawns the standalone stdio binary as a subprocess, drives it through the
  * `@modelcontextprotocol/sdk` Client + StdioClientTransport pair, and asserts:
- *   1. tools/list returns exactly the 21-tool ledger surface.
+ *   1. tools/list returns exactly the 22-tool ledger surface.
  *   2. enumerate_ledgers reflects the bootstrapped + seeded ledgers.
  *   3. A full create → read → update → search round-trip works through the
  *      transport and persists to disk (verified with a fresh store).
@@ -80,7 +80,7 @@ function decode<T>(result: unknown): T {
 }
 
 describe("ledger-mcp stdio binary", () => {
-  it("lists exactly the 21 ledger tools (no cq ask/submit tools)", async () => {
+  it("lists exactly the 22 ledger tools (no cq ask/submit tools)", async () => {
     await withClient(async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
@@ -222,7 +222,7 @@ async function withClientAtRoot(
 }
 
 describe("ledger-mcp stdio config capability (cq.toml)", () => {
-  it("surfaces get_reviewers + get_planners + get_config on the stdio binary", async () => {
+  it("surfaces get_reviewers + get_planners + get_config + get_agent_models on the stdio binary", async () => {
     // The default tmpRoot has no cq.toml, so the tools are still listed.
     await withClientAtRoot(tmpRoot, async (client) => {
       const list = await client.listTools();
@@ -230,6 +230,7 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
       expect(names).toContain("get_reviewers");
       expect(names).toContain("get_planners");
       expect(names).toContain("get_config");
+      expect(names).toContain("get_agent_models");
     });
   });
 
@@ -324,6 +325,86 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
       });
     } finally {
       await fs.rm(cfgRoot, { recursive: true, force: true });
+    }
+  });
+
+  /**
+   * T287: get_agent_models MCP tool — server-level tests via stdio binary.
+   *
+   * Asserts the wiring lands on the full stdio binary path:
+   *  - with a fixture cq.toml: returns 19 agent entries (the full roster).
+   *  - without a cq.toml: returns configured:false with 19 entries (not-configured
+   *    for model-configurable roles, not-model-configurable for command roles).
+   */
+  it("get_agent_models returns 19 agent entries with a fixture cq.toml (T287)", async () => {
+    const agentRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-agents-"));
+    try {
+      const store = new FsLedgerStore({ root: agentRoot });
+      await store.init();
+      await store.dispose();
+      await fs.writeFile(
+        path.join(agentRoot, "cq.toml"),
+        [
+          'reviewers = ["opus"]',
+          'planners  = ["opus"]',
+          "",
+          "[aliases]",
+          '  opus = "claude:opus-4.8[1m]"',
+          "",
+          "[tiers]",
+          '  "claude:opus-4.8[1m]" = "frontier"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await withClientAtRoot(agentRoot, async (client) => {
+        const result = decode<{
+          configured: boolean;
+          agents: Array<{
+            id: string;
+            status: string;
+            modelClass: string | null;
+            modelMappings: Record<string, unknown>;
+          }>;
+        }>(await client.callTool({ name: "get_agent_models", arguments: {} }));
+        expect(result.configured).toBe(true);
+        // The fixed roster has exactly 19 roles.
+        expect(result.agents).toHaveLength(19);
+        // Every entry has the required fields.
+        for (const agent of result.agents) {
+          expect(typeof agent.id).toBe("string");
+          expect(["resolved", "not-configured", "no-live-token", "not-model-configurable"]).toContain(
+            agent.status,
+          );
+          expect(typeof agent.modelMappings).toBe("object");
+        }
+      });
+    } finally {
+      await fs.rm(agentRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("get_agent_models returns configured:false with 19 entries when no cq.toml (T287)", async () => {
+    const noCfgRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-agents-nocfg-"));
+    try {
+      const store = new FsLedgerStore({ root: noCfgRoot });
+      await store.init();
+      await store.dispose();
+      await withClientAtRoot(noCfgRoot, async (client) => {
+        const result = decode<{
+          configured: boolean;
+          agents: Array<{ id: string; status: string }>;
+        }>(await client.callTool({ name: "get_agent_models", arguments: {} }));
+        expect(result.configured).toBe(false);
+        expect(result.agents).toHaveLength(19);
+        // Every model-configurable role is not-configured; orchestrator commands
+        // remain not-model-configurable regardless of cq.toml presence.
+        for (const agent of result.agents) {
+          expect(["not-configured", "not-model-configurable"]).toContain(agent.status);
+        }
+      });
+    } finally {
+      await fs.rm(noCfgRoot, { recursive: true, force: true });
     }
   });
 });

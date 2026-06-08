@@ -53,11 +53,11 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (21 tools)", async () => {
+  it("exports the expected tool names (22 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(21);
+    expect(LEDGER_TOOL_NAMES.length).toBe(22);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
     expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
@@ -66,6 +66,7 @@ describe("ledger MCP tools", () => {
     expect(LEDGER_TOOL_NAMES).toContain("get_reviewers");
     expect(LEDGER_TOOL_NAMES).toContain("get_planners");
     expect(LEDGER_TOOL_NAMES).toContain("get_config");
+    expect(LEDGER_TOOL_NAMES).toContain("get_agent_models");
   });
 
   it("read_log against the in-memory store throws the documented not-implemented error", async () => {
@@ -665,5 +666,14 @@ describe("ledger MCP tools", () => {
       expect(Object.keys(t.inputSchema)).not.toContain("author");
       expect(Object.keys(t.inputSchema)).not.toContain("session");
     }
+  });
+
+  it("get_agent_models without config capability throws the documented not-implemented error", async () => {
+    const store = await buildStore();
+    // No configCapability supplied -> the in-memory store has no cq.toml-capable root.
+    const tools = createLedgerMcpTools(store);
+    await expect(
+      callTool(tools, "get_agent_models", {}),
+    ).rejects.toThrow(/not implemented/i);
   });
 });
