@@ -530,10 +530,10 @@ archives:
 
 ## M111
 
-### T275 — planned
+### T275 — done
 
 - createdAt: 2026-06-08T16:58:20.160Z
-- updatedAt: 2026-06-08T17:35:38.841Z
+- updatedAt: 2026-06-08T19:33:54.477Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Define the typed AgentCatalogue data model + a browser-safe markdown parser
@@ -541,6 +541,9 @@ archives:
 - acceptance: "From nix/pkg/cq-ledgers/: `bun run typecheck` green; agentsCatalogue.ts exports AgentRole (incl. privilege: 'RO'|'RW' + exposedTools) + AGENT_ROLES + a pure parseAgentMarkdown reading agent frontmatter (name/description/disallowedTools/isolation) AND command frontmatter (allowed-tools) + the `## Catalogue` block + body; no node:fs import; AND a unit test exercises parseAgentMarkdown on BOTH an agent fixture (deny-list) and a command fixture (allow-list) asserting it extracts the structured block, real frontmatter keys, and that the derived privilege is correct (e.g. an implement-worker-like deny-list => RW, a plan-reviewer-like deny-list => RO, a command with Write/Bash in allowed-tools => RW)."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 0d8c340
+- completion: "Created packages/ledger-web/src/agentsCatalogue.ts: typed AgentRole (id,name,kind,source,description,inputs,outputs,ioSchema,promptTemplate,model,modelMappings + privilege RO/RW + exposedTools per Q148/Q151-Q153) mirroring flowData.ts; pure node-free parseAgentMarkdown (agent frontmatter name/description/disallowedTools/isolation + command frontmatter description/argument-hint/allowed-tools per Q152 + optional ## Catalogue fenced-yaml block + body); deriveSubagentPrivilege/deriveCommandPrivilege (exact mutating-tool sets); exported formatExposedTools(frontmatter,kind) helper (canonical per-kind string); Catalogue parser strips surrounding quotes (inner preserved). Placeholder agentsCatalogue.gen.ts (AGENT_ROLES=[]) for T276 to overwrite. Avoided a yaml dep (FOD-hash) via a hand-written parser. 1 revise round (R1 disapprove on 2 forward-looking contract gaps, both resolved R2). Cherry-picked to main. bun run check green 1201/0 (+24 tests). Review APPROVE (opus + minimax, R2)."
+- sessionLogs: ["docs/logs/20260608-193323-T275-worker-and-reviews.md"]
 
 ### T276 — planned
 

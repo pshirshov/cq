@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 332
+  item: 333
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -804,3 +804,17 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T274","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
+
+## M111
+
+### R333 — go-ahead
+
+- createdAt: 2026-06-08T19:33:49.207Z
+- updatedAt: 2026-06-08T19:33:49.207Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T275 implement review APPROVE (reconciled, after 1 revise round). Panel opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded (documented stall). R1: opus APPROVE (parser verified against real asset frontmatter; privilege derivation exact; node-free; scope held); minimax DISAPPROVE on 2 forward-looking contract gaps (exposedTools format + Catalogue quote-stripping) — minimax itself noted the impl is correct + acceptance met; its 3 'questions' were mis-bucketed engineer-resolvable conventions. R2: BOTH APPROVE — added exported documented formatExposedTools(frontmatter,kind) (all kind/absent-key branches tested) + Catalogue parser strips one outer quote pair (inner quotes preserved). Net: typed AgentRole (incl privilege RO/RW + exposedTools) + pure node-free parseAgentMarkdown (both frontmatter kinds + ## Catalogue block + body) + placeholder AGENT_ROLES.gen for T276; bun run check green 1201/0 (+24 agentsCatalogue tests). Worker avoided a yaml dep (FOD-hash) via a hand-written Catalogue parser."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T275","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-193323-T275-worker-and-reviews.md"]
