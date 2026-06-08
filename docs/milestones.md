@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 112
+  item: 113
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -581,3 +581,9 @@ archives:
 - createdAt: 2026-06-08T16:56:34.752Z
 - updatedAt: 2026-06-08T16:56:34.752Z
 - title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+
+### M113 — open
+
+- createdAt: 2026-06-08T20:42:12.810Z
+- updatedAt: 2026-06-08T20:42:12.810Z
+- title: "Plan: fix D42 — fail-loud on duplicate-token [tiers] classification in parseTiers"

@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 34
+  item: 35
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -256,3 +256,21 @@ archives:
     I forgot one thing: in the agent cards we should include agent privilege class (RO or RW) and exposed tools.
 - sessionLogs: ["docs/logs/20260608-150928-abb5622a0a388a034.md","docs/logs/20260608-164941-a5d36f435cca65291.md","docs/logs/20260608-164941-pi-minimax.md","docs/logs/20260608-164941-pi-grok.md","docs/logs/20260608-171607-af1c0c727cb095306.md","docs/logs/20260608-171607-pi-minimax-review.md","docs/logs/20260608-171607-pi-grokbuild-reviewers.md","docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-172307-pi-minimax-review2.md","docs/logs/20260608-172840-a519de836685f06ad.md","docs/logs/20260608-173914-afe412ded4d773ce0.md","docs/logs/20260608-173914-pi-minimax-review3.md"]
 - milestones: ["M109","M110","M111","M112"]
+
+## M113
+
+### G35 — planning
+
+- createdAt: 2026-06-08T20:42:51.803Z
+- updatedAt: 2026-06-08T20:42:51.803Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- title: "Fix D42 — fail-loud on duplicate-token [tiers] classification in parseTiers"
+- description: |
+    Defect-seeded goal (resolves defect D42; root cause CONFIRMED via hypothesis H30, so SKIP clarification — K8 pt4). Linked via defects:D42 ledgerRefs → goals:G35.
+    
+    **Confirmed root cause:** cq-config/src/config.ts parseTiers (L157-175) pushes each [tiers] entry with NO duplicate-token guard, and classifyToken (L304-312) returns `entries.find(e => reviewerTokensEqual(e.token, token))` — the FIRST structurally-equal match. A contradictory config that classifies the SAME resolved token under two classes (e.g. a direct token key + an alias key resolving to it) is silently accepted and resolved by document/key order, violating the project fail-fast principle.
+    
+    **Fix (per D42 suggestedFix):** In parseTiers, after resolving each KEY to its ReviewerToken, detect a DUPLICATE token classification (a token structurally equal via reviewerTokensEqual to an already-recorded entry's token) and throw a precise CqConfigError naming the two conflicting raw keys + classes (fail-loud, symmetric to the existing CqConfigError throws). Add cq-config tests: (a) two [tiers] entries resolving to the same token (direct+alias, and two-direct) THROW CqConfigError naming the conflicting keys; (b) a single token mapping to one class does NOT throw; (c) the existing valid fixtures still parse.
+    
+    **Acceptance:** `bun run check` green (from nix/pkg/cq-ledgers/) with the new dup-token-classification CqConfigError + the tests above; the error message names both conflicting [tiers] keys. Tasks must ledgerRef defects:D42.
