@@ -9,7 +9,7 @@ import {
   type StatusBucket,
 } from "../src/status";
 import type { LedgerSchema } from "../src/types";
-import { REVIEWS_SCHEMA } from "@cq/ledger";
+import { REVIEWS_SCHEMA, HANDOFFS_SCHEMA } from "@cq/ledger";
 
 // The complete StatusBucket union, spelled out so the test fails to compile if
 // a member is added/removed without updating BUCKET_HEX (the `satisfies` below
@@ -71,6 +71,25 @@ describe("warning bucket (reviews schema)", () => {
 
   it("go-ahead → done", () => {
     expect(statusBucket("go-ahead", REVIEWS_SCHEMA)).toBe("done");
+  });
+});
+
+describe("handoffs schema — user-action-required → warning (T249)", () => {
+  it("user-action-required → warning bucket (terminal)", () => {
+    expect(statusBucket("user-action-required", HANDOFFS_SCHEMA)).toBe("warning");
+  });
+
+  it("badge carries lw-status-warning class (not lw-status-done)", () => {
+    const bucket = statusBucket("user-action-required", HANDOFFS_SCHEMA);
+    expect(`lw-status-${bucket}`).toBe("lw-status-warning");
+    expect(`lw-status-${bucket}`).not.toBe("lw-status-done");
+  });
+
+  it("other four handoff statuses bucket to done (not warning)", () => {
+    expect(statusBucket("drained", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("answers-required", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("mixed", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("illness-detected", HANDOFFS_SCHEMA)).toBe("done");
   });
 });
 

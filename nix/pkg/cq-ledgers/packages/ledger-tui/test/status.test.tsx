@@ -4,7 +4,7 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { statusBucket, statusColor, isTerminal } from "../src/status.js";
 import type { LedgerSchema } from "../src/types.js";
-import { REVIEWS_SCHEMA, DEFECTS_SCHEMA } from "@cq/ledger";
+import { REVIEWS_SCHEMA, DEFECTS_SCHEMA, HANDOFFS_SCHEMA } from "@cq/ledger";
 
 // Resolve chalk via ink's dependency to force ANSI output in tests.
 const inkPath = import.meta.resolve("ink");
@@ -138,5 +138,33 @@ describe("ink badge color (warning bucket → magenta)", () => {
     const frame = r.lastFrame() ?? "";
     r.unmount();
     expect(frame).toContain(ANSI_GREEN);
+  });
+
+  it("renders user-action-required badge in magenta (ANSI 35)", () => {
+    const color = statusColor("user-action-required", HANDOFFS_SCHEMA);
+    const r = render(<Text color={color}>user-action-required</Text>);
+    const frame = r.lastFrame() ?? "";
+    r.unmount();
+    expect(frame).toContain(ANSI_MAGENTA);
+    expect(frame).not.toContain(ANSI_GREEN);
+  });
+});
+
+describe("handoffs schema — user-action-required → warning (T248)", () => {
+  it("user-action-required → warning bucket (terminal)", () => {
+    expect(statusBucket("user-action-required", HANDOFFS_SCHEMA)).toBe("warning");
+  });
+
+  it("statusColor: user-action-required → magenta (not green)", () => {
+    const color = statusColor("user-action-required", HANDOFFS_SCHEMA);
+    expect(color).toBe("magenta");
+    expect(color).not.toBe("green");
+  });
+
+  it("other four handoff statuses bucket to done (not warning)", () => {
+    expect(statusBucket("drained", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("answers-required", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("mixed", HANDOFFS_SCHEMA)).toBe("done");
+    expect(statusBucket("illness-detected", HANDOFFS_SCHEMA)).toBe("done");
   });
 });
