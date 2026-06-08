@@ -837,6 +837,58 @@ export function assertGoalPhasePreconditions(
 }
 
 // ---------------------------------------------------------------------------
+// Handoff invariants (D39)
+// ---------------------------------------------------------------------------
+
+/** Handoff statuses that REQUIRE a non-empty `blockingQuestions` array. */
+const HANDOFFS_BLOCKING_QUESTIONS_REQUIRED_STATUSES = ["mixed", "answers-required"];
+/** Handoff status that REQUIRES a non-empty `handoffReasons` array. */
+const HANDOFFS_USER_ACTION_REQUIRED_STATUS = "user-action-required";
+
+/** True when `value` is a non-empty array (Array.isArray && length > 0). */
+function isNonEmptyArray(value: FieldValue | undefined): boolean {
+  return Array.isArray(value) && value.length > 0;
+}
+
+/**
+ * D39 — handoffs-specific PURE invariant on a `handoffs` item's status +
+ * fields. Mirrors `assertQuestionAnswerPrecondition` and
+ * `assertGoalPhasePreconditions`: a ledger-specific business rule embedded in
+ * the generic store layer so no client can bypass it. Fully pure — it sees
+ * ONLY (itemId, status, fields), no cross-ledger view.
+ *
+ * The HANDOFFS_SCHEMA keeps `blockingQuestions`/`handoffReasons` as
+ * `required:false`, because a `drained`/`illness-detected` handoff legitimately
+ * carries neither. The requirement is CONDITIONAL on status and is enforced
+ * here rather than via a (status-blind) schema `required` flag:
+ *  - `mixed` OR `answers-required` REQUIRE a non-empty `blockingQuestions`
+ *    array — a stop attributed to blocking questions that names none is
+ *    incoherent.
+ *  - `user-action-required` REQUIRES a non-empty `handoffReasons` array.
+ *  - all other statuses (`drained`, `illness-detected`) impose no requirement.
+ */
+export function assertHandoffInvariants(
+  itemId: string,
+  status: string,
+  fields: Record<string, FieldValue>,
+): void {
+  if (HANDOFFS_BLOCKING_QUESTIONS_REQUIRED_STATUSES.includes(status)) {
+    if (!isNonEmptyArray(fields["blockingQuestions"])) {
+      throw new SchemaValidationError(
+        `handoff ${itemId} with status "${status}" requires a non-empty "blockingQuestions" array`,
+      );
+    }
+  }
+  if (status === HANDOFFS_USER_ACTION_REQUIRED_STATUS) {
+    if (!isNonEmptyArray(fields["handoffReasons"])) {
+      throw new SchemaValidationError(
+        `handoff ${itemId} with status "${HANDOFFS_USER_ACTION_REQUIRED_STATUS}" requires a non-empty "handoffReasons" array`,
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Validation helpers
 // ---------------------------------------------------------------------------
 
