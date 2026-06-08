@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 325
+  item: 326
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -725,3 +725,15 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G34"]
 - sessionLogs: ["docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-172307-pi-minimax-review2.md"]
+
+### R326 — go-ahead
+
+- createdAt: 2026-06-08T17:39:41.578Z
+- updatedAt: 2026-06-08T17:39:41.578Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "G34 follow-up-extension review (panel: opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded — documented operational stall). Reconciled GO-AHEAD (both go-ahead). The privilege(RO/RW)+exposed-tools extension is grounded against the real agent/command frontmatter, DERIVES mechanically per locked Q151-Q153 (subagent deny-list 5-tool rule; command allow-list 3-tool rule), leaves T281 frontmatter/prose untouched (Catalogue holds only inputs/outputs/ioSchema), and folds into the existing W3 tasks (T275/T276/T278/T279/T281) without disturbing the R325-approved base or its sequencing. NON-BLOCKING NOTES (no action needed; recorded for implementers): (1) implement-reviewer's frontmatter omits Bash from disallowedTools, so the strict Q151 rule derives it as RW — a faithful consequence of the locked rule; the plan pins no implement-reviewer outcome in acceptances, so it is self-consistent. (2) T281's anti-authoring guard is a prose NOTE, not parser-enforced (stylistic, consistent with base style)."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G34"]
+- sessionLogs: ["docs/logs/20260608-173914-afe412ded4d773ce0.md","docs/logs/20260608-173914-pi-minimax-review3.md"]
