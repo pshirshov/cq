@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 330
+  item: 331
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -780,3 +780,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T271","goals:G34","defects:D42"]
 - sessionLogs: ["docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]
+
+### R331 — go-ahead
+
+- createdAt: 2026-06-08T18:58:08.369Z
+- updatedAt: 2026-06-08T18:58:08.369Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T273 implement review APPROVE (panel: opus[claude] + minimax[pi:ollama-cloud] both approve; grok+codex[pi:grok-build] excluded, documented stall). 32 test-only additions to config.test.ts cover all six [tiers]-classifier areas (token-keyed parse incl claude/pi/haiku-fast/alias keys; classifyToken correct+undefined incl structural model/provider mismatch; selectTokensForTier candidate-order tie-break as a real discriminator; resolveAgentModel end-to-end + exact-message no-match throw; unknown class VALUE + 3 malformed-KEY cases with verbatim CqConfigError messages; no-[tiers] config-load => tiers=null with reviewers/planners intact). Non-vacuous, exact-message via .message toBe; D42 contradictory edge correctly omitted (single-class fixtures). bun run check green 1170/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T273","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]

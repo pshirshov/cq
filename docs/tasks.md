@@ -473,10 +473,10 @@ archives:
 - completion: "Removed resolveTierToken; added classifyToken(config,token):Tier|undefined (structural ReviewerToken equality vs the inverted [tiers] entries) + selectTokensForTier(config,tier,candidates):ReviewerToken[] (candidate-order tie-break, documented in JSDoc); re-pointed resolveAgentModel to agent→resolveAgentTier→selectTokensForTier(candidates)→first match, throwing precise CqConfigError on no-match. resolveAgentModel signature now requires a candidates:readonly ReviewerToken[] arg (Q149 classifier model). index.ts drops resolveTierToken, adds classifyToken/selectTokensForTier. No external consumers existed (all call sites in cq-config). FF-merged to main; bun run check green 1138/0. Review APPROVE (opus; minimax off-contract disapprove→findings filed as D42). Filed D42 (fail-loud on duplicate-token classification, file-and-defer)."
 - sessionLogs: ["docs/logs/20260608-183431-a43fc183c4d5d34c7.md","docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]
 
-### T272 — planned
+### T272 — done
 
 - createdAt: 2026-06-08T16:57:46.346Z
-- updatedAt: 2026-06-08T17:18:31.068Z
+- updatedAt: 2026-06-08T18:48:47.372Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Update the ACTUAL TS consumers of the changed tier API (cq-config internals + ledger-mcp config capability)
@@ -485,11 +485,13 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T271"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: n/a-verification (no code change required)
+- completion: "Consumer audit VERIFIED — no code change required. `rg resolveTierToken nix/pkg/cq-ledgers/packages` (excl node_modules) returns NONE; `resolveAgentModel` appears only in cq-config (src/{config,index}.ts + its 2 tests) — confirming the T271 worker's finding that NO external consumer exists (ledger-tui/cq-cli do not import these). The one capability that touches tiers — @cq/ledger-mcp configCapability — was already adapted by T268/T270 to derive its GetConfigResult wire slots from the inverted `entries`; the MCP wire shape (fast/standard/frontier slot view, derived from entries) was deliberately kept (no G34 consumer needs an inverted token->class wire shape — the Agents-tab codegen T276 reads cq.toml.example directly, not via MCP — and inverting the wire shape would be a breaking MCP-API change out of G34 scope). Acceptance met: workspace `bun run check` green (1138/0, covers typecheck) and `nix build .#ledger-mcp` exit 0 (result /nix/store/4ipal7f...-ledger-mcp). No worker needed."
 
-### T273 — planned
+### T273 — done
 
 - createdAt: 2026-06-08T16:57:52.463Z
-- updatedAt: 2026-06-08T17:18:34.295Z
+- updatedAt: 2026-06-08T18:58:11.971Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: "Add cq-config tests for the inverted [tiers] classifier grammar + class selection"
@@ -498,6 +500,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T271"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 5bdf02d
+- completion: "Added 32 comprehensive cq-config tests (config.test.ts, 6 describe blocks) for the inverted [tiers] classifier: token-keyed parse (claude/pi:<provider>/<model>/claude:haiku-4.5=fast/alias keys); classifyToken correct+undefined (incl structural model/provider mismatch); selectTokensForTier candidate-order tie-break; resolveAgentModel end-to-end + exact-message CqConfigError no-match throw; unknown class VALUE + 3 malformed-KEY cases (exact messages); explicit config-load no-[tiers] => tiers=null with reviewers/planners intact. Cherry-picked onto main (background committer had rebased main; ff not possible). bun run check green 1170/0. Review APPROVE (opus + minimax)."
+- sessionLogs: ["docs/logs/20260608-185640-a6f38505410fb5529.md","docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]
 
 ### T274 — planned
 
