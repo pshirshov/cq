@@ -90,6 +90,17 @@ T137, now in `CANONICAL_LEDGERS`) carries this item shape:
   (do not write them in a separate update);
 - `tags`, `sourceRefs` — optional cross-references.
 
+**Enforced-invariant (D39 — write-time enforcement).** The `@cq/ledger`
+`create_item` for `handoffs` THROWS if these buckets are empty when their
+status requires them: a `mixed` or `answers-required` handoff MUST carry a
+non-empty `blockingQuestions[]`; a `user-action-required` or `mixed` handoff
+MUST carry a non-empty `handoffReasons[]`. An empty-bucket effort-stop is
+literally UNWRITABLE — the ledger rejects it at write time. The only
+remediation is to either populate the required fields with their genuine
+predicate-gated content (real blocking question ids, real user-action
+reasons) — which the predicates will ONLY supply if the stop is legitimate —
+or to **not stop and CONTINUE** the cycle instead.
+
 Stamp `author`/`session` on this write like any other. The handoff is
 APPEND-ONLY (written once at end-of-run, never updated). This single write is the
 ONLY ledger mutation `/cq:advance` performs; all other ledger mutations remain
@@ -327,7 +338,17 @@ effort-based stop**.
 - no implement run has been bootstrapped yet — P-implement TRUE on a `planned`
   goal means BOOTSTRAP and build it, not ask (see the implement stage above);
 - **running low on context or turn budget** — this is NOT a run-stop and NEVER
-  warrants a handoff record (see the TURN-vs-RUN clause below).
+  warrants a handoff record (see the TURN-vs-RUN clause below);
+- **"deliberate/transparent checkpoint"** — an effort-stop dressed as
+  intentionality; not a predicate (cited from HO22/HO25/HO26 as the laundering
+  phrase used there);
+- **"warrants fresh context"** — an effort-stop dressed as a quality concern;
+  not a predicate (cited from HO22/HO25/HO26);
+- **"BREAKING/large/delicate change needs care"** — an effort-stop dressed as
+  caution; not a predicate; magnitude/fragility are never stop-conditions (cited
+  from HO22/HO25/HO26);
+- **"a complete vertical slice is a clean boundary"** — an effort-stop dressed
+  as scope hygiene; not a predicate (cited from HO22/HO25/HO26).
 
 **TURN-vs-RUN clause (D39).** A RUN and a TURN are distinct scopes.
 A **RUN** spans as many turns as needed and is durably resumable from ledger
@@ -345,6 +366,17 @@ artifact, just resume next invocation. Fabricating a terminal handoff record to
 effort-based stop — there remains deliberately **NO handoff status for an
 effort-based stop**, and turn exhaustion is an effort-based fact, not a
 predicate-gated one.
+
+**Self-check invariant (D39).** Before writing any handoff record, scan your
+own about-to-be-written `summary` for the phrases "NOT a predicate-legal stop",
+"predicates still TRUE", or any equivalent admission that the stop is
+non-predicate-gated. If such a phrase appears — i.e. if your own summary
+concedes that predicates still TRUE — the stop is ILLEGAL by your own
+admission: **delete the handoff and CONTINUE** the cycle. A summary that
+contains "predicates still TRUE" is self-refuting; the correct action is to
+**delete** the draft entry and **CONTINUE**, never to file it. (This mirrors
+HO26, whose summary literally contained "NOT a predicate-legal stop" and filed
+anyway — that sequence is explicitly forbidden here.)
 
 **Default disposition for every defect is FIX (hard rule).** Every
 `open`/`wip`/`root-caused`/`inconclusive` defect is fixed, properly, now. The
