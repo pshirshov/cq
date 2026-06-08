@@ -14,8 +14,20 @@ export type {
   Tier,
   TierEntry,
   TiersConfig,
+  PiEffort,
+  ClaudeEffort,
+  Effort,
 } from "./types.js";
-export { HARNESSES, isHarness, TIERS, isTier, DEFAULT_TIER } from "./types.js";
+export {
+  HARNESSES,
+  isHarness,
+  TIERS,
+  isTier,
+  DEFAULT_TIER,
+  PI_EFFORTS,
+  CLAUDE_EFFORTS,
+  isEffort,
+} from "./types.js";
 export {
   CQ_CONFIG_FILENAME,
   CqConfigError,
