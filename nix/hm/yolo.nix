@@ -10,9 +10,10 @@
 #
 # Curried over the flake's `inputs` (for the codegraph package the per-project
 # index bootstrap needs). All host/hardware coupling (device passthrough,
-# rootless-Podman socket, ollama models dir, ssh key, prompt extensions) is
-# surfaced as `smind.hm.dev.llm.*` options the consumer wires from its own
-# NixOS config — GPU passthrough is no longer built in.
+# rootless-Podman socket, ssh key, prompt extensions) is surfaced as
+# `smind.hm.dev.llm.*` options the consumer wires from its own NixOS config —
+# GPU passthrough is no longer built in, and plain read-only binds (e.g. an
+# ollama models dir) go through extraReadOnlyPaths.
 { inputs }:
 { config
 , lib
@@ -31,17 +32,14 @@ let
   # replacing the old dedicated YOLO_LLM_SSH_KEY_PATH env + bind. null disables.
   sshKeySet = cfg.llmSshKeyPath != null;
 
-  # Prompt-extension manifest (Idea 1): each Nix-`when`-enabled fragment becomes
-  # a store file (multi-line-safe) plus a `target<TAB>tags-csv<TAB>file` line, in
-  # order. yolo.sh composes the per-agent prompt at launch and drops fragments
-  # whose tags intersect the runtime `--disable` set — so the same tag gates a
-  # device bind AND its note (e.g. `--disable=gpu`).
-  promptManifest = lib.imap0
-    (
-      i: e:
-      "${e.target}\t${lib.concatStringsSep "," e.tags}\t${pkgs.writeText "yolo-prompt-${toString i}" e.prompt}"
-    )
-    (lib.filter (e: e.when) cfg.yolo.promptExtensions);
+  # Prompt extensions (Idea 1) as a JSON array of { target, tags, prompt },
+  # Nix-`when`-filtered and in declaration order. yolo.sh composes each agent's
+  # prompt at launch with jq and drops objects whose tags intersect the runtime
+  # `--disable` set — so the same tag gates a device bind AND its note
+  # (e.g. `--disable=gpu`). JSON carries multi-line prompt bodies verbatim.
+  promptJson = builtins.toJSON (
+    map (e: { inherit (e) target tags prompt; }) (lib.filter (e: e.when) cfg.yolo.promptExtensions)
+  );
 
   yoloPkg = pkgs.callPackage ../pkg/yolo/default.nix {
     codegraph = codegraphPkg;
@@ -52,9 +50,6 @@ let
     extraReadWritePaths = cfg.yolo.extraReadWritePaths;
     # Device paths bound with device access (bwrap --dev-bind), e.g. GPU nodes.
     extraDevicePaths = cfg.yolo.extraDevicePaths;
-    # Bind the host's ollama models dir (the consumer sets this from its own
-    # services.ollama.models); null skips the bind.
-    ollamaModelsDir = cfg.ollamaModelsDir;
     # Extra packages exposed ONLY inside the sandbox (not the host profile).
     sandboxPackages = cfg.yolo.packages;
     # Declarative env vars set inside the sandbox session.
@@ -62,14 +57,14 @@ let
     # Secret-file-backed env vars composed + sourced inside the sandbox.
     secretSessionVariables = cfg.yolo.secretSessionVariables;
     # Tagged, runtime-suppressible system-prompt additions (see promptExtensions).
-    inherit promptManifest;
+    inherit promptJson;
   };
 in
 {
   options = {
     # Host/hardware coupling surfaced as plain options; the consumer wires
     # them from its own NixOS config (device passthrough, rootless-Podman
-    # socket, ollama models dir). All default to off/null so a bare consumer works.
+    # socket). All default to off/null so a bare consumer works.
     smind.hm.dev.llm.podman.socketPath = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -85,15 +80,6 @@ in
       description = ''
         DOCKER_HOST-style URI for the rootless-Podman socket bound via
         {option}`smind.hm.dev.llm.podman.socketPath`. null disables it.
-      '';
-    };
-
-    smind.hm.dev.llm.ollamaModelsDir = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = ''
-        Host directory holding the ollama models, ro-bound into the yolo
-        sandbox so local-model agents can read them. null skips the bind.
       '';
     };
 

@@ -22,9 +22,9 @@
 #                              to prepend onto PATH inside the sandbox; empty means none
 #   YOLO_SESSION_VARS        - newline-separated NAME=VALUE list (smind.hm.dev.llm.yolo.sessionVariables)
 #                              of env vars to set inside the sandbox; empty means none
-#   YOLO_OLLAMA_MODELS_DIR   - host path to the ollama models directory (ro-bind); empty means no ollama on this host
-#   YOLO_PROMPT_MANIFEST     - newline-separated `target<TAB>tags-csv<TAB>store-file` records; yolo.sh
-#                              composes each agent's --append-system-prompt, dropping --disable'd tags
+#   YOLO_PROMPT_JSON         - JSON array of { target, tags, prompt } objects (smind.hm.dev.llm.yolo.
+#                              promptExtensions); yolo.sh composes each agent's --append-system-prompt
+#                              with jq, dropping objects whose tags hit the --disable set
 
 : "${YOLO_LLM_SANDBOX:?must be set}"
 : "${YOLO_SECRETS_EXEC:?must be set}"
@@ -274,13 +274,6 @@ if [[ -n "${YOLO_SESSION_VARS:-}" ]]; then
   done <<< "$YOLO_SESSION_VARS"
 fi
 
-# Ollama models directory (read-only). Derived from services.ollama.models
-# at Nix-eval time; empty on hosts where ollama is not enabled.
-OLLAMA_ARGS=()
-if [[ -n "${YOLO_OLLAMA_MODELS_DIR:-}" ]]; then
-  OLLAMA_ARGS+=(--ro "$YOLO_OLLAMA_MODELS_DIR")
-fi
-
 # Audio: expose the PipeWire native socket and the PulseAudio-compat socket
 # (covers pw-play / paplay / mpv / ffplay etc.) so agents can play sound. Both
 # sockets are bidirectional, so this also permits capture. The sockets are
@@ -307,7 +300,6 @@ BASE_ARGS=(
   "${AUDIO_ARGS[@]}"
   "${EXTRA_PATH_ARGS[@]}"
   "${SECRET_FILE_ARGS[@]}"
-  "${OLLAMA_ARGS[@]}"
   --ro "${HOME}/.config/git"
   --ro "${HOME}/.config/direnv"
   --ro "${HOME}/.local/share/direnv"
@@ -323,35 +315,25 @@ BASE_ARGS=(
 EXTRA_ARGS=()
 EXEC_CMD=()
 
-# Compose the --append-system-prompt text for an agent from YOLO_PROMPT_MANIFEST
-# (one `target<TAB>tags-csv<TAB>store-file` record per line, see promptExtensions).
-# Keep records whose target matches the agent (or "*") and none of whose tags is
-# in the --disable set; cat each fragment's store file; join with blank lines.
-# Runtime suppression (`--disable=gpu`) thus drops a note exactly as it drops the
-# matching device bind. yolo.sh no longer hardcodes the auth / GPU notes — they
-# are promptExtensions. Codex has no --append-system-prompt, so it gets nothing.
+# Compose the --append-system-prompt text for an agent from YOLO_PROMPT_JSON — a
+# JSON array of { target, tags, prompt } objects (see promptExtensions). jq keeps
+# objects whose target matches the agent (or "*") and none of whose tags is in
+# the --disable set, then joins their prompts with blank lines. Runtime
+# suppression (`--disable=gpu`) thus drops a note exactly as it drops the matching
+# device bind. yolo.sh no longer hardcodes the auth / GPU notes — they are
+# promptExtensions. Codex has no --append-system-prompt, so it gets nothing.
 compose_prompt() {
-  local agent="$1" out="" _line _ptarget _prest _ptagcsv _pfile _pbody _ptagv
-  [[ -z "${YOLO_PROMPT_MANIFEST:-}" ]] && return 0
-  # Split each record on TAB explicitly: `IFS=$'\t' read` would collapse the
-  # empty tags field of an untagged record (tab is IFS-whitespace), dropping it.
-  while IFS= read -r _line; do
-    [[ -z "$_line" ]] && continue
-    _ptarget="${_line%%$'\t'*}"
-    _prest="${_line#*$'\t'}"
-    _ptagcsv="${_prest%%$'\t'*}"
-    _pfile="${_prest#*$'\t'}"
-    [[ -z "$_pfile" ]] && continue
-    [[ "$_ptarget" == "$agent" || "$_ptarget" == "*" ]] || continue
-    _ptagv=()
-    IFS=',' read -ra _ptagv <<< "$_ptagcsv"
-    any_disabled "${_ptagv[@]}" && continue
-    _pbody="$(cat "$_pfile" 2>/dev/null)" || continue
-    [[ -z "$_pbody" ]] && continue
-    [[ -n "$out" ]] && out+=$'\n\n'
-    out+="$_pbody"
-  done <<< "$YOLO_PROMPT_MANIFEST"
-  printf '%s' "$out"
+  local agent="$1" dis
+  [[ -z "${YOLO_PROMPT_JSON:-}" ]] && return 0
+  # The --disable tags as a JSON array (empty array when none).
+  dis="$("$YOLO_JQ" -nc '$ARGS.positional' --args "${DISABLE_TAGS[@]}")"
+  printf '%s' "$YOLO_PROMPT_JSON" | "$YOLO_JQ" -r \
+    --arg agent "$agent" --argjson dis "$dis" '
+      [ .[]
+        | select((.target == $agent or .target == "*") and ((.tags - $dis) == .tags))
+        | .prompt
+      ] | join("\n\n")
+    '
 }
 
 # For named profiles, each agent's config is backed by a dir under

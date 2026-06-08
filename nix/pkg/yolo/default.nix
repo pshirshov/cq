@@ -9,8 +9,7 @@
   extraReadOnlyPaths ? [ ],
   extraReadWritePaths ? [ ],
   extraDevicePaths ? [ ],
-  ollamaModelsDir ? null,
-  promptManifest ? [ ],
+  promptJson ? "[]",
   secretSessionVariables ? { },
   sandboxPackages ? [ ],
   sessionVariables ? { },
@@ -36,9 +35,6 @@ let
   podmanExports = lib.optionalString (podmanSocketPath != null) ''
     export YOLO_PODMAN_SOCKET_PATH=${lib.escapeShellArg podmanSocketPath}
     export YOLO_PODMAN_SOCKET_URI=${lib.escapeShellArg podmanSocketUri}
-  '';
-  ollamaExports = lib.optionalString (ollamaModelsDir != null) ''
-    export YOLO_OLLAMA_MODELS_DIR=${lib.escapeShellArg ollamaModelsDir}
   '';
   # Newline-joined path lists: paths cannot contain newlines, so this is
   # unambiguous and survives shell quoting. yolo.sh splits on newline.
@@ -85,15 +81,14 @@ let
   sessionVarsExports = lib.optionalString (sessionVariables != { }) ''
     export YOLO_SESSION_VARS=${lib.escapeShellArg (lib.concatStringsSep "\n" sessionVarLines)}
   '';
-  # System-prompt-extension manifest: one `target<TAB>tags-csv<TAB>store-file`
-  # line per (Nix-`when`-enabled) fragment, in order. The home-manager module
-  # writes each fragment body to a store file and builds these lines. yolo.sh
-  # composes the per-agent prompt at launch — keeping fragments whose target
-  # matches and none of whose tags is in the `--disable` set — so runtime
-  # suppression (e.g. `--disable=gpu`) drops the matching note too. Bodies live
-  # in files, so multi-line text needs no escaping.
-  promptManifestExports = lib.optionalString (promptManifest != [ ]) ''
-    export YOLO_PROMPT_MANIFEST=${lib.escapeShellArg (lib.concatStringsSep "\n" promptManifest)}
+  # System-prompt extensions as a JSON array of { target, tags, prompt } objects
+  # (the home-manager module does the Nix-`when` filtering and builds the JSON).
+  # yolo.sh composes each agent's prompt at launch with jq — keeping objects
+  # whose target matches and none of whose tags is in the `--disable` set — so
+  # runtime suppression (e.g. `--disable=gpu`) drops the matching note too. JSON
+  # carries multi-line prompt bodies with no extra escaping.
+  promptJsonExports = lib.optionalString (promptJson != "[]") ''
+    export YOLO_PROMPT_JSON=${lib.escapeShellArg promptJson}
   '';
 in
 pkgs.writeShellScriptBin "yolo" ''
@@ -103,13 +98,12 @@ pkgs.writeShellScriptBin "yolo" ''
   export YOLO_JQ="${jq}/bin/jq"
   export YOLO_CODEGRAPH_BIN="${codegraph}/bin/codegraph"
   ${podmanExports}
-  ${ollamaExports}
   ${extraRoExports}
   ${extraRwExports}
   ${extraDevExports}
   ${secretVarsExports}
   ${sandboxBinExports}
   ${sessionVarsExports}
-  ${promptManifestExports}
+  ${promptJsonExports}
   exec bash ${yoloScript} "$@"
 ''
