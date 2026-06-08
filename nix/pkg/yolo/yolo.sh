@@ -3,7 +3,7 @@
 #
 # Required env vars (set by Nix wrapper):
 #   YOLO_LLM_SANDBOX            - path to llm-sandbox binary
-#   YOLO_SECRETS_EXEC          - path to the in-sandbox secrets-loading entrypoint (yolo-secrets-exec)
+#   YOLO_SANDBOX_ENTRYPOINT     - path to the in-sandbox entrypoint (loads secrets + sandbox hooks, then exec)
 #   YOLO_NIX_LD                 - path to nix-ld binary (bound as /lib64/ld-linux-x86-64.so.2)
 #   YOLO_JQ                     - path to jq binary
 #
@@ -26,9 +26,11 @@
 #                              with jq, dropping objects whose tags hit the --disable set
 #   YOLO_PREHOOKS_JSON       - JSON array of { command, tags } host hooks (smind.hm.dev.llm.yolo.
 #                              hooks.pre-start.host) run before an agent session, dropping --disable'd tags
+#   YOLO_SANDBOX_HOOKS_JSON  - JSON array of { command, tags } sandbox hooks (hooks.pre-start.sandbox);
+#                              surviving commands are composed into a script the entrypoint sources
 
 : "${YOLO_LLM_SANDBOX:?must be set}"
-: "${YOLO_SECRETS_EXEC:?must be set}"
+: "${YOLO_SANDBOX_ENTRYPOINT:?must be set}"
 : "${YOLO_NIX_LD:?must be set}"
 : "${YOLO_JQ:?must be set}"
 
@@ -241,6 +243,32 @@ if [[ -n "${YOLO_SECRET_VARS:-}" ]]; then
   fi
 fi
 
+# Sandbox pre-start hooks (smind.hm.dev.llm.yolo.hooks.pre-start.sandbox ->
+# YOLO_SANDBOX_HOOKS_JSON), agent subcommands only. Drop --disable'd tags on the
+# host, compose the surviving commands into one script, bind it, and point the
+# entrypoint at it ($YOLO_SANDBOX_HOOKS_FILE) to source before exec. The script
+# lives in tmpfs and is removed on exit.
+SANDBOX_HOOK_ARGS=()
+SANDBOX_HOOKS_TMPFILE=""
+SANDBOX_HOOKS_PATH="/run/yolo-sandbox-prestart.sh"
+case "$SUBCMD" in
+  claude|codex|pi)
+    if [[ -n "${YOLO_SANDBOX_HOOKS_JSON:-}" ]]; then
+      _hdis="$("$YOLO_JQ" -nc '$ARGS.positional' --args "${DISABLE_TAGS[@]}")"
+      _hcomposed="$(
+        printf '%s' "$YOLO_SANDBOX_HOOKS_JSON" \
+          | "$YOLO_JQ" -j --argjson dis "$_hdis" '.[] | select((.tags - $dis) == .tags) | .command + "\n"'
+      )"
+      if [[ -n "$_hcomposed" ]]; then
+        SANDBOX_HOOKS_TMPFILE="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/yolo-sandbox-hooks.XXXXXX")"
+        printf '%s' "$_hcomposed" > "$SANDBOX_HOOKS_TMPFILE"
+        SANDBOX_HOOK_ARGS+=(--ro-bind "$SANDBOX_HOOKS_TMPFILE,$SANDBOX_HOOKS_PATH")
+        SANDBOX_HOOK_ARGS+=(--env "YOLO_SANDBOX_HOOKS_FILE=$SANDBOX_HOOKS_PATH")
+      fi
+    fi
+    ;;
+esac
+
 # Extra packages exposed only inside the sandbox (smind.hm.dev.llm.yolo.packages
 # -> YOLO_SANDBOX_BIN, a buildEnv bin dir in the already-bound /nix/store).
 # Prepend it to PATH so sandboxed tools resolve these without the packages being
@@ -288,6 +316,7 @@ BASE_ARGS=(
   "${AUDIO_ARGS[@]}"
   "${EXTRA_PATH_ARGS[@]}"
   "${SECRET_FILE_ARGS[@]}"
+  "${SANDBOX_HOOK_ARGS[@]}"
   --ro "${HOME}/.config/git"
   --ro "${HOME}/.config/direnv"
   --ro "${HOME}/.local/share/direnv"
@@ -576,19 +605,19 @@ case "$SUBCMD" in
     ;;
 esac
 
-# When secret session vars are in play, run the real command behind the
-# yolo-secrets-exec entrypoint (resolved from the ro-bound /nix/store): it loads
-# the composed secrets file (bound read-only at $SANDBOX_SECRETS_PATH, exposed as
-# $YOLO_SECRETS_FILE) into the env, then exec's the command — so every harness
-# inherits the secrets. Without secrets we exec the sandbox directly (no extra
-# entrypoint layer, no cleanup).
-if [[ -n "$SECRET_TMPFILE" ]]; then
-  # Remove the host-side composed file on exit; it lives in tmpfs regardless.
-  trap 'rm -f "$SECRET_TMPFILE"' EXIT
+# When secret session vars and/or sandbox pre-start hooks are in play, run the
+# real command behind the in-sandbox entrypoint (resolved from the ro-bound
+# /nix/store): it loads the composed secrets file ($YOLO_SECRETS_FILE) into the
+# env, sources the composed sandbox hook script ($YOLO_SANDBOX_HOOKS_FILE), then
+# exec's the command. Otherwise we exec the sandbox directly (no extra entrypoint
+# layer, no cleanup). The host-side composed files live in tmpfs and are removed
+# on exit.
+if [[ -n "$SECRET_TMPFILE" || -n "$SANDBOX_HOOKS_TMPFILE" ]]; then
+  trap 'rm -f "$SECRET_TMPFILE" "$SANDBOX_HOOKS_TMPFILE"' EXIT
   "$YOLO_LLM_SANDBOX" \
     "${BASE_ARGS[@]}" \
     "${EXTRA_ARGS[@]}" \
-    -- "$YOLO_SECRETS_EXEC" "${EXEC_CMD[@]}"
+    -- "$YOLO_SANDBOX_ENTRYPOINT" "${EXEC_CMD[@]}"
   exit $?
 fi
 

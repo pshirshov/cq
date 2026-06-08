@@ -41,9 +41,27 @@ let
     map (e: { inherit (e) target tags prompt; }) (lib.filter (e: e.when) cfg.yolo.promptExtensions)
   );
 
-  # Host pre-start hooks as a JSON array of { command, tags }. yolo.sh runs them
-  # on the host (before an agent session), dropping tags in the `--disable` set.
+  # Shared submodule for a tagged pre-start hook.
+  hookType = lib.types.submodule {
+    options = {
+      command = lib.mkOption {
+        type = lib.types.lines;
+        description = "Shell command to run.";
+      };
+      tags = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "codegraph" ];
+        description = "Suppression tags; the hook is skipped if any is in the `--disable` set.";
+      };
+    };
+  };
+
+  # Pre-start hooks as JSON arrays of { command, tags }. Host hooks run on the
+  # host before an agent session; sandbox hooks run INSIDE the sandbox (via the
+  # entrypoint) before the command. Both drop tags in the `--disable` set.
   prehooksJson = builtins.toJSON cfg.yolo.hooks.pre-start.host;
+  sandboxHooksJson = builtins.toJSON cfg.yolo.hooks.pre-start.sandbox;
 
   # codegraph passed into the sandbox via the package set (no dedicated binary
   # env anymore); the per-project index bootstrap is a pre-start host hook
@@ -67,8 +85,9 @@ let
     secretSessionVariables = cfg.yolo.secretSessionVariables;
     # Tagged, runtime-suppressible system-prompt additions (see promptExtensions).
     inherit promptJson;
-    # Tagged host pre-start hooks (see hooks.pre-start.host).
-    inherit prehooksJson;
+    # Tagged pre-start hooks: host (before sandbox) + sandbox (inside, via the
+    # entrypoint). See hooks.pre-start.{host,sandbox}.
+    inherit prehooksJson sandboxHooksJson;
   };
 in
 {
@@ -313,29 +332,32 @@ in
     };
 
     smind.hm.dev.llm.yolo.hooks.pre-start.host = lib.mkOption {
-      type = lib.types.listOf (lib.types.submodule {
-        options = {
-          command = lib.mkOption {
-            type = lib.types.lines;
-            description = "Shell command run on the host (via `bash -c`, cwd = the launch dir).";
-          };
-          tags = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ ];
-            example = [ "codegraph" ];
-            description = "Suppression tags; the hook is skipped if any is in the `--disable` set.";
-          };
-        };
-      });
+      type = lib.types.listOf hookType;
       default = [ ];
       description = ''
         Commands run ON THE HOST (in the launch directory) before the sandbox
         starts, for agent subcommands only (claude/codex/pi; shell/cmd skip
-        them). Run in declaration order, best-effort (a failure warns but does
-        not abort). A hook is skipped if any of its `tags` is in the runtime
-        `yolo --disable=<tag>` set. List-merges across modules: the per-project
-        codegraph index bootstrap is contributed here (tag "codegraph") when
-        {option}`smind.hm.dev.llm.yolo.codegraph` is non-null.
+        them), each via `bash -c`. Run in declaration order, best-effort (a
+        failure warns but does not abort). A hook is skipped if any of its
+        `tags` is in the runtime `yolo --disable=<tag>` set. List-merges across
+        modules: the per-project codegraph index bootstrap is contributed here
+        (tag "codegraph") when {option}`smind.hm.dev.llm.yolo.codegraph` is
+        non-null.
+      '';
+    };
+
+    smind.hm.dev.llm.yolo.hooks.pre-start.sandbox = lib.mkOption {
+      type = lib.types.listOf hookType;
+      default = [ ];
+      description = ''
+        Commands run INSIDE the sandbox before the command, for agent
+        subcommands only (claude/codex/pi). The surviving (non-`--disable`'d)
+        hooks are composed into one script that the in-sandbox entrypoint
+        SOURCES — after loading secret session variables and before exec'ing the
+        agent — so a hook runs in that shell and any environment it exports is
+        inherited by the agent (and it may use the secret env vars). Run in
+        declaration order; a non-zero command does not abort (no `set -e`). A
+        hook is skipped if any of its `tags` is in the `yolo --disable=<tag>` set.
       '';
     };
   };
@@ -381,6 +403,18 @@ in
           command = ''
             cg=${cfg.yolo.codegraph}/bin/codegraph
             jq=${pkgs.jq}/bin/jq
+            git=${pkgs.git}/bin/git
+            # In a git work tree, ensure the per-project index is git-ignored by
+            # appending `.codegraph/` to the TRACKED root .gitignore (idempotent
+            # on the exact line; creates the file if absent, fixing a missing
+            # trailing newline first so the entry lands on its own line).
+            _root="$("$git" rev-parse --show-toplevel 2>/dev/null || true)"
+            if [ -n "$_root" ] && ! grep -qxF '.codegraph/' "$_root/.gitignore" 2>/dev/null; then
+              if [ -s "$_root/.gitignore" ] && [ -n "$(tail -c1 "$_root/.gitignore")" ]; then
+                printf '\n' >> "$_root/.gitignore"
+              fi
+              printf '%s\n' '.codegraph/' >> "$_root/.gitignore"
+            fi
             read -r initialized file_count < <("$cg" status --json 2>/dev/null | "$jq" -r '"\(.initialized // false) \(.fileCount // 0)"' 2>/dev/null)
             if [ "$initialized" = "true" ] && [ "''${file_count:-0}" -gt 0 ]; then
               echo "yolo: syncing CodeGraph index for $PWD…" >&2

@@ -10,6 +10,7 @@
   extraDevicePaths ? [ ],
   promptJson ? "[]",
   prehooksJson ? "[]",
+  sandboxHooksJson ? "[]",
   secretSessionVariables ? { },
   sandboxPackages ? [ ],
   sessionVariables ? { },
@@ -25,12 +26,12 @@ let
   llmSandbox = pkgs.runCommandLocal "llm-sandbox" { } ''
     install -Dm755 ${./llm-sandbox.sh} $out/bin/llm-sandbox
   '';
-  # Tiny entrypoint that runs INSIDE the sandbox to load the composed secrets
-  # file into the env before exec'ing the real command (used only when
-  # secretSessionVariables are set). Installed like llm-sandbox; its store path
-  # is reachable in the sandbox via the ro-bound /nix/store.
-  secretsExec = pkgs.runCommandLocal "yolo-secrets-exec" { } ''
-    install -Dm755 ${./secrets-exec.sh} $out/bin/yolo-secrets-exec
+  # In-sandbox entrypoint: loads the composed secrets file into the env and
+  # sources the composed sandbox pre-start hook script before exec'ing the real
+  # command (used when secretSessionVariables and/or sandbox pre-start hooks are
+  # set). Installed like llm-sandbox; reachable in the sandbox via /nix/store.
+  sandboxEntrypoint = pkgs.runCommandLocal "yolo-sandbox-entrypoint" { } ''
+    install -Dm755 ${./sandbox-entrypoint.sh} $out/bin/yolo-sandbox-entrypoint
   '';
   podmanExports = lib.optionalString (podmanSocketPath != null) ''
     export YOLO_PODMAN_SOCKET_PATH=${lib.escapeShellArg podmanSocketPath}
@@ -96,10 +97,16 @@ let
   prehooksJsonExports = lib.optionalString (prehooksJson != "[]") ''
     export YOLO_PREHOOKS_JSON=${lib.escapeShellArg prehooksJson}
   '';
+  # Sandbox pre-start hooks as a JSON array of { command, tags }. yolo.sh
+  # composes the surviving (non-disabled) commands into one script, binds it,
+  # and the in-sandbox entrypoint sources it before exec.
+  sandboxHooksJsonExports = lib.optionalString (sandboxHooksJson != "[]") ''
+    export YOLO_SANDBOX_HOOKS_JSON=${lib.escapeShellArg sandboxHooksJson}
+  '';
 in
 pkgs.writeShellScriptBin "yolo" ''
   export YOLO_LLM_SANDBOX="${llmSandbox}/bin/llm-sandbox"
-  export YOLO_SECRETS_EXEC="${secretsExec}/bin/yolo-secrets-exec"
+  export YOLO_SANDBOX_ENTRYPOINT="${sandboxEntrypoint}/bin/yolo-sandbox-entrypoint"
   export YOLO_NIX_LD="${nix-ld}/bin/nix-ld"
   export YOLO_JQ="${jq}/bin/jq"
   ${podmanExports}
@@ -111,5 +118,6 @@ pkgs.writeShellScriptBin "yolo" ''
   ${sessionVarsExports}
   ${promptJsonExports}
   ${prehooksJsonExports}
+  ${sandboxHooksJsonExports}
   exec bash ${yoloScript} "$@"
 ''
