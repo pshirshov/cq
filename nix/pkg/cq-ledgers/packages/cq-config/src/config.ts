@@ -445,11 +445,25 @@ export function resolveAgentModel(
   return first;
 }
 
-/** Render a {@link ReviewerToken} back to its `<harness>:<model>` grammar. */
-function formatReviewerToken(token: ReviewerToken): string {
-  return token.provider === null
-    ? `${token.harness}:${token.model}`
-    : `${token.harness}:${token.provider}/${token.model}`;
+/**
+ * Render a {@link ReviewerToken} back to its canonical string grammar.
+ *
+ * Grammar: `<harness>:<model>[:<effort>]` for claude tokens and
+ * `<harness>:<provider>/<model>[:<effort>]` for pi tokens.
+ *
+ * The effort suffix is appended ONLY when `token.effort` is a non-null,
+ * non-undefined string, making `formatReviewerToken(parseReviewerToken(s)) === s`
+ * hold for all valid token strings (Q160 round-trip safety).
+ *
+ * When `effort` is null or undefined, the output is byte-identical to the
+ * pre-T288 format — no trailing `:<effort>` is emitted.
+ */
+export function formatReviewerToken(token: ReviewerToken): string {
+  const base =
+    token.provider == null
+      ? `${token.harness}:${token.model}`
+      : `${token.harness}:${token.provider}/${token.model}`;
+  return token.effort != null ? `${base}:${token.effort}` : base;
 }
 
 /**

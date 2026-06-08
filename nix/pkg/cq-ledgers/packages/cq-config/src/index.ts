@@ -32,6 +32,7 @@ export {
   CQ_CONFIG_FILENAME,
   CqConfigError,
   parseReviewerToken,
+  formatReviewerToken,
   parseConfig,
   resolveReviewers,
   resolvePlanners,
