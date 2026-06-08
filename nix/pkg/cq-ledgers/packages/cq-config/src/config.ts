@@ -18,9 +18,11 @@ import {
   isHarness,
   isTier,
   DEFAULT_TIER,
+  TIERS,
   type CqConfig,
   type ReviewerToken,
   type Tier,
+  type TierEntry,
   type TiersConfig,
   type WebuiConfig,
 } from "./types.js";
@@ -145,10 +147,14 @@ function parseTiers(
   raw: Record<string, string>,
   aliases: Record<string, ReviewerToken>,
 ): TiersConfig {
-  const VALID_TIER_KEYS = new Set(["fast", "standard", "frontier"]);
-  let fast: ReviewerToken | undefined;
-  let standard: ReviewerToken | undefined;
-  let frontier: ReviewerToken | undefined;
+  // NOTE (T268 minimal bridge): the FULL inverted-classifier parse (token-keyed
+  // `[tiers]` entries) is owned by the downstream parser-rewrite task T270.
+  // Here we keep the existing per-tier-slot keying semantics
+  // (fast/standard/frontier -> token) but emit the new `entries` classifier
+  // shape, so the workspace type-checks and existing config tests pass without
+  // prematurely implementing the token-keyed grammar.
+  const VALID_TIER_KEYS = new Set<string>(TIERS);
+  const entries: TierEntry[] = [];
 
   for (const [key, value] of Object.entries(raw)) {
     if (!VALID_TIER_KEYS.has(key)) {
@@ -162,12 +168,10 @@ function parseTiers(
       aliases[value] !== undefined
         ? aliases[value]!
         : parseReviewerToken(value);
-    if (key === "fast") fast = token;
-    else if (key === "standard") standard = token;
-    else frontier = token;
+    entries.push({ token, raw: value, class: key as Tier });
   }
 
-  return { fast, standard, frontier };
+  return { entries };
 }
 
 /**
@@ -280,13 +284,16 @@ export function resolveTierToken(
       `cannot resolve tier "${tier}": [tiers] table is absent from cq.toml`,
     );
   }
-  const token = config.tiers[tier];
-  if (token === undefined) {
+  // T268 minimal bridge: enumerate the classifier for an entry of this class.
+  // The full classifier resolver (classifyToken/selectTokensForTier) is owned
+  // by T271; here we pick the first entry assigned to `tier`.
+  const entry = config.tiers.entries.find((e) => e.class === tier);
+  if (entry === undefined) {
     throw new CqConfigError(
-      `tier "${tier}" is not configured in [tiers] (slot is absent)`,
+      `tier "${tier}" is not configured in [tiers] (no token classified as "${tier}")`,
     );
   }
-  return token;
+  return entry.token;
 }
 
 /**

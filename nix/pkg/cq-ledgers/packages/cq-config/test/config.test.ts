@@ -367,8 +367,11 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
   it("parses fast/standard/frontier into resolved ReviewerTokens (direct token)", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
     expect(config.tiers).not.toBeNull();
+    // T268 minimal bridge: TiersConfig is now the inverted classifier
+    // (`entries`). Read the token classified as `fast` via the entries list.
     // 'fast' is a direct "<harness>:<model>" token (not an alias).
-    expect(config.tiers!.fast).toEqual({
+    const fastEntry = config.tiers!.entries.find((e) => e.class === "fast");
+    expect(fastEntry?.token).toEqual({
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
@@ -378,13 +381,19 @@ describe("parseConfig with [tiers] (T223 acceptance a)", () => {
   it("resolves a tier value that names an alias", () => {
     const config = parseConfig(VALID_TOML_WITH_TIERS);
     // 'standard' = "minimax" — a name in [aliases] -> pi:ollama-cloud/minimax-m3
-    expect(config.tiers!.standard).toEqual({
+    const standardEntry = config.tiers!.entries.find(
+      (e) => e.class === "standard",
+    );
+    expect(standardEntry?.token).toEqual({
       harness: "pi",
       model: "minimax-m3",
       provider: "ollama-cloud",
     });
     // 'frontier' = "opus" — a name in [aliases] -> claude:opus-4.8[1m]
-    expect(config.tiers!.frontier).toEqual({
+    const frontierEntry = config.tiers!.entries.find(
+      (e) => e.class === "frontier",
+    );
+    expect(frontierEntry?.token).toEqual({
       harness: "claude",
       model: "opus-4.8[1m]",
       provider: null,

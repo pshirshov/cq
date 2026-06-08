@@ -12,6 +12,7 @@ export type {
   CqConfig,
   WebuiConfig,
   Tier,
+  TierEntry,
   TiersConfig,
 } from "./types.js";
 export { HARNESSES, isHarness, TIERS, isTier, DEFAULT_TIER } from "./types.js";

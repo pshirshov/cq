@@ -106,34 +106,27 @@ function projectConfig(config: CqConfig): GetConfigResult {
 
   let tiers: GetConfigResult["tiers"] = null;
   if (config.tiers !== null) {
+    // T268 minimal bridge: the GetConfig wire shape still exposes the
+    // per-tier-slot view (fast/standard/frontier). Derive each slot from the
+    // inverted classifier `entries` by picking the first token of that class.
+    // The wire-shape rework (token-keyed classifier over MCP) is a downstream
+    // task; here we keep the existing output contract intact.
+    const slotFor = (cls: "fast" | "standard" | "frontier") => {
+      const entry = config.tiers!.entries.find((e) => e.class === cls);
+      return entry === undefined
+        ? {}
+        : {
+            [cls]: {
+              harness: entry.token.harness,
+              model: entry.token.model,
+              provider: entry.token.provider,
+            },
+          };
+    };
     tiers = {
-      ...(config.tiers.fast !== undefined
-        ? {
-            fast: {
-              harness: config.tiers.fast.harness,
-              model: config.tiers.fast.model,
-              provider: config.tiers.fast.provider,
-            },
-          }
-        : {}),
-      ...(config.tiers.standard !== undefined
-        ? {
-            standard: {
-              harness: config.tiers.standard.harness,
-              model: config.tiers.standard.model,
-              provider: config.tiers.standard.provider,
-            },
-          }
-        : {}),
-      ...(config.tiers.frontier !== undefined
-        ? {
-            frontier: {
-              harness: config.tiers.frontier.harness,
-              model: config.tiers.frontier.model,
-              provider: config.tiers.frontier.provider,
-            },
-          }
-        : {}),
+      ...slotFor("fast"),
+      ...slotFor("standard"),
+      ...slotFor("frontier"),
     };
   }
 

@@ -75,16 +75,38 @@ export function isTier(value: string): value is Tier {
 export const DEFAULT_TIER: Tier = "standard";
 
 /**
- * The `[tiers]` table: maps each tier name to a resolved ReviewerToken
- * (parsed from a `"<harness>:<model>"` string via `[aliases]` or directly).
+ * One entry of the `[tiers]` classifier: a parsed reviewer token, the raw
+ * token-grammar key it was parsed from, and the {@link Tier} class it is
+ * assigned to.
+ */
+export interface TierEntry {
+  /** The parsed token (harness + model + provider). */
+  readonly token: ReviewerToken;
+  /**
+   * The raw `parseReviewerToken` grammar STRING this entry was keyed by,
+   * e.g. `"claude:opus-4.8[1m]"` or `"pi:ollama-cloud/minimax-m3"`.
+   */
+  readonly raw: string;
+  /** The tier class assigned to this token. */
+  readonly class: Tier;
+}
+
+/**
+ * The `[tiers]` table: an INVERTED, token-keyed CLASSIFIER (Q149/Q150).
  *
- * All three tier slots are optional; absent tiers are `undefined` so callers
- * can detect an unconfigured tier rather than silently getting a zero value.
+ * Each `[tiers]` entry keys a `parseReviewerToken` token-grammar STRING
+ * (e.g. `"claude:opus-4.8[1m]"`, `"pi:ollama-cloud/minimax-m3"`) to a
+ * {@link Tier} class (`fast` | `standard` | `frontier`). The configuration
+ * therefore maps a (harness + provider + model) token to its tier class —
+ * the inverse of the old per-tier-slot shape.
+ *
+ * `entries` preserves, for each configured token, the PARSED
+ * {@link ReviewerToken}, the raw key string, and the assigned class, so a
+ * token can be CLASSIFIED (token -> class) AND the tokens of a class can be
+ * ENUMERATED (class -> tokens).
  */
 export interface TiersConfig {
-  readonly fast: ReviewerToken | undefined;
-  readonly standard: ReviewerToken | undefined;
-  readonly frontier: ReviewerToken | undefined;
+  readonly entries: ReadonlyArray<TierEntry>;
 }
 
 /**
@@ -96,8 +118,10 @@ export interface TiersConfig {
  * - `planners`: the top-level `planners = [...]` list of ALIAS names
  *   (not yet resolved — see `resolvePlanners`).
  * - `webui`: the `[webui]` table (host + port), or null if absent.
- * - `tiers`: the `[tiers]` table mapping fast/standard/frontier to a
- *   ReviewerToken, or null if `[tiers]` is absent.
+ * - `tiers`: the `[tiers]` CLASSIFIER table — an inverted, token-keyed map
+ *   from a `parseReviewerToken` token-grammar string to a tier class
+ *   (fast/standard/frontier); or null if `[tiers]` is absent. See
+ *   {@link TiersConfig}.
  * - `agentTiers`: the `[agent_tiers]` table mapping agent-name -> tier name,
  *   or null if `[agent_tiers]` is absent. An unlisted agent falls back to
  *   `DEFAULT_TIER`.
