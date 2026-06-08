@@ -679,6 +679,8 @@ for (const factory of [inMem, fs_]) {
           status: "mixed",
           fields: {
             summary: "Session stopped for multiple reasons.",
+            // D39: a `mixed` handoff REQUIRES a non-empty blockingQuestions[].
+            blockingQuestions: ["Which env should the deploy target?"],
             handoffReasons: ["drained", "answers-required"],
           },
         });
@@ -699,6 +701,53 @@ for (const factory of [inMem, fs_]) {
             fields: { summary: "wrong status" },
           }),
         ).rejects.toThrow(InvalidStatusError);
+      } finally {
+        await store.dispose();
+      }
+    });
+
+    // T258 — store-API smoke proof that assertHandoffInvariants is wired into
+    // the create path (the comprehensive dual-adapter matrix lives in T259).
+    it("rejects a mixed handoff with an empty blockingQuestions array (D39 create-path)", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "empty-bq handoff" });
+        await expect(
+          store.createItem(HANDOFFS_LEDGER, m.id, {
+            status: "mixed",
+            fields: { summary: "x", blockingQuestions: [] },
+          }),
+        ).rejects.toThrow(SchemaValidationError);
+        // The same create with a non-empty blockingQuestions[] SUCCEEDS.
+        const ok = await store.createItem(HANDOFFS_LEDGER, m.id, {
+          status: "mixed",
+          fields: { summary: "x", blockingQuestions: ["Q1"] },
+        });
+        expect(ok.status).toBe("mixed");
+        expect(ok.fields["blockingQuestions"]).toEqual(["Q1"]);
+      } finally {
+        await store.dispose();
+      }
+    });
+
+    // T258 — store-API smoke proof of the update-path wiring: a field-only
+    // patch may not empty blockingQuestions on an already-mixed handoff.
+    it("rejects an update that empties blockingQuestions on a mixed handoff (D39 update-path)", async () => {
+      const store = await factory.build();
+      try {
+        const m = await store.createMilestone({ title: "update-path handoff" });
+        const created = await store.createItem(HANDOFFS_LEDGER, m.id, {
+          status: "mixed",
+          fields: { summary: "x", blockingQuestions: ["Q1"] },
+        });
+        await expect(
+          store.updateItem(HANDOFFS_LEDGER, created.id, {
+            fields: { blockingQuestions: [] },
+          }),
+        ).rejects.toThrow(SchemaValidationError);
+        // The original item is unmodified — the failed update did not commit.
+        const fetched = store.fetchItem(HANDOFFS_LEDGER, created.id);
+        expect(fetched.fields["blockingQuestions"]).toEqual(["Q1"]);
       } finally {
         await store.dispose();
       }

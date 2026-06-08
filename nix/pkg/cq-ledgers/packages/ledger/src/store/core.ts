@@ -34,6 +34,7 @@ import {
 } from "../types.js";
 import {
   GOALS_LEDGER,
+  HANDOFFS_LEDGER,
   isIsoTimestamp,
   MILESTONES_ACTIVE_GROUP_ID,
   MILESTONES_AMBIENT_ID,
@@ -276,10 +277,24 @@ export function applyUpdateItem(
       // surfaces as a transition error, not a precondition error.
       if (precondition !== undefined) precondition(item.status, patch.status);
     }
-    item.status = patch.status;
   }
   if (patch.fields !== undefined) {
     validateFields(ledger, patch.fields, /*creating*/ false);
+  }
+  // D39: re-check the handoffs conditional invariant on the EFFECTIVE status +
+  // fields BEFORE any mutation (so a thrown SchemaValidationError leaves the
+  // in-memory item untouched), so a field-only update cannot empty
+  // `blockingQuestions`/`handoffReasons` on an already-`mixed`/
+  // `answers-required`/`user-action-required` handoff.
+  if (ledger.id === HANDOFFS_LEDGER) {
+    const effectiveStatus = patch.status ?? item.status;
+    const effectiveFields =
+      patch.fields !== undefined ? { ...item.fields, ...patch.fields } : item.fields;
+    assertHandoffInvariants(item.id, effectiveStatus, effectiveFields);
+  }
+  // All guards passed — commit the patch into the live item.
+  if (patch.status !== undefined) item.status = patch.status;
+  if (patch.fields !== undefined) {
     for (const [k, v] of Object.entries(patch.fields)) {
       item.fields[k] = v;
     }
@@ -335,6 +350,12 @@ export function applyCreateItem(
   }
   assertStatusAllowed(ledger, init.status);
   validateFields(ledger, init.fields, /*creating*/ true);
+  // D39: handoffs-specific conditional invariant (status-dependent required
+  // fields the status-blind schema cannot express). The concrete id is not
+  // allocated yet, so label by the supplied id when present, else "<new>".
+  if (ledger.id === HANDOFFS_LEDGER) {
+    assertHandoffInvariants(init.id ?? "<new>", init.status, init.fields);
+  }
   const prefix = effectiveIdPrefix(ledger.id, ledger.schema);
   let id: string;
   if (init.id !== undefined) {
