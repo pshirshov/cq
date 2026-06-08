@@ -6,13 +6,11 @@
   codegraph,
   podmanSocketPath ? null,
   podmanSocketUri ? null,
-  llmSshKeyPath ? null,
   extraReadOnlyPaths ? [ ],
   extraReadWritePaths ? [ ],
   extraDevicePaths ? [ ],
   ollamaModelsDir ? null,
-  promptForClaude ? "",
-  promptForPi ? "",
+  promptManifest ? [ ],
   secretSessionVariables ? { },
   sandboxPackages ? [ ],
   sessionVariables ? { },
@@ -39,9 +37,6 @@ let
     export YOLO_PODMAN_SOCKET_PATH=${lib.escapeShellArg podmanSocketPath}
     export YOLO_PODMAN_SOCKET_URI=${lib.escapeShellArg podmanSocketUri}
   '';
-  llmSshKeyExports = lib.optionalString (llmSshKeyPath != null) ''
-    export YOLO_LLM_SSH_KEY_PATH=${lib.escapeShellArg llmSshKeyPath}
-  '';
   ollamaExports = lib.optionalString (ollamaModelsDir != null) ''
     export YOLO_OLLAMA_MODELS_DIR=${lib.escapeShellArg ollamaModelsDir}
   '';
@@ -54,10 +49,10 @@ let
   extraRwExports = lib.optionalString (extraReadWritePaths != [ ]) ''
     export YOLO_EXTRA_RW_PATHS=${lib.escapeShellArg (joinPaths extraReadWritePaths)}
   '';
-  # Device records, one TAB-separated `path<TAB>type<TAB>class` line per entry
-  # (paths/tags contain no tab or newline). yolo.sh splits on newline then tab,
-  # and uses type/class for `--no-dev=<tag>` suppression.
-  devLines = map (d: "${d.path}\t${d.type or ""}\t${d.class or ""}") extraDevicePaths;
+  # Device records, one TAB-separated `path<TAB>tags-csv` line per entry (paths
+  # and tags contain no tab or newline). yolo.sh splits on newline then tab, and
+  # drops a record if any of its tags is in the `--disable=<tag>` set.
+  devLines = map (d: "${d.path}\t${lib.concatStringsSep "," d.tags}") extraDevicePaths;
   extraDevExports = lib.optionalString (extraDevicePaths != [ ]) ''
     export YOLO_EXTRA_DEV_PATHS=${lib.escapeShellArg (lib.concatStringsSep "\n" devLines)}
   '';
@@ -90,14 +85,15 @@ let
   sessionVarsExports = lib.optionalString (sessionVariables != { }) ''
     export YOLO_SESSION_VARS=${lib.escapeShellArg (lib.concatStringsSep "\n" sessionVarLines)}
   '';
-  # Per-agent system-prompt additions, composed at Nix-eval time from
-  # promptExtensions (target/when filtering done in the home-manager module).
-  # Passed verbatim; yolo.sh appends via --append-system-prompt when non-empty.
-  promptClaudeExports = lib.optionalString (promptForClaude != "") ''
-    export YOLO_PROMPT_CLAUDE=${lib.escapeShellArg promptForClaude}
-  '';
-  promptPiExports = lib.optionalString (promptForPi != "") ''
-    export YOLO_PROMPT_PI=${lib.escapeShellArg promptForPi}
+  # System-prompt-extension manifest: one `target<TAB>tags-csv<TAB>store-file`
+  # line per (Nix-`when`-enabled) fragment, in order. The home-manager module
+  # writes each fragment body to a store file and builds these lines. yolo.sh
+  # composes the per-agent prompt at launch — keeping fragments whose target
+  # matches and none of whose tags is in the `--disable` set — so runtime
+  # suppression (e.g. `--disable=gpu`) drops the matching note too. Bodies live
+  # in files, so multi-line text needs no escaping.
+  promptManifestExports = lib.optionalString (promptManifest != [ ]) ''
+    export YOLO_PROMPT_MANIFEST=${lib.escapeShellArg (lib.concatStringsSep "\n" promptManifest)}
   '';
 in
 pkgs.writeShellScriptBin "yolo" ''
@@ -107,7 +103,6 @@ pkgs.writeShellScriptBin "yolo" ''
   export YOLO_JQ="${jq}/bin/jq"
   export YOLO_CODEGRAPH_BIN="${codegraph}/bin/codegraph"
   ${podmanExports}
-  ${llmSshKeyExports}
   ${ollamaExports}
   ${extraRoExports}
   ${extraRwExports}
@@ -115,7 +110,6 @@ pkgs.writeShellScriptBin "yolo" ''
   ${secretVarsExports}
   ${sandboxBinExports}
   ${sessionVarsExports}
-  ${promptClaudeExports}
-  ${promptPiExports}
+  ${promptManifestExports}
   exec bash ${yoloScript} "$@"
 ''

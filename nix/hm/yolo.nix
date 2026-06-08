@@ -26,22 +26,29 @@ let
 
   cfg = config.smind.hm.dev.llm;
 
-  # Per-agent composition of the prompt extensions: keep the enabled (`when`)
-  # fragments targeted at this agent (or "*"), in declaration order, joined with
-  # blank lines. Codex is intentionally absent — it has no --append-system-prompt.
-  promptFor = agent:
-    lib.concatStringsSep "\n\n" (
-      map (e: e.prompt) (
-        lib.filter (e: e.when && (e.target == agent || e.target == "*")) cfg.yolo.promptExtensions
-      )
-    );
+  # SSH key for remote worker machines: bound read-only (folded into the ro path
+  # set below) and announced to agents via a prompt fragment (config, below) —
+  # replacing the old dedicated YOLO_LLM_SSH_KEY_PATH env + bind. null disables.
+  sshKeySet = cfg.llmSshKeyPath != null;
+
+  # Prompt-extension manifest (Idea 1): each Nix-`when`-enabled fragment becomes
+  # a store file (multi-line-safe) plus a `target<TAB>tags-csv<TAB>file` line, in
+  # order. yolo.sh composes the per-agent prompt at launch and drops fragments
+  # whose tags intersect the runtime `--disable` set — so the same tag gates a
+  # device bind AND its note (e.g. `--disable=gpu`).
+  promptManifest = lib.imap0
+    (
+      i: e:
+      "${e.target}\t${lib.concatStringsSep "," e.tags}\t${pkgs.writeText "yolo-prompt-${toString i}" e.prompt}"
+    )
+    (lib.filter (e: e.when) cfg.yolo.promptExtensions);
 
   yoloPkg = pkgs.callPackage ../pkg/yolo/default.nix {
     codegraph = codegraphPkg;
     podmanSocketPath = cfg.podman.socketPath;
     podmanSocketUri = cfg.podman.socketUri;
-    llmSshKeyPath = cfg.llmSshKeyPath;
-    extraReadOnlyPaths = cfg.yolo.extraReadOnlyPaths;
+    # The remote-worker SSH key is just another read-only bind.
+    extraReadOnlyPaths = cfg.yolo.extraReadOnlyPaths ++ lib.optional sshKeySet cfg.llmSshKeyPath;
     extraReadWritePaths = cfg.yolo.extraReadWritePaths;
     # Device paths bound with device access (bwrap --dev-bind), e.g. GPU nodes.
     extraDevicePaths = cfg.yolo.extraDevicePaths;
@@ -54,9 +61,8 @@ let
     sessionVariables = cfg.yolo.sessionVariables;
     # Secret-file-backed env vars composed + sourced inside the sandbox.
     secretSessionVariables = cfg.yolo.secretSessionVariables;
-    # Per-agent system-prompt additions (see promptExtensions).
-    promptForClaude = promptFor "claude";
-    promptForPi = promptFor "pi";
+    # Tagged, runtime-suppressible system-prompt additions (see promptExtensions).
+    inherit promptManifest;
   };
 in
 {
@@ -95,12 +101,12 @@ in
       type = lib.types.nullOr lib.types.str;
       default = null;
       description = ''
-        Path to an SSH private key to ro-bind into the yolo sandbox. Used on
-        llm-worker hosts to give the unattended `llm` user access to the
-        agenix-managed SSH key for git push / remote ssh from inside the
-        bubblewrap sandbox. The key is bound at the same path it lives at
-        on the host; agents must reference it explicitly
-        (e.g. `GIT_SSH_COMMAND='ssh -i <path>'`).
+        Path to an SSH private key for remote worker machines. When set, the key
+        is read-only bound into the sandbox at the same path it lives at on the
+        host (folded into the read-only bind set), AND a prompt fragment
+        (tagged "ssh") is added telling agents to authenticate with it when
+        instructed to use remote workers (e.g. `ssh -i <path>` /
+        `GIT_SSH_COMMAND='ssh -i <path>'`). null disables both.
       '';
     };
 
@@ -131,20 +137,15 @@ in
             type = lib.types.str;
             description = "Host device path to bind (file or directory).";
           };
-          type = lib.mkOption {
-            type = lib.types.str;
-            default = "";
+          tags = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "gpu" "amd" ];
             description = ''
-              Coarse category tag (e.g. "gpu"). Matched by the runtime
-              `yolo --no-dev=<tag>` flag to suppress a group of device binds.
-            '';
-          };
-          class = lib.mkOption {
-            type = lib.types.str;
-            default = "";
-            description = ''
-              Finer tag (e.g. vendor "amd"/"nvidia"/"intel"), also matched by
-              `yolo --no-dev=<tag>`.
+              Suppression tags (e.g. `[ "gpu" "amd" ]`). The runtime
+              `yolo --disable=<tag>` flag drops every device (and prompt
+              fragment) carrying that tag, so tag a device with both its broad
+              feature ("gpu") and any finer label ("amd") you may want to target.
             '';
           };
         };
@@ -152,22 +153,22 @@ in
       default = [ ];
       example = lib.literalExpression ''
         [
-          { path = "/dev/dri"; type = "gpu"; }
-          { path = "/dev/kfd"; type = "gpu"; class = "amd"; }
+          { path = "/dev/dri"; tags = [ "gpu" ]; }
+          { path = "/dev/kfd"; tags = [ "gpu" "amd" ]; }
         ]
       '';
       description = ''
         Host device paths bound into the sandbox WITH device access (bwrap
         `--dev-bind`) — e.g. GPU render nodes for compute passthrough. Each entry
-        is `{ path; type ? ""; class ? ""; }`; a directory `path` exposes every
-        device node under it (so `/dev/dri` covers all render nodes). The
-        `type`/`class` tags are matched by the runtime `yolo --no-dev=<tag>` flag
-        to drop a group of binds (e.g. `--no-dev=gpu`, `--no-dev=amd`); bare
-        `--no-dev` drops them all. Missing paths are skipped. GPU passthrough is
-        no longer built in: wire the device paths here, the non-device GPU bits
+        is `{ path; tags ? []; }`; a directory `path` exposes every device node
+        under it (so `/dev/dri` covers all render nodes). A device is dropped at
+        launch if any of its `tags` is in the `yolo --disable=<tag>` set (e.g.
+        `--disable=gpu`). Missing paths are skipped. GPU passthrough is no longer
+        built in: wire the device paths here, the non-device GPU bits
         (`/run/opengl-driver`, `/sys`) via
         {option}`smind.hm.dev.llm.yolo.extraReadOnlyPaths`, and the GPU
-        availability note via {option}`smind.hm.dev.llm.yolo.promptExtensions`.
+        availability note (tagged the same, so `--disable=gpu` hides it too) via
+        {option}`smind.hm.dev.llm.yolo.promptExtensions`.
       '';
     };
 
@@ -188,12 +189,25 @@ in
               shared memory (`programs.codex` context / AGENTS.md) instead.
             '';
           };
+          tags = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "gpu" ];
+            description = ''
+              Suppression tags. The fragment is dropped at launch if any tag is
+              in the `yolo --disable=<tag>` set — the same namespace as
+              {option}`smind.hm.dev.llm.yolo.extraDevicePaths` tags, so tagging
+              the GPU note `[ "gpu" ]` makes `--disable=gpu` hide the note along
+              with the GPU device binds.
+            '';
+          };
           when = lib.mkOption {
             type = lib.types.bool;
             default = true;
             description = ''
-              Include this fragment only when true. Lets the consumer gate a
-              fragment on host config (e.g. turn the GPU note on/off).
+              Static (Nix-eval-time) gate: include this fragment only when true.
+              Use it for per-host inclusion; use `tags` + `--disable` for
+              per-run runtime suppression.
             '';
           };
         };
@@ -207,12 +221,18 @@ in
       '';
       description = ''
         Ordered system-prompt additions, appended (blank-line-separated) to each
-        agent's `--append-system-prompt`, filtered per agent by `target` and
-        gated by `when`. List-merges across modules: this module contributes the
-        YOLO pre-authorization note (target "claude") via `mkBefore`, and the
-        consumer appends host-specific fragments (GPU availability, host
-        context). Replaces the old hardcoded permission/GPU notes and the
-        former `extraPromptFragments` option. Codex receives none (no CLI hook).
+        agent's `--append-system-prompt`, filtered per agent by `target`, gated
+        statically by `when` (Nix-eval) and at runtime by `tags` + the
+        `yolo --disable=<tag>` flag. List-merges across modules: this module
+        contributes the YOLO pre-authorization note (target "claude"), and —
+        when configured — the remote-worker SSH note (tag "ssh", see
+        {option}`smind.hm.dev.llm.llmSshKeyPath`) and the GitHub agent-account
+        note (tag "github", when `GH_TOKEN` is in
+        {option}`smind.hm.dev.llm.yolo.secretSessionVariables`), all via
+        `mkBefore`; the consumer appends host-specific fragments (e.g. the GPU
+        availability note, tagged "gpu"). Replaces the old hardcoded
+        permission/GPU notes and the former `extraPromptFragments` option. Codex
+        receives none (no CLI hook).
       '';
     };
 
@@ -282,15 +302,29 @@ in
 
   config = lib.mkMerge [
     {
-      # The YOLO pre-authorization note. Claude has a permission system, so tell
-      # it not to prompt on destructive ops; Pi/Codex have none, so it targets
-      # claude only. mkBefore leads the list; the consumer's fragments append.
-      smind.hm.dev.llm.yolo.promptExtensions = lib.mkBefore [
-        {
-          target = "claude";
-          prompt = ''YOLO mode is active. The user has pre-authorized destructive shell operations (rm, rm -rf, kill, git reset --hard, etc.) and will not be available to confirm. Proceed without asking for confirmation on such operations. Standard safety still applies to actions with broader blast radius (force-push to shared branches, deleting remote resources, sending external messages).'';
+      # Module-provided prompt fragments, leading the list (mkBefore); the
+      # consumer's fragments append after.
+      #   - YOLO authorization (claude only — Pi/Codex have no permission system).
+      #   - SSH remote-worker key usage (only when llmSshKeyPath is set).
+      #   - GitHub agent-account note (only when GH_TOKEN is a secret session var).
+      smind.hm.dev.llm.yolo.promptExtensions = lib.mkBefore (
+        [
+          {
+            target = "claude";
+            prompt = ''YOLO mode is active. The user has pre-authorized destructive shell operations (rm, rm -rf, kill, git reset --hard, etc.) and will not be available to confirm. Proceed without asking for confirmation on such operations. Standard safety still applies to actions with broader blast radius (force-push to shared branches, deleting remote resources, sending external messages).'';
+          }
+        ]
+        ++ lib.optional sshKeySet {
+          target = "*";
+          tags = [ "ssh" ];
+          prompt = ''A dedicated SSH private key for logging into remote worker machines is bound read-only at ${cfg.llmSshKeyPath} inside the sandbox. When you are instructed to use remote worker machines, authenticate with this key — e.g. `ssh -i ${cfg.llmSshKeyPath} <user>@<host>` or `GIT_SSH_COMMAND='ssh -i ${cfg.llmSshKeyPath}' git <push|fetch> ...`.'';
         }
-      ];
+        ++ lib.optional (cfg.yolo.secretSessionVariables ? GH_TOKEN) {
+          target = "*";
+          tags = [ "github" ];
+          prompt = ''A GitHub token is available in the GH_TOKEN environment variable. It belongs to a GitHub account created specifically for autonomous agentic work — it is NOT the user's personal account. Use it (via the `gh` CLI, which reads GH_TOKEN, or the token directly) for GitHub operations carried out on the agent's own behalf.'';
+        }
+      );
     }
     # The sandbox is Linux-only (bubblewrap); on Darwin claude-code uses its own
     # sandbox wrapper, wired in dev-llm.nix. Gated on the shared harness enable.

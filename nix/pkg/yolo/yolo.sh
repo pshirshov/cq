@@ -11,13 +11,10 @@
 # Optional env vars:
 #   YOLO_PODMAN_SOCKET_PATH - rootless podman socket path (enables container forwarding)
 #   YOLO_PODMAN_SOCKET_URI  - rootless podman socket URI
-#   YOLO_LLM_SSH_KEY_PATH    - path to an agenix-managed SSH private key to ro-bind into the sandbox
-#                              (set on llm-worker hosts so the llm user can use the key inside yolo)
 #   YOLO_EXTRA_RO_PATHS      - newline-separated list of host paths to ro-bind (missing paths are skipped)
 #   YOLO_EXTRA_RW_PATHS      - newline-separated list of host paths to rw-bind (missing paths are skipped)
-#   YOLO_EXTRA_DEV_PATHS     - newline-separated `path<TAB>type<TAB>class` records of host devices to
-#                              --dev-bind (e.g. GPU render nodes); type/class are tags for `--no-dev`
-#                              suppression; missing paths are skipped
+#   YOLO_EXTRA_DEV_PATHS     - newline-separated `path<TAB>tags-csv` records of host devices to --dev-bind
+#                              (e.g. GPU render nodes); a record is dropped if any tag is in --disable
 #   YOLO_SECRET_VARS         - newline-separated NAME=/path/to/secret list (smind.hm.dev.llm.yolo.
 #                              secretSessionVariables); each readable file's content is composed into
 #                              one 0600 file, bound once, and sourced inside the sandbox (never via argv)
@@ -26,8 +23,8 @@
 #   YOLO_SESSION_VARS        - newline-separated NAME=VALUE list (smind.hm.dev.llm.yolo.sessionVariables)
 #                              of env vars to set inside the sandbox; empty means none
 #   YOLO_OLLAMA_MODELS_DIR   - host path to the ollama models directory (ro-bind); empty means no ollama on this host
-#   YOLO_PROMPT_CLAUDE       - composed --append-system-prompt text for claude (promptExtensions; empty = none)
-#   YOLO_PROMPT_PI           - composed --append-system-prompt text for pi (promptExtensions; empty = none)
+#   YOLO_PROMPT_MANIFEST     - newline-separated `target<TAB>tags-csv<TAB>store-file` records; yolo.sh
+#                              composes each agent's --append-system-prompt, dropping --disable'd tags
 
 : "${YOLO_LLM_SANDBOX:?must be set}"
 : "${YOLO_SECRETS_EXEC:?must be set}"
@@ -48,14 +45,10 @@ MOBILE_MODE=0
 UNSAFE_SHARE_HOME=0
 # CodeGraph per-project index bootstrap is on by default; --no-cg opts out.
 CG_MODE=1
-# Audio (PipeWire/Pulse socket) is exposed by default so agents can play
-# sound (e.g. completion notifications, TTS); --no-audio opts out. Binds
-# self-skip on hosts without the sockets (headless), so this is a no-op there.
-AUDIO_MODE=1
-# Device-bind suppression: --no-dev drops ALL --dev-bind entries; --no-dev=TAG
-# (repeatable, comma-separated) drops entries whose type OR class equals TAG.
-NO_DEV_ALL=0
-NO_DEV_TAGS=()
+# Feature suppression: --disable=TAG (repeatable, comma-separated) drops every
+# device bind (extraDevicePaths) AND prompt fragment (promptExtensions) carrying
+# TAG. Audio is tagged "audio" and on by default, so `--disable=audio` mutes it.
+DISABLE_TAGS=()
 ENV_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -67,12 +60,9 @@ while [[ $# -gt 0 ]]; do
     --work|-w) PROFILE="work"; shift ;;
     --mobile) MOBILE_MODE=1; shift ;;
     --no-cg) CG_MODE=0; shift ;;
-    --audio) AUDIO_MODE=1; shift ;;
-    --no-audio) AUDIO_MODE=0; shift ;;
-    --no-dev) NO_DEV_ALL=1; shift ;;
-    --no-dev=*)
-      IFS=',' read -ra _ndtags <<< "${1#*=}"
-      NO_DEV_TAGS+=("${_ndtags[@]}")
+    --disable=*)
+      IFS=',' read -ra _dtags <<< "${1#*=}"
+      DISABLE_TAGS+=("${_dtags[@]}")
       shift ;;
     --unsafe-share-home) UNSAFE_SHARE_HOME=1; shift ;;
     --env) ENV_ARGS+=(--env "$2"); shift 2 ;;
@@ -80,6 +70,24 @@ while [[ $# -gt 0 ]]; do
     *) break ;;
   esac
 done
+
+# True if TAG is in the --disable set.
+is_disabled() {
+  local _t
+  for _t in "${DISABLE_TAGS[@]}"; do
+    [[ "$_t" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+# True if ANY of the given tags is in the --disable set.
+any_disabled() {
+  local _t
+  for _t in "$@"; do
+    [[ -n "$_t" ]] && is_disabled "$_t" && return 0
+  done
+  return 1
+}
 
 # Guard against path traversal / nesting: a profile name maps directly into a
 # filesystem path under ~/.config/yolo, so restrict it to a safe charset.
@@ -137,7 +145,7 @@ if [[ $MOBILE_MODE -eq 1 ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--mobile] [--no-cg] [--audio|--no-audio] [--no-dev[=TAG]]... [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
+  echo "Usage: yolo [--profile NAME|-p NAME] [--work] [--mobile] [--no-cg] [--disable=TAG]... [--unsafe-share-home] [--env KEY=VAL]... <claude|codex|pi|shell|cmd> [args...]" >&2
   exit 1
 fi
 
@@ -170,27 +178,20 @@ fi
 
 # Device passthrough (configured via Nix from
 # smind.hm.dev.llm.yolo.extraDevicePaths -> YOLO_EXTRA_DEV_PATHS, one
-# `path<TAB>type<TAB>class` record per line). Each path is bind-mounted WITH
-# device access (bwrap --dev-bind); a directory exposes every device node under
-# it (e.g. /dev/dri for GPU render nodes). GPU passthrough is no longer special-
+# `path<TAB>tags-csv` record per line). Each path is bind-mounted WITH device
+# access (bwrap --dev-bind); a directory exposes every device node under it
+# (e.g. /dev/dri for GPU render nodes). GPU passthrough is no longer special-
 # cased here — the consumer wires the device paths plus the non-device bits
 # (/run/opengl-driver, /sys via extraReadOnlyPaths) and the GPU system-prompt
-# note (via promptExtensions) from its own host config. `--no-dev` drops all
-# device binds; `--no-dev=TAG` drops those whose type or class equals TAG. The
-# llm-sandbox layer skips any path absent on this host.
+# note (via promptExtensions) from its own host config. A record is dropped if
+# any of its tags is in the --disable set. The llm-sandbox layer skips any path
+# absent on this host.
 DEV_ARGS=()
-if [[ $NO_DEV_ALL -ne 1 && -n "${YOLO_EXTRA_DEV_PATHS:-}" ]]; then
-  while IFS=$'\t' read -r _dpath _dtype _dclass; do
+if [[ -n "${YOLO_EXTRA_DEV_PATHS:-}" ]]; then
+  while IFS=$'\t' read -r _dpath _dtags; do
     [[ -z "$_dpath" ]] && continue
-    _dev_skip=0
-    if [[ ${#NO_DEV_TAGS[@]} -gt 0 ]]; then
-      for _tag in "${NO_DEV_TAGS[@]}"; do
-        if [[ -n "$_tag" && ( "$_tag" == "$_dtype" || "$_tag" == "$_dclass" ) ]]; then
-          _dev_skip=1; break
-        fi
-      done
-    fi
-    [[ $_dev_skip -eq 1 ]] && continue
+    IFS=',' read -ra _dtagv <<< "$_dtags"
+    any_disabled "${_dtagv[@]}" && continue
     DEV_ARGS+=(--dev-bind "$_dpath,$_dpath")
   done <<< "$YOLO_EXTRA_DEV_PATHS"
 fi
@@ -285,29 +286,15 @@ fi
 # sockets are bidirectional, so this also permits capture. The sockets are
 # bound read-write at their host paths; the llm-sandbox layer skips any that
 # don't exist (headless hosts). Not binding /dev/snd on purpose: PipeWire owns
-# the devices, so socket routing is the correct path. --no-audio disables.
+# the devices, so socket routing is the correct path. On by default; tagged
+# "audio", so `--disable=audio` mutes it (parity with the device-bind tags).
 AUDIO_ARGS=()
-if [[ $AUDIO_MODE -eq 1 ]]; then
+if ! is_disabled audio; then
   _xrd="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
   AUDIO_ARGS+=(--rw "$_xrd/pipewire-0")
   AUDIO_ARGS+=(--rw "$_xrd/pulse/native")
   AUDIO_ARGS+=(--ro "${HOME}/.config/pulse/cookie")
   AUDIO_ARGS+=(--env "PULSE_SERVER=unix:$_xrd/pulse/native")
-fi
-
-LLM_SSH_KEY_ARGS=()
-if [[ -n "${YOLO_LLM_SSH_KEY_PATH:-}" ]]; then
-  # Resolve symlinks so we bind the real decrypted file. bwrap follows
-  # symlinks on the host, but agenix swaps the symlink target across
-  # generations and a stale source path would leave the sandbox holding
-  # an empty bind on the next rebuild.
-  _llm_key_real="$(readlink -f "$YOLO_LLM_SSH_KEY_PATH" 2>/dev/null || true)"
-  if [[ -n "$_llm_key_real" && -e "$_llm_key_real" ]]; then
-    LLM_SSH_KEY_ARGS+=(--ro-bind "$_llm_key_real,$YOLO_LLM_SSH_KEY_PATH")
-    LLM_SSH_KEY_ARGS+=(--env "YOLO_LLM_SSH_KEY_PATH=$YOLO_LLM_SSH_KEY_PATH")
-  else
-    echo "warning: YOLO_LLM_SSH_KEY_PATH=$YOLO_LLM_SSH_KEY_PATH not readable; skipping bind" >&2
-  fi
 fi
 
 BASE_ARGS=(
@@ -318,7 +305,6 @@ BASE_ARGS=(
   "${TMUX_BIND_ARGS[@]}"
   "${DEV_ARGS[@]}"
   "${AUDIO_ARGS[@]}"
-  "${LLM_SSH_KEY_ARGS[@]}"
   "${EXTRA_PATH_ARGS[@]}"
   "${SECRET_FILE_ARGS[@]}"
   "${OLLAMA_ARGS[@]}"
@@ -337,11 +323,36 @@ BASE_ARGS=(
 EXTRA_ARGS=()
 EXEC_CMD=()
 
-# System-prompt additions are composed declaratively at Nix-eval time from
-# smind.hm.dev.llm.yolo.promptExtensions (filtered by target + when) and handed
-# in per agent via YOLO_PROMPT_CLAUDE / YOLO_PROMPT_PI. yolo.sh no longer hard-
-# codes the YOLO-authorization or GPU notes — those are promptExtensions now.
-# Codex has no --append-system-prompt, so it receives no injected prompt.
+# Compose the --append-system-prompt text for an agent from YOLO_PROMPT_MANIFEST
+# (one `target<TAB>tags-csv<TAB>store-file` record per line, see promptExtensions).
+# Keep records whose target matches the agent (or "*") and none of whose tags is
+# in the --disable set; cat each fragment's store file; join with blank lines.
+# Runtime suppression (`--disable=gpu`) thus drops a note exactly as it drops the
+# matching device bind. yolo.sh no longer hardcodes the auth / GPU notes — they
+# are promptExtensions. Codex has no --append-system-prompt, so it gets nothing.
+compose_prompt() {
+  local agent="$1" out="" _line _ptarget _prest _ptagcsv _pfile _pbody _ptagv
+  [[ -z "${YOLO_PROMPT_MANIFEST:-}" ]] && return 0
+  # Split each record on TAB explicitly: `IFS=$'\t' read` would collapse the
+  # empty tags field of an untagged record (tab is IFS-whitespace), dropping it.
+  while IFS= read -r _line; do
+    [[ -z "$_line" ]] && continue
+    _ptarget="${_line%%$'\t'*}"
+    _prest="${_line#*$'\t'}"
+    _ptagcsv="${_prest%%$'\t'*}"
+    _pfile="${_prest#*$'\t'}"
+    [[ -z "$_pfile" ]] && continue
+    [[ "$_ptarget" == "$agent" || "$_ptarget" == "*" ]] || continue
+    _ptagv=()
+    IFS=',' read -ra _ptagv <<< "$_ptagcsv"
+    any_disabled "${_ptagv[@]}" && continue
+    _pbody="$(cat "$_pfile" 2>/dev/null)" || continue
+    [[ -z "$_pbody" ]] && continue
+    [[ -n "$out" ]] && out+=$'\n\n'
+    out+="$_pbody"
+  done <<< "$YOLO_PROMPT_MANIFEST"
+  printf '%s' "$out"
+}
 
 # For named profiles, each agent's config is backed by a dir under
 # ~/.config/yolo/<profile>/<agent>/ and bound onto the agent's standard
@@ -549,7 +560,8 @@ case "$SUBCMD" in
   claude)
     add_all_agent_binds
     claude_prompt_args=()
-    [[ -n "${YOLO_PROMPT_CLAUDE:-}" ]] && claude_prompt_args+=(--append-system-prompt "$YOLO_PROMPT_CLAUDE")
+    _claude_prompt="$(compose_prompt claude)"
+    [[ -n "$_claude_prompt" ]] && claude_prompt_args+=(--append-system-prompt "$_claude_prompt")
     EXEC_CMD=(
       claude
       --permission-mode bypassPermissions
@@ -570,7 +582,8 @@ case "$SUBCMD" in
     # claude-targeted YOLO authorization note doesn't apply — Pi has no
     # permission system). Empty means no --append-system-prompt.
     pi_prompt_args=()
-    [[ -n "${YOLO_PROMPT_PI:-}" ]] && pi_prompt_args+=(--append-system-prompt "$YOLO_PROMPT_PI")
+    _pi_prompt="$(compose_prompt pi)"
+    [[ -n "$_pi_prompt" ]] && pi_prompt_args+=(--append-system-prompt "$_pi_prompt")
     EXEC_CMD=(pi "${pi_prompt_args[@]}" "${CMD_ARGS[@]}")
     ;;
 
