@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 108
+  item: 112
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -562,3 +562,29 @@ archives:
 - createdAt: 2026-06-08T15:05:47.371Z
 - updatedAt: 2026-06-08T15:05:47.371Z
 - title: "Plan: help-popup item-states rename + Agents tab + tiers triplet mapping"
+
+### M109 — open
+
+- createdAt: 2026-06-08T16:56:34.107Z
+- updatedAt: 2026-06-08T16:56:34.107Z
+- title: "G34-W1: ledger-web help popup — rename State Machines → Item States (label + ids/testids/CSS)"
+
+### M110 — open
+
+- createdAt: 2026-06-08T16:56:34.752Z
+- updatedAt: 2026-06-08T16:56:34.752Z
+- title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
+
+### M111 — open
+
+- createdAt: 2026-06-08T16:56:37.809Z
+- updatedAt: 2026-06-08T16:56:37.809Z
+- title: "G34-W3: Agents tab — build-time catalogue codegen from cq-assets + new web Agents tab"
+- dependsOn: ["M109","M110"]
+
+### M112 — open
+
+- createdAt: 2026-06-08T16:56:41.093Z
+- updatedAt: 2026-06-08T16:56:41.093Z
+- title: "G34-W4: integration verification — full check + nix build across touched products + codegen drift gate"
+- dependsOn: ["M109","M110","M111"]

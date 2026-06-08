@@ -2,7 +2,7 @@
 ledger: hypothesis
 counters:
   milestone: 0
-  item: 28
+  item: 29
 archives:
   - id: M14
     path: ./archive/hypothesis/M14.md
@@ -96,3 +96,14 @@ archives:
 - ledgerRefs: ["defects:D38"]
 - evidence: ["[correct] plan-review.md:82-86 — `\"verdict\": \"go-ahead | revise\"`: the rubric specifies the literal enum (sub-claim 1).","[correct] implement-review.md:81-83 — `\"verdict\": \"approve | disapprove\"`: implement-review enum (sub-claim 1).","[correct] pi-context.md:51-67 — the Pi dispatch trigger maps the named-agent+task convention onto `dispatch_agent({agent,task})` and asserts only 'emit the tool call'; it never re-asserts the verdict enum or output contract (sub-claim 2).","[correct] cq-subagent-dispatch.ts:605-607 — the tool passes `args.task` verbatim as the child prompt + the agent md as append-system-prompt; injects NO JSON skeleton, NO placeholder verdict, NO enum (sub-claim 2).","[correct] cq-subagent-dispatch.ts:687-694 — returns the child's raw final text via `textResult(capOutput(finalText))`; performs no verdict parse/normalization/enum validation (sub-claim 3).","[correct] plan/advance.md:291-299 — abstention keys ONLY on whether stdout parses into the verdict CONTRACT (keys present), not on enum-literal validity; an off-enum `verdict:\"fail\"` parses and survives (sub-claim 3).","[correct] plan/advance.md:310-311 — reconcile is bare string-equality: `revise` if any reviewer == revise, `go-ahead` only if all == go-ahead; an off-enum value matches neither branch (sub-claim 3).","[correct] implement/advance.md:145-150 — same parseability-only abstention on the implement side (sub-claim 3, approve|disapprove).","[correct] implement/advance.md:174-177 — strictest-wins reconcile is string-equality vs approve|disapprove literals; off-enum matches neither (sub-claim 3)."]
 - sessionLogs: ["docs/logs/20260608-074755-aa243a5b68b5e3c0e.md"]
+
+### H29 — confirmed
+
+- createdAt: 2026-06-08T16:36:02.023Z
+- updatedAt: 2026-06-08T16:36:02.023Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: D37 root cause = stale pre-T225 cq-subagent-dispatch.ts store path in ~/.pi/agent/settings.json because home-manager activation was not re-run after the T222/T224/T225 merge; re-running activation remediates it
+- description: "Known-cause user-action defect: the fix is `home-manager switch` (re-activation), not a repo code change. This round verifies (a) the documented cause and (b) that the user's reported re-deploy (Q143 answer: \"I've redeployed.\") actually remediated it, by direct static inspection of the live environment."
+- evidence: ["[correct] ~/.pi/agent/settings.json `extensions[]` now lists `/nix/store/zs2p73sj31k2140y4ylb245wn433wigb-cq-subagent-dispatch.ts` (read 2026-06-08 from the live home-manager-activated file) — i.e. activation regenerated settings.json after the merge, pointing the dispatch extension at a current store path, not the stale pre-T225 one D37 reported.","[correct] `diff /nix/store/zs2p73sj31k2140y4ylb245wn433wigb-cq-subagent-dispatch.ts nix/pkg/pi-extensions/cq-subagent-dispatch.ts` exits 0 (byte-identical, 30452 bytes) — the registered extension is exactly the repo's current MERGED post-T222/T224/T225 source, confirming the stale-path condition no longer holds and the merged extension is what the locally-installed pi now loads (no PI_CODING_AGENT_DIR override needed).","[correct] Q143 (status:answered, author:user) answer = \"I've redeployed.\" — its step (1) is `home-manager switch` annotated \"(RESOLVES D37)\"; the static evidence above confirms that activation took effect."]
+- ledgerRefs: ["defects:D37"]

@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 53
+  item: 54
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -247,3 +247,15 @@ archives:
 - headline: "G32 plan review: approved"
 - rationale: "G32 (fix D39 — enforce handoff stop-gate invariants at write time + close the turn-vs-run blind spot) reached go-ahead (R313) after a 4-round planner↔reviewer loop (R310 revise → R311 revise → R312 revise → R313 go-ahead; opus go-ahead rounds 1-4, codex go-ahead round 3). Locked plan: 4 work milestones M103-M106, 9 tasks T257-T265. Design: a handoffs-specific PURE assertHandoffInvariants helper in @cq/ledger store/core.ts (modelled on assertQuestionAnswerPrecondition/D29 + assertGoalPhasePreconditions/F2; mixed/answers-required⇒non-empty blockingQuestions, user-action-required⇒non-empty handoffReasons, else SchemaValidationError), invoked in applyCreateItem (both stores route through it) + applyUpdateItem; NOT a generic schema DSL (core.ts:790 out-of-scope); the schema field stays required:false (conditional-on-status). Reproduce-first; dual-adapter tests reproducing HO26 as an asserted throw; advance.md + 3 per-flow prompts get the turn-vs-run clause + euphemism blocklist + self-check + enforced-invariant prose; 8-cell grep-invariant; verify gate. Stretch (cross-ledger open-question resolution + drained predicate-gate) deferred (T260, zero-code). All tasks ledgerRef defects:D39."
 - ledgerRefs: ["goals:G32"]
+
+## M108
+
+### K54 — locked
+
+- createdAt: 2026-06-08T17:24:03.339Z
+- updatedAt: 2026-06-08T17:24:03.339Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "G34 plan review: approved"
+- rationale: "G34's plan (W1 rename M109 / W2 cq-config [tiers] inversion M110 / W3 Agents codegen+tab M111 / W4 verify M112; tasks T267–T281) reached unanimous go-ahead at review round 2 (R325) from the surviving reviewer panel opus[claude] + minimax[pi:ollama-cloud], after one revise round (R324, 10 criticisms) that added the `## Catalogue` structured source-of-truth convention (T275/T281), fixed the W3 dependency chain, and tightened acceptances. The grok-build reviewers (grok+codex) abstained as a documented operational stall this run. Honors locked answers: Q145 (web-only), Q146 (rename label + internal ids/testids/CSS), Q147 (build-time codegen from cq-assets), Q148 (all roles, default/N/A for non-configurable), Q149 ([tiers] as classifier, resolveTierToken removed / classifyToken+selectTokensForTier added, include claude mappings), Q150 (token-keyed inline [tiers], breaking, no migration). Plan locked; G34 -> planned."
+- ledgerRefs: ["goals:G34"]

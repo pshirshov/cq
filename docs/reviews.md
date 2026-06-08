@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 323
+  item: 325
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -699,3 +699,29 @@ archives:
 - new_questions: []
 - ledgerRefs: ["goals:G32"]
 - sessionLogs: ["docs/logs/20260608-111023-a18b40d5596a3b471.md"]
+
+## M108
+
+### R324 — revise
+
+- createdAt: 2026-06-08T17:17:21.876Z
+- updatedAt: 2026-06-08T17:17:21.876Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "G34 plan review round 1 (panel: opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] DROPPED — operational stall). Reconciled verdict REVISE (both survivors revise). Plan is well-sequenced and parts 1+3 are solid; the load-bearing fix is part 2's missing source-of-truth for the structured inputs/outputs/IO-schema fields."
+- new_questions: []
+- criticism: ["[opus] Part 2 (Agents tab) has NO defined source of truth for the STRUCTURED inputs/outputs/input-output-schema fields Q148+goal require. cq-assets agent .md files carry only frontmatter (name/description/disallowedTools) + prose body; parseAgentMarkdown (T275) extracts only {frontmatter,body}, so codegen can derive description + prompt-template body but NOT inputs/outputs/schemas. A hardcoded per-role table in the codegen script reintroduces the manual-drift Q147 chose codegen to avoid, AND is invisible to the T277 freshness test (regen reproduces the same hardcoded data). FIX: name the source of truth — preferred per Q147 'stay in sync': add a STRUCTURED inputs/outputs/ioSchema convention (frontmatter or a parseable section) to the cq-assets agent+command files and have codegen PARSE it (so freshness genuinely guards it); add the task(s) to introduce that structured data to the assets. (Alternative, weaker: explicitly scope those fields as hand-curated outside the freshness guard.)","[opus] T275 parseAgentMarkdown spec says extract frontmatter 'tools', but the real cq-assets frontmatter uses 'disallowedTools' (+ 'isolation' on implement-worker), not 'tools' — fix the field mapping to the real keys or the tools field is empty for every role.","[minimax] W3 sequencing: T278 (Agents tab) depends only on T276, but it consumes the AgentRole types / AGENT_ROLES export defined in T275 — add T275 to T278's dependsOn (or merge T275/T276).","[minimax] T276 acceptance 'documents why committed...' is a code comment, not a testable criterion — keep the rationale as a code comment and let the testable acceptance be 'script writes the .gen.ts + typecheck green + byte-deterministic re-run'; the committed-equals-regenerated equality is T277's job.","[minimax] T270 acceptance conflates grammars: 'parse token KEY (alias or parseReviewerToken grammar)' — 'alias' resolution must cite where aliases are parsed ([aliases] table) or be removed; keep it unambiguous and grounded.","[minimax] T272 names 'tui, cli' as TS consumers, but frontends are pure MCP clients and cq-cli does not depend on cq-config — restate the audit to name the ACTUAL files/symbols touched (cq-config + ledger-mcp config capability) rather than a loose 'audit+update' list.","[minimax] T273 should add an explicit absent-[tiers]-section test at the config-load level (parseTiers / parseConfig with no [tiers] => tiers=null), not only the end-to-end resolveAgentModel path.","[minimax] T267 acceptance is a negative rg check only — add a positive assertion that the tab-state union contains 'item-states' AND HelpOverlay renders the renamed tab.","[minimax] W4 T280 dependsOn skips implementation tasks (T268/T271/T275/T276/T278 etc.) — list the full set it verifies (or restate so an incomplete upstream tree makes T280 fail), so the final gate cannot 'pass' against an incomplete tree.","[minimax] T275 should add a parseAgentMarkdown unit-test acceptance (exercise the parser on a fixture), not only the 'no node:fs import' check."]
+- ledgerRefs: ["goals:G34"]
+- sessionLogs: ["docs/logs/20260608-171607-af1c0c727cb095306.md","docs/logs/20260608-171607-pi-minimax-review.md","docs/logs/20260608-171607-pi-grokbuild-reviewers.md"]
+
+### R325 — go-ahead
+
+- createdAt: 2026-06-08T17:23:35.779Z
+- updatedAt: 2026-06-08T17:23:35.779Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "G34 plan review round 2 (panel: opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded — documented operational stall this run). Reconciled verdict GO-AHEAD (both survivors go-ahead). All 10 R324 criticisms confirmed resolved on the merits; the load-bearing source-of-truth fix (`## Catalogue` convention in T275 + T281 authoring it into the assets + T276 parsing it + T277 freshness guard) is coherent, parseable, and correctly sequenced (T276 dependsOn [T275,T281]); revisions introduced no new plan defects. Minor non-blocking grounding notes for implementers: cq.toml.example is at repo root (two levels up); use parseConfig not loadConfig to read it; orchestrator command frontmatter (description/argument-hint/allowed-tools) differs from agent frontmatter but the `## Catalogue` block is the authoritative structured source regardless."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G34"]
+- sessionLogs: ["docs/logs/20260608-172307-a279480bcb33c7fd1.md","docs/logs/20260608-172307-pi-minimax-review2.md"]

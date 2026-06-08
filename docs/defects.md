@@ -120,17 +120,18 @@ archives:
 
 ## M91
 
-### D37 — open
+### D37 — resolved
 
 - createdAt: 2026-06-07T23:39:38.306Z
-- updatedAt: 2026-06-07T23:39:38.306Z
+- updatedAt: 2026-06-08T16:36:22.972Z
 - author: "opus-4.8[1m]"
-- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Home-manager ~/.pi/agent/settings.json registers a STALE pre-T225 cq-subagent-dispatch.ts store path
 - severity: medium
 - description: Filed-and-deferred from the T226 review (opus). The home-manager-activated ~/.pi/agent/settings.json points its dispatch extension at a nix-store path from BEFORE the T222/T224/T225 merge stack (HM activation has not been re-run since the merge). So a faithful end-to-end cq subagent dispatch under the locally-installed `pi` does NOT run the merged extension until home-manager is re-activated; the T226 demo had to work around it via a cloned PI_CODING_AGENT_DIR swapping in the repo's merged file. The projected ~/.pi/agent/cq-agents/<name>.md agent markdowns are byte-identical to the merged repo files, so only the EXTENSION code (not the agent contract) is stale. This is a USER/ENVIRONMENT action (re-run activation), not a repo code change.
-- suggestedFix: Re-run `home-manager switch` (or the relevant activation) so ~/.pi/agent/settings.json registers the merged cq-subagent-dispatch.ts store path; then re-capture one dispatch under the unmodified locally-installed pi to confirm the merged extension loads without any PI_CODING_AGENT_DIR override.
+- suggestedFix: "Re-run `home-manager switch` (DONE by the user this run). Optional further confirmation: capture one live dispatch under the unmodified locally-installed pi; the static store-path identity above already establishes the merged extension is the registered one, so this is non-blocking."
 - ledgerRefs: ["goals:G28","tasks:T226"]
+- rootCause: "Confirmed (hypothesis H29). The home-manager-activated ~/.pi/agent/settings.json registered a stale pre-T222/T224/T225 cq-subagent-dispatch.ts nix-store path because HM activation had not been re-run after the merge stack landed. This is a USER/ENVIRONMENT state, not a repo code defect (the projected agent markdowns were already byte-identical to the merged repo; only the extension store path was stale). Remediation = re-run `home-manager switch`. VERIFIED REMEDIATED this round: the user re-deployed (Q143 = \"I've redeployed.\"); the live settings.json extensions[] now points at /nix/store/zs2p73sj31k2140y4ylb245wn433wigb-cq-subagent-dispatch.ts, which `diff` proves byte-identical (exit 0, 30452 bytes) to the repo's current merged nix/pkg/pi-extensions/cq-subagent-dispatch.ts — so the locally-installed pi now loads the merged extension with no PI_CODING_AGENT_DIR override. The stale-path condition no longer holds."
 
 ### D38 — resolved
 
