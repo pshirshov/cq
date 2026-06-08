@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 28
+  item: 29
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -120,6 +120,32 @@ archives:
 - blockingQuestions: ["Q143"]
 - handoffReasons: ["drained: D36 + D38 + D39 resolved and G29/G30/G31/G32 implemented end-to-end (merged, reviewed, verified green)","user-action-required (carried by Q143): D37 needs `home-manager switch`; the new @cq/ledger+@cq/config build needs deploy (rebuild+restart ledger-mcp); then the deploy-coupled live-config migrations T246 (ledgers.yaml) + T234/T239 (live cq.toml) — none performable against the old running MCP"]
 - sessionLogs: ["docs/logs/20260608-074755-aa243a5b68b5e3c0e.md","docs/logs/20260608-090104-a08648e793cb972c7.md","docs/logs/20260608-093215-aaabc652fcf46f1f0.md","docs/logs/20260608-095457-a8d59c45434698354.md","docs/logs/20260608-101505-a92573c7296d106a5.md","docs/logs/20260608-105000-a52e81205fe425a0e.md","docs/logs/20260608-114200-abb087d4326b8cd22.md"]
+
+### HO28 — mixed
+
+- createdAt: 2026-06-08T14:51:08.163Z
+- updatedAt: 2026-06-08T14:51:08.163Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- summary: |
+    MIXED — legitimate blocked stop (non-empty blockingQuestions=[Q143]); the FIRST handoff written under the now-LIVE G32 write-time enforcement (this mixed record with a real blockingQuestions id + handoffReasons is exactly what the fix requires — validating it end-to-end).
+    
+    RECOVERY (prior turn): the `redeployed` restart caused a schema-divergence backup-reinit (the live ledgers.yaml lagged the new HANDOFFS_SCHEMA); records were restored from git HEAD + the backup, and the user restarted the MCP — this run confirmed the full ledger reloaded.
+    
+    LANDED THIS RUN:
+    - LIVE cq.toml MIGRATED to the qualified `pi:<provider>/<model>` grammar (codex/grok→pi:grok-build/grok-build, minimax→pi:ollama-cloud/minimax-m3). get_config was THROWING on the bare tokens under the new G29 grammar; it now loads and returns the provider field (minimax→ollama-cloud, codex/grok→grok-build, opus→null) — D36 demonstrated LIVE, and the configured reviewer/planner panels work again. This completes the T234/T239 live-config tail.
+    - MILESTONE SWEEP: archived 5 all-terminal work milestones — M90 (G28 integration+tier-wiring: T225/T229) + M97/M99/M100/M101 (G30 schema/render/prompts/verify).
+    
+    PREDICATE GATE: P-investigate=FALSE (D36/D38/D39 resolved; D37 is a user env action, not investigable), P-plan=FALSE (G28-G32 all planned), P-implement=FALSE (the only non-terminal task T246 is blocked on open Q143). open-Q-gate=Q143.
+    
+    REMAINING (blocked on Q143, whose live substance is now ONLY D37): D37 needs `home-manager switch` to activate the merged pi extension (the last genuine user action). Q143's other asks are now SATISFIED: the deploy happened; the ledgers.yaml schema migration was performed by the reinit; the live cq.toml migration was done this run. T246 (the ledgers.yaml migration task) is therefore MOOT — its deliverable (ledgers.yaml carries user-action-required; no future reinit; records intact) is already in place — but it stays `planned`/blocked-on-Q143 in the ledger because the /cq:advance sequencer does not mutate tasks; the next pass (once Q143 is closed) marks it done and archives M98.
+    
+    NEXT (user): (1) run `home-manager switch` (resolves D37 — the last action); (2) answer/close Q143 in the TUI/web (its deploy + config-migration asks are satisfied; only D37 remained, addressed by step 1); (3) close goals G28/G29/G30/G31/G32 (set `done` — goals never auto-close); then re-run /cq:advance to mark T246 done + sweep the now-eligible coordination milestones (M86/M92/M93/M95/M102) + M98/M91. The codebase net from this whole arc: D36/D38/D39 resolved; G29 (provider grammar, now LIVE), G30 (user-action-required status + render + prompts, now LIVE), G31 (D38 verdict-enum fix), G32 (handoff stop-gate enforcement, now LIVE) all implemented.
+- flow: advance
+- ledgerRefs: ["defects:D37","tasks:T246","goals:G28","goals:G29","goals:G30","goals:G31","goals:G32"]
+- blockingQuestions: ["Q143"]
+- handoffReasons: ["drained: D36/D38/D39 resolved + G29/G30/G31/G32 implemented (now live post-redeploy); this run migrated the live cq.toml (get_config loads with provider field) and archived 5 work milestones (M90/M97/M99/M100/M101)","user-action-required (carried by Q143): D37 needs `home-manager switch` to activate the merged pi extension — the last genuine user action; Q143's deploy + ledgers.yaml + cq.toml asks are now satisfied"]
+- sessionLogs: ["docs/logs/20260608-142635-RECOVERY-redeploy-reinit.md"]
 
 ## M86
 
