@@ -416,10 +416,10 @@ Summarize the pass concisely:
 > bailout — NEVER because the run is long, costly, used many worker waves,
 > reached "a natural milestone", or the remaining work feels disproportionate.
 > The handoff status you write is the gate: one of `drained` / `answers-required`
-> / `mixed` / `illness-detected`, each requiring a real predicate condition —
-> there is no status for an effort-based stop. If tempted to stop while a task is
-> still READY (or a criticism round is still converging), CONTINUE. (See
-> llm/commands/cq/advance.md §Stop condition.)
+> / `user-action-required` / `mixed` / `illness-detected`, each requiring a real
+> predicate condition — there is no status for an effort-based stop. If tempted
+> to stop while a task is still READY (or a criticism round is still converging),
+> CONTINUE. (See llm/commands/cq/advance.md §Stop condition.)
 
 Whether you write a `handoffs` record at your stop depends ENTIRELY on your
 invocation context — there is **no env var or process signal** to read. You,
@@ -436,15 +436,17 @@ context you are in.
   | ---------------------------------------------------------------------- | ------------------ |
   | ready-set drained, all reachable tasks merged / milestone(s) archived  | `drained`          |
   | task(s) `blocked` on an `open` reviewer/ill-loop question              | `answers-required` |
-  | both at once — some tasks merged, others blocked on questions          | `mixed`            |
+  | a SPECIFIC task whose next physical step is exclusively the user's — provision a credential, re-activate an environment, or run a privileged/external command the agent cannot run — AND every autonomous step for that task is already done; name the exact command/action AND the exact item it unblocks (if you cannot name both, it is NOT this status — CONTINUE); this is a user ACTION, not a question answer — no `open` `questions` item is required | `user-action-required` |
+  | both at once — some tasks merged/drained, others blocked on a question and/or a user action; list both components in `handoffReasons` (e.g. `[drained, answers-required, user-action-required]`) | `mixed`            |
   | an ill-loop bailout / merge-conflict / invariant violation you could not get past | `illness-detected` |
 
   Field set (per `HANDOFFS_SCHEMA`; consistent with advance.md §Provenance):
   `summary` (**required** — the why-it-stopped prose, mirror the §Report);
   `flow` = `implement`; `ledgerRefs` = the stop-causing items (`tasks:<id>`,
   `goals:<G>`); `blockingQuestions` = the `open` question ids for an
-  `answers-required`/`mixed` stop; `handoffReasons` = the component reasons for
-  a `mixed` stop (e.g. `[drained, answers-required]`); `sessionLogs` = the
+  `answers-required`/`mixed` stop; `handoffReasons` = the
+  component reasons for a `mixed` stop (e.g. `[drained, answers-required]` or
+  `[drained, answers-required, user-action-required]`; Q140); `sessionLogs` = the
   `docs/logs/<ts>-<agent-id>.md` path(s) written this pass — populate them in
   the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
   once at the stop, never updated. **Then commit the ledger** (§Commit the
