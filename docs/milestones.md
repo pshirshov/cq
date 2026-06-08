@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 93
+  item: 94
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -487,3 +487,10 @@ archives:
 - updatedAt: 2026-06-08T00:02:01.908Z
 - title: "Plan: user-action-required handoff status"
 - description: Coordination milestone for adding a new handoffs status signalling the agent genuinely needs a user MANUAL/ENVIRONMENT action (not a question), and threading it through the flow prompts/schema.
+
+### M94 — open
+
+- createdAt: 2026-06-08T00:38:18.252Z
+- updatedAt: 2026-06-08T00:38:18.252Z
+- title: "G29 W: provider-qualified pi token grammar"
+- description: "G29 work milestone: make the cq pi token grammar `pi:<provider>/<model>`-only (drop bare), thread a structured provider through @cq/config + the ledger config-capability surfacing + the dispatch-extension mirror, migrate configs, test+doc. Resolves D36."

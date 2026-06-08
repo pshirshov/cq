@@ -320,50 +320,54 @@ archives:
 - ledgerRefs: ["goals:G30"]
 - answer: as recommended
 
-### Q139 — open
+### Q139 — answered
 
 - createdAt: 2026-06-08T00:05:10.088Z
-- updatedAt: 2026-06-08T00:05:10.088Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T00:07:11.108Z
+- author: user
 - session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
 - question: Is the new status DISTINCT from `answers-required`, or should `answers-required` be generalized to cover user-actions too? And how does the agent CHOOSE between them at end-of-run when BOTH an open question and a user-action blocker are present — does that become a `mixed` stop, and if so does `mixed`'s handoffReasons need to be able to list `user-action-required` as a component?
 - context: "Today /cq:advance maps BLOCKED-ON-QUESTIONS→answers-required and ties answers-required/mixed to a non-empty blockingQuestions[] (advance.md L266-268). The goal explicitly wants the new status DISTINCT from answers-required: answers-required = a user REQUIREMENTS/clarification ANSWER (an `open` questions item); user-action-required = a manual/environment ACTION the agent cannot perform itself (no questions item involved). The `mixed` status already composes multiple reasons via handoffReasons[] (HANDOFFS_SCHEMA `handoffReasons: string[]`). If a run lands work AND is blocked partly on an open question AND partly on a user action, the natural classification is `mixed` with handoffReasons listing both components. The four prompt status-tables (advance.md L63-66, plan/advance.md L563-568, investigate/advance.md L355-360, implement/advance.md L422-427) each map an end-of-run classification to a handoff status and would each gain a row for the user-action case."
 - suggestions: ["DISTINCT new status; answers-required stays exactly as-is (open-question only). When BOTH an open-question block and a user-action block co-occur with landed work → classify `mixed` and list both as handoffReasons components (e.g. [drained, answers-required, user-action-required]).","Generalize answers-required to mean 'needs user input of any kind' (question OR action) — fewer statuses but loses the question-vs-action distinction the goal asked for (NOT recommended).","DISTINCT new status, and when a user-action block co-occurs with an open question, prefer the NEW status over mixed (treat user-action as the dominant classification)."]
 - recommendation: "DISTINCT new status (suggestion 1): keep answers-required strictly question-gated; introduce user-action-required as its own classification; and let `mixed` compose them via handoffReasons (which already exists for exactly this). This preserves the question-vs-action distinction the goal requires and reuses the existing mixed/handoffReasons machinery rather than inventing new composition rules."
 - ledgerRefs: ["goals:G30"]
+- answer: as recommended
 
-### Q140 — open
+### Q140 — answered
 
 - createdAt: 2026-06-08T00:05:23.450Z
-- updatedAt: 2026-06-08T00:05:23.450Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T00:07:22.917Z
+- author: user
 - session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
 - question: "Does the new status need a STRUCTURED 'required action' field so the user sees exactly what to do (the exact command/action + which item it unblocks), or is the existing free-text `handoffReasons[]` + `summary` + `ledgerRefs` enough? And does `user-action-required` belong ONLY on the handoffs lifecycle, or should an analogous concept also exist on goals/defects (so e.g. D37 itself carries a 'blocked on user action' marker)?"
 - context: "HANDOFFS_SCHEMA fields today: summary (required), flow, ledgerRefs, blockingQuestions (ids of blocking questions — the structured carrier for answers-required), handoffReasons (string[]), sessionLogs, tags, sourceRefs. There is NO structured carrier for a user-action the way blockingQuestions structures the question case. Options: (a) reuse handoffReasons free-text; (b) add a new field e.g. `requiredActions: string[]` (each entry = one concrete action the user must take) parallel to blockingQuestions. The motivating D37 already encodes its action in defects.suggestedFix ('Re-run home-manager switch ...') and is an `open` defect — so the action detail can ALSO live on the linked defect via ledgerRefs. SCHEMA-COST NOTE: adding statusValues is a schema change (see the migration question); adding a NEW FIELD is also a schema change and triggers the same on-disk-divergence guard. Keeping to handoffReasons avoids a second schema-shape change. Separately: defects/goals have their own lifecycles — widening them is a much larger blast radius and likely out of scope."
 - suggestions: ["No new field: carry the required action in `handoffReasons[]` (one entry per action, e.g. 'user-action-required: run `home-manager switch` to activate the merged extension (unblocks D37)') + `ledgerRefs` to the blocked item + `summary` prose. Handoffs-only; do NOT touch goals/defects lifecycles.","Add a structured `requiredActions: string[]` field to HANDOFFS_SCHEMA (parallel to blockingQuestions) so the user-action is first-class and machine-readable; handoffs-only.","Both a new handoffs field AND an analogous marker on goals/defects (largest scope — likely defer the goals/defects part to a separate goal)."]
 - recommendation: Suggestion 1 (reuse handoffReasons, no new field, handoffs-only). The user-action detail is already capturable in handoffReasons + the linked defect's suggestedFix via ledgerRefs; adding a field is a second schema-shape change with its own migration cost for marginal benefit, and widening goals/defects lifecycles is out of scope for this goal. If a structured field is wanted, prefer suggestion 2 over 3 and keep it handoffs-only.
 - ledgerRefs: ["goals:G30"]
+- answer: as recommended
 
-### Q141 — open
+### Q141 — answered
 
 - createdAt: 2026-06-08T00:05:51.295Z
-- updatedAt: 2026-06-08T00:05:51.295Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T00:08:04.296Z
+- author: user
 - session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
 - question: How should the schema change interact with the schema-divergence BACKUP-AND-REINIT behavior on existing deployments? Adding a value to HANDOFFS_SCHEMA.statusValues changes the canonical schema, so any ledger whose on-disk handoffs schema predates this change will DIVERGE on the next init() — and the DEFAULT (D2/G4 fix) is backup-and-reinit, which moves the existing handoffs file (all prior HO records) to docs/.backup/<ts>/ and writes a fresh-canonical (empty) handoffs ledger. Is that acceptable for this goal, or must existing handoff records be preserved in-place?
 - context: "FsLedgerStore.init() (packages/ledger/src/store/FsLedgerStore.ts) compares each on-disk ledger schema to its CANONICAL_LEDGERS schema; on divergence the DEFAULT onSchemaDivergence:'backup-reinit' (T95/T96) backs up the prior ledgers.yaml + the divergent .md file into docs/.backup/<sanitized-ts>/ and re-writes the affected ledger fresh-canonical (emitting one stderr WARNING with the backup path); the 'abort' opt-out preserves the old hard throw. So a deployed repo with existing HO records (e.g. THIS repo, which has HO22 etc.) would, on first run of the new binary, have its handoffs ledger reset and the old records relocated to the backup dir — NOT a silent loss, but the live handoffs ledger starts empty. This is the established/accepted migration mechanism for canonical-schema evolution in this codebase (it is how every prior statusValues addition has rolled out), but the goal should state explicitly whether that default is fine here or whether handoff history must survive in the live ledger."
 - suggestions: ["Accept the established backup-and-reinit default: it is the codebase's standard canonical-schema-evolution path (prior records preserved in docs/.backup/<ts>/, live ledger fresh-canonical, one WARNING). No special migration code; just note it in the goal/acceptance and confirm `bun test`'s divergence suite still passes with the new statusValues. The repo's own handoffs ledger will reinit on next run — acceptable since HO records are session-exit logs, not work items.","Require an in-place, NON-destructive migration that ADDS the new statusValues to an existing handoffs ledger WITHOUT reinitializing (preserve all prior HO records in the live ledger). This is NEW behavior beyond the current backup-reinit mechanism and a larger change.","Defer/avoid: keep handoffs schema as-is and model user-action via handoffReasons text only (no new statusValue) — sidesteps migration entirely (but contradicts the goal's scope item (1))."]
 - recommendation: Suggestion 1 (accept backup-and-reinit). It is the repo's established, tested mechanism for evolving a canonical schema (additive statusValues have always rolled out this way); records are preserved under docs/.backup/, not lost; and handoff items are immutable session-exit logs, so a fresh live ledger after one reinit is harmless. The only required test work is confirming the divergence suite still passes with the widened statusValues. Avoid building bespoke in-place migration (suggestion 2) unless preserving live HO history is an explicit requirement.
 - ledgerRefs: ["goals:G30"]
+- answer: "as recommended but: for this particular project - edit schema in place, don't backup and reinit, it's a simple change!"
 
-### Q142 — open
+### Q142 — answered
 
 - createdAt: 2026-06-08T00:06:07.095Z
-- updatedAt: 2026-06-08T00:06:07.095Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-08T00:08:17.438Z
+- author: user
 - session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
 - question: "For RENDERING (TUI/web): which semantic BUCKET should `user-action-required` map to, given that as a NEW terminal status it would otherwise default to the `done`/green bucket (mis-reading a 'you must act' state as complete)? And what is the acceptance bar overall — do you want (a) schema unit tests, (b) a grep-invariant that every handoff-writing prompt's status-table includes the new status, and (c) a TUI/web render test?"
 - context: "Rendering is fully data-driven by statusBucket(status, schema) in packages/ledger-{tui,web}/src/status.ts (mirrored). For TERMINAL statuses it returns: WARNING.has(s)?'warning' : DROPPED.has(s)?'dropped' : 'done'. The existing terminal handoff statuses (drained/answers-required/mixed/illness-detected) currently fall through to 'done' (green) — EXCEPT none is in WARNING/DROPPED. A new terminal `user-action-required` with no set membership would ALSO render green/done, which is misleading (it signals the user must DO something, not that the run finished clean). The codebase already has a 'warning' bucket (magenta TUI / amber web CSS lw-status-warning) used for `revise`/`inconclusive` — the natural fit for 'needs user attention'. Adding the status to the WARNING set (TUI status.ts L28 + the mirrored web status.ts) makes both frontends render it distinctly with NO other code change (DagView/badges derive from the shared bucket). NOTE: arguably answers-required/illness-detected SHOULD also be 'warning' today and aren't — confirm whether to (i) only add user-action-required to WARNING, or (ii) also reclassify the sibling attention-statuses (larger, possibly out of scope)."
 - suggestions: ["Map user-action-required to the existing 'warning' bucket (add it to WARNING in BOTH status.ts files); leave the other four handoff statuses' buckets unchanged (out of scope). Acceptance: (a) HANDOFFS_SCHEMA unit test asserting the new statusValue + terminal + transitions entry; (b) a grep/test invariant that all four prompt status-tables (advance/plan/investigate/implement) contain the new status token; (c) TUI + web render tests asserting user-action-required renders in the warning color/class (not green). `bun run check` green.","Same as 1 but ALSO reclassify answers-required + illness-detected into attention buckets for consistency (broader rendering change — likely a separate concern).","Introduce a NEW dedicated bucket (e.g. 'attention'/'action') distinct from 'warning', with its own TUI ink color + web CSS class, mapped only by user-action-required (more code, clearer semantics)."]
 - recommendation: "Suggestion 1: reuse the existing 'warning' bucket (single-line addition to the WARNING set in both mirrored status.ts files — distinct from green 'done', no DagView/badge changes needed), and take all three acceptance gates (schema unit test + prompt-table grep-invariant + TUI/web render test). Reclassifying sibling handoff statuses (suggestion 2) and a brand-new bucket (suggestion 3) are out of scope for this goal unless you want them."
 - ledgerRefs: ["goals:G30"]
+- answer: as recommended

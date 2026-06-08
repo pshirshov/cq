@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 46
+  item: 47
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -189,3 +189,15 @@ archives:
 - headline: K46 — Pi dispatch extension reads cq.toml at runtime via $CQ_CONFIG (default $CQ_PROJECT_ROOT/cq.toml) with an INLINED flat-table TOML reader + INLINED resolver (Route A; no cross-workspace import)
 - rationale: "T228 deliverable. The dispatch extension is a standalone store-path .ts loaded by the pi runtime (jiti) via programs.pi.settings.extensions — NOT in the @cq/cq-ledgers workspace, so it CANNOT import @cq/config/@cq/ledger at runtime (rejected option B) and must NOT bake values at build time (rejected option C). CHOSEN (Route A): the extension locates cq.toml via env var CQ_CONFIG (else $CQ_PROJECT_ROOT/cq.toml, else process.cwd()/cq.toml), with CQ_CONFIG/CQ_PROJECT_ROOT set on the piWrapped wrapper in nix/hm/dev-llm.nix ALONGSIDE CQ_AGENTS_DIR (T222). It parses [tiers]+[agent_tiers] with an INLINED, dependency-free reader for cq.toml's flat string-table subset ([table] headers + key=\"value\"; do NOT import smol-toml — a workspace dep the store-path extension can't resolve). The agent-name->tier->provider+model resolution is an INLINED tiny helper mirroring @cq/config's resolveAgentTier/resolveTierToken/resolveAgentModel (copied, not imported); T224's tests assert it matches @cq/config on the same cq.toml. Missing cq.toml / unlisted agent / absent table -> fall back to the parent pi session's active model. CONSUMPTION: T224 implements the extension's config read against THIS contract and T225 reuses the SAME inlined helper — neither re-decides the access strategy; both cite K46. Full backing note: docs/drafts/20260607-2049-pi-runtime-config-access.md."
 - ledgerRefs: ["goals:G28","tasks:T224","tasks:T225"]
+
+## M92
+
+### K47 — locked
+
+- createdAt: 2026-06-08T01:01:35.528Z
+- updatedAt: 2026-06-08T01:01:35.528Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- headline: "plan review: approved"
+- rationale: Reviewer go-ahead on the G29 plan (work milestone M94, tasks T231-T239), ref review R278 — opus + codex + grok all go-ahead, all 9 R277 criticisms verified resolved; DAG acyclic, fine-grained/sequenced/testable/grounded/complete, honors locked Q132-Q136. Locking the plan; G29 -> planned.
+- ledgerRefs: ["goals:G29"]

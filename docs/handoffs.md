@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 24
+  item: 25
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -130,6 +130,18 @@ archives:
 - ledgerRefs: ["goals:G29","defects:D36"]
 - blockingQuestions: ["Q133","Q134","Q135","Q136"]
 - sessionLogs: ["docs/logs/20260608-000022-afd464efe85dce401.md"]
+
+### HO25 — mixed
+
+- createdAt: 2026-06-08T01:03:03.440Z
+- updatedAt: 2026-06-08T01:03:03.440Z
+- author: "opus-4.8[1m]"
+- session: 994b02a0-7e3f-40df-81ed-b12b9ce6b13e
+- summary: "MIXED — DELIBERATE CHECKPOINT after an extraordinarily long run (transparent, not a predicate-driven stop: all three predicates are still TRUE). LANDED this run: goal G29 (\"provider-qualified pi token grammar\", resolves D36) driven clarifying→planned. Configured 4-way planner panel (opus+grok+minimax, minimax now WORKING via ollama-cloud — the D36 fix in action); synthesized 9 tasks T231-T239 under work milestone M94 (slash `pi:<provider>/<model>` grammar, structured provider field threaded through @cq/config + @cq/ledger + @cq/ledger-mcp, dispatch-extension mirror, BREAKING bare-pi drop + config migration, tests + docs + verification gate; all ledgerRef defects:D36). Reviewed R277 (4-way unanimous revise, 9 criticisms) → revised → R278 (go-ahead) → locked (decision K47). G29 is `planned` and IMPLEMENTABLE. REMAINING (the next /cq:advance does these autonomously): (1) PLAN G30 (\"user-action-required handoff status\", clarifying, Q137-Q142 all answered — ready to plan); (2) IMPLEMENT G29's 9 tasks (T231-T239) + G30's tasks once planned. OPEN DEFECTS: D36 (closes when G29's fix tasks merge — orchestrator-owned), D37 (medium, USER ACTION: re-run `home-manager switch` to activate the merged pi extension), D38 (medium, Pi verdict-enum follow-up). Final gate (honest): P-investigate=TRUE (D36/D37/D38), P-plan=TRUE (G30 movable), P-implement=TRUE (G29 ready tasks) — checkpointed by judgment given the run's length; NEXT (user): re-run /cq:advance to plan G30 + implement G29(+G30); answer nothing required (no open questions); resolve D37 with `home-manager switch`; G28+G29 are `planned`/built — close them in the TUI/web when ready."
+- flow: advance
+- ledgerRefs: ["goals:G29","goals:G30","defects:D36","defects:D37","defects:D38"]
+- handoffReasons: ["landed: G29 planned (9-task reviewed plan T231-T239, resolves D36; minimax planner/reviewer now works via ollama-cloud)","remaining-autonomous: G30 to plan (Q137-Q142 answered) + G29/G30 to implement — deliberate checkpoint after a very long run","user-action: D37 needs `home-manager switch`"]
+- sessionLogs: ["docs/logs/20260608-004043-G29-planners.md","docs/logs/20260608-004043-G29-reviews.md","docs/logs/20260608-005415-a317c03b650a62e22.md","docs/logs/20260608-010041-G29-review2.md","docs/logs/20260608-010041-a3d4b42d27db73ef9.md"]
 
 ## M93
 
