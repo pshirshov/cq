@@ -25,7 +25,7 @@ const ROOT_CAUSED = new Set(["root-caused"]);
 // converge (defects lifecycle: inconclusive). Rendered as a warning colour.
 const PARKED_WARNING = new Set(["inconclusive"]);
 // Terminal statuses that mean "needs changes" (rendered as a warning, not green).
-const WARNING = new Set(["revise"]);
+const WARNING = new Set(["revise", "user-action-required"]);
 // Terminal statuses that mean "did not complete" (rendered muted, not green).
 const DROPPED = new Set([
   "abandoned",
