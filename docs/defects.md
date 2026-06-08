@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 41
+  item: 42
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -186,3 +186,16 @@ archives:
     ROOT CAUSE (confirmed by reading the prompts): in commands/cq/advance.md (and the 3 per-flow plan/investigate/implement *:advance.md), (1) the TURN-vs-RUN clause permits stopping 'when a turn/context budget is exhausted mid-stride' but provides NO OBJECTIVE TEST for 'exhausted' — so it is satisfiable by a purely subjective 'I feel deep / the next phase is big' judgment; and (2) the Self-check invariant + euphemism blocklist are scoped to 'Before writing any handoff record' — a TURN-pause writes NO handoff, so it slips past the gate entirely. Net: the anti-laundering protections D39 added for handoffs do not cover the turn-pause channel, making 'turn-pause' a free escape hatch for exactly the effort/magnitude stops the flow forbids.
 - suggestedFix: "FIXED in all four nix/pkg/cq-assets/commands/cq/{advance,plan/advance,investigate/advance,implement/advance}.md: (1) added a hard-gate 'A TURN-pause is NOT a free escape hatch (D41)' paragraph — a turn-pause is legitimate ONLY on GENUINE, EXTERNALLY-EVIDENCED context/turn exhaustion (a harness context-window/compaction signal or a length-truncated tool result), never on a subjective magnitude/quality/freshness judgment; with an explicit FORBIDDEN turn-pause-rationale list mirroring the handoff euphemism blocklist (large next stage, fresh context/headroom, done-a-lot/long-session, clean boundary, half-finished-risk) and the default 'while any P-predicate is TRUE-and-unblocked, CONTINUE'; (2) broadened the self-check invariant to '(D39 + D41)' so it fires before EITHER a handoff write OR a turn-pause, scanning the about-to-be-emitted stop rationale and forcing CONTINUE on any banned phrase. Verified: grep-invariant present in all 4 files, no stale '(D39).' headers, nix build .#llm-skills exit 0. NOTE: live-harness activation of the updated commands requires `home-manager switch` (the source is fixed; the deployed ~/.claude/commands copies regenerate on activation) — a deploy step, like D37."
 - rootCause: "CONFIRMED + FIXED in source. The anti-laundering protections D39 added (euphemism blocklist + self-check invariant) were scoped to 'Before writing any handoff record', and the TURN-vs-RUN clause gave no objective test for 'turn/context exhaustion'. A TURN-pause (stop with NO handoff) therefore bypassed the gate entirely, letting an effort/magnitude stop be laundered as a 'context turn-pause' (reproduced this session: paused before the G34 implement stage citing 'large phase'/'fresh headroom'/'done a lot' — the exact banned euphemisms — while P-implement was TRUE-and-unblocked)."
+
+## M110
+
+### D42 — open
+
+- createdAt: 2026-06-08T18:46:06.671Z
+- updatedAt: 2026-06-08T18:46:06.671Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- headline: "parseTiers/classifyToken silently first-matches a token classified under multiple [tiers] entries instead of failing loud on the contradiction"
+- severity: low
+- description: "Filed-and-deferred from the T271 implement review (minimax reviewer; opus approved the in-scope T271 deliverable). Under the inverted token-keyed [tiers] (T270/T271), a user could write a CONTRADICTORY config that classifies the SAME resolved token under two tiers — e.g. a direct key `\"pi:ollama-cloud/minimax-m3\" = \"fast\"` AND an alias key `minimax = \"standard\"` where the `minimax` alias resolves to the same token. parseTiers currently accepts this, and classifyToken returns whichever matching entry `.find()` hits first (document/key order), i.e. an order-dependent SILENT classification of a contradictory config. This violates the project fail-fast principle (no silent ambiguity for internal/config logic). Observed indirectly: the T270/T271 work had to EDIT the e2e fixture (E2E_TOML) to delete a now-contradictory dual-classification row to keep tests green, rather than the config layer rejecting the contradiction."
+- suggestedFix: "In parseTiers (cq-config/src/config.ts), detect a duplicate token classification — two [tiers] entries whose resolved ReviewerToken are structurally equal but whose class differs (or even equal-class duplicates) — and throw a precise CqConfigError naming the conflicting keys/classes. Add a pinning test (fold into T273's behaviour suite) asserting the contradiction throws, and a test that a single token maps to exactly one class. Then the e2e fixture need not be hand-trimmed to avoid the collision. Default disposition FIX (separate task, not blocking T271)."

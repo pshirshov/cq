@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 329
+  item: 330
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -768,3 +768,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T270","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-183431-a985728ce61704eae.md","docs/logs/20260608-183431-pi-minimax-T270.md"]
+
+### R330 — go-ahead
+
+- createdAt: 2026-06-08T18:47:09.517Z
+- updatedAt: 2026-06-08T18:47:09.517Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T271 implement review APPROVE (reconciled). Panel: opus[claude] APPROVE (thorough: resolveTierToken gone repo-wide, classifyToken structural-equality sound, selectTokensForTier candidate-order tie-break documented, resolveAgentModel throws precise CqConfigError on no-match; check green 1138/0). minimax[pi:ollama-cloud] returned an OFF-CONTRACT 'disapprove' (empty criticism + empty questions; all 3 findings in defects[], which the rubric makes file-and-defer / verdict-independent) — so its blocking content is empty; effective verdict approve-with-defects. grok+codex[pi:grok-build] excluded (documented stall). Reconciled APPROVE (opus authoritative; minimax findings non-blocking by rubric). minimax's genuine concern (silent first-match on a token classified under two [tiers] entries vs fail-loud) filed as defect D42 (file-and-defer, FIX). resolveTierToken removed; classifyToken/selectTokensForTier added; resolveAgentModel re-pointed (now requires a candidates arg); no external consumers."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T271","goals:G34","defects:D42"]
+- sessionLogs: ["docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]

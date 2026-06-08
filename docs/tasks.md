@@ -457,10 +457,10 @@ archives:
 - completion: "Rewrote parseTiers(raw,aliases) for the inverted token-keyed [tiers]: iterates the record resolving each KEY→token (alias via [aliases], else parseReviewerToken G29 grammar) and validating each VALUE→Tier via isTier into TierEntry[] {token,raw:key,class}; non-Tier value + malformed/unknown key throw CqConfigError; dropped the now-unused TIERS import; updated toml.ts doc comments (RawToml.tiers stays Record<string,string>). Minimal [tiers] fixture inversions in 3 tests + cq.toml.example to keep check green. resolveTierToken left intact (T271). FF-merged to main (worktree based on HEAD); bun run check green 1136/0."
 - sessionLogs: ["docs/logs/20260608-183431-a416a06bdb13b79c1.md","docs/logs/20260608-183431-a985728ce61704eae.md","docs/logs/20260608-183431-pi-minimax-T270.md"]
 
-### T271 — planned
+### T271 — done
 
 - createdAt: 2026-06-08T16:57:36.302Z
-- updatedAt: 2026-06-08T16:57:36.302Z
+- updatedAt: 2026-06-08T18:47:15.137Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Replace resolveTierToken/resolveAgentModel with classifyToken + selectTokensForTier (documented tie-break)
@@ -469,6 +469,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T270"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: "1384611"
+- completion: "Removed resolveTierToken; added classifyToken(config,token):Tier|undefined (structural ReviewerToken equality vs the inverted [tiers] entries) + selectTokensForTier(config,tier,candidates):ReviewerToken[] (candidate-order tie-break, documented in JSDoc); re-pointed resolveAgentModel to agent→resolveAgentTier→selectTokensForTier(candidates)→first match, throwing precise CqConfigError on no-match. resolveAgentModel signature now requires a candidates:readonly ReviewerToken[] arg (Q149 classifier model). index.ts drops resolveTierToken, adds classifyToken/selectTokensForTier. No external consumers existed (all call sites in cq-config). FF-merged to main; bun run check green 1138/0. Review APPROVE (opus; minimax off-contract disapprove→findings filed as D42). Filed D42 (fail-loud on duplicate-token classification, file-and-defer)."
+- sessionLogs: ["docs/logs/20260608-183431-a43fc183c4d5d34c7.md","docs/logs/20260608-183431-a97f53a9e2f8eb7c2.md","docs/logs/20260608-183431-pi-minimax-T271.md"]
 
 ### T272 — planned
 
