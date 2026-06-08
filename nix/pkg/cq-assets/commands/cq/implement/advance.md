@@ -4,6 +4,26 @@ argument-hint: [milestoneId ...]   # optional; omit to resume the in-progress ru
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "optional milestone ids ($ARGUMENTS); empty = all non-archived non-terminal milestones with non-terminal tasks"
+  - "ledger task state: status, dependsOn, suggestedModel, open questions per task"
+  - "git worktrees for in-progress tasks (idempotent resume)"
+outputs:
+  - "task status transitions: planned->wip->done (or blocked/open-question registered)"
+  - "one reviews item per task (written by reviewer subagent or orchestrator)"
+  - "merged commits on base branch via rebase-merge (conflict-resolver dispatched on conflict)"
+  - "session log files docs/logs/<timestamp>-<agent-id>.md per worker/reviewer/conflict-resolver"
+  - "handoffs item (standalone only) and ledger git commit (standalone only)"
+ioSchema:
+  - "ready-set: tasks status non-terminal and not blocked, all dependsOn done, milestone dependsOn satisfied, no open question"
+  - "worker dispatch: isolation=worktree, branch=implement/<taskId>, up to N=8 concurrent"
+  - "worker result JSON: {taskId, status, resultCommit, branch, filesTouched, checkSummary, summary, blockedReason?}"
+  - "reviewer result JSON: {taskId, verdict, criticism[], questions[], defects[], rationale, summary?}"
+  - "criticism loop: re-dispatch worker with prior criticism until verdict=approve or questions filed"
+```
+
 You are the **implement-flow orchestrator**. You execute a plan-flow roadmap by
 driving worker/reviewer/conflict-resolver subagents. Subagents CANNOT spawn
 subagents, so the whole loop — concurrent dispatch, the criticism loop, and

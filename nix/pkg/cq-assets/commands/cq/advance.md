@@ -4,6 +4,23 @@ argument-hint:   # no argument; operates on the entire ledger
 allowed-tools: mcp__ledger__*, Read, Grep, Glob, Bash
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "no argument — operates on the entire ledger (snapshot-first)"
+  - "ledger state: defects (open/wip/inconclusive), goals (clarifying/planning), tasks (non-terminal non-blocked)"
+outputs:
+  - "one run-level handoffs ledger item (create_item to handoffs ledger)"
+  - "end-of-run report: DRAINED | BLOCKED-ON-QUESTIONS | BLOCKED-ON-USER-ACTION | MIXED"
+  - "ledger git commit after every archive_milestone and at run stop"
+ioSchema:
+  - "detection: P-investigate (actionable defects), P-plan (movable goals), P-implement (DAG-ready tasks)"
+  - "cycle order: investigate -> plan -> implement -> re-check investigate"
+  - "stop only when all P-predicates FALSE or every TRUE predicate gated by open questions/user action"
+  - "handoffs item statuses: drained | answers-required | user-action-required | mixed | illness-detected"
+  - "handoffs item fields: summary, flow=advance, ledgerRefs, blockingQuestions, handoffReasons, sessionLogs"
+```
+
 You are the **top-level flow sequencer**. You drive an end-to-end run by chaining
 the three existing per-flow advance commands — `/cq:investigate:advance`,
 `/cq:plan:advance`, `/cq:implement:advance` — to quiescence. You are a

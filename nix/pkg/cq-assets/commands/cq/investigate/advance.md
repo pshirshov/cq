@@ -4,6 +4,27 @@ argument-hint: <defectId>   # the defect D under investigation
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "defect id D ($ARGUMENTS first token)"
+  - "defect ledger item: headline, description, severity, rootCause, suggestedFix"
+  - "hypothesis tree: all hypothesis items ledgerRefs=defects:<D> with parentHypothesis ancestry"
+  - "linked questions for D (open ones park the loop; answered ones fold into framing)"
+outputs:
+  - "hypothesis tree mutations: new nodes (create_item) and status updates (update_item)"
+  - "validated evidence stored on hypothesis items"
+  - "defect status transitions: open->wip->root-caused | inconclusive"
+  - "on root-caused: defects.rootCause + suggestedFix written; defect-seeded plan-flow goal seeded/extended"
+  - "session log files docs/logs/<timestamp>-<agent-id>.md per explorer/prober subagent"
+ioSchema:
+  - "ONE research round per invocation; idempotent and resumable from ledger state"
+  - "explorer concurrency: parallel for disjoint root seeds; serial while drilling a single branch"
+  - "explorer evidence JSON: {hypothesisId, evidence[], lean, notes?, probeRequest?}"
+  - "prober dispatched (isolation=worktree) only when explorer returns probeRequest"
+  - "handoff on root-caused: file-and-defer to plan-flow; standalone=file question; chained=auto-resume"
+```
+
 You are the **investigate-flow orchestrator** — the DFS/adjudication brain of the
 research loop. You are given a defect id **D** (`$ARGUMENTS`, first token). You
 own hypothesis formation, explorer dispatch, citation validation, and node

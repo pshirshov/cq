@@ -4,6 +4,23 @@ argument-hint: <goalId> <follow-up request>
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "goal id G (first whitespace-delimited token of $ARGUMENTS)"
+  - "follow-up request text (remainder of $ARGUMENTS after goal id)"
+outputs:
+  - "goal description updated (follow-up appended)"
+  - "goal re-opened to clarifying status"
+  - "new clarifying questions filed by plan-advance subagent"
+  - "session log file docs/logs/<timestamp>-<agent-id>.md"
+  - "handoffs item (answers-required) and ledger git commit"
+ioSchema:
+  - "bootstrap only — appends scope and re-opens; plan-advance subagent owns question generation"
+  - "phase gate: done/abandoned goals cannot be re-opened (user must start a fresh goal)"
+  - "handoffs item: flow=plan, ledgerRefs=goals:<G>, blockingQuestions=filed question ids"
+```
+
 You are adding a **follow-up** to an existing plan-flow goal. The first
 whitespace-delimited token of the arguments is the goal id; the REST is the
 follow-up request (free text):

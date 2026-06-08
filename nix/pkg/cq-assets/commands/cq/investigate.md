@@ -4,6 +4,22 @@ argument-hint: <defect description | defectId>
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "defect description (free text) OR bare defect id D (matching ^D\\d+$)"
+outputs:
+  - "intake path: coordination milestone M + defect item D on defects ledger"
+  - "resume path: validates existing defect D (aborts if terminal)"
+  - "investigate-flow advance pass run inline (full /cq:investigate:advance output)"
+  - "handoffs item and ledger git commit (this command is the outermost wrapper)"
+ioSchema:
+  - "intake path: creates defect with fields headline, description, severity (inferred or user-confirmed)"
+  - "defect severity tiers: critical | high | medium | low"
+  - "advance pass output: hypothesis tree mutations, evidence, adjudication, root-cause handoff"
+  - "handoffs item: flow=investigate, ledgerRefs=defects:<D>; /cq:investigate:advance suppresses its own handoff"
+```
+
 You are **bootstrapping an investigate-flow run**. The argument is:
 
 > $ARGUMENTS

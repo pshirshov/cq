@@ -4,6 +4,27 @@ argument-hint: [goalId]
 allowed-tools: mcp__ledger__*, mcp__ledger__get_reviewers, mcp__ledger__get_planners, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "optional goal id G ($ARGUMENTS); empty = advance all unlocked goals (clarifying/planning)"
+  - "ledger state for each target goal: phase, Q&A history, latest review, work-milestone tasks"
+  - "get_planners result: configured: bool, planners[] (harness/model/alias)"
+  - "get_reviewers result: configured: bool, reviewers[] (harness/model/alias)"
+outputs:
+  - "planner ledger writes (questions / plan / revision / decision + planned) via plan-advance subagent or orchestrator persist"
+  - "one aggregated reviews item per round (written by reviewer subagent or orchestrator)"
+  - "auto-investigate: /cq:investigate:advance inline for each goal-linked actionable defect"
+  - "session log files docs/logs/<timestamp>-<agent-id>.md per subagent"
+  - "handoffs item (standalone only) and ledger git commit (standalone only)"
+ioSchema:
+  - "planner loop token: awaiting-answers | review-requested | completed | noop"
+  - "single-planner fallback: plan-advance writes the ledger; orchestrator writes nothing for the plan"
+  - "multi-planner path: orchestrator persists synthesized plan; candidate JSON: {milestones[], tasks[], rationale}"
+  - "review verdict JSON: {summary, verdict, new_questions[], criticism[], defects[]}"
+  - "auto-investigate stop predicates a-f (once-per-round, no-new-evidence, seeded/extended, non-converging, two dead rounds)"
+```
+
 You are the **thin orchestrator** for the plan-flow advance loop. The argument
 (may be empty) is:
 

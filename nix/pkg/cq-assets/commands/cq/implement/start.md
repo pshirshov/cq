@@ -4,6 +4,21 @@ argument-hint: [milestoneId ...]   # optional; omit to target every open milesto
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "optional milestone ids ($ARGUMENTS); empty = all open non-archived non-terminal milestones with non-terminal tasks"
+outputs:
+  - "scope report: target milestone ids, task counts, initial ready-set"
+  - "implement-flow advance pass run inline (full /cq:implement:advance output)"
+  - "handoffs item and ledger git commit (this command is the outermost wrapper)"
+ioSchema:
+  - "bootstrap only — scope resolution + DAG sanity check; /cq:implement:advance owns all execution"
+  - "ready-set: tasks with no unsatisfied dependsOn, not blocked, no open question"
+  - "handoffs item: /cq:implement:advance suppresses its own handoff when chained here"
+  - "run is resumable via /cq:implement:advance (no need to re-run /cq:implement:start)"
+```
+
 You are **bootstrapping an implement-flow run**. The user's target milestones
 are:
 

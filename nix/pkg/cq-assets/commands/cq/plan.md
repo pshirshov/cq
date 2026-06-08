@@ -4,6 +4,22 @@ argument-hint: <goal description>
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
+## Catalogue
+```yaml
+inputs:
+  - "goal description (free text, $ARGUMENTS)"
+outputs:
+  - "coordination milestone M (create_milestone)"
+  - "goal item G in clarifying status (create_item on goals ledger)"
+  - "first batch of clarifying questions (filed by plan-advance subagent)"
+  - "session log file docs/logs/<timestamp>-<agent-id>.md"
+  - "handoffs item (answers-required) and ledger git commit"
+ioSchema:
+  - "bootstrap only — no plan logic; plan-advance subagent owns question generation"
+  - "goal schema fields: title, description (required); grounding, milestones (set later by planner)"
+  - "handoffs item: flow=plan, ledgerRefs=goals:<G>, blockingQuestions=filed question ids"
+```
+
 You are starting a **plan-flow goal**. The user's goal is:
 
 > $ARGUMENTS
