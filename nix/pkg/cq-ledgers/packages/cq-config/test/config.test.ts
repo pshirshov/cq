@@ -186,15 +186,24 @@ describe("parseReviewerToken — effort suffix (T286)", () => {
     expect(() => parseReviewerToken("claude:a:b:high")).toThrow(CqConfigError);
   });
 
-  it("rejects a pi model half containing a ':' that is not a valid effort (pi:prov/mo:del)", () => {
+  it("rejects a pi token whose trailing suffix is not a valid effort (pi:prov/mo:del)", () => {
+    // `del` is the last-colon candidate; isEffort('pi','del') is false, so this
+    // rejects via the "invalid effort suffix" path naming `del` + the legal pi
+    // effort set — NOT the R342 model-half residual-':' path (after stripping a
+    // hypothetical effort, 'prov/mo' has no residual ':'). See the next test
+    // for the R342 path.
     expect(() => parseReviewerToken("pi:prov/mo:del")).toThrow(CqConfigError);
     expect(() => parseReviewerToken("pi:prov/mo:del")).toThrow(/del/);
   });
 
-  it("rejects a pi model half with a reserved ':' even when a valid effort follows", () => {
-    // `pi:prov/m:o:high` → splits valid 'high', residual model half 'm:o' has
-    // a reserved ':' → R342 reject.
+  it("rejects a pi model half with a reserved ':' even when a valid effort follows (R342)", () => {
+    // `pi:prov/m:o:high` → last-colon candidate 'high' IS a valid pi effort, so
+    // it is stripped; residual model half is 'prov/m:o' → model 'm:o' still
+    // contains a reserved ':' → R342 reject. The error names the residual model,
+    // distinguishing this path from the invalid-effort-suffix path above.
     expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(CqConfigError);
+    expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(/reserved ':'/);
+    expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(/m:o/);
   });
 });
 
