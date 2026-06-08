@@ -590,3 +590,464 @@ describe("additive-only regression (T223 acceptance d)", () => {
     );
   });
 });
+
+// ── T273: Inverted [tiers] classifier grammar — comprehensive coverage ────────
+//
+// Fixture: one [tiers] table with all three key forms:
+//  (a) a direct claude:<model> key  ("claude:haiku-4.5" = "fast")
+//  (b) a direct pi:<provider>/<model> key  ("pi:grok-build/grok-build" = "standard")
+//  (c) an alias key  (haiku = …; haiku = "frontier")
+//  Each token appears exactly once (no D42 contradictory-config scenario).
+
+const TIERS_TOML = `
+reviewers = ["haiku", "fast-claude"]
+planners  = ["fast-pi", "haiku"]
+
+[aliases]
+haiku      = "claude:haiku-4.5"
+fast-pi    = "pi:grok-build/grok-build"
+fast-claude = "claude:sonnet-4.5"
+
+[tiers]
+"claude:haiku-4.5"           = "frontier"
+"pi:grok-build/grok-build"   = "standard"
+"claude:sonnet-4.5"          = "fast"
+`;
+
+describe("T273 — inverted [tiers] classifier grammar: token-keyed parse", () => {
+  it("parses a direct claude:<model> key", () => {
+    const config = parseConfig(TIERS_TOML);
+    expect(config.tiers).not.toBeNull();
+    const entry = config.tiers!.entries.find(
+      (e) =>
+        e.token.harness === "claude" && e.token.model === "haiku-4.5",
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.token).toEqual({
+      harness: "claude",
+      model: "haiku-4.5",
+      provider: null,
+    });
+    expect(entry!.raw).toBe("claude:haiku-4.5");
+    expect(entry!.class).toBe("frontier");
+  });
+
+  it("parses a direct pi:<provider>/<model> key", () => {
+    const config = parseConfig(TIERS_TOML);
+    const entry = config.tiers!.entries.find(
+      (e) =>
+        e.token.harness === "pi" && e.token.model === "grok-build",
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.token).toEqual({
+      harness: "pi",
+      model: "grok-build",
+      provider: "grok-build",
+    });
+    expect(entry!.raw).toBe("pi:grok-build/grok-build");
+    expect(entry!.class).toBe("standard");
+  });
+
+  it("parses \"claude:haiku-4.5\" = \"fast\" in isolation", () => {
+    const config = parseConfig(`
+[tiers]
+"claude:haiku-4.5" = "fast"
+`);
+    expect(config.tiers).not.toBeNull();
+    expect(config.tiers!.entries).toHaveLength(1);
+    const entry = config.tiers!.entries[0]!;
+    expect(entry.token).toEqual({
+      harness: "claude",
+      model: "haiku-4.5",
+      provider: null,
+    });
+    expect(entry.raw).toBe("claude:haiku-4.5");
+    expect(entry.class).toBe("fast");
+  });
+
+  it("parses an alias key (resolves through [aliases])", () => {
+    const config = parseConfig(`
+[aliases]
+opus = "claude:opus-4.8[1m]"
+
+[tiers]
+opus = "frontier"
+`);
+    expect(config.tiers).not.toBeNull();
+    const entry = config.tiers!.entries[0]!;
+    expect(entry.token).toEqual({
+      harness: "claude",
+      model: "opus-4.8[1m]",
+      provider: null,
+    });
+    expect(entry.raw).toBe("opus");
+    expect(entry.class).toBe("frontier");
+  });
+
+  it("entries array contains all three key forms from TIERS_TOML", () => {
+    const config = parseConfig(TIERS_TOML);
+    expect(config.tiers!.entries).toHaveLength(3);
+    // All three tokens represented:
+    const harnesses = config.tiers!.entries.map((e) => e.token.harness);
+    expect(harnesses.filter((h) => h === "claude")).toHaveLength(2);
+    expect(harnesses.filter((h) => h === "pi")).toHaveLength(1);
+  });
+});
+
+describe("T273 — classifyToken: correct class + undefined for unclassified", () => {
+  it("classifyToken returns 'frontier' for claude:haiku-4.5 (direct claude key)", () => {
+    const config = parseConfig(TIERS_TOML);
+    expect(
+      classifyToken(config, {
+        harness: "claude",
+        model: "haiku-4.5",
+        provider: null,
+      }),
+    ).toBe("frontier");
+  });
+
+  it("classifyToken returns 'standard' for pi:grok-build/grok-build (direct pi key)", () => {
+    const config = parseConfig(TIERS_TOML);
+    expect(
+      classifyToken(config, {
+        harness: "pi",
+        model: "grok-build",
+        provider: "grok-build",
+      }),
+    ).toBe("standard");
+  });
+
+  it("classifyToken returns 'fast' for claude:sonnet-4.5 (alias-key entry)", () => {
+    const config = parseConfig(TIERS_TOML);
+    expect(
+      classifyToken(config, {
+        harness: "claude",
+        model: "sonnet-4.5",
+        provider: null,
+      }),
+    ).toBe("fast");
+  });
+
+  it("classifyToken returns undefined for a token not in [tiers]", () => {
+    const config = parseConfig(TIERS_TOML);
+    // pi:ollama-cloud/minimax-m3 is not listed in TIERS_TOML
+    expect(
+      classifyToken(config, {
+        harness: "pi",
+        model: "minimax-m3",
+        provider: "ollama-cloud",
+      }),
+    ).toBeUndefined();
+  });
+
+  it("classifyToken returns undefined when [tiers] is absent", () => {
+    const config = parseConfig(VALID_TOML);
+    expect(
+      classifyToken(config, {
+        harness: "claude",
+        model: "opus-4.8",
+        provider: null,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("classifyToken uses structural equality — model mismatch yields undefined", () => {
+    const config = parseConfig(TIERS_TOML);
+    // "claude:haiku-4.5" is in [tiers]; "claude:haiku-4.6" is not
+    expect(
+      classifyToken(config, {
+        harness: "claude",
+        model: "haiku-4.6",
+        provider: null,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("classifyToken uses structural equality — provider mismatch yields undefined", () => {
+    const config = parseConfig(TIERS_TOML);
+    // pi:grok-build/grok-build is classified; pi:other/grok-build is not
+    expect(
+      classifyToken(config, {
+        harness: "pi",
+        model: "grok-build",
+        provider: "other",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("T273 — selectTokensForTier: tie-break order (candidate order)", () => {
+  it("returns class-matching candidates in candidate order, not [tiers] declaration order", () => {
+    const config = parseConfig(`
+[tiers]
+"claude:a" = "frontier"
+"claude:b" = "frontier"
+"claude:c" = "fast"
+`);
+    const candidates: ReviewerToken[] = [
+      { harness: "claude", model: "b", provider: null },
+      { harness: "claude", model: "c", provider: null },
+      { harness: "claude", model: "a", provider: null },
+    ];
+    // b appears before a in candidates → b first in result even though a is
+    // declared first in [tiers]
+    expect(selectTokensForTier(config, "frontier", candidates)).toEqual([
+      { harness: "claude", model: "b", provider: null },
+      { harness: "claude", model: "a", provider: null },
+    ]);
+  });
+
+  it("returns only candidates matching the requested tier", () => {
+    const config = parseConfig(TIERS_TOML);
+    const candidates: ReviewerToken[] = [
+      { harness: "claude", model: "haiku-4.5", provider: null },   // frontier
+      { harness: "pi", model: "grok-build", provider: "grok-build" }, // standard
+      { harness: "claude", model: "sonnet-4.5", provider: null },  // fast
+    ];
+    expect(selectTokensForTier(config, "standard", candidates)).toEqual([
+      { harness: "pi", model: "grok-build", provider: "grok-build" },
+    ]);
+    expect(selectTokensForTier(config, "fast", candidates)).toEqual([
+      { harness: "claude", model: "sonnet-4.5", provider: null },
+    ]);
+    expect(selectTokensForTier(config, "frontier", candidates)).toEqual([
+      { harness: "claude", model: "haiku-4.5", provider: null },
+    ]);
+  });
+
+  it("returns empty array when no candidate matches the tier", () => {
+    const config = parseConfig(TIERS_TOML);
+    const candidates: ReviewerToken[] = [
+      { harness: "pi", model: "minimax-m3", provider: "ollama-cloud" }, // unclassified
+    ];
+    expect(selectTokensForTier(config, "fast", candidates)).toEqual([]);
+  });
+
+  it("returns empty array when [tiers] is absent", () => {
+    const config = parseConfig(VALID_TOML);
+    const candidates: ReviewerToken[] = [
+      { harness: "claude", model: "opus-4.8", provider: null },
+    ];
+    expect(selectTokensForTier(config, "frontier", candidates)).toEqual([]);
+  });
+
+  it("preserves duplicates in candidate list (no deduplication)", () => {
+    const config = parseConfig(`[tiers]\n"claude:a" = "fast"\n`);
+    const token: ReviewerToken = { harness: "claude", model: "a", provider: null };
+    // Duplicate in candidates is preserved as-is
+    expect(selectTokensForTier(config, "fast", [token, token])).toEqual([
+      token,
+      token,
+    ]);
+  });
+});
+
+describe("T273 — resolveAgentModel: end-to-end + no-match throw", () => {
+  // Unambiguous fixture: each token appears in [tiers] exactly once.
+  const CLEAN_TOML = `
+reviewers = ["haiku", "sonnet", "mini"]
+planners  = ["haiku"]
+
+[aliases]
+haiku  = "claude:haiku-4.5"
+sonnet = "claude:sonnet-4.5"
+mini   = "pi:ollama-cloud/minimax-m3"
+
+[tiers]
+"claude:haiku-4.5"         = "fast"
+"claude:sonnet-4.5"        = "standard"
+"pi:ollama-cloud/minimax-m3" = "frontier"
+
+[agent_tiers]
+fast-agent     = "fast"
+standard-agent = "standard"
+frontier-agent = "frontier"
+`;
+
+  const CANDIDATES: ReviewerToken[] = [
+    { harness: "claude", model: "haiku-4.5", provider: null },
+    { harness: "claude", model: "sonnet-4.5", provider: null },
+    { harness: "pi", model: "minimax-m3", provider: "ollama-cloud" },
+  ];
+
+  it("resolves fast-agent -> fast -> claude:haiku-4.5", () => {
+    const config = parseConfig(CLEAN_TOML);
+    expect(resolveAgentModel(config, "fast-agent", CANDIDATES)).toEqual({
+      harness: "claude",
+      model: "haiku-4.5",
+      provider: null,
+    });
+  });
+
+  it("resolves standard-agent -> standard -> claude:sonnet-4.5", () => {
+    const config = parseConfig(CLEAN_TOML);
+    expect(resolveAgentModel(config, "standard-agent", CANDIDATES)).toEqual({
+      harness: "claude",
+      model: "sonnet-4.5",
+      provider: null,
+    });
+  });
+
+  it("resolves frontier-agent -> frontier -> pi:ollama-cloud/minimax-m3", () => {
+    const config = parseConfig(CLEAN_TOML);
+    expect(resolveAgentModel(config, "frontier-agent", CANDIDATES)).toEqual({
+      harness: "pi",
+      model: "minimax-m3",
+      provider: "ollama-cloud",
+    });
+  });
+
+  it("unlisted agent falls back to DEFAULT_TIER ('standard') and resolves", () => {
+    const config = parseConfig(CLEAN_TOML);
+    expect(resolveAgentModel(config, "unknown-agent", CANDIDATES)).toEqual({
+      harness: "claude",
+      model: "sonnet-4.5",
+      provider: null,
+    });
+  });
+
+  it("throws CqConfigError with the exact message when no candidate classifies to the tier", () => {
+    const config = parseConfig(CLEAN_TOML);
+    const noFastCandidates: ReviewerToken[] = [
+      { harness: "claude", model: "sonnet-4.5", provider: null },
+      { harness: "pi", model: "minimax-m3", provider: "ollama-cloud" },
+    ];
+    let caught: unknown;
+    try {
+      resolveAgentModel(config, "fast-agent", noFastCandidates);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: cannot resolve a model for agent "fast-agent": no active token classifies as tier "fast" in [tiers] (candidates: claude:sonnet-4.5, pi:ollama-cloud/minimax-m3)',
+    );
+  });
+
+  it("throws CqConfigError with the exact message when candidates list is empty", () => {
+    const config = parseConfig(CLEAN_TOML);
+    let caught: unknown;
+    try {
+      resolveAgentModel(config, "fast-agent", []);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: cannot resolve a model for agent "fast-agent": no active token classifies as tier "fast" in [tiers] (candidates: <none>)',
+    );
+  });
+
+  it("throws CqConfigError when [tiers] is absent (nothing classifies)", () => {
+    const config = parseConfig(VALID_TOML);
+    expect(() =>
+      resolveAgentModel(config, "any-agent", [
+        { harness: "claude", model: "opus-4.8", provider: null },
+      ]),
+    ).toThrow(CqConfigError);
+  });
+});
+
+describe("T273 — [tiers] error cases: exact CqConfigError messages", () => {
+  it("unknown class VALUE throws CqConfigError with exact message", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[tiers]
+"claude:opus-4.8" = "ultra"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: tiers["claude:opus-4.8"] = "ultra" is not a valid tier class (expected fast, standard, or frontier)',
+    );
+  });
+
+  it("malformed token KEY (unknown harness) throws CqConfigError with exact message", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[tiers]
+"gemini:flash" = "fast"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: unknown harness "gemini" in token "gemini:flash" (expected "claude" or "pi")',
+    );
+  });
+
+  it("malformed token KEY (missing ':') throws CqConfigError", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[tiers]
+"opus-4.8" = "fast"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: token "opus-4.8" is not "<harness>:<model>" (missing \':\')' ,
+    );
+  });
+
+  it("malformed token KEY (bare pi) throws CqConfigError with exact message", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[tiers]
+"pi:minimax-m3" = "fast"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    expect((caught as CqConfigError).message).toBe(
+      'cq.toml: pi token "pi:minimax-m3" must be "pi:<provider>/<model>" (missing provider qualifier \'/\'; bare pi tokens are no longer accepted)',
+    );
+  });
+});
+
+describe("T273 — CONFIG-LOAD: parseConfig on no-[tiers] config yields tiers=null with reviewers/planners intact", () => {
+  const NO_TIERS_TOML = `
+reviewers = ["sonnet", "opus"]
+planners  = ["opus"]
+
+[aliases]
+sonnet = "claude:sonnet-4.5"
+opus   = "claude:opus-4.8[1m]"
+`;
+
+  it("parseTiers path: parseConfig yields tiers=null when [tiers] is absent", () => {
+    const config = parseConfig(NO_TIERS_TOML);
+    expect(config.tiers).toBeNull();
+  });
+
+  it("reviewers are intact when [tiers] is absent", () => {
+    const config = parseConfig(NO_TIERS_TOML);
+    expect(config.reviewers).toEqual(["sonnet", "opus"]);
+    expect(resolveReviewers(config)).toEqual([
+      { harness: "claude", model: "sonnet-4.5", provider: null },
+      { harness: "claude", model: "opus-4.8[1m]", provider: null },
+    ]);
+  });
+
+  it("planners are intact when [tiers] is absent", () => {
+    const config = parseConfig(NO_TIERS_TOML);
+    expect(config.planners).toEqual(["opus"]);
+    expect(resolvePlanners(config)).toEqual([
+      { harness: "claude", model: "opus-4.8[1m]", provider: null },
+    ]);
+  });
+
+  it("agentTiers is also null when [agent_tiers] is absent", () => {
+    const config = parseConfig(NO_TIERS_TOML);
+    expect(config.agentTiers).toBeNull();
+  });
+});
