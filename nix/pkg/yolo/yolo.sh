@@ -605,6 +605,17 @@ case "$SUBCMD" in
     ;;
 esac
 
+# Don't leak the YOLO_* orchestration env into the sandbox. bwrap inherits the
+# parent environment (no --clearenv), so without this the agent would see all
+# the internal YOLO_* vars — including YOLO_SECRET_VARS, which maps secret names
+# to their host paths. The sandbox has no use for any of them: everything it
+# needs is passed explicitly via bwrap --env (SMIND_SANDBOXED, PATH, the session
+# vars, and the entrypoint's YOLO_SECRETS_FILE / YOLO_SANDBOX_HOOKS_FILE). Stash
+# the two paths the exec still needs, then clear YOLO_* from this env.
+_yolo_sandbox="$YOLO_LLM_SANDBOX"
+_yolo_entrypoint="$YOLO_SANDBOX_ENTRYPOINT"
+unset ${!YOLO_@}
+
 # When secret session vars and/or sandbox pre-start hooks are in play, run the
 # real command behind the in-sandbox entrypoint (resolved from the ro-bound
 # /nix/store): it loads the composed secrets file ($YOLO_SECRETS_FILE) into the
@@ -614,14 +625,14 @@ esac
 # on exit.
 if [[ -n "$SECRET_TMPFILE" || -n "$SANDBOX_HOOKS_TMPFILE" ]]; then
   trap 'rm -f "$SECRET_TMPFILE" "$SANDBOX_HOOKS_TMPFILE"' EXIT
-  "$YOLO_LLM_SANDBOX" \
+  "$_yolo_sandbox" \
     "${BASE_ARGS[@]}" \
     "${EXTRA_ARGS[@]}" \
-    -- "$YOLO_SANDBOX_ENTRYPOINT" "${EXEC_CMD[@]}"
+    -- "$_yolo_entrypoint" "${EXEC_CMD[@]}"
   exit $?
 fi
 
-exec "$YOLO_LLM_SANDBOX" \
+exec "$_yolo_sandbox" \
   "${BASE_ARGS[@]}" \
   "${EXTRA_ARGS[@]}" \
   -- "${EXEC_CMD[@]}"

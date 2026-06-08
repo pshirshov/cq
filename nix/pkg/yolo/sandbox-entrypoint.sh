@@ -25,4 +25,9 @@ if [ -n "${YOLO_SANDBOX_HOOKS_FILE:-}" ]; then
   . "$YOLO_SANDBOX_HOOKS_FILE"
 fi
 
+# These pointers (passed in via bwrap --env, so not cleared by the host-side
+# unset of YOLO_*) have served their purpose; drop them so the agent's env
+# carries no YOLO_* orchestration state.
+unset YOLO_SECRETS_FILE YOLO_SANDBOX_HOOKS_FILE
+
 exec "$@"
