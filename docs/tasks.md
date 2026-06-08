@@ -504,10 +504,10 @@ archives:
 - completion: "Added 32 comprehensive cq-config tests (config.test.ts, 6 describe blocks) for the inverted [tiers] classifier: token-keyed parse (claude/pi:<provider>/<model>/claude:haiku-4.5=fast/alias keys); classifyToken correct+undefined (incl structural model/provider mismatch); selectTokensForTier candidate-order tie-break; resolveAgentModel end-to-end + exact-message CqConfigError no-match throw; unknown class VALUE + 3 malformed-KEY cases (exact messages); explicit config-load no-[tiers] => tiers=null with reviewers/planners intact. Cherry-picked onto main (background committer had rebased main; ff not possible). bun run check green 1170/0. Review APPROVE (opus + minimax)."
 - sessionLogs: ["docs/logs/20260608-185640-a6f38505410fb5529.md","docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]
 
-### T274 — planned
+### T274 — done
 
 - createdAt: 2026-06-08T16:57:59.114Z
-- updatedAt: 2026-06-08T16:57:59.114Z
+- updatedAt: 2026-06-08T19:15:10.289Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: "Update cq.toml.example + token-format docs to the inverted [tiers] token->class grammar"
@@ -524,6 +524,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T271"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: dae5161
+- completion: "Updated cq.toml.example [tiers] to the inverted token-keyed classifier (demonstrating BOTH a full-token key — \"claude:opus-4.8[1m]\"=frontier, \"pi:grok-build/grok-build\"=standard — AND an alias key — minimax=fast, after round-2 criticism), with a classifier-not-dispatch explanatory comment + [agent_tiers] tie-break note + token-grammar [tiers]-key requirement doc note. Added cq-config regression tests (cq-toml-example.test.ts) that load repo-root cq.toml.example, assert parseConfig no-error, AND assert classifier semantics (classifyToken opus→frontier, minimax→fast; resolveAgentModel plan-reviewer→opus). 1 revise round (R1 disapprove on doc/example consistency + vacuous test). Cherry-picked range onto main (background committer rebases hashes). bun run check green 1177/0. Review APPROVE (opus + minimax round 2)."
+- sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
 
 ## M111
 

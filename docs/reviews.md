@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 331
+  item: 332
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -792,3 +792,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T273","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-185640-af009d07fefa77dd2.md","docs/logs/20260608-185640-pi-minimax-T273.md"]
+
+### R332 — go-ahead
+
+- createdAt: 2026-06-08T19:15:04.745Z
+- updatedAt: 2026-06-08T19:15:04.745Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T274 implement review APPROVE (reconciled, after 1 revise round). Panel opus[claude] + minimax[pi:ollama-cloud]; grok+codex[pi:grok-build] excluded (documented stall). Round 1 DISAPPROVE (minimax: C1 doc/example alias-vs-token inconsistency; C2 vacuous per-entry assertion) — orchestrator filtered minimax's out-of-scope points (tie-break=T273, D42=deferred). Round 2 APPROVE (both): C1 resolved (example shows 1 alias-keyed + 2 full-token-keyed [tiers] entries, each a distinct single-classed token, no D42 dup); C2 resolved (classifyToken opus→frontier, minimax→fast, resolveAgentModel plan-reviewer→opus — non-vacuous classifier-exercising assertions). cq.toml.example token-keyed classifier + explanatory comment + token-grammar [tiers]-key doc note; bun run check green 1177/0. (opus noted a stale-dist test-invocation path artifact — canonical bun run check rebuilds + passes; not a defect.)"
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T274","goals:G34"]
+- sessionLogs: ["docs/logs/20260608-190417-T274-workers.md","docs/logs/20260608-190417-T274-reviews.md"]
