@@ -81,8 +81,11 @@ export function DiagramSvg({ idPrefix, model, className }: DiagramSvgProps): Rea
           <path d="M0,0 L10,5 L0,10 z" fill={EDGE_STROKE} />
         </marker>
       </defs>
-      {model.edges.map((e) => (
-        <React.Fragment key={`${e.from}->${e.to}`}>
+      {model.edges.map((e, i) => (
+        // Key by array index, not `from->to`: a flow may be a multigraph with
+        // PARALLEL edges between the same node pair (e.g. reviewer→orchestrator
+        // 'returns verdict' AND 'files defect'), which collide on a from-to key.
+        <React.Fragment key={`edge-${i}`}>
           <polyline
             data-testid={`${idPrefix}-edge-${e.from}-${e.to}`}
             points={polylinePoints(e.points)}

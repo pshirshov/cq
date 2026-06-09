@@ -1,16 +1,22 @@
 /**
- * Flows help-tab render test (T205, happy-dom).
+ * Flows help-tab render test (T316, happy-dom).
  *
- * Drives the new third HelpOverlay tab end-to-end and asserts:
+ * The Flows tab now renders the hand-authored role→actions catalogue
+ * ({@link ROLE_FLOWS}) instead of the abstract ledger state-machines: each
+ * flow's diagram shows ROLE nodes (orchestrator, planner, reviewer, worker, …)
+ * connected by labelled ACTION edges (e.g. 'returns verdict', 'merges by SHA').
+ *
+ * Drives the third HelpOverlay tab end-to-end and asserts:
  *   (1) the third tab button exists (`help-tab-flows`) and is selectable
  *       (aria-selected flips on click);
  *   (2) selecting it renders a <section> + DiagramSvg for each of the four
  *       flows under the documented T202 testid scheme
  *       (`help-flow-${id}` section + `help-flow-${id}-svg` svg +
  *       `help-flow-${id}-node-${nodeId}`);
- *   (3) a labelled cross-flow handoff edge in the advance overview renders its
- *       edge-label <text> (the actually-emitted `…-edge-label-${from}-${to}`
- *       id from DiagramSvg), with the label text present;
+ *   (3) per flow the SVG carries its ROLE labels (e.g. 'planner', 'reviewer',
+ *       'orchestrator') and ≥1 labelled ACTION edge (e.g. 'returns verdict' /
+ *       'merges by SHA') — the prior bare state-node labels (clarifying,
+ *       planning, root-caused, …) are NO LONGER the Flows-tab content;
  *   (4) Esc and `?` still close the dialog (capture behavior unchanged).
  *
  * Pure-data: layout is elkjs (no getBBox / ResizeObserver / DOMMatrix).
@@ -24,7 +30,7 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import { FakeClient } from "./fakeClient";
-import { FLOWS, HANDOFF_SEED_GOAL_TO_PLAN } from "../src/flowData";
+import { ROLE_FLOWS } from "../src/roleActions";
 
 let container: HTMLElement;
 let root: Root;
@@ -71,6 +77,13 @@ async function openFlowsTab(): Promise<void> {
   await settle();
 }
 
+// The full text content of one flow's rendered SVG (node + edge labels).
+function flowText(id: string): string {
+  const svg = testid(`help-flow-${id}-svg`);
+  if (svg === null) throw new Error(`flow svg not found: ${id}`);
+  return svg.textContent ?? "";
+}
+
 beforeEach(() => {
   localStorage.clear();
   container = document.createElement("div");
@@ -82,7 +95,7 @@ afterEach(() => {
   container.remove();
 });
 
-describe("Flows tab (T205)", () => {
+describe("Flows tab (T316 — roles & actions)", () => {
   it("exposes a selectable third tab button", async () => {
     await mount();
     press("?");
@@ -101,30 +114,70 @@ describe("Flows tab (T205)", () => {
   it("renders a section + DiagramSvg for each of the four flows", async () => {
     await openFlowsTab();
 
-    expect(FLOWS.map((f) => f.id)).toEqual(["plan", "investigate", "implement", "advance"]);
-    for (const flow of FLOWS) {
+    expect(ROLE_FLOWS.map((f) => f.id)).toEqual(["plan", "investigate", "implement", "advance"]);
+    for (const flow of ROLE_FLOWS) {
       // Per-flow section container.
       expect(testid(`help-flow-${flow.id}`)).not.toBeNull();
       // Exactly ONE svg per flow (idPrefix `help-flow-${flow.id}`).
       const svgs = container.querySelectorAll(`[data-testid="help-flow-${flow.id}-svg"]`);
       expect(svgs).toHaveLength(1);
-      // Every node of the flow renders under the documented scheme.
-      for (const n of flow.nodes) {
+      // Every role node of the flow renders under the documented scheme.
+      for (const n of flow.model.nodes) {
         expect(testid(`help-flow-${flow.id}-node-${n.id}`)).not.toBeNull();
       }
     }
   });
 
-  it("renders the advance overview's labelled cross-flow handoff edge", async () => {
+  it("each flow's SVG carries its role labels and ≥1 action-edge label", async () => {
     await openFlowsTab();
 
-    const { from, to } = HANDOFF_SEED_GOAL_TO_PLAN;
-    // The polyline edge for the seed-goal → plan handoff.
-    expect(testid(`help-flow-advance-edge-${from}-${to}`)).not.toBeNull();
-    // …and its rendered edge-label <text> (the actually-emitted T202 id).
-    const label = testid(`help-flow-advance-edge-label-${from}-${to}`);
-    expect(label).not.toBeNull();
-    expect(label!.textContent).toContain("seed-goal");
+    for (const flow of ROLE_FLOWS) {
+      const text = flowText(flow.id);
+      // Every role node's label appears in the rendered SVG.
+      for (const n of flow.model.nodes) {
+        expect(text).toContain(n.label);
+      }
+      // At least one labelled action edge renders its <text> label.
+      const labelledEdges = flow.model.edges.filter((e) => e.label !== undefined);
+      expect(labelledEdges.length).toBeGreaterThan(0);
+      let renderedLabels = 0;
+      for (const e of labelledEdges) {
+        if (testid(`help-flow-${flow.id}-edge-label-${e.from}-${e.to}`) !== null) renderedLabels++;
+      }
+      expect(renderedLabels).toBeGreaterThan(0);
+    }
+  });
+
+  it("renders the canonical role + action labels (planner/reviewer/orchestrator; returns verdict; merges by SHA)", async () => {
+    await openFlowsTab();
+
+    // Plan flow shows the planner↔reviewer↔orchestrator roles.
+    const planText = flowText("plan");
+    expect(planText).toContain("orchestrator");
+    expect(planText).toContain("planner");
+    expect(planText).toContain("reviewer");
+    // …and the reviewer's 'returns verdict' action edge.
+    const planVerdict = testid("help-flow-plan-edge-label-reviewer-orchestrator");
+    expect(planVerdict).not.toBeNull();
+    expect(planVerdict!.textContent).toContain("returns verdict");
+
+    // Implement flow shows the worker role and the 'merges by SHA' action.
+    const implText = flowText("implement");
+    expect(implText).toContain("worker");
+    const mergeEdge = testid("help-flow-implement-edge-label-orchestrator-main");
+    expect(mergeEdge).not.toBeNull();
+    expect(mergeEdge!.textContent).toContain("merges by SHA");
+  });
+
+  it("no longer renders the prior bare ledger state-node labels", async () => {
+    await openFlowsTab();
+
+    // The old flowData state nodes (clarifying / root-caused / quiescent) were
+    // the previous Flows-tab content; the roles & actions render replaces them.
+    const allFlowsText = ROLE_FLOWS.map((f) => flowText(f.id)).join("\n");
+    for (const stale of ["clarifying", "root-caused", "quiescent", "awaiting answers"]) {
+      expect(allFlowsText).not.toContain(stale);
+    }
   });
 
   it("still closes the dialog on Esc and on ?", async () => {

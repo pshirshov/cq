@@ -22,9 +22,9 @@ import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
 import { computeStateMachine } from "./stateMachine.js";
-import { layoutDiagram, type LaidOutDiagram, type DiagramModel, type DiagramNode } from "./diagramLayout.js";
+import { layoutDiagram, type LaidOutDiagram, type DiagramModel } from "./diagramLayout.js";
 import { DiagramSvg } from "./DiagramSvg.js";
-import { FLOWS, type FlowDefinition, type FlowNodeKind } from "./flowData.js";
+import { ROLE_FLOWS, type RoleFlowDefinition } from "./roleActions.js";
 import { AGENT_ROLES } from "./agentsCatalogue.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
@@ -55,7 +55,6 @@ const GOALS_LEDGER = "goals";
 /** The `id[]` field on a goal holding its work-milestone ids (e.g. M12,M13). */
 const GOAL_MILESTONES_FIELD = "milestones";
 import {
-  BUCKET_HEX,
   statusBucket,
   isTerminal,
   statusMatchesFilter,
@@ -1640,7 +1639,7 @@ function HelpOverlay({
             </div>
           ) : tab === "flows" ? (
             <div className="lw-help-flows" data-testid="help-flows">
-              {FLOWS.map((flow) => (
+              {ROLE_FLOWS.map((flow) => (
                 <section key={flow.id} className="lw-flow" data-testid={`help-flow-${flow.id}`}>
                   <h4>{flow.title}</h4>
                   <FlowDiagram flow={flow} />
@@ -1756,7 +1755,7 @@ function AgentModelCell({ view }: { view: AgentModelView }): React.ReactElement 
 /**
  * Agents help tab (T278, goal G34): one section per Q148 role from the
  * GENERATED {@link AGENT_ROLES} catalogue (re-exported by `agentsCatalogue.ts`).
- * Static data only — like FLOWS, no MCP fetch. Each section shows the role's
+ * Static data only — like ROLE_FLOWS, no MCP fetch. Each section shows the role's
  * identity, IO model, configured model class + per-harness mappings, the
  * MECHANICALLY-DERIVED privilege as an RO/RW badge, the exposed-tools
  * descriptor, and the full prompt-template body folded inside a COLLAPSED
@@ -1847,54 +1846,20 @@ function StateMachineDiagram({ ledger, schema }: { ledger: string; schema: Ledge
   return <DiagramSvg idPrefix={`help-item-state-${ledger}`} model={laid} className="lw-item-state-svg" />;
 }
 
-// FlowNodeKind → node fill, reusing the canonical BUCKET_HEX palette so a flow
-// node reads consistently with the status badges / state-machine diagrams:
-//   state    → start blue;   waiting → blocked red (parked on a user question);
-//   handoff  → ready purple (a cross-flow deferral/handoff);
-//   terminal → done green (also drawn with the thick terminal outline).
-const FLOW_KIND_FILL: Record<FlowNodeKind, string> = {
-  state: BUCKET_HEX.start,
-  waiting: BUCKET_HEX.blocked,
-  handoff: BUCKET_HEX.ready,
-  terminal: BUCKET_HEX.done,
-};
-
 /**
- * Map one flow's `kind`-tagged nodes/edges to the generic {@link DiagramModel}
- * the elk layer consumes: `kind` → `fill` (via {@link FLOW_KIND_FILL}) and
- * `terminal`. A node may also carry an explicit `terminal` (the terminal-kind
- * nodes do); honour either signal.
+ * Inline-SVG diagram for one cq: flow's roles & actions (T316, decision Q171).
+ * Mirrors {@link StateMachineDiagram}'s elk pattern, but the data is the
+ * hand-authored role→actions catalogue ({@link ROLE_FLOWS}): each flow's
+ * `model` is ALREADY the generic {@link DiagramModel} the elk layer consumes
+ * (role nodes + labelled action edges), so it feeds {@link layoutDiagram}
+ * directly — no `kind`→fill mapping. {@link DiagramSvg} renders it under the
+ * per-flow idPrefix `help-flow-${flow.id}` (svg `${idPrefix}-svg`, node
+ * `${idPrefix}-node-${id}`, edge `${idPrefix}-edge-${from}-${to}`, edge label
+ * `${idPrefix}-edge-label-…`). The data is static (no MCP fetch), so it lays
+ * out on first tab open.
  */
-function flowToModel(flow: FlowDefinition): DiagramModel {
-  return {
-    nodes: flow.nodes.map((n) => {
-      const fill = n.kind === undefined ? n.fill : FLOW_KIND_FILL[n.kind];
-      const node: DiagramNode = {
-        id: n.id,
-        label: n.label,
-        terminal: n.terminal === true || n.kind === "terminal",
-      };
-      if (fill !== undefined) node.fill = fill;
-      return node;
-    }),
-    edges: flow.edges.map((e) =>
-      e.label === undefined ? { from: e.from, to: e.to } : { from: e.from, to: e.to, label: e.label },
-    ),
-  };
-}
-
-/**
- * Inline-SVG diagram for one cq: flow (T205, decision Q115). Mirrors
- * {@link StateMachineDiagram}'s elk pattern: {@link flowToModel} maps the static
- * {@link FlowDefinition} to the generic model (`kind` → fill/terminal),
- * {@link layoutDiagram} positions it via elkjs (async — driven in a useEffect),
- * then {@link DiagramSvg} renders it under the per-flow idPrefix
- * `help-flow-${flow.id}` (svg `${idPrefix}-svg`, node `${idPrefix}-node-${id}`,
- * edge `${idPrefix}-edge-${from}-${to}`, edge label `${idPrefix}-edge-label-…`).
- * The data is static (no MCP fetch), so it lays out on first tab open.
- */
-function FlowDiagram({ flow }: { flow: FlowDefinition }): React.ReactElement {
-  const model = useMemo(() => flowToModel(flow), [flow]);
+function FlowDiagram({ flow }: { flow: RoleFlowDefinition }): React.ReactElement {
+  const model: DiagramModel = flow.model;
   const [laid, setLaid] = useState<LaidOutDiagram | null>(null);
   useEffect(() => {
     let cancelled = false;
