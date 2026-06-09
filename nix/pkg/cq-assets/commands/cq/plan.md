@@ -1,22 +1,24 @@
 ---
-description: Start a plan-flow goal — create the goal, then hand off to the planner for the first clarifying questions.
-argument-hint: <goal description>
+description: Start a plan-flow goal — create the goal (from free text OR one-or-more idea-ids, one goal per idea), then hand off to the planner for the first clarifying questions.
+argument-hint: <goal description> | <I-id> [<I-id> ...]
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
 ## Catalogue
 ```yaml
 inputs:
-  - "goal description (free text, $ARGUMENTS)"
+  - "EITHER one-or-more whitespace-separated idea-ids (each /^I\\d+$/) OR a free-text goal description ($ARGUMENTS) — not both interleaved"
 outputs:
   - "coordination milestone M (create_milestone)"
-  - "goal item G in clarifying status (create_item on goals ledger)"
+  - "one-or-more goal items G in clarifying status (one goal PER idea when idea-ids are given; create_item on goals ledger)"
+  - "for each idea-seeded goal: bidirectional ledgerRefs link (goal↔idea) + idea status→planned"
   - "first batch of clarifying questions (filed by plan-advance subagent)"
   - "session log file docs/logs/<timestamp>-<agent-id>.md"
   - "handoffs item (answers-required) and ledger git commit"
 ioSchema:
   - "bootstrap only — no plan logic; plan-advance subagent owns question generation"
   - "goal schema fields: title, description (required); grounding, milestones (set later by planner)"
+  - "idea-id token grammar: /^I\\d+$/; argument is EITHER all idea-ids OR free text (no interleave)"
   - "handoffs item: flow=plan, ledgerRefs=goals:<G>, blockingQuestions=filed question ids"
 ```
 
@@ -25,10 +27,14 @@ You are starting a **plan-flow goal**. The user's goal is:
 > $ARGUMENTS
 
 This command does the one-time **bootstrap** only — create the coordination
-milestone and the goal — then hands off to the `plan-advance` planner for the
+milestone and the goal(s) — then hands off to the `plan-advance` planner for the
 first clarifying questions. It owns NO question or plan logic of its own: that
 all lives in the `plan-advance` subagent (the same planner `/cq:plan:advance`
 drives), so the question-generation logic exists in exactly one place.
+
+The argument is EITHER a **free-text goal description** (today's path) OR
+**one-or-more idea-ids** drawn from the `ideas` ledger — see §Argument grammar
+below for the token rule and §Consume-an-idea sub-procedure for the idea path.
 
 ## Provenance (every ledger write)
 On every `create_item` / `create_milestone`, pass:
@@ -52,12 +58,57 @@ executable unit; the defect itself stays a problem record). So: fix request →
 plainly describes a fault to repair, tell the user to use `/cq:investigate`
 and stop instead of creating a goal.
 
+## Argument grammar — idea-ids OR free text (Q188, no interleave)
+`$ARGUMENTS` is parsed in exactly ONE of two mutually-exclusive modes — there is
+NO 'mixed' interleaving:
+
+- **Idea-ids mode.** If the argument is one or more whitespace-separated tokens
+  and **every** token matches the idea-id pattern **`/^I\d+$/`** (an `I`
+  followed by one-or-more digits, e.g. `I01`, `I2`, `I137`), treat the argument
+  as a list of idea-ids. `/cq:plan I01 I02 I03` creates **ONE goal PER idea** —
+  iterate the ids in order, running the §Consume-an-idea sub-procedure once per
+  id. Each idea yields its own coordination milestone + goal + clarifying round.
+- **Free-text mode.** Otherwise (any token does NOT match `/^I\d+$/`), treat the
+  WHOLE argument as a single free-text goal description — today's path (steps
+  1–8 below, once).
+
+The two modes do not mix: you do not interleave idea-ids with free text in a
+single invocation. If the argument is empty, ask the user what to plan and stop.
+
+## Consume-an-idea sub-procedure
+Run this ONCE per idea-id when in idea-ids mode. It is the single definition of
+"turn an idea into a seeded plan-flow goal"; `/cq:plan:follow-up` references this
+same sub-procedure (DRY — do not re-derive it there). For idea-id **I**:
+
+1. **Fetch the idea.** `fetch_item("ideas", I)` from the `ideas` ledger. If `I`
+   does not exist (or is not on the `ideas` ledger), report it and skip this id
+   (continue with the remaining ids).
+2. **Bootstrap a goal seeded from the idea.** Create the coordination milestone
+   (step 1 of §Steps) and the goal (step 2), but **seed the goal's `title` from
+   the idea's title** and its `description` **VERBATIM from the idea's
+   description** (copy the idea description text unchanged as the goal's starting
+   description). The normal clarifying bootstrap then proceeds from this seed
+   (steps 3–8 below run for this goal). Capture the new goal id as **G**.
+3. **Link bidirectionally.** Add `ideas:<I>` to the new goal's `ledgerRefs`
+   (`update_item("goals", G, fields: { ledgerRefs: [..existing.., "ideas:<I>"] })`)
+   AND add `goals:<G>` to the idea's `ledgerRefs`
+   (`update_item("ideas", I, fields: { ledgerRefs: [..existing.., "goals:<G>"] })`).
+   Preserve any pre-existing refs on both sides.
+4. **Mark the idea planned.** `update_item("ideas", I, status: "planned")` — the
+   idea has now been turned into a plan-flow goal (the `ideas` lifecycle's
+   terminal `planned` status).
+
 ## Before you start
 Search the ledger so you don't duplicate an existing goal: `fts_search` with
 `ledger: "goals"` over the goal's key terms. If a live goal already covers this,
-report its id and stop instead of creating a new one.
+report its id and stop instead of creating a new one. In idea-ids mode, run this
+de-dup check per idea before consuming it.
 
 ## Steps
+In **free-text mode** these steps run once over `$ARGUMENTS`. In **idea-ids
+mode** they run once PER idea-id — driven by the §Consume-an-idea sub-procedure,
+which supplies the seeded title/description (step 2), performs the bidirectional
+link, and flips the idea to `planned` — so one goal is bootstrapped per idea.
 
 1. **Create the coordination milestone.** `create_milestone(title: "Plan: <short
    goal>")` — keep the title to a short slug of the goal. Capture the returned id
@@ -115,7 +166,9 @@ report its id and stop instead of creating a new one.
    orchestrator (a command) does the chaining.
 
 6. **Report.** Tell the user:
-   - the goal id **G** and milestone **M**;
+   - the goal id **G** and milestone **M** (in idea-ids mode: one G+M line PER
+     idea, each annotated with the source idea-id `I` it was seeded from and that
+     `I` was flipped to `planned`);
    - the questions the planner filed (from its returned summary);
    - that they should answer the questions in the TUI or web client (set each to
      `answered` with a non-empty `answer`), then run **`/cq:plan:advance G`** to

@@ -1173,3 +1173,58 @@ describe("T335: ideas ledger — fresh FsLedgerStore bootstrap + lifecycle + fla
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// T340 — /cq:plan idea-id grammar (Q188): structural grep-invariants over the
+// command-prompt markdown. plan.md must document (1) the I-id token grammar
+// (the /^I\d+$/ rule) and the EITHER-idea-ids-OR-free-text (no-interleave) rule,
+// (2) the named consume-an-idea sub-procedure with its four steps
+// (fetch → seed verbatim → bidirectional ledgerRefs link → idea→planned), and
+// (3) one-goal-per-idea stated explicitly. follow-up.md must REFERENCE the
+// sub-procedure (DRY) rather than re-derive it.
+//
+// Path resolution mirrors T255/T264/D43 above: cq-assets lives four levels up.
+// ---------------------------------------------------------------------------
+
+describe("T340: /cq:plan idea-id grammar — structural grep invariants", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+  const planMd = path.join(cqCommandsRoot, "plan.md");
+  const followUpMd = path.join(cqCommandsRoot, "plan", "follow-up.md");
+
+  it("plan.md documents the I-id token grammar section (/^I\\d+$/)", async () => {
+    const text = await readFile(planMd, "utf8");
+    expect(text).toContain("## Argument grammar");
+    expect(text).toContain("/^I\\d+$/");
+  });
+
+  it("plan.md states the EITHER-idea-ids-OR-free-text, no-interleave rule", async () => {
+    const text = await readFile(planMd, "utf8");
+    expect(text).toContain("no interleave");
+    expect(text).toContain("mutually-exclusive");
+  });
+
+  it("plan.md defines the named consume-an-idea sub-procedure with its four steps", async () => {
+    const text = await readFile(planMd, "utf8");
+    expect(text).toContain("## Consume-an-idea sub-procedure");
+    // (i) fetch the idea
+    expect(text).toContain('fetch_item("ideas", I)');
+    // (ii) seed description VERBATIM from the idea
+    expect(text).toContain("VERBATIM from the idea");
+    // (iii) bidirectional ledgerRefs link (goal↔idea)
+    expect(text).toContain('"ideas:<I>"');
+    expect(text).toContain('"goals:<G>"');
+    // (iv) idea → planned
+    expect(text).toContain('update_item("ideas", I, status: "planned")');
+  });
+
+  it("plan.md states one-goal-per-idea explicitly", async () => {
+    const text = await readFile(planMd, "utf8");
+    expect(text).toContain("ONE goal PER idea");
+  });
+
+  it("follow-up.md references the consume-an-idea sub-procedure (DRY, not re-derived)", async () => {
+    const text = await readFile(followUpMd, "utf8");
+    expect(text).toContain("Consume-an-idea sub-procedure");
+    expect(text).toContain("plan.md");
+  });
+});

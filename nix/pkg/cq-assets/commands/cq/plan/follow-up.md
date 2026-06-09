@@ -33,6 +33,13 @@ way (`building`) — and the user wants to add MORE scope to the SAME goal. Like
 request and re-open the goal — then hands off to the `plan-advance` planner for a
 fresh clarifying round (clarify-first). It owns NO question or plan logic itself.
 
+> **Seeding follow-up scope from an idea.** When the follow-up request is itself
+> an idea-id (matching `/^I\d+$/` from the `ideas` ledger), reuse the
+> **§Consume-an-idea sub-procedure defined in `/cq:plan` (`plan.md`)** — fetch the
+> idea, seed the appended scope from its description verbatim, link the goal↔idea
+> `ledgerRefs` bidirectionally, and flip the idea to `planned`. Do NOT re-derive
+> that sub-procedure here (DRY); it lives in exactly one place (`plan.md`).
+
 > **Follow-up scope vs a defect.** Use this for MORE greenfield scope on an
 > existing goal. If the follow-up is really a **DEFECT report** — an existing
 > fault to fix, not new capability — intake it on the `defects` ledger via
