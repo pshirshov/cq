@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 360
+  item: 361
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -1023,3 +1023,17 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T298","goals:G36"]
 - sessionLogs: ["docs/logs/20260609-005204-T298-verify.md"]
+
+## M120
+
+### R361 — go-ahead
+
+- createdAt: 2026-06-09T02:22:44.781Z
+- updatedAt: 2026-06-09T02:22:44.781Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T299 DROPs build-time model/modelMappings from AgentRole + gen-agents (regenerated) + removes ModelClass/HarnessModelMappings + App.tsx static rows; the overlay AgentModelCell is the sole model display; T279 role.model assertion removed (other static-field assertions intact); freshness test narrowed to static-only; T285 roster untouched. No residual AgentRole.model reads. Cherry-picked to main cfa8acb; integrated bun run check 1289/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T299","goals:G34"]
+- sessionLogs: ["docs/logs/20260609-005204-T299-worker-review.md"]

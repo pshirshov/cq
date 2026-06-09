@@ -710,10 +710,10 @@ archives:
 
 ## M120
 
-### T299 — planned
+### T299 — done
 
 - createdAt: 2026-06-08T23:45:22.171Z
-- updatedAt: 2026-06-08T23:45:22.171Z
+- updatedAt: 2026-06-09T02:22:48.059Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: DROP model/modelMappings from gen-agents + AgentRole; shrink freshness test to static-only fields
@@ -722,6 +722,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T297"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: cfa8acb
+- completion: "Dropped build-time model/modelMappings (AgentRole + gen-agents regen + App.tsx static rows + ModelClass/HarnessModelMappings); overlay cell sole model display; freshness test narrowed; T285 roster kept. Cherry-picked to main (integrated 1289/0). G34 ff#2 core goal met: Agents tab shows ONLY live models."
+- sessionLogs: ["docs/logs/20260609-005204-T299-worker-review.md"]
 
 ### T300 — planned
 
