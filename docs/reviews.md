@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 413
+  item: 414
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -760,3 +760,13 @@ archives:
 - summary: approve (T344) — plan/advance.md documents the full a–g catalog dispatch (fetch_prompt→validate_input→run→validate_output, correct T343 tool names) + graceful degradation when tools absent; Agents tab renders typed inputSchema/outputSchema from the catalog + degrades for command roles; 2 genuine tests; gen.ts regen byte-faithful; scope limited to plan-advance (legacy prose retained for T345); bun run check green 1472/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T344","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-214933-a6714a5f23baa54cc.md"]
+
+### R414 — go-ahead
+
+- createdAt: 2026-06-09T22:14:10.539Z
+- updatedAt: 2026-06-09T22:14:10.539Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T345) — all 7 dispatched subagents wired through fetch_prompt+validate-in/out at their 3 dispatch sites (plan/implement/investigate advance.md); prose-ioSchema dedup faithful (typed @cq/config sidecars match removed shapes; retained lines are non-JSON-encodable behavioral invariants; gen-agents requires the ioSchema key so pointer-replacement is correct); grep-invariant genuine; gen.ts byte-deterministic; orchestrator-command roles schema-free; T344 intact; bun run check green 1486/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T345","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-220632-a1a3d417f128f5f5f.md"]

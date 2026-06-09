@@ -598,10 +598,10 @@ archives:
 - completion: plan/advance.md documents the a–g catalog-driven plan-advance dispatch (fetch_prompt→validate_input→run→validate_output) + graceful degradation; Agents tab renders typed schemas from the catalog + degrades for command roles; gen.ts regen; bun run check green.
 - sessionLogs: ["docs/logs/20260609-214933-a2d97390622a1c0ef.md","docs/logs/20260609-214933-a6714a5f23baa54cc.md"]
 
-### T345 — planned
+### T345 — done
 
 - createdAt: 2026-06-09T19:10:17.305Z
-- updatedAt: 2026-06-09T19:30:21.542Z
+- updatedAt: 2026-06-09T22:14:13.822Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Wire ALL remaining agents through the catalog and remove legacy prompt/schema duplication
@@ -610,6 +610,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T344"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: a8739124f38ca1ca2ff4c05f3e5139411c80f21a
+- completion: All 7 dispatched subagents wired through the catalog (fetch_prompt→validate_input→run→validate_output) at plan/implement/investigate advance.md sites + removed duplicated prose ioSchema (typed sidecars authoritative; pointer + behavioral invariants retained) + grep-invariant; gen.ts byte-deterministic; bun run check green.
+- sessionLogs: ["docs/logs/20260609-220632-a897dd8fc49be1b9d.md","docs/logs/20260609-220632-a1a3d417f128f5f5f.md"]
 
 ## M140
 
