@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 410
+  item: 411
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -730,3 +730,13 @@ archives:
 - summary: approve (T336) — typed prompt-catalog model (PromptCatalogEntry+RoleKind dispatched-vs-command split) in @cq/config (importable by ledger-mcp+ledger-web) + plan-advance JSON Schemas (draft 2020-12) faithful to the asset, genuine Ajv2020 accept/reject proof; Ajv 8 added as direct dep with FOD refresh — nix build .#node-modules green (hash verified real); K65 records all 3 decisions; bun run check green 1434/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T336","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-210203-a0d6f9cb0a53b0b61.md"]
+
+### R411 — go-ahead
+
+- createdAt: 2026-06-09T21:21:59.493Z
+- updatedAt: 2026-06-09T21:21:59.493Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T341) — typed catalog store (promptCatalogStore.ts) + 7 faithful dispatched-role schema sidecars in @cq/config; gen-agents emits typed input/output schemas for exactly the 7 dispatched roles (12 commands none), byte-deterministic, bidirectional roster↔store drift guards; ledger-mcp imports the store with no duplicate copy + no new dep; in-scope only (no MCP/dispatch/cleanup over-reach); bun run check green 1450/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T341","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-211507-a04e57cf50abd9eed.md"]

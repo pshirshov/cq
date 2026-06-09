@@ -550,10 +550,10 @@ archives:
 - completion: Typed prompt-catalog model in @cq/config (PromptCatalogEntry + RoleKind dispatched-vs-command split; per-role sidecar) + plan-advance JSON Schemas + Ajv2020 proof; Ajv 8 added as direct @cq/config dep with flake.nix FOD refresh (node-modules green); decisions K65 locked. bun run check green.
 - sessionLogs: ["docs/logs/20260609-210203-afae2c710bbe86600.md","docs/logs/20260609-210203-a0d6f9cb0a53b0b61.md"]
 
-### T341 — planned
+### T341 — done
 
 - createdAt: 2026-06-09T19:09:47.849Z
-- updatedAt: 2026-06-09T19:30:00.997Z
+- updatedAt: 2026-06-09T21:22:03.377Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Build the catalog store + extend gen-agents-catalogue to emit typed JSON Schemas
@@ -562,6 +562,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T336"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: b502a612696984e60cf2bc2639f67f2206678269
+- completion: Typed catalog store (DISPATCHED_ROLE_SIDECARS in @cq/config) + 7 per-role schema sidecars + gen-agents emits typed schemas for dispatched roles only (12 commands none), byte-deterministic + bidirectional drift guards + ledger-mcp import (no duplicate); bun run check green.
+- sessionLogs: ["docs/logs/20260609-211507-a794f0e8dad7a3580.md","docs/logs/20260609-211507-a04e57cf50abd9eed.md"]
 
 ### T343 — planned
 
