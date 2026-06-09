@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 368
+  item: 369
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -913,3 +913,12 @@ archives:
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - summary: "T305 implement review: APPROVE (opus[claude] approve 0/0; doc-only task, opus-authoritative). The repro doc docs/drafts/20260609-1007-D43-reflog-repro.md contains all 4 documented elements (precondition: uncommitted ledger + stale-base worktree; exact stray cross-checkout git op with main-vs-worktree paths + pre/post git -C status --porcelain + reflog HEAD@{0}-HEAD@{4}; observed data-loss outcome incl. recovery-by-replay; expected post-fix outcome citing T301 Boundary + T302/T303/T304 commit-discipline) + references D43/H31/Q166 + the T301-T304/T306 fix linkage. opus verified the reflog sequence matches D43.description verbatim (HEAD@{3} `reset: moving to 84d8942` as the destructive op). Markdown-only addition; bun run check green 1224/0."
 - ledgerRefs: ["tasks:T305","goals:G37","defects:D43"]
+
+### R369 — go-ahead
+
+- createdAt: 2026-06-09T10:38:45.282Z
+- updatedAt: 2026-06-09T10:38:45.282Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T306 implement review: APPROVE (reconciled; opus[claude] approve 0/0 authoritative + INDEPENDENTLY teeth-verified; minimax[pi] approve with 2 minor nits ADJUDICATED non-blocking; grok+codex abstained). canonical-ledgers.test.ts gained a 'D43: T301-T304 prompt-hardening grep invariants — file-scoped' describe block with 4 cells, each readFile-ing ONE specific cq-assets prompt file (reusing the T255/T264 import.meta.dir path-resolution) and .toContain-ing its verbatim marker: T301 implement-worker.md 'MUST NOT run git against the main checkout'; T302 plan/advance.md 'after the planning-lock'; T303 implement/advance.md 'after every task merge-back'; T304 advance.md 'it fires even when the implement sub-flow runs chained under'. opus independently verified teeth (broke the cell-4 marker → 1 fail; restored → 0 fail). bun run check green 1294/0. ADJUDICATION: minimax nit#1 — cell-4's comment 'absent from implement/advance.md, confirming file-specificity' describes a TRUE-but-unasserted property (the marker IS verified absent from implement/advance.md: grep 0× by both opus and orchestrator); it is a comment documenting marker SELECTION rationale, not a claimed test assertion — factually correct, non-blocking (a comment-wording fix would need a disproportionate worker+merge round). minimax nit#2 (long-exact-marker brittleness) is BY DESIGN for grep-invariants (matches T255/T264). Optional future strengthening: add an explicit toNotContain assertion in implement/advance.md to make cell-4's file-specificity a tested invariant."
+- ledgerRefs: ["tasks:T306","goals:G37","defects:D43"]

@@ -546,10 +546,10 @@ archives:
 - ledgerRefs: ["goals:G37","defects:D43"]
 - resultCommit: 25e2fe6
 
-### T306 — planned
+### T306 — done
 
 - createdAt: 2026-06-09T09:47:54.769Z
-- updatedAt: 2026-06-09T09:59:11.493Z
+- updatedAt: 2026-06-09T10:39:11.280Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add grep-invariant guard test for the D43 prompt tokens
@@ -558,11 +558,12 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T301","T302","T303","T304"]
 - ledgerRefs: ["goals:G37","defects:D43"]
+- resultCommit: 169b032
 
-### T307 — planned
+### T307 — wip
 
 - createdAt: 2026-06-09T09:48:04.242Z
-- updatedAt: 2026-06-09T09:58:56.285Z
+- updatedAt: 2026-06-09T10:39:12.469Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: "Final verify: bun run check (substantive) + nix build .#llm-skills (smoke)"
