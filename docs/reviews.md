@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 388
+  item: 389
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -756,3 +756,17 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G39"]
 - sessionLogs: ["docs/logs/20260609-141937-addc5274986ba5f0c.md","docs/logs/20260609-141937-pi-codex.md","docs/logs/20260609-141937-pi-grok.md","docs/logs/20260609-141937-pi-minimax.md"]
+
+## M133
+
+### R388 — go-ahead
+
+- createdAt: 2026-06-09T14:31:47.990Z
+- updatedAt: 2026-06-09T14:31:47.990Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T323 implement review: APPROVE (native opus; D45 fix). Inserted `if (op === \"create\" || op === \"archive\") await mirrorFile(..., layout.registryPath)` at cacheMirror.ts:86 BEFORE the archive-only early return — create mirrors the registry, 'update' does not, archive-dir readdir stays archive-only; docstring updated. Reproduce-first test (createLedger + XDG_CACHE_HOME redirect + dispose() drain → mirror ledgers.yaml byte-equal to tmp-root registry) is non-vacuous (ENOENT without the fix). 7 cache-mirror cells pass; bun run check green 1333/0; surgical 2-file diff."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T323","goals:G39","defects:D45"]
+- sessionLogs: ["docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md"]

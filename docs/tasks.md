@@ -491,10 +491,10 @@ archives:
 
 ## M133
 
-### T323 — planned
+### T323 — done
 
 - createdAt: 2026-06-09T14:00:49.365Z
-- updatedAt: 2026-06-09T14:08:37.255Z
+- updatedAt: 2026-06-09T14:31:50.072Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: Mirror layout.registryPath on the 'create' op in cacheMirror.mirrorMutation + reproduce-first createLedger mirror test
@@ -502,3 +502,6 @@ archives:
 - acceptance: "REPRODUCE-FIRST, ORDERED (R386/minimax): (1) ADD the new test cell FIRST to packages/ledger/test/cache-mirror.test.ts (the existing cache-mirror suite added by T312 — place it alongside the existing 'mirrors the archive file + ledgers.yaml on archive' it-cell, reusing that file's XDG_CACHE_HOME-redirect + store.dispose()-drain harness). The cell: construct an FsLedgerStore on a tmp ledger root with XDG_CACHE_HOME pointed at a SEPARATE tmp dir, init(), createLedger(<a new non-canonical ledger name>, <a minimal valid schema>), await store.dispose() to drain the fire-and-forget mirror, then read BOTH (a) the TEST's tmp ledger-root registry `<tmpRoot>/docs/ledgers.yaml` (written by writeRegistry) and (b) the mirror registry at `cacheMirrorDir(<tmpRoot>)/docs/ledgers.yaml` (under the XDG-redirected cache dir) and assert they are BYTE-EQUAL. (2) RUN it against the UNPATCHED code and CONFIRM it FAILS for the right reason — the mirror registry (b) is ABSENT after a 'create' (the read rejects with ENOENT / the file does not exist), NOT some unrelated error. (3) THEN make the cacheMirror.ts edit above. (4) RE-RUN → the new cell PASSES, and the existing 'on archive' cell still PASSES (no regression). Finally: `cd nix/pkg/cq-ledgers && bun run check` exits 0; `nix build .#ledger-mcp` (repo root) exits 0; the final diff is surgical (only cacheMirror.ts + cache-mirror.test.ts)."
 - suggestedModel: sonnet-4.6
 - ledgerRefs: ["goals:G39","defects:D45"]
+- resultCommit: 367654c
+- completion: cacheMirror.mirrorMutation now mirrors docs/ledgers.yaml on the 'create' op (op==='create'||'archive') + docstring + reproduce-first createLedger mirror test; D45 fixed.
+- sessionLogs: ["docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md"]
