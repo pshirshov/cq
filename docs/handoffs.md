@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 39
+  item: 40
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -245,3 +245,27 @@ archives:
 - ledgerRefs: ["goals:G38"]
 - blockingQuestions: ["Q167","Q168","Q169","Q170","Q171","Q172","Q173"]
 - sessionLogs: ["docs/logs/20260609-110956-a9f05a8253269dee6.md"]
+
+### HO39 — answers-required
+
+- createdAt: 2026-06-09T14:51:08.206Z
+- updatedAt: 2026-06-09T14:51:08.206Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: |
+    ANSWERS-REQUIRED. /cq:plan:follow-up added scope to G38 (re-opened planned→clarifying) and the planner filed 7 clarifying questions Q176-Q182 for the ledger-web help-popup follow-up.
+    
+    ITEM 1 (Agents tab 'Model default / not configured') — DIAGNOSED, no action taken on cq.toml (per the conditional instruction): cq.toml is NOT stale. The live get_agent_models MCP capability resolves all 7 model-configurable subagents correctly (frontier→opus-4.8[1m] for plan-advance/plan-reviewer/implement-reviewer/investigate-explorer; standard→pi:ollama-cloud/minimax-m3 for implement-worker/conflict-resolver/prober; 12 orchestrator commands correctly not-model-configurable). The 'default / not configured' display is App.tsx's `unavailable` fallback (L442-443), shown ONLY when getAgentModels() throws — so the user's RUNNING ledger-web/ledger-mcp is a STALE build predating that capability (G34 follow-up #2, on main but not deployed). FIX = rebuild + restart ledger-web/ledger-mcp (live activation, like D43/D37) — a USER/deploy action, NOT a cq.toml or code change. The only plannable piece is an OPTIONAL UX-message disambiguation task (Q176).
+    
+    ITEMS 2-4 = new G38 follow-up scope, all questions filed: FU-2 bigger popup (~90vw/90vh) → Q177; FU-3 per-tab jump-to sidebars on Item-States/Flows/Agents → Q178; FU-4 deepen Flows tab (agent depiction + clickable cross-nav to Agents tab + surface git ops/handoffs + colorize nodes) → Q179 (agent depiction + role→agentId map), Q180 (which git ops/handoffs), Q181 (color scheme by roleKind), plus Q176 (FU-1 UX-message scope) and Q182 (web-only confirmation).
+    
+    KEY GROUNDING the planner surfaced for FU-4: ROLE_FLOWS nodes are ABSTRACT role labels while the Agents tab is keyed by CONCRETE AGENT_ROLES catalogue ids — clickable cross-nav (FU-4b) needs an explicit role→agentId map; DiagramNode/DiagramSvg carry no click handler/href and ignore roleKind for color (single DEFAULT_FILL grey), so FU-4b/d need a small renderer affordance. Each tab already has stable testid anchors (help-item-state-/help-flow-/help-agent-<id>) reusable for FU-3 scrollIntoView + FU-4 cross-nav.
+    
+    No open defects link G38 (D44/D45 resolved), so the auto-investigate phase was a no-op.
+    
+    NEXT (user): answer Q176-Q182 in the TUI/web, then run `/cq:plan:advance G38` to plan the follow-up scope. (Separately: the FU-1 display fix is the rebuild+restart deploy action; and the pre-existing Q174 is a fulfilled traceability pointer, closeable.)
+- flow: plan
+- ledgerRefs: ["goals:G38"]
+- blockingQuestions: ["Q176","Q177","Q178","Q179","Q180","Q181","Q182"]
+- sessionLogs: ["docs/logs/20260609-145017-a0c176e7567c5e292.md"]
+- tags: ["G38","follow-up","ledger-web","answers-required"]

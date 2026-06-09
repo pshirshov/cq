@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 175
+  item: 182
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -250,6 +250,90 @@ archives:
 - recommendation: "Suggestion 1: in LIST focus, PgUp/PgDn page the cursor by one visible screenful (listInnerH rows — more natural than a fixed 10 for list paging) and Home/End jump to first/last row; remove the no-Enter detail-scroll (Enter-then-scroll is the consistent model the spec asks for). In CONTENT focus, PgUp/PgDn page content by CONTENT_PAGE and add Home/End to jump to content top/bottom. Implement Home/End by matching the raw escape sequences in `input` since ink exposes no key.home/key.end."
 - ledgerRefs: ["goals:G38"]
 - answer: as recommended
+
+### Q176 — open
+
+- createdAt: 2026-06-09T14:48:19.916Z
+- updatedAt: 2026-06-09T14:48:19.916Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-1 scope] Include the small App.tsx UX-message task that DISTINGUISHES a stale-server 'overlay unavailable' state from a genuine config-absent state? Today the `unavailable` AgentModelView (overlay fetch threw, App.tsx L1750-1751) renders the SAME 'default / not configured' label that reads like an unconfigured cq.toml — which is exactly what made the (correctly-diagnosed-as-stale-build) situation look like a config defect. The plannable improvement: split `unavailable` into a distinct label/message (e.g. 'model overlay unavailable - the server predates get_agent_models; rebuild + restart ledger-web/ledger-mcp') vs the genuine `not-configured` ('not configured (no cq.toml)') which already exists. NOTE: the underlying display was diagnosed as a STALE-DEPLOYED-BUILD issue fixed by a user rebuild+restart, NOT a code defect; this UX task is purely OPTIONAL polish so a future stale-server is self-explanatory."
+- context: "App.tsx resolveAgentModelView() returns {kind:'unavailable'} when overlayError is true (the get_agent_models fetch at L436 threw) OR the role has no overlay entry. AgentModelCell renders that as 'default / not configured'. The genuine no-cq.toml case is a SEPARATE kind ('not-configured' -> 'not configured (no cq.toml)'). So distinguishing them is a label/message change in AgentModelCell plus optionally surfacing the overlayError reason. Web-only, tiny."
+- suggestions: ["YES - include it: change the `unavailable` cell to a clearly stale-server-distinct message ('overlay unavailable - rebuild/restart the server'), so a stale deployment is self-explanatory and not mistaken for an unconfigured cq.toml","NO - leave it out: the root issue is a deploy action (rebuild+restart), the display is correct once rebuilt, and this is cosmetic; keep the follow-up focused on FU-2/3/4","YES but minimal: only reword the `unavailable` label string (no new wiring), the cheapest possible disambiguation"]
+- recommendation: Suggestion 1 (include it, full disambiguation). The whole confusion that triggered FU-1 was the `unavailable` fallback being indistinguishable from a real config-absent state; a one-section message change that names the rebuild/restart remedy makes future stale-server situations self-diagnosing at near-zero cost and fits naturally beside the FU-2/3/4 HelpOverlay work. Cheap and directly addresses the reported confusion.
+- ledgerRefs: ["goals:G38"]
+
+### Q177 — open
+
+- createdAt: 2026-06-09T14:48:30.968Z
+- updatedAt: 2026-06-09T14:48:30.968Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-2 popup size] Is the ~90%-of-viewport help-popup size a HARD fixed 90% (width:90vw; height:90vh) or a RESPONSIVE cap (min(90vw, max-content) / max-height:90vh with internal scroll)? And should the body scroll internally (the diagrams can exceed the viewport) so the head/tabs stay pinned? Currently .lw-help has a smaller fixed/auto size; FU-2 wants it to fill ~90% of the viewport both dimensions."
+- context: The popup is .lw-help inside .lw-help-backdrop (App.tsx L1564-1565); its size lives in the ledger-web stylesheet. The Flows/Item-States/Agents bodies render elk SVG diagrams + long agent prompt sections that can be taller/wider than the viewport, so a 90vh box needs an internally-scrolling .lw-help-body with a pinned .lw-help-head (tabs). FU-3's per-tab sidebar will also consume horizontal space inside this box.
+- suggestions: ["Hard 90vw x 90vh box, with .lw-help-body { overflow:auto } scrolling internally and .lw-help-head (tabs) pinned at top","Responsive: width clamp(0, 90vw, content), max-height:90vh, body scrolls; popup only grows toward 90% when content needs it (small tabs like Shortcuts stay compact)","Hard 90% both axes only above a min viewport width, falling back to near-full-screen on small/mobile viewports"]
+- recommendation: Suggestion 1 (hard 90vw x 90vh, internally-scrolling body, pinned tab head). The user asked specifically for ~90% of the viewport in BOTH dimensions; a fixed 90vw/90vh box is the literal, predictable interpretation and gives the diagram-heavy tabs (and the FU-3 sidebar) maximal room. Keep .lw-help-head pinned and let .lw-help-body scroll so tabs never scroll out of view.
+- ledgerRefs: ["goals:G38"]
+
+### Q178 — open
+
+- createdAt: 2026-06-09T14:48:48.965Z
+- updatedAt: 2026-06-09T14:48:48.965Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-3 sidebars] What is the VISUAL FORM and ENTRY SET of the per-tab jump-to sidebar on the Item-States, Flows, and Agents tabs? (a) Form: a persistent left-hand vertical nav list inside .lw-help-body (sidebar + scrollable content pane, like a docs layout), or a collapsible/togglable panel? (b) Entries: one link per top-level section already rendered on that tab — Item-States = one per ledger (goals/defects/tasks/...), Flows = one per ROLE_FLOWS entry (plan/investigate/implement/advance), Agents = one per AGENT_ROLES role (the ~19 roster) — and clicking scrolls that section into view (and/or highlights it). (c) Behavior: scroll-to-anchor (smooth scrollIntoView on the existing help-<...> testid'd sections) vs filter-to-show-only-selected."
+- context: "Each of the 3 tabs already renders a flat list of testid'd sections: Item-States -> help-item-state-<ledger>; Flows -> help-flow-<id>; Agents -> help-agent-<id>. A sidebar can derive its entries directly from those same source arrays (schemas, ROLE_FLOWS, AGENT_ROLES) and jump via scrollIntoView on the existing ids. The Shortcuts tab is a flat dl and is explicitly NOT in scope. With FU-2's 90vh box the content pane scrolls, so a pinned sidebar + scrolling content is the natural layout."
+- suggestions: ["Persistent left sidebar (vertical nav list) per tab; entries derived from the tab's existing section array (ledgers / ROLE_FLOWS / AGENT_ROLES); click = smooth scrollIntoView to that section's existing testid'd anchor; the content pane to the right scrolls","Same sidebar + scroll-to, PLUS an active-section highlight (scrollspy) that tracks which section is in view","Filtering sidebar: clicking an entry shows ONLY that one diagram/section (hides the rest) rather than scrolling among all","Collapsible sidebar (togglable open/closed) to preserve diagram width on narrow viewports"]
+- recommendation: Suggestion 1 (persistent left sidebar, entries derived from each tab's existing section array, click = scrollIntoView to the existing testid'd anchor). It reuses the already-rendered sections and their stable testids, adds no new data model, matches the 'jump to a particular diagram/entry' ask literally, and pairs cleanly with FU-2's scrolling 90vh body. Scrollspy (suggestion 2) is a nice-to-have that can be added if cheap, but is not required by the ask.
+- ledgerRefs: ["goals:G38"]
+
+### Q179 — open
+
+- createdAt: 2026-06-09T14:49:07.749Z
+- updatedAt: 2026-06-09T14:49:07.749Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-4a/b agent depiction + cross-nav] HOW should each flow depict the agents it dispatches, and what is the CLICK TARGET that cross-navigates to the Agents tab? Problem: ROLE_FLOWS nodes are ABSTRACT role labels (orchestrator/planner/reviewer/worker/explore) but the Agents tab is keyed by CONCRETE catalogue ids in AGENT_ROLES (e.g. plan-advance, plan-reviewer, implement-worker, implement-reviewer, conflict-resolver, investigate-explorer, prober + the orchestrator command ids). The two namespaces do not currently line up. (a) Depiction: add concrete AGENT NODES to each flow's DiagramModel (e.g. the plan flow's 'planner' role becomes/links to the 'plan-advance' agent node), or annotate existing role nodes with the agent id(s) they represent? (b) Click target: a node carrying an `agentId` (a catalogue id present in AGENT_ROLES) that, on click, switches tab->'agents' and scrollIntoView's help-agent-<agentId> (reusing FU-3's jump mechanism). This requires mapping each ROLE_FLOWS role node to its AGENT_ROLES id(s)."
+- context: "DiagramNode (diagramLayout.ts) currently has only id/label/terminal/fill — no click handler, no href, no agent linkage; DiagramSvg renders a static <g>/<rect>/<text> with no onClick. So clickable agent nodes require (1) widening DiagramNode (or RoleNode) with an optional agentId/onClick affordance, (2) DiagramSvg rendering a clickable element (cursor:pointer, onClick, role=button/keyboard) for nodes that carry it, and (3) authoring the role->agentId mapping in roleActions.ts. The 7 model-configurable subagents have catalogue ids; orchestrator commands also have ids (plan/advance etc.). FU-3's scroll-to-anchor on help-agent-<id> is the landing mechanism."
+- suggestions: ["Enrich ROLE_FLOWS so the relevant role nodes carry an `agentId` (the AGENT_ROLES catalogue id they map to); widen DiagramNode/RoleNode + DiagramSvg to render those nodes as clickable (cursor:pointer + keyboard-activatable) and on activate set tab='agents' + scrollIntoView(help-agent-<agentId>); keep abstract nodes (user/main-branch) non-clickable","Add SEPARATE concrete agent nodes (one per dispatched AGENT_ROLES agent) into each flow's diagram alongside the role nodes, each clickable to its Agents-tab entry, with edges 'dispatches <agent>'","Keep role nodes as-is but render a small clickable agent-chip list under each flow diagram (text links to the Agents tab), avoiding changes to the SVG renderer's interactivity","Annotate role nodes with agent id(s) as a tooltip/label only (no cross-navigation), deferring clickability"]
+- recommendation: Suggestion 1 (carry an `agentId` on the mapped role nodes; make DiagramSvg nodes with an agentId clickable + keyboard-activatable; on activate switch to the Agents tab and scrollIntoView the help-agent-<agentId> anchor). It satisfies FU-4(a) and (b) together with one data enrichment (the role->agentId map in roleActions.ts) plus one renderer affordance, reuses FU-3's jump mechanism, and keeps the diagram readable (no node explosion). Please CONFIRM the role->agentId mapping intent (e.g. plan 'planner'->plan-advance, 'reviewer'->plan-reviewer; implement 'worker'->implement-worker, 'reviewer'->implement-reviewer + conflict-resolver; investigate 'explorer'->investigate-explorer/prober) so the catalogue can encode it.
+- ledgerRefs: ["goals:G38"]
+
+### Q180 — open
+
+- createdAt: 2026-06-09T14:49:28.136Z
+- updatedAt: 2026-06-09T14:49:28.136Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-4c surface git ops + handoffs] WHICH currently-invisible git operations and handoffs should each flow surface, and HOW (as extra labeled edges, a 'main branch'/'worktree' node, or both)? The implement flow already shows 'merges by SHA' (orchestrator->main) but NOT: worktree create/teardown (per the just-landed 1a auto-cleanup), per-merge ledger commits, cherry-pick onto main, the start-of-pass orphan-worktree sweep. The plan/investigate flows surface handoffs only abstractly. The ask: depict git operations + handoffs as first-class diagram elements. Decide the exact set per flow and whether new infra nodes (e.g. a 'worktree' node, a 'main branch' node already exists in implement) are added."
+- context: "ROLE_FLOWS edges are the action vocabulary today (e.g. implement: 'dispatches worker', 'emits result commit', 'merges by SHA', 'files defect', 'registers question'). Git mechanics that exist in the prompts but are NOT depicted: worktree add/remove (1a), per-task ledger commit, cherry-pick/rebase to main, branch delete + worktree prune. Handoffs across flows are shown in the advance sequencer but not the git steps each performs. Adding them is pure ROLE_FLOWS data authoring (new edges / maybe a 'worktree' node); no renderer change beyond what FU-4a/b/d already need."
+- suggestions: ["Add the git ops as labeled edges on the implement flow against a 'worktree' + existing 'main branch' node: orchestrator->worktree 'creates worktree', worker->worktree 'commits task', orchestrator->main 'cherry-picks by SHA', orchestrator->worktree 'removes worktree + prunes branch', orchestrator->ledger 'commits ledger'; plan/investigate get their real handoff edges (seeds goal, files defect->investigate)","Minimal: add ONLY the worktree create/teardown + cherry-pick edges to the implement flow (the 1a-relevant, most-requested invisibles); leave ledger-commit and cross-flow handoffs abstract","Comprehensive: model a dedicated 'git / worktree' lane node in EACH flow and route every git/ledger/handoff action through it, so all side effects are uniformly visible","Author this as a NEW separate 'git & handoffs' flow diagram rather than enriching the per-role flows, keeping the role flows clean"]
+- recommendation: Suggestion 1 (add the concrete git-op + handoff edges where they actually occur — worktree create/commit/teardown + cherry-pick-by-SHA + ledger-commit on the implement flow against a 'worktree' node and the existing 'main branch' node, and the real cross-flow handoff edges 'seeds goal -> plan' / 'files defect -> investigate' on plan/investigate). It makes the previously-invisible mechanics first-class without a separate diagram, is pure roleActions.ts authoring, and aligns the diagram with the now-landed 1a worktree-cleanup behavior. Please confirm the exact op set you want surfaced (especially whether per-task ledger commits and the start-of-pass orphan sweep should appear).
+- ledgerRefs: ["goals:G38"]
+
+### Q181 — open
+
+- createdAt: 2026-06-09T14:49:40.626Z
+- updatedAt: 2026-06-09T14:49:40.626Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU-4d colorize nodes] What is the COLOR SCHEME for flow-diagram nodes — color by ROLE KIND (orchestrator/planner/reviewer/worker/conflict-resolver/explore/user/external) using the existing RoleNode.roleKind discriminator, or by some ACTION/agent-kind dimension? And should it reuse the Item-States tab's bucket-hex palette convention for visual consistency? Today every flow node renders the renderer's single DEFAULT_FILL grey (#8b93a7) because ROLE_FLOWS nodes set no `fill` and the renderer never maps roleKind->color."
+- context: RoleNode already carries a roleKind discriminator (orchestrator/planner/reviewer/worker/conflict-resolver/explore/user/external) that is currently UNUSED by the renderer. DiagramSvg already honors a per-node `fill` (n.fill ?? DEFAULT_FILL). So colorizing = either (i) author a roleKind->hex map and set node.fill in roleActions.ts, or (ii) pass roleKind through to DiagramSvg and map there. The Item-States tab uses a BUCKET_HEX status palette; a parallel role palette keeps the help dialog visually coherent. A legend may be wanted so colors are interpretable.
+- suggestions: ["Color by roleKind: author a roleKind->hex palette (orchestrator/planner/reviewer/worker/conflict-resolver/explore/user/external each a distinct hue), set node.fill from it in roleActions.ts (no renderer change — reuses the existing fill path), and add a small color legend on the Flows tab","Color by roleKind via a map INSIDE DiagramSvg/diagramLayout (renderer maps roleKind->fill), keeping roleActions.ts free of hex values","Color by a coarser 'human vs orchestrator vs subagent vs external/infra' grouping (fewer colors, simpler legend)","Reuse the Item-States BUCKET_HEX palette family for the role colors so both diagram tabs share one visual language"]
+- recommendation: Suggestion 1 (color by roleKind via a roleKind->hex palette, set node.fill in roleActions.ts so the existing renderer fill path is reused with zero renderer change, plus a small legend on the Flows tab). roleKind already exists as the natural color dimension, the renderer already honors per-node fill, and a legend makes the encoding interpretable. Optionally draw the hues from the Item-States palette family (suggestion 4) for cross-tab coherence — confirm if you want that shared-palette constraint.
+- ledgerRefs: ["goals:G38"]
+
+### Q182 — open
+
+- createdAt: 2026-06-09T14:49:52.240Z
+- updatedAt: 2026-06-09T14:49:52.240Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: "[FU scope] Confirm the WHOLE follow-up (FU-1..FU-4) is WEB-ONLY (ledger-web HelpOverlay), leaving the TUI untouched. The TUI has no help overlay, no tabs, and no SVG/elk diagram renderer at all, so none of FU-2 (popup CSS), FU-3 (sidebars), or FU-4 (flow-diagram enrichment) has a TUI counterpart to modify; FU-1's fallback message is also a web-only App.tsx concern. Q145 (G34) and Q171 (the original G38 Flows work) both already scoped the help dialog to ledger-web for exactly this reason."
+- context: ledger-tui/src/app.tsx has no help-popup mechanism; the tabbed Shortcuts/Item-States/Flows/Agents dialog has only ever existed in ledger-web. Building parallel TUI equivalents would be a large separate effort not implied by the follow-up text (which is explicitly about 'the ledger-web help popup'). The follow-up prose says WEB-ONLY 'unless the planner decides otherwise' — this question confirms that decision.
+- suggestions: ["Web only (ledger-web) for all of FU-1..FU-4 — consistent with Q145/Q171; the TUI has no help overlay to modify","Also add TUI equivalents (substantially larger; requires building a TUI help-popup + diagram/text rendering from scratch)"]
+- recommendation: Suggestion 1 (web only). Every follow-up item targets the ledger-web HelpOverlay, which has no TUI analogue; Q145 and Q171 already settled the same web-only scope for the help dialog. A TUI port is a disproportionate, separate goal not implied by this follow-up.
+- ledgerRefs: ["goals:G38"]
 
 ## M132
 
