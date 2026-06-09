@@ -58,10 +58,14 @@ export interface MirrorLayout {
  * the source's path RELATIVE to the store root (so the mirror is a faithful
  * subtree of `<root>/`). For:
  *   - any op: the changed `docs/<ledgerId>.md`;
+ *   - a `create` op additionally: `docs/ledgers.yaml` (the registry is
+ *     rewritten when a new non-canonical ledger is created);
  *   - an `archive` op additionally: the new archive file(s) for `ledgerId`
  *     under `docs/archive/<ledgerId>/` and `docs/ledgers.yaml` (the registry
  *     is rewritten on archive of a non-milestones ledger; mirror it always on
  *     archive to stay faithful).
+ *   - an `update` op: only the ledger `.md` file (the registry is NOT
+ *     rewritten on update).
  *
  * Each file is copied via {@link atomicWrite} (tmp + rename) — the SAME atomic
  * primitive the store uses for its own writes — so a concurrent reader of the
@@ -79,6 +83,7 @@ export async function mirrorMutation(
   const mirrorRoot = cacheMirrorDir(layout.rootDir);
   // The ledger's own active file is touched by every op.
   await mirrorFile(layout, mirrorRoot, path.join(layout.docsDir, `${ledgerId}.md`));
+  if (op === "create" || op === "archive") await mirrorFile(layout, mirrorRoot, layout.registryPath);
   if (op !== "archive") return;
   // On archive the registry is rewritten and a new archive file appears.
   await mirrorFile(layout, mirrorRoot, layout.registryPath);

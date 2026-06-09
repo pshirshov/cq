@@ -131,6 +131,26 @@ describe("FsLedgerStore — cache mirror on mutation", () => {
     expect(await readFile(mirrorRegistry)).toEqual(await readFile(repoRegistry));
   });
 
+  it("mirrors ledgers.yaml on createLedger", async () => {
+    const root = await tmpDir("ledger-mirror-create-root-");
+    const xdg = await tmpDir("ledger-mirror-create-xdg-");
+    process.env.XDG_CACHE_HOME = xdg;
+
+    const store = new FsLedgerStore({ root });
+    await store.init();
+    await store.createLedger("xledger", {
+      statusValues: ["open", "done"],
+      terminalStatuses: ["done"],
+      fields: { headline: { type: "string", required: true } },
+    });
+    await store.dispose();
+
+    const mirrorDir = expectedMirrorDir(xdg, root);
+    const repoRegistry = path.join(root, "docs", "ledgers.yaml");
+    const mirrorRegistry = path.join(mirrorDir, "docs", "ledgers.yaml");
+    expect(await readFile(mirrorRegistry)).toEqual(await readFile(repoRegistry));
+  });
+
   it("swallows a mirror error: the write still succeeds and the item is present", async () => {
     const root = await tmpDir("ledger-mirror-fail-root-");
     // Point XDG_CACHE_HOME at a path whose ancestor is a regular FILE, so the
