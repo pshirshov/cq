@@ -28,24 +28,6 @@
 export type AgentKind = "orchestrator" | "agent-subagent";
 
 /**
- * Configured model class for a role. `frontier` / `fast` / `standard` are the
- * three cq harness model classes; `default` means the role runs at the host's
- * default model, and `N/A` means the role is not separately model-configurable
- * (e.g. a pure orchestrator command that only chains subagents).
- */
-export type ModelClass = "frontier" | "fast" | "standard" | "default" | "N/A";
-
-/**
- * Per-harness model mapping: the concrete model tokens a given harness resolves
- * the role to (e.g. `claude: ["opus-4.8"]`, `pi: ["grok-build"]`). Absent keys
- * mean "no mapping declared for that harness".
- */
-export interface HarnessModelMappings {
-  claude?: string[];
-  pi?: string[];
-}
-
-/**
  * Repo-mutation privilege, DERIVED MECHANICALLY from frontmatter (Q151–Q153) —
  * NOT authored in the `## Catalogue` block:
  * - a SUBAGENT (`agents/*.md`) is `RW` iff NONE of
@@ -97,10 +79,6 @@ export interface AgentRole {
   ioSchema: string[];
   /** Full prompt-template body (markdown after the frontmatter; folded in UI). */
   promptTemplate: string;
-  /** Configured model class. */
-  model: ModelClass;
-  /** Per-harness concrete model mappings. */
-  modelMappings: HarnessModelMappings;
   /** Repo-mutation privilege, DERIVED from frontmatter (Q151). */
   privilege: Privilege;
   /**

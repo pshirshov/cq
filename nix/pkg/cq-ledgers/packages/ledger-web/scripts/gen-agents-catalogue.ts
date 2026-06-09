@@ -37,16 +37,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  parseConfig,
-  classifyToken,
-  resolveAgentTier,
-  HARNESSES,
-  AGENT_ROLE_TIERS,
-  type CqConfig,
-  type Harness,
-  type ReviewerToken,
-} from "@cq/config";
+import { AGENT_ROLE_TIERS } from "@cq/config";
 import {
   parseAgentMarkdown,
   deriveSubagentPrivilege,
@@ -54,8 +45,6 @@ import {
   formatExposedTools,
   type AgentRole,
   type AgentKind,
-  type ModelClass,
-  type HarnessModelMappings,
 } from "../src/agentsCatalogue.js";
 
 // --- Paths -----------------------------------------------------------------
@@ -69,8 +58,6 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..", "..", "..", "..", "..");
 /** The cq-assets package root (sibling of cq-ledgers under nix/pkg/). */
 const ASSETS_ROOT = path.join(REPO_ROOT, "nix", "pkg", "cq-assets");
-/** The COMMITTED config example — NOT the gitignored live cq.toml. */
-const CONFIG_EXAMPLE = path.join(REPO_ROOT, "cq.toml.example");
 /** The generated module this script overwrites. */
 const OUT_FILE = path.resolve(SCRIPT_DIR, "..", "src", "agentsCatalogue.gen.ts");
 
@@ -123,61 +110,6 @@ const ROLES: readonly RoleSpec[] = [
   { id: "reviewers", name: "/cq:reviewers", kind: "orchestrator", source: "commands/cq/reviewers.md", agentTierKey: null },
 ];
 
-// --- Model-class + per-harness mapping derivation --------------------------
-
-/**
- * Derive a subagent's MODEL CLASS from `cq.toml.example`: look its
- * `[agent_tiers]` key up via {@link resolveAgentTier} (falling back to the
- * `standard` default tier when unlisted, exactly as the orchestrator does). The
- * tier name (`fast`/`standard`/`frontier`) IS the model class. A role with no
- * tier key (every orchestrator command) is not model-configurable -> `N/A`.
- */
-function deriveModelClass(config: CqConfig, spec: RoleSpec): ModelClass {
-  if (spec.agentTierKey === null) {
-    return "N/A";
-  }
-  return resolveAgentTier(config, spec.agentTierKey);
-}
-
-/**
- * Group the configured planner+reviewer tokens that CLASSIFY to a role's model
- * class, by harness — the concrete model tokens a given harness would resolve
- * the role to. For an `N/A` (non-model-configurable) role, returns `{}`.
- *
- * The candidate set is the union of the config's `planners` and `reviewers`
- * alias lists resolved through `[aliases]`; each candidate is classified via
- * {@link classifyToken} and kept iff its class equals the role's class. Tokens
- * are de-duplicated per harness (by `<harness>:<model>` rendering) and sorted
- * for deterministic output.
- */
-function deriveModelMappings(config: CqConfig, modelClass: ModelClass): HarnessModelMappings {
-  if (modelClass === "N/A" || modelClass === "default") {
-    return {};
-  }
-  const aliasNames = [...new Set([...config.planners, ...config.reviewers])];
-  const candidates: ReviewerToken[] = [];
-  for (const name of aliasNames) {
-    const token = config.aliases[name];
-    if (token !== undefined) {
-      candidates.push(token);
-    }
-  }
-  const matched = candidates.filter((t) => classifyToken(config, t) === modelClass);
-
-  const byHarness: Record<Harness, Set<string>> = { claude: new Set(), pi: new Set() };
-  for (const t of matched) {
-    byHarness[t.harness].add(t.provider === null ? t.model : `${t.provider}/${t.model}`);
-  }
-  const mappings: HarnessModelMappings = {};
-  for (const harness of HARNESSES) {
-    const models = [...byHarness[harness]].sort();
-    if (models.length > 0) {
-      mappings[harness] = models;
-    }
-  }
-  return mappings;
-}
-
 // --- Role assembly ---------------------------------------------------------
 
 /** A precise, exit-worthy error for a role whose asset is missing/incomplete. */
@@ -188,7 +120,7 @@ class GenError extends Error {}
  * (throws {@link GenError}) when the file is unreadable, has no description, has
  * no `## Catalogue` block, or the Catalogue is missing inputs/outputs/ioSchema.
  */
-function buildRole(config: CqConfig, spec: RoleSpec): AgentRole {
+function buildRole(spec: RoleSpec): AgentRole {
   const absPath = path.join(ASSETS_ROOT, spec.source);
   let raw: string;
   try {
@@ -217,8 +149,6 @@ function buildRole(config: CqConfig, spec: RoleSpec): AgentRole {
       ? deriveSubagentPrivilege(frontmatter.disallowedTools)
       : deriveCommandPrivilege(frontmatter.allowedTools);
   const exposedTools = formatExposedTools(frontmatter, spec.kind);
-  const model = deriveModelClass(config, spec);
-  const modelMappings = deriveModelMappings(config, model);
 
   return {
     id: spec.id,
@@ -230,8 +160,6 @@ function buildRole(config: CqConfig, spec: RoleSpec): AgentRole {
     outputs: catalogue.outputs,
     ioSchema: catalogue.ioSchema,
     promptTemplate,
-    model,
-    modelMappings,
     privilege,
     exposedTools,
   };
@@ -258,8 +186,6 @@ function emitModule(roles: readonly AgentRole[]): string {
         `    outputs: ${lit(r.outputs)},`,
         `    ioSchema: ${lit(r.ioSchema)},`,
         `    promptTemplate: ${lit(r.promptTemplate)},`,
-        `    model: ${lit(r.model)},`,
-        `    modelMappings: ${lit(r.modelMappings)},`,
         `    privilege: ${lit(r.privilege)},`,
         `    exposedTools: ${lit(r.exposedTools)},`,
       ].join("\n");
@@ -271,9 +197,9 @@ function emitModule(roles: readonly AgentRole[]): string {
  * GENERATED catalogue — DO NOT EDIT BY HAND (T276, goal G34).
  *
  * Emitted by \`packages/ledger-web/scripts/gen-agents-catalogue.ts\` from the
- * \`cq-assets\` agent/command markdown + the COMMITTED \`cq.toml.example\`. Regenerate
- * with \`bun run gen-agents\` (from \`nix/pkg/cq-ledgers/\`) whenever a role asset's
- * frontmatter / \`## Catalogue\` block, or \`cq.toml.example\` tier config, changes.
+ * \`cq-assets\` agent/command markdown. Regenerate with \`bun run gen-agents\`
+ * (from \`nix/pkg/cq-ledgers/\`) whenever a role asset's frontmatter or
+ * \`## Catalogue\` block changes.
  *
  * ## WHY this module is COMMITTED rather than built in the sandbox
  * \`cq-assets\` is OUTSIDE the ledger-web Nix closure: ledger-web's Nix build is a
@@ -317,13 +243,12 @@ function assertRosterMatchesShared(): void {
 
 function main(): void {
   assertRosterMatchesShared();
-  const config = parseConfig(readFileSync(CONFIG_EXAMPLE, "utf8"));
 
   const roles: AgentRole[] = [];
   const errors: string[] = [];
   for (const spec of ROLES) {
     try {
-      roles.push(buildRole(config, spec));
+      roles.push(buildRole(spec));
     } catch (err) {
       if (err instanceof GenError) {
         errors.push(err.message);
@@ -339,10 +264,8 @@ function main(): void {
   }
 
   writeFileSync(OUT_FILE, emitModule(roles), "utf8");
-  const real = roles.filter((r) => r.model !== "N/A" && r.model !== "default").length;
   console.log(
-    `gen-agents: wrote ${path.relative(REPO_ROOT, OUT_FILE)} — ${roles.length} roles ` +
-      `(${real} with a configured model class, ${roles.length - real} default/N/A)`,
+    `gen-agents: wrote ${path.relative(REPO_ROOT, OUT_FILE)} — ${roles.length} roles`,
   );
 }
 

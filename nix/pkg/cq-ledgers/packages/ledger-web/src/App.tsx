@@ -25,7 +25,7 @@ import { computeStateMachine } from "./stateMachine.js";
 import { layoutDiagram, type LaidOutDiagram, type DiagramModel, type DiagramNode } from "./diagramLayout.js";
 import { DiagramSvg } from "./DiagramSvg.js";
 import { FLOWS, type FlowDefinition, type FlowNodeKind } from "./flowData.js";
-import { AGENT_ROLES, type AgentRole } from "./agentsCatalogue.js";
+import { AGENT_ROLES } from "./agentsCatalogue.js";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
 import { HoldButton, type HoldClock } from "./HoldButton.js";
@@ -1657,36 +1657,11 @@ function HelpOverlay({
 }
 
 /**
- * Render one role's per-harness BUILD-TIME model mapping (T278). `modelMappings`
- * is `{claude?: string[], pi?: string[]}`. When the role's configured `model` is
- * `N/A`, show `N/A`; when no per-harness mapping is declared at all, show
- * `default`. Otherwise list each declared harness with its concrete model
- * tokens. Slated for removal by T299 alongside the static model rows.
- */
-function AgentModelMappings({ role }: { role: AgentRole }): React.ReactElement {
-  if (role.model === "N/A") return <span className="lw-agent-model-na">N/A</span>;
-  const entries: [string, string[]][] = [];
-  if (role.modelMappings.claude !== undefined) entries.push(["claude", role.modelMappings.claude]);
-  if (role.modelMappings.pi !== undefined) entries.push(["pi", role.modelMappings.pi]);
-  if (entries.length === 0) return <span className="lw-agent-model-default">default</span>;
-  return (
-    <ul className="lw-field-list">
-      {entries.map(([harness, tokens]) => (
-        <li key={harness}>
-          <strong>{harness}:</strong> {tokens.length > 0 ? tokens.join(", ") : "default"}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
  * The resolved model VIEW for one role's Agents-tab cell (T293, R341/Q155=DROP).
  *
  * Built PURELY from the live `get_agent_models` overlay entry (keyed by
- * `AgentRole.id`) plus the overlay-error flag — it NEVER reads `AgentRole.model`
- * / `AgentRole.modelMappings`, so once T299 drops those static fields the model
- * cell needs no change. A discriminated union so the render (T295) only formats
+ * `AgentRole.id`) plus the overlay-error flag — it never reads static catalogue
+ * fields. A discriminated union so the render (T295) only formats
  * what is resolved here:
  *
  * - `resolved`        — a live token (or tokens) was found; carries the tier
@@ -1822,19 +1797,6 @@ function AgentsTab({
             <dd>{role.outputs.length > 0 ? renderListField(role.outputs) : <span className="lw-empty">(none)</span>}</dd>
             <dt>IO schema</dt>
             <dd>{role.ioSchema.length > 0 ? renderListField(role.ioSchema) : <span className="lw-empty">(none)</span>}</dd>
-            {/*
-             * Build-time static model rows (T278). These read AgentRole.model /
-             * .modelMappings and are SLATED FOR REMOVAL by T299 (the codegen-drop
-             * task). Until then they remain so the T279 render test stays green;
-             * the LIVE overlay-driven model cell below is the Q155/R341 source of
-             * truth and reads ONLY the overlay (never role.model).
-             */}
-            <dt>Model class</dt>
-            <dd>{role.model}</dd>
-            <dt>Model mappings</dt>
-            <dd>
-              <AgentModelMappings role={role} />
-            </dd>
             <dt>Model</dt>
             <dd data-testid={`help-agent-${role.id}-model`}>
               <AgentModelCell view={resolveAgentModelView(overlay?.get(role.id), overlayError)} />

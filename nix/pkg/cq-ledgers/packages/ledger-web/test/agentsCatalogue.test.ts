@@ -298,8 +298,6 @@ describe("AGENT_ROLES placeholder re-export", () => {
       outputs: [],
       ioSchema: [],
       promptTemplate: "body",
-      model: "default",
-      modelMappings: { claude: ["opus-4.8"] },
       privilege: "RW",
       exposedTools: "disallowedTools: Agent; isolation: worktree",
     };

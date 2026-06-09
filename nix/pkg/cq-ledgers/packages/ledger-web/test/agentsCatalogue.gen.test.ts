@@ -98,13 +98,6 @@ describe("AGENT_ROLES — Q148 role-set invariants (part a)", () => {
     }
   });
 
-  it("every role has a model field (any ModelClass value)", () => {
-    const VALID_MODEL_CLASSES = new Set(["frontier", "fast", "standard", "default", "N/A"]);
-    for (const role of AGENT_ROLES) {
-      expect(VALID_MODEL_CLASSES.has(role.model), `role ${role.id}: unknown model "${role.model}"`).toBe(true);
-    }
-  });
-
   it("every role has an exposedTools string (non-empty)", () => {
     for (const role of AGENT_ROLES) {
       expect(
@@ -159,13 +152,10 @@ describe("AGENT_ROLES — Q148 role-set invariants (part a)", () => {
       outputs: ["go-ahead | revise verdict"],
       ioSchema: ["verdict json shape: {summary, verdict, ...}"],
       promptTemplate: "You are the plan-flow adversarial reviewer.",
-      model: "frontier",
-      modelMappings: { claude: ["opus-4.8[1m]"] },
       privilege: "RO",
       exposedTools: "Disallowed: Write, Edit, MultiEdit, NotebookEdit, Bash",
     };
     expect(role.privilege).toBe("RO");
-    expect(role.model).toBe("frontier");
     expect(role.inputs.length).toBeGreaterThan(0);
     expect(role.ioSchema.length).toBeGreaterThan(0);
   });

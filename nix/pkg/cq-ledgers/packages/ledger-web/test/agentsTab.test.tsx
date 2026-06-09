@@ -135,7 +135,7 @@ describe("Agents tab (T279)", () => {
     }
   });
 
-  it("shows description + inputs + outputs + model class for implement-worker", async () => {
+  it("shows description + inputs + outputs for implement-worker", async () => {
     await openAgentsTab();
 
     // Pick a role with known non-empty catalogue data: implement-worker.
@@ -156,9 +156,6 @@ describe("Agents tab (T279)", () => {
     if (role!.outputs.length > 0) {
       expect(text).toContain(role!.outputs[0]!.slice(0, 20));
     }
-
-    // Model class label (e.g. "standard") appears in the section.
-    expect(text).toContain(role!.model);
   });
 
   it("shows RW privilege badge for implement-worker and RO for plan-reviewer", async () => {
