@@ -609,6 +609,11 @@ archives:
     summary: "G41 item 4 COMPLETE (Flows-tab polish, web): T332 underline on activatable DiagramSvg node labels; T333 withTerminalNodes derives terminal:true on zero-outgoing-edge nodes (rx=4 vs rx=14) across all 4 ROLE_FLOWS; T334 parallel-edge labels get distinct per-index testids (ELK already routes them 30-34px apart — no visual overlap; the defect was a testid collision) + docs/drafts label audit. Reviews R403/R405/R408 go-ahead. bun run check green. Merged 3f14794/18d73dc/565500b."
     title: G41-4 Flows-tab polish (web)
     status: done
+  - id: M139
+    path: ./archive/reviews/M139.md
+    summary: "G41 item 2 COMPLETE (formal typed MCP prompt catalog): T336 typed PromptCatalogEntry model + RoleKind split + plan-advance JSON Schemas in @cq/config (Ajv2020 + FOD refresh; K65 locked); T341 catalog store + 7 dispatched-role schema sidecars + gen-agents emits typed schemas (deterministic, drift-guarded, ledger-mcp-importable); T343 fetch_prompt/validate_input/validate_output MCP tools (both stdio+SDK factories); T344 plan-advance dispatch wired through the catalog (proof) + Agents tab renders typed schemas; T345 all 7 dispatched subagents wired at plan/implement/investigate advance.md + duplicated prose ioSchema removed. Reviews R410-R414 go-ahead. bun run check green (1486). Merged bcafd66/b502a61/dc87ba7/c2fa526/a873912."
+    title: G41-2 Formal typed MCP prompt catalog
+    status: done
 ---
 
 # reviews
@@ -718,55 +723,3 @@ archives:
 - summary: approve (T342) — follow-up.md documents the goalId-then-idea-ids grammar + append-as-scope via the existing re-open path + DRY reference to plan.md's consume-an-idea sub-procedure (anchors verified); gen.ts regen byte-faithful; grep invariants genuine; bun run check green 1418/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T342","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-204431-a320c286875860a83.md"]
-
-## M139
-
-### R410 — go-ahead
-
-- createdAt: 2026-06-09T21:04:54.073Z
-- updatedAt: 2026-06-09T21:04:54.073Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: approve (T336) — typed prompt-catalog model (PromptCatalogEntry+RoleKind dispatched-vs-command split) in @cq/config (importable by ledger-mcp+ledger-web) + plan-advance JSON Schemas (draft 2020-12) faithful to the asset, genuine Ajv2020 accept/reject proof; Ajv 8 added as direct dep with FOD refresh — nix build .#node-modules green (hash verified real); K65 records all 3 decisions; bun run check green 1434/0. Native opus implement-reviewer.
-- ledgerRefs: ["tasks:T336","goals:G41"]
-- sessionLogs: ["docs/logs/20260609-210203-a0d6f9cb0a53b0b61.md"]
-
-### R411 — go-ahead
-
-- createdAt: 2026-06-09T21:21:59.493Z
-- updatedAt: 2026-06-09T21:21:59.493Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: approve (T341) — typed catalog store (promptCatalogStore.ts) + 7 faithful dispatched-role schema sidecars in @cq/config; gen-agents emits typed input/output schemas for exactly the 7 dispatched roles (12 commands none), byte-deterministic, bidirectional roster↔store drift guards; ledger-mcp imports the store with no duplicate copy + no new dep; in-scope only (no MCP/dispatch/cleanup over-reach); bun run check green 1450/0. Native opus implement-reviewer.
-- ledgerRefs: ["tasks:T341","goals:G41"]
-- sessionLogs: ["docs/logs/20260609-211507-a04e57cf50abd9eed.md"]
-
-### R412 — go-ahead
-
-- createdAt: 2026-06-09T21:43:09.909Z
-- updatedAt: 2026-06-09T21:43:09.909Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: approve (T343) — fetch_prompt/validate_input/validate_output MCP tools backed by an injected PromptCatalogCapability (re-read per call like ConfigCapability); real Ajv2020 validation with structured failing-path errors; fail-fast UnknownRoleError + NoSchemaForRoleError; BOTH stdio + Claude-SDK factories register all 3 (25-tool surface); no T344/T345 scope creep; bun run check green 1470/0. Native opus implement-reviewer.
-- ledgerRefs: ["tasks:T343","goals:G41"]
-- sessionLogs: ["docs/logs/20260609-213533-a163b35d7f1455736.md"]
-
-### R413 — go-ahead
-
-- createdAt: 2026-06-09T21:55:12.940Z
-- updatedAt: 2026-06-09T21:55:12.940Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: approve (T344) — plan/advance.md documents the full a–g catalog dispatch (fetch_prompt→validate_input→run→validate_output, correct T343 tool names) + graceful degradation when tools absent; Agents tab renders typed inputSchema/outputSchema from the catalog + degrades for command roles; 2 genuine tests; gen.ts regen byte-faithful; scope limited to plan-advance (legacy prose retained for T345); bun run check green 1472/0. Native opus implement-reviewer.
-- ledgerRefs: ["tasks:T344","goals:G41"]
-- sessionLogs: ["docs/logs/20260609-214933-a6714a5f23baa54cc.md"]
-
-### R414 — go-ahead
-
-- createdAt: 2026-06-09T22:14:10.539Z
-- updatedAt: 2026-06-09T22:14:10.539Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: approve (T345) — all 7 dispatched subagents wired through fetch_prompt+validate-in/out at their 3 dispatch sites (plan/implement/investigate advance.md); prose-ioSchema dedup faithful (typed @cq/config sidecars match removed shapes; retained lines are non-JSON-encodable behavioral invariants; gen-agents requires the ioSchema key so pointer-replacement is correct); grep-invariant genuine; gen.ts byte-deterministic; orchestrator-command roles schema-free; T344 intact; bun run check green 1486/0. Native opus implement-reviewer.
-- ledgerRefs: ["tasks:T345","goals:G41"]
-- sessionLogs: ["docs/logs/20260609-220632-a1a3d417f128f5f5f.md"]

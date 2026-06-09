@@ -669,6 +669,11 @@ archives:
     summary: "G41 item 4 COMPLETE (Flows-tab polish, web): T332 underline on activatable DiagramSvg node labels; T333 withTerminalNodes derives terminal:true on zero-outgoing-edge nodes (rx=4 vs rx=14) across all 4 ROLE_FLOWS; T334 parallel-edge labels get distinct per-index testids (ELK already routes them 30-34px apart — no visual overlap; the defect was a testid collision) + docs/drafts label audit. Reviews R403/R405/R408 go-ahead. bun run check green. Merged 3f14794/18d73dc/565500b."
     title: G41-4 Flows-tab polish (web)
     status: done
+  - id: M139
+    path: ./archive/milestones/M139.md
+    summary: "G41 item 2 COMPLETE (formal typed MCP prompt catalog): T336 typed PromptCatalogEntry model + RoleKind split + plan-advance JSON Schemas in @cq/config (Ajv2020 + FOD refresh; K65 locked); T341 catalog store + 7 dispatched-role schema sidecars + gen-agents emits typed schemas (deterministic, drift-guarded, ledger-mcp-importable); T343 fetch_prompt/validate_input/validate_output MCP tools (both stdio+SDK factories); T344 plan-advance dispatch wired through the catalog (proof) + Agents tab renders typed schemas; T345 all 7 dispatched subagents wired at plan/implement/investigate advance.md + duplicated prose ioSchema removed. Reviews R410-R414 go-ahead. bun run check green (1486). Merged bcafd66/b502a61/dc87ba7/c2fa526/a873912."
+    title: G41-2 Formal typed MCP prompt catalog
+    status: done
 ---
 
 # milestones
@@ -700,14 +705,6 @@ archives:
 - updatedAt: 2026-06-09T19:07:20.136Z
 - title: G41-5 Ideas ledger + idea-id command args
 - description: "Work milestone for G41 item 5: new 'Ideas' ledger (title+description; open|planned|discarded|postponed); 'Ideas' sidebar button above Goals; /cq:plan + /cq:plan:follow-up accept idea I-ids."
-
-### M139 — open
-
-- createdAt: 2026-06-09T19:07:25.818Z
-- updatedAt: 2026-06-09T19:28:17.768Z
-- title: G41-2 Formal typed MCP prompt catalog
-- description: "Work milestone for G41 item 2 (LARGE): typed prompt catalog as single source of truth (replacing hand-authored agentsCatalogue/roleActions prose, reconciling G38) + JSON Schemas + MCP fetch-prompt/validate-input/validate-output endpoints; wire plan-advance end-to-end as proof, then ALL dispatched-subagent roles + clean up legacy. NOTE (R399): the dependsOn [M136,M137,M138] is ADVISORY WORK-ORDERING per Q183 (do the quick wins 1/4/5 first), NOT a technical prerequisite — these workstreams touch disjoint packages and share no code/data coupling. The edges only sequence execution preference; an unrelated milestone stall should not be treated as a hard block."
-- dependsOn: ["M136","M137","M138"]
 
 ### M140 — open
 
