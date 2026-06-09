@@ -495,10 +495,10 @@ archives:
 - completion: "withTerminalNodes() derives terminal:true on zero-outgoing-edge nodes across all 4 ROLE_FLOWS; DiagramSvg renders rx=4 (terminal) vs rx=14; tests + bun run check green."
 - sessionLogs: ["docs/logs/20260609-201031-a656a0bfa3e0b268f.md","docs/logs/20260609-201031-a360ee5576a9deb33.md"]
 
-### T334 — wip
+### T334 — done
 
 - createdAt: 2026-06-09T19:08:42.468Z
-- updatedAt: 2026-06-09T20:21:24.424Z
+- updatedAt: 2026-06-09T20:51:35.468Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Make parallel/duplicate flow edges render with distinct visible labels
@@ -506,6 +506,9 @@ archives:
 - acceptance: (1) A reproduce-first layout test asserts each parallel same-pair edge in the implement flow gets a DISTINCT label position (no two coincide) — fails before the fix, passes after. (2) A render test confirms the implement flow's previously-overlapping parallel-edge labels are all visible/non-overlapping in the SVG. (3) A data test asserts every ROLE_FLOWS edge has a non-empty label and parallel edges on a node pair have distinct label strings. (4) The proposed final label set is written to docs/drafts/<ts>-flows-edge-labels.md for user review. `bun run lint` + `bun test` pass.
 - suggestedModel: standard
 - ledgerRefs: ["goals:G41"]
+- resultCommit: 565500bb02654f581e2aa7fce3535458936df4a2
+- completion: Parallel flow-edge labels get distinct per-index testids (ELK already routes them 30–34px apart, no visual overlap); reproduce-first render test + data/layout invariants + docs/drafts label audit; bun run check green.
+- sessionLogs: ["docs/logs/20260609-204431-ad8528d9a44056e1d.md","docs/logs/20260609-204431-a8b312818e7f72557.md"]
 
 ## M138
 
@@ -556,10 +559,10 @@ archives:
 - completion: plan.md I-id grammar (EITHER /^I\d+$/ ids OR free text) + named consume-an-idea sub-procedure (DRY, referenced by follow-up.md) + agentsCatalogue.gen.ts regen + 5 grep-invariants; bun run check green.
 - sessionLogs: ["docs/logs/20260609-201031-a6676de77b1de785c.md","docs/logs/20260609-201031-a03c758596a249aa0.md"]
 
-### T342 — wip
+### T342 — done
 
 - createdAt: 2026-06-09T19:09:53.795Z
-- updatedAt: 2026-06-09T20:21:25.110Z
+- updatedAt: 2026-06-09T20:51:38.438Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Extend /cq:plan:follow-up to append idea text as new scope on an existing goal"
@@ -568,6 +571,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T340"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: 02ceded75c4634b95c1ec52360b9b8eaeeb88b68
+- completion: "/cq:plan:follow-up.md accepts `<goalId> I..` — appends idea title+description as new scope via the existing re-open path + references plan.md's consume-an-idea sub-procedure (DRY); gen.ts regen + grep invariants; bun run check green."
+- sessionLogs: ["docs/logs/20260609-204431-aae55e850271aa44a.md","docs/logs/20260609-204431-a320c286875860a83.md"]
 
 ## M139
 

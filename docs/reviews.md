@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 407
+  item: 409
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -704,6 +704,16 @@ archives:
 - ledgerRefs: ["tasks:T340","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-201031-a03c758596a249aa0.md"]
 
+### R409 — go-ahead
+
+- createdAt: 2026-06-09T20:51:32.169Z
+- updatedAt: 2026-06-09T20:51:32.169Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T342) — follow-up.md documents the goalId-then-idea-ids grammar + append-as-scope via the existing re-open path + DRY reference to plan.md's consume-an-idea sub-procedure (anchors verified); gen.ts regen byte-faithful; grep invariants genuine; bun run check green 1418/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T342","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-204431-a320c286875860a83.md"]
+
 ## M137
 
 ### R403 — go-ahead
@@ -725,3 +735,13 @@ archives:
 - summary: approve (T333) — withTerminalNodes marks zero-outgoing-edge nodes terminal across all 4 ROLE_FLOWS (self-loop→non-terminal, sink→terminal); tests assert invariant + rx=4/14 render; confirmed worker's '8 TUI failures' = worktree-local artifact not a regression (TUI green on main); bun run check 1397/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T333","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-201031-a360ee5576a9deb33.md"]
+
+### R408 — go-ahead
+
+- createdAt: 2026-06-09T20:51:29.154Z
+- updatedAt: 2026-06-09T20:51:29.154Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T334) — parallel-edge label fix correct + reproduce-first verified (5/2 pre-fix → 7/0 post-fix); ELK already renders labels distinctly (y=306/340/370, 30–34px apart, no visual overlap); the real defect was a data-testid collision, fixed by appending the global edge index; docs/drafts label-audit note written; bun run check green 1420/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T334","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-204431-a8b312818e7f72557.md"]
