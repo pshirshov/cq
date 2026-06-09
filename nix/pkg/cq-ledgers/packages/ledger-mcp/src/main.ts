@@ -19,9 +19,14 @@
  *   ledger-mcp --cwd <path>               # stdio; explicit root (rel→resolved vs CWD)
  *   ledger-mcp --cwd <path> --http 7777   # HTTP on 127.0.0.1:7777
  *   ledger-mcp --http 0.0.0.0:7777        # HTTP, root = CWD
+ *   ledger-mcp restore --from-cache [--cwd <path>]  # restore docs/ from the cache mirror
  *
- * Ledger lifecycle ops (backup+reinit, erase) live in the `cq` CLI — run
- * `cq reset` / `cq erase`; this server only serves the tool surface.
+ * Subcommands: the DEFAULT (no positional subcommand) launches the server as
+ * above. The single recognised subcommand is `restore --from-cache`, which
+ * copies the per-root `~/.cache` mirror (maintained by the store on every
+ * mutation) back into `<root>/docs/` — the one ledger lifecycle op hosted by
+ * ledger-mcp (Q169). The OTHER lifecycle ops (backup+reinit, erase) remain in
+ * the `cq` CLI — run `cq reset` / `cq erase`.
  *
  * Ledger root precedence: --cwd > $LEDGER_ROOT > process CWD. Defaulting to the
  * CWD lets a single global install serve per-repo ledgers (the MCP client
@@ -47,6 +52,10 @@ import {
 } from "@cq/ledger";
 import { createConfigCapability } from "./configCapability.js";
 import { startLedgerWatcher } from "./watcher.js";
+import { restoreFromCache } from "./restore.js";
+
+export { restoreFromCache, CacheMirrorMissingError } from "./restore.js";
+export type { RestoreSummary } from "./restore.js";
 
 // Re-export so in-process hosts (ledger-tui embedded, ledger-web embedded) can
 // wire live refresh against the same watcher the standalone binary uses.
@@ -112,6 +121,19 @@ function parseHttp(value: string): HttpOpts {
   return { host, port };
 }
 
+/**
+ * Resolve the ledger root with the suite-wide precedence: `--cwd > $LEDGER_ROOT
+ * > process CWD`. A non-empty relative value resolves against the CWD. Shared
+ * by the server-launch path (parseArgs) and the `restore` subcommand
+ * (parseRestoreArgs) so root resolution stays identical.
+ */
+function resolveRoot(cwdArg: string | undefined): string {
+  const fromArg = cwdArg !== undefined && cwdArg !== "" ? cwdArg : undefined;
+  const fromEnv = process.env["LEDGER_ROOT"];
+  const chosen = fromArg ?? (fromEnv !== undefined && fromEnv !== "" ? fromEnv : undefined);
+  return chosen !== undefined ? path.resolve(chosen) : process.cwd();
+}
+
 export function parseArgs(argv: readonly string[]): ParsedArgs {
   let cwd: string | undefined;
   let http: HttpOpts | null = null;
@@ -139,11 +161,56 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   }
   // Ledger root precedence: --cwd > $LEDGER_ROOT > process CWD; a relative
   // value resolves against the CWD. (See file header for the rationale.)
-  const fromArg = cwd !== undefined && cwd !== "" ? cwd : undefined;
-  const fromEnv = process.env["LEDGER_ROOT"];
-  const chosen = fromArg ?? (fromEnv !== undefined && fromEnv !== "" ? fromEnv : undefined);
-  const resolved = chosen !== undefined ? path.resolve(chosen) : process.cwd();
-  return { cwd: resolved, http };
+  return { cwd: resolveRoot(cwd), http };
+}
+
+/** The single recognised positional subcommand. */
+export const RESTORE_SUBCOMMAND = "restore";
+
+/** Parsed `restore --from-cache [--cwd <path>]` invocation. */
+export interface RestoreArgs {
+  /** Resolved ledger root (--cwd > $LEDGER_ROOT > CWD, absolute). */
+  cwd: string;
+}
+
+/** Usage text for the `restore` subcommand (printed on a malformed invocation). */
+export const RESTORE_USAGE = [
+  "usage: ledger-mcp restore --from-cache [--cwd <path>]",
+  "",
+  "  Restore <root>/docs/ from the per-root cache mirror under the XDG cache base.",
+  "  ledger root: --cwd > $LEDGER_ROOT > current working directory",
+].join("\n");
+
+/**
+ * Parse the args AFTER the `restore` subcommand token. Requires the
+ * `--from-cache` flag (the only restore mode) and recognises `--cwd <path>` /
+ * `--cwd=<path>`. Throws on a missing `--from-cache` or a `--cwd` without a
+ * value.
+ */
+export function parseRestoreArgs(argv: readonly string[]): RestoreArgs {
+  let cwd: string | undefined;
+  let fromCache = false;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--from-cache") {
+      fromCache = true;
+    } else if (a === "--cwd") {
+      i += 1;
+      const v = argv[i];
+      if (v === undefined) {
+        throw new Error("ledger-mcp restore: --cwd requires a value");
+      }
+      cwd = v;
+    } else if (a !== undefined && a.startsWith("--cwd=")) {
+      cwd = a.slice("--cwd=".length);
+    } else {
+      throw new Error(`ledger-mcp restore: unknown argument: ${String(a)}\n${RESTORE_USAGE}`);
+    }
+  }
+  if (!fromCache) {
+    throw new Error(`ledger-mcp restore: --from-cache is required\n${RESTORE_USAGE}`);
+  }
+  return { cwd: resolveRoot(cwd) };
 }
 
 /**
@@ -394,7 +461,31 @@ export function changedFrame(ledgerId: string | null): string {
   return JSON.stringify(ledgerId !== null ? { type: "changed", ledger: ledgerId } : { type: "changed" });
 }
 
+/**
+ * `ledger-mcp restore --from-cache [--cwd <path>]` handler: restore
+ * `<root>/docs/` from the cache mirror via {@link restoreFromCache}, print a
+ * per-ledger restored-file-count summary (ResetSummary style) to stdout, and
+ * return an exit code. An absent/empty cache mirror throws
+ * `CacheMirrorMissingError`, surfaced as a non-zero exit by the caller.
+ */
+export async function runRestore(args: RestoreArgs): Promise<void> {
+  const summary = await restoreFromCache(args.cwd);
+  process.stdout.write(`ledger-mcp restore: restored ledgers at ${summary.root}\n`);
+  process.stdout.write(`  from cache: ${summary.cacheDir}\n`);
+  for (const { name, fileCount } of summary.ledgers) {
+    process.stdout.write(`  ${name}: ${fileCount} file(s) restored\n`);
+  }
+  process.stdout.write(`  total: ${summary.totalFiles} file(s) restored\n`);
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
+  // Positional-subcommand dispatch: the DEFAULT (no subcommand) launches the
+  // server unchanged; the only recognised subcommand is `restore`.
+  if (argv[0] === RESTORE_SUBCOMMAND) {
+    await runRestore(parseRestoreArgs(argv.slice(1)));
+    return;
+  }
+
   const { cwd, http } = parseArgs(argv);
   const displayName = path.basename(cwd);
 
