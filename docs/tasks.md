@@ -582,10 +582,10 @@ archives:
 - completion: fetch_prompt/validate_input/validate_output MCP tools + injected PromptCatalogCapability (joins @cq/config sidecar schemas with the cq-assets prompt body, re-read per call); Ajv2020 structured errors; fail-fast unknown/command roles; registered in both stdio+SDK factories; bun run check green.
 - sessionLogs: ["docs/logs/20260609-213533-a94cc72a01a04d690.md","docs/logs/20260609-213533-a163b35d7f1455736.md"]
 
-### T344 — planned
+### T344 — done
 
 - createdAt: 2026-06-09T19:10:09.075Z
-- updatedAt: 2026-06-09T19:10:09.075Z
+- updatedAt: 2026-06-09T21:55:22.859Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Wire plan-advance end-to-end through the catalog as proof, then update the Agents tab
@@ -594,6 +594,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T343"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: c2fa526609bb4e60aee976f805bdd2f11ea7c8e4
+- completion: plan/advance.md documents the a–g catalog-driven plan-advance dispatch (fetch_prompt→validate_input→run→validate_output) + graceful degradation; Agents tab renders typed schemas from the catalog + degrades for command roles; gen.ts regen; bun run check green.
+- sessionLogs: ["docs/logs/20260609-214933-a2d97390622a1c0ef.md","docs/logs/20260609-214933-a6714a5f23baa54cc.md"]
 
 ### T345 — planned
 

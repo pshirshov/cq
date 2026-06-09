@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 412
+  item: 413
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -750,3 +750,13 @@ archives:
 - summary: approve (T343) — fetch_prompt/validate_input/validate_output MCP tools backed by an injected PromptCatalogCapability (re-read per call like ConfigCapability); real Ajv2020 validation with structured failing-path errors; fail-fast UnknownRoleError + NoSchemaForRoleError; BOTH stdio + Claude-SDK factories register all 3 (25-tool surface); no T344/T345 scope creep; bun run check green 1470/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T343","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-213533-a163b35d7f1455736.md"]
+
+### R413 — go-ahead
+
+- createdAt: 2026-06-09T21:55:12.940Z
+- updatedAt: 2026-06-09T21:55:12.940Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T344) — plan/advance.md documents the full a–g catalog dispatch (fetch_prompt→validate_input→run→validate_output, correct T343 tool names) + graceful degradation when tools absent; Agents tab renders typed inputSchema/outputSchema from the catalog + degrades for command roles; 2 genuine tests; gen.ts regen byte-faithful; scope limited to plan-advance (legacy prose retained for T345); bun run check green 1472/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T344","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-214933-a6714a5f23baa54cc.md"]
