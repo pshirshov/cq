@@ -319,6 +319,19 @@ after every task in its `dependsOn` has merged). For each:
    what landed across the fix tasks>" })`. If any fix task is still non-terminal,
    leave D `open` — a later merge-back closes it. The orchestrator OWNS this
    closure; the reviewer and worker never touch the defects ledger status.
+5. **Commit the ledger after every task merge-back (ALWAYS fires, even when
+   chained).** Right after the §7.3 `done` write (and the §7.4 defect closure,
+   if any), commit the ledger artifacts — once per merged task — so a long
+   chained run does NOT accrue a large uncommitted ledger between archives. This
+   checkpoint OVERRIDES the chained-suppression: it fires under `/cq:advance`
+   too, exactly like the after-archive commit. Use the idempotent commit form
+   (ledger artifacts only — see §Commit the ledger):
+   ```
+   git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
+   git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — merged <Txx>
+
+   Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+   ```
 
 ### 8. Loop
 After merge-back, RE-DERIVE the ready-set (step 1) — tasks unblocked by the
@@ -392,22 +405,31 @@ all of goal `G`'s work milestones are archived, the orchestrator REPORTS that
 and once the user DOES close `G`, the next sweep archives `G`'s now-eligible
 coordination milestone automatically.
 
-### Commit the ledger (after every milestone archive + at the standalone stop)
+### Commit the ledger (after every task merge-back + after every milestone archive; at-stop only standalone)
 The ledger files are tracked git artifacts. Commit the ledger — and ONLY the
 ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`,
-gitignored; NEVER code, which lands on task branches) — at TWO points:
-- **After every `archive_milestone`** (the sweep above, and each merge-back
-  archive): commit immediately, so each completed milestone is a durable
-  checkpoint. This ALWAYS fires, even when chained under `/cq:advance`.
-- **At this pass's STOP**, right after the §Handoff record write — but ONLY when
-  run STANDALONE. When CHAINED under `/cq:advance`, SUPPRESS the at-stop commit
-  (the wrapper owns the single run-stop commit, mirroring the handoff
-  suppression). The per-archive commits above still fire either way.
+gitignored; NEVER code, which lands on task branches) — at THREE points, of
+which TWO ALWAYS fire (even chained) and ONE is suppressed when chained:
+- **(ALWAYS) After every task merge-back** (§7.5): commit immediately once per
+  merged task, right after its `done` write + defect closure, so a long chained
+  run does NOT accrue a large uncommitted ledger between archives. This ALWAYS
+  fires, even when chained under `/cq:advance` — the chained-suppression does
+  NOT apply to this checkpoint.
+- **(ALWAYS) After every `archive_milestone`** (the sweep above, and each
+  merge-back archive): commit immediately, so each completed milestone is a
+  durable checkpoint. This ALWAYS fires, even when chained under `/cq:advance`.
+- **(SUPPRESSED WHEN CHAINED) At this pass's STOP**, right after the §Handoff
+  record write — but ONLY when run STANDALONE. When CHAINED under `/cq:advance`,
+  SUPPRESS the at-stop commit (the wrapper owns the single run-stop commit,
+  mirroring the handoff suppression). The two ALWAYS-fire checkpoints above
+  (after every task merge-back + after every milestone archive) still fire
+  either way.
 
-Mechanism (run from the ledger root):
+Mechanism (run from the ledger root — same idempotent form at every checkpoint,
+only the `-m` message differs):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — <Mxx archived | stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — <merged <Txx> | <Mxx> archived | stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
