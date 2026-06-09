@@ -174,33 +174,19 @@ archives:
     summary: G36 coordination COMPLETE — goal closed done (user-authorized 2026-06-09). Optional thinking-effort suffix in cq model-identifier tokens; work milestones M117/M119/M121 delivered (K58, R342-R344). Archived in the post-G37 cleanup sweep.
     title: "Plan: optional thinking-effort suffix in cq model-identifier tokens"
     status: done
+  - id: M122
+    path: ./archive/goals/M122.md
+    summary: "G37 (Fix D43 — worktree-confine implement-worker + commit ledger after planning-lock and every merge) DONE: cq-assets prompt edits landed (T305–T307), grep-invariant guard + documented repro green under bun run check; D43 resolved. Goal closed; coordination milestone archived."
+    title: "Plan: fix D43 — worktree-confine implement-worker + commit ledger after planning/every-merge"
+    status: done
+  - id: M132
+    path: ./archive/goals/M132.md
+    summary: "G39 (Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror) DONE: cacheMirror.ts mirrors layout.registryPath on op==='create'||'archive' + XDG_CACHE_HOME-redirected byte-equality test (T323); D45 resolved. Goal closed; coordination milestone archived."
+    title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
+    status: done
 ---
 
 # goals
-
-## M122
-
-### G37 — building
-
-- createdAt: 2026-06-09T09:37:23.590Z
-- updatedAt: 2026-06-09T10:41:31.850Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- title: Fix D43 — confine implement-worker git to its worktree + commit ledger after planning-lock and every merge
-- description: |
-    Defect-seeded goal (resolves D43; root cause CONFIRMED via H31, so SKIP clarification — K8 pt4). Linked defects:D43 (back-linked on D43.ledgerRefs). User answered the approach in Q166: (1b) + (2 yes) + (3 autonomous).
-    
-    **Confirmed root cause (H31, validated against current cq-assets):** a two-part prompt gap let one stray worker git op erase the run's uncommitted ledger. (a) PERMISSIVE GAP — agents/implement-worker.md 'Boundaries (hard rules)' (L47-55) forbid merge/push/rebase + scope but have NO rule confining git to the worker's own worktree and NO ban on git reset --hard/checkout/cherry-pick against the MAIN checkout/other worktrees; the base+worktree are passed in by the harness (native isolation:worktree, L38-43) so the worker inherits a possibly-STALE base with no sanctioned base-fixing procedure, and improvising reaches the main checkout unguarded. (b) DEFERRED-COMMIT window — implement/advance.md commits the ledger only after archive_milestone + at the standalone stop (suppressed when chained, L395-405/L542-549); advance.md only after every archive + at the run-stop (L506-518); plan/advance.md only at the standalone stop, no commit-after-planning-lock (L717+). A long chained run accrues a large uncommitted ledger a git reset --hard erases with no trace.
-    
-    **Fix (the locked approach, Q166):**
-    1. **implement-worker.md (part a):** add a hard Boundary — the worker operates ONLY inside its own worktree dir; MUST NOT run git against the main checkout or any other worktree (no checkout/reset --hard/cherry-pick that switches or mutates another working tree); commits on its own worktree branch and reports the resultCommit SHA (orchestrator merges by SHA); if its base is stale/wrong it reports status=fail with the reason rather than improvising cross-checkout git. (1b) When it must refresh its base it `git reset --hard <base>` ONLY within its own worktree.
-    2. **commit discipline (2):** thread a permanent ledger-commit checkpoint AFTER the planning-lock (commands/cq/plan/advance.md — when a goal reaches `planned`) and AFTER EVERY task merge-back (commands/cq/implement/advance.md §7 + the chained path in commands/cq/advance.md), overriding the chained-suppression for THESE specific checkpoints (the existing after-archive + run-stop commits stay). So the durable ledger is never more than one task/plan behind.
-    3. **repro/guard:** add a documented repro of the reflog sequence and a grep-invariant guard test (implement-worker.md carries the worktree-confinement Boundary; advance.md/implement/advance.md/plan/advance.md carry the new commit checkpoints).
-    
-    **Acceptance (R363 — corrected per G31/R281):** the cq-assets prompt edits present, asserted by the T306 grep-invariant (4 FILE-SCOPED cells: worktree-confinement Boundary in implement-worker.md + commit-after-planning-lock in plan/advance.md + commit-after-every-merge-back in implement/advance.md + the chained-path commit-after-every-merge in advance.md) running green under `bun run check` — this grep-invariant + `bun run check` IS the SUBSTANTIVE regression gate, because cq-assets is consumed EVAL-TIME-ONLY (assets.nix builtins.readFile/readDir) and NO buildable nix derivation vendors the prompt files, so NO `nix build` exercises the prompts' content (same adjudication as G31/R280→R281; `nix build .#llm-skills` is at most a repo-still-builds smoke, NOT prompt-content validation). Plus a documented repro (T305). NOTE (live activation, like D37/D41): deployed ~/.claude + ~/.pi assets regenerate on `home-manager switch` — source fix lands here; live activation is a separate deploy step. Tasks must ledgerRef defects:D43.
-- grounding: "Confirmed root cause H31 (9 validated [correct] citations). Fix files: nix/pkg/cq-assets/agents/implement-worker.md (Boundaries), nix/pkg/cq-assets/commands/cq/{advance,implement/advance,plan/advance}.md (Commit-the-ledger sections). Builds on the commit-after-merge discipline already adopted ad-hoc this run (proven across 12 post-incident dispatches)."
-- milestones: ["M123","M124","M125"]
-- sessionLogs: ["docs/logs/20260609-094843-acbd76d5c9472ebf8.md","docs/logs/20260609-094843-pi-minimax-G37-planner.md","docs/logs/20260609-095419-G37-review-r1-opus.md","docs/logs/20260609-095419-G37-review-r1-minimax.md","docs/logs/20260609-100347-a2b3e6cf98362d441.md","docs/logs/20260609-100347-G37-review-r2-minimax.md"]
 
 ## M126
 
@@ -249,17 +235,3 @@ archives:
     **3 TUI focus keybinding** — ledger-tui/src/app.tsx useInput (L767-882). CONFIRMED current behavior: in LIST focus (top.focus==='list', L840-845) ↑↓/j/k move the cursor (reset scroll:0); key.pageUp/pageDown scroll the CONTENT/detail pane (top.scroll, CONTENT_PAGE=10) WITHOUT switching focus — an INTENTIONAL prior affordance (comment L836-839: 'scroll the detail pane in place WITHOUT switching focus, so the detail is scrollable without the Enter-to-focus step'). Enter (L846) switches focus to 'content'. In CONTENT focus (L802-834) pageUp/pageDown scroll content. There is NO Home/End handling anywhere (ink useInput key object may not expose Home/End — needs verification). So the requested change (list-focus PgUp/PgDn/Home/End page/jump the CURSOR; content scroll only after Enter) REVERSES the deliberate no-Enter-scroll design and ADDS Home/End. Established focus-gated-keys pattern exists (the !cursorInArchive guards, D24/H14). cq convention routes faults via /cq:investigate (reproduce->root-cause->defect-seeded fix); user labeled this a 'defect' — routing decision pending.
 - sessionLogs: ["docs/logs/20260609-110956-a9f05a8253269dee6.md","docs/logs/20260609-114934-ac3e829c2282bd91c.md","docs/logs/20260609-114934-pi-grok.md","docs/logs/20260609-114934-pi-minimax.md","docs/logs/20260609-145017-a0c176e7567c5e292.md","docs/logs/20260609-154027-aaf85331f25793153.md","docs/logs/20260609-154027-pi-grok.md","docs/logs/20260609-154027-pi-minimax.md"]
 - milestones: ["M126","M127","M128","M129","M130","M131","M134"]
-
-## M132
-
-### G39 — planned
-
-- createdAt: 2026-06-09T13:56:55.520Z
-- updatedAt: 2026-06-09T14:20:17.574Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
-- description: "Defect-seeded (D45, severity low; the defect's ledgerRefs back-link goals:G39). CONFIRMED ROOT CAUSE (H32): packages/ledger/src/store/cacheMirror.ts `mirrorMutation` mirrors docs/<ledgerId>.md for every op, then `if (op !== \"archive\") return;` (cacheMirror.ts:82) BEFORE mirroring `layout.registryPath` (cacheMirror.ts:84) — so docs/ledgers.yaml is mirrored ONLY on 'archive'. But FsLedgerStore.createLedger() rewrites the registry (writeRegistry, FsLedgerStore.ts:756) then fires fireMutation(name,'create') (FsLedgerStore.ts:759), so after a createLedger the ~/.cache mirror's ledgers.yaml lags the in-repo registry until the next archive. SUGGESTED FIX (verbatim): in cacheMirror.ts mirrorMutation, mirror `layout.registryPath` on the 'create' op too (createLedger + archive are the two ops that rewrite ledgers.yaml; 'update' never touches it) — e.g. mirror the registry when op==='create' || op==='archive', or unconditionally (it is small); update the function docstring (cacheMirror.ts:56-64) to match; add a test: createLedger on a tmp root with XDG_CACHE_HOME redirected, then assert the mirror's docs/ledgers.yaml is byte-equal to the in-repo registry. Likely a single fix task; the fix task must ledgerRef defects:D45. bun run check + nix build .#ledger-mcp green."
-- grounding: "Root cause H32 confirmed via validated citations: cacheMirror.ts:79-84 (op-gated early return before registryPath mirror) + FsLedgerStore.ts:754-759 (createLedger writeRegistry + fireMutation 'create'). Fix locus: cacheMirror.ts mirrorMutation op-gate. Test affordance: XDG_CACHE_HOME redirection (per the existing T312 cache-mirror tests in packages/ledger/test/cache-mirror.test.ts)."
-- milestones: ["M132","M133"]
-- sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md","docs/logs/20260609-140117-a7ebe7a1ddc5c1af8.md","docs/logs/20260609-140117-pi-grok.md","docs/logs/20260609-140117-pi-minimax.md"]

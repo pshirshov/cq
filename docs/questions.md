@@ -139,6 +139,11 @@ archives:
     summary: G36 coordination COMPLETE — goal closed done (user-authorized 2026-06-09). Optional thinking-effort suffix in cq model-identifier tokens; work milestones M117/M119/M121 delivered (K58, R342-R344). Archived in the post-G37 cleanup sweep.
     title: "Plan: optional thinking-effort suffix in cq model-identifier tokens"
     status: done
+  - id: M132
+    path: ./archive/questions/M132.md
+    summary: "G39 (Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror) DONE: cacheMirror.ts mirrors layout.registryPath on op==='create'||'archive' + XDG_CACHE_HOME-redirected byte-equality test (T323); D45 resolved. Goal closed; coordination milestone archived."
+    title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
+    status: done
 ---
 
 # questions
@@ -341,16 +346,3 @@ archives:
 - recommendation: Suggestion 1 (web only). Every follow-up item targets the ledger-web HelpOverlay, which has no TUI analogue; Q145 and Q171 already settled the same web-only scope for the help dialog. A TUI port is a disproportionate, separate goal not implied by this follow-up.
 - ledgerRefs: ["goals:G38"]
 - answer: Web only (ledger-web) for all of FU-1..FU-4 — consistent with Q145/Q171; the TUI has no help overlay to modify
-
-## M132
-
-### Q174 — answered
-
-- createdAt: 2026-06-09T13:56:38.293Z
-- updatedAt: 2026-06-09T15:28:28.760Z
-- author: user
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- question: Root cause of D45 confirmed (H32) and a defect-seeded goal G39 is ready to plan — the fix is a one-line cacheMirror change (mirror docs/ledgers.yaml on the 'create' op). Traceability only.
-- context: "Auto-launched inside /cq:advance (NOT standalone): this investigation was chained, so the parent /cq:advance session auto-resumes G39 in its plan stage — a manual /cq:plan:advance G39 is NOT needed. Root cause: cacheMirror.ts:82 early-returns before mirroring registryPath; createLedger fires a 'create' op. Fix: mirror registryPath on 'create' too. This question is filed for traceability per the file-and-defer step."
-- ledgerRefs: ["defects:D45","goals:G39"]
-- answer: So, this question does not assume an answer. If so, it shouldn't have been filed, we need to fix our flow so such pseudo-questions would NOT be created. Traceability notes can be reported directly in the terminal, added to handoffs, etc.
