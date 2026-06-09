@@ -347,15 +347,31 @@ export function resolveAgentTier(config: CqConfig, agentName: string): Tier {
 /**
  * Structural equality for two {@link ReviewerToken}s.
  *
- * Two tokens are equal iff their `harness`, `model`, and `provider` all match
- * exactly (no normalization beyond the parse already performed by
+ * Two tokens are equal iff their `harness`, `model`, `provider`, AND `effort`
+ * all match (no normalization beyond the parse already performed by
  * `parseReviewerToken` — the model string is compared verbatim, including any
- * bracketed suffix such as `[1m]`). This is the comparison `classifyToken`
- * uses to look a candidate token up in the inverted `[tiers]` classifier.
+ * bracketed suffix such as `[1m]`). `effort` PARTICIPATES in identity (Q162):
+ * `claude:opus-4.8[1m]:high` and `claude:opus-4.8[1m]:low` are DISTINCT tokens.
+ * An omitted suffix (`undefined`) and an explicit `null` are the SAME
+ * equivalence class — a token parsed without a suffix carries `effort: null`,
+ * and two such tokens compare equal regardless of which absent form they hold.
+ *
+ * This is the comparison `classifyToken` uses to look a candidate token up in
+ * the inverted `[tiers]` classifier, and the comparison `parseTiers` uses for
+ * its class-agnostic duplicate-token guard (D42).
  */
-function reviewerTokensEqual(a: ReviewerToken, b: ReviewerToken): boolean {
+export function reviewerTokensEqual(
+  a: ReviewerToken,
+  b: ReviewerToken,
+): boolean {
   return (
-    a.harness === b.harness && a.model === b.model && a.provider === b.provider
+    a.harness === b.harness &&
+    a.model === b.model &&
+    a.provider === b.provider &&
+    // Normalize the two "absent effort" forms (undefined vs null) to a single
+    // equivalence class before comparing, so an omitted suffix never differs
+    // from an explicit null.
+    (a.effort ?? null) === (b.effort ?? null)
   );
 }
 

@@ -30,6 +30,7 @@ import {
   resolveAgentModel,
   parseConfig,
   parseReviewerToken,
+  reviewerTokensEqual,
   CqConfigError,
   DEFAULT_TIER,
   type ReviewerToken,
@@ -204,6 +205,60 @@ describe("parseReviewerToken — effort suffix (T286)", () => {
     expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(CqConfigError);
     expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(/reserved ':'/);
     expect(() => parseReviewerToken("pi:prov/m:o:high")).toThrow(/m:o/);
+  });
+});
+
+// T290 (Q162): effort PARTICIPATES in token identity. reviewerTokensEqual must
+// distinguish two tokens that differ ONLY in their effort suffix, while two
+// parses of the SAME effort (and two effortless parses) still compare equal.
+describe("reviewerTokensEqual — effort participates in identity (T290)", () => {
+  it("returns false for the same model at different efforts (high vs low)", () => {
+    expect(
+      reviewerTokensEqual(
+        parseReviewerToken("claude:opus-4.8[1m]:high"),
+        parseReviewerToken("claude:opus-4.8[1m]:low"),
+      ),
+    ).toBe(false);
+  });
+
+  it("returns true for two parses of the same effortful token (high == high)", () => {
+    expect(
+      reviewerTokensEqual(
+        parseReviewerToken("claude:opus-4.8[1m]:high"),
+        parseReviewerToken("claude:opus-4.8[1m]:high"),
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true for two parses of the same effortless token", () => {
+    expect(
+      reviewerTokensEqual(
+        parseReviewerToken("claude:opus-4.8[1m]"),
+        parseReviewerToken("claude:opus-4.8[1m]"),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats omitted (undefined) and explicit null effort as the same class", () => {
+    // A token parsed without a suffix carries effort:null; an object that omits
+    // the field entirely (effort:undefined) must compare equal to it.
+    const parsed = parseReviewerToken("claude:opus-4.8[1m]");
+    const omitted: ReviewerToken = {
+      harness: "claude",
+      model: "opus-4.8[1m]",
+      provider: null,
+    };
+    expect(reviewerTokensEqual(parsed, omitted)).toBe(true);
+    expect(reviewerTokensEqual(omitted, parsed)).toBe(true);
+  });
+
+  it("returns false for an effortful token vs the same effortless token", () => {
+    expect(
+      reviewerTokensEqual(
+        parseReviewerToken("claude:opus-4.8[1m]:high"),
+        parseReviewerToken("claude:opus-4.8[1m]"),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -1201,6 +1256,68 @@ minimax                    = "fast"
 "pi:grok-build/grok-build" = "standard"
 `),
     ).not.toThrow();
+  });
+
+  // T290 (Q162): effort participates in the dup-guard's token identity.
+  it("two [tiers] keys differing ONLY in effort are ACCEPTED (not duplicates)", () => {
+    // claude:opus-4.8[1m]:high and :low are distinct tokens — no D42 throw.
+    expect(() =>
+      parseConfig(`
+[tiers]
+"claude:opus-4.8[1m]:high" = "frontier"
+"claude:opus-4.8[1m]:low"  = "standard"
+`),
+    ).not.toThrow();
+  });
+
+  it("an alias key + a direct key resolving to the SAME effortful token still throws D42", () => {
+    let caught: unknown;
+    try {
+      parseConfig(`
+[aliases]
+opushi = "claude:opus-4.8[1m]:high"
+
+[tiers]
+"claude:opus-4.8[1m]:high" = "frontier"
+opushi                     = "standard"
+`);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CqConfigError);
+    const message = (caught as CqConfigError).message;
+    expect(message).toContain('tiers["opushi"]');
+    expect(message).toContain('tiers["claude:opus-4.8[1m]:high"]');
+    expect(message).toContain("classify the same token");
+  });
+});
+
+// T290 (Q162): classifyToken delegates to reviewerTokensEqual, so the same
+// model at different efforts classifies to DISTINCT tier classes when both are
+// configured. No classifyToken code change is needed — this confirms it.
+describe("classifyToken — distinct classes per effort (T290)", () => {
+  it("returns distinct classes for the same model at different efforts", () => {
+    const config = parseConfig(`
+[tiers]
+"claude:opus-4.8[1m]:high" = "frontier"
+"claude:opus-4.8[1m]:low"  = "standard"
+`);
+    expect(classifyToken(config, parseReviewerToken("claude:opus-4.8[1m]:high"))).toBe(
+      "frontier",
+    );
+    expect(classifyToken(config, parseReviewerToken("claude:opus-4.8[1m]:low"))).toBe(
+      "standard",
+    );
+  });
+
+  it("does not match an effortless token against an effortful [tiers] entry", () => {
+    const config = parseConfig(`
+[tiers]
+"claude:opus-4.8[1m]:high" = "frontier"
+`);
+    expect(
+      classifyToken(config, parseReviewerToken("claude:opus-4.8[1m]")),
+    ).toBeUndefined();
   });
 });
 

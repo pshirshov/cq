@@ -33,6 +33,7 @@ export {
   CqConfigError,
   parseReviewerToken,
   formatReviewerToken,
+  reviewerTokensEqual,
   parseConfig,
   resolveReviewers,
   resolvePlanners,
