@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 47
+  item: 48
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -186,3 +186,17 @@ archives:
 - rootCause: "CONFIRMED (H31, validated against current cq-assets). A two-part prompt gap let a single stray worker git op erase the run's ledger: (a) PERMISSIVE-GAP in agents/implement-worker.md — its 'Boundaries (hard rules)' (L47-55) forbid merge/push/rebase + scope-creep but contain NO rule confining git to the worker's own worktree and NO ban on `git reset --hard`/checkout/cherry-pick against the MAIN checkout or other worktrees; the only sanctioned worker git mutation is `git add -A && git commit` on the task branch (L71-73). The base commit + worktree are PASSED IN by the harness (native isolation:worktree, L38-43), so the worker never establishes its own base — a STALE base (observed: worktree forked from 087b889 vs current main) is a harness-side fact the worker inherits with no sanctioned base-fixing procedure, so a worker improvising to 'fix' it reaches the main checkout unguarded. (b) DEFERRED-COMMIT window — implement/advance.md commits the ledger ONLY after archive_milestone + at the standalone stop (L395-405), suppressing the at-stop commit when chained (L542-549); advance.md commits after every archive + at the single run-stop (L506-518); plan/advance.md commits only at the standalone stop with no commit-after-planning-lock (L717+). So a long chained plan+implement run accrues a large UNCOMMITTED ledger between milestone archives that a `git reset --hard` erases with no git-recoverable trace (the observed incident: HEAD@{3} reset in the main checkout discarded M116-M121/T283-T300/R341-R348/K57-K58 + the Q154-Q165 answers)."
 - sessionLogs: ["docs/logs/20260609-093502-a4b0d0d4f781c94c2.md"]
 - dependsOn: ["tasks:T301","tasks:T302","tasks:T303","tasks:T304","tasks:T305","tasks:T306","tasks:T307"]
+
+## M135
+
+### D48 — resolved
+
+- createdAt: 2026-06-09T23:11:30.860Z
+- updatedAt: 2026-06-09T23:11:30.860Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Flows-tab edge labels invisible in dark theme (LABEL_FILL === panel background)
+- severity: low
+- rootCause: "User-reported (G41 item-4 follow-up). DiagramSvg edge labels rendered with `fill={LABEL_FILL}` where LABEL_FILL='#171a21' — EXACTLY equal to the help-panel background var(--panel)='#171a21' (styles.css :root). Node labels share LABEL_FILL but sit on a filled <rect> (DEFAULT_FILL grey / roleKind colour) so they contrast; EDGE labels render directly on the panel background, so the dark fill is identical to the background and the labels are invisible in the (default dark) theme."
+- fix: "DiagramSvg.tsx: edge labels now use a new EDGE_LABEL_FILL='var(--fg)' (themed foreground #e6e9ef) instead of LABEL_FILL; node labels keep LABEL_FILL='#171a21' (still contrasts on their filled rects). Theme-aware (tracks the palette if a light theme is added). Regression test in diagramSvgActivate.test.tsx asserts the edge-label fill is var(--fg) (not #171a21) while node-label fill stays #171a21. bun run check green (1488/0)."
+- ledgerRefs: ["goals:G41"]
