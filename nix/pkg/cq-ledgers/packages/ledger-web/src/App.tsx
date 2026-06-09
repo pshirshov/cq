@@ -1497,6 +1497,125 @@ function LiveIndicator({ stats }: { stats: LiveStats | null }): React.ReactEleme
   );
 }
 
+/**
+ * Smooth-scroll a help-dialog section into view by its anchor id (T328). The
+ * anchor id is the section's `data-testid` (the documented per-tab scheme:
+ * `help-item-state-<ledger>` / `help-flow-<id>` / `help-agent-<id>`); the
+ * section also carries an `id` equal to that value so both `getElementById`
+ * and the `[data-testid]` selector resolve it. Exported so the cross-nav from
+ * the Flows/Agents tabs (T329) can reuse one scroll path. No-op when the
+ * target is absent.
+ */
+export function scrollToHelpSection(anchorId: string): void {
+  if (typeof document === "undefined") return;
+  const el =
+    document.getElementById(anchorId) ??
+    document.querySelector(`[data-testid="${anchorId}"]`);
+  if (el !== null) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/** One left-nav entry of the docs-style help layout: a section anchor + label. */
+export interface HelpNavEntry {
+  /** The target section's anchor id (== its data-testid / DOM id). */
+  anchorId: string;
+  /** The human-readable sidebar label. */
+  label: string;
+}
+
+/**
+ * Test hook (T328): the most-recently-mounted {@link HelpDocsLayout} for a given
+ * tab registers its active-section setter here so happy-dom tests — which lack
+ * IntersectionObserver and therefore cannot trigger the scrollspy by scrolling —
+ * can drive the active highlight programmatically and assert the matching entry
+ * gains `aria-current`/`.lw-help-nav-entry-active`. Keyed by the tab's testid
+ * stem (`item-states` / `flows` / `agents`). Not used by production code.
+ */
+export const helpActiveSectionSetters = new Map<string, (anchorId: string | null) => void>();
+
+/**
+ * Docs-style help body layout (T328): a persistent left vertical nav sidebar +
+ * a scrolling content pane. The sidebar lists one {@link HelpNavEntry} per
+ * rendered section; clicking an entry smooth-scrolls its anchor into view via
+ * {@link scrollToHelpSection}. A scrollspy (IntersectionObserver scoped to the
+ * content pane) marks the in-view entry with `aria-current="true"` + an active
+ * class. happy-dom lacks IntersectionObserver, so the observer wiring is GUARDED
+ * and the active-section setter is registered in {@link helpActiveSectionSetters}
+ * (keyed by `tabKey`) so tests can drive the highlight programmatically.
+ */
+function HelpDocsLayout({
+  tabKey,
+  entries,
+  children,
+}: {
+  tabKey: string;
+  entries: readonly HelpNavEntry[];
+  children: React.ReactNode;
+}): React.ReactElement {
+  const [active, setActive] = useState<string | null>(entries[0]?.anchorId ?? null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Register the active-section setter so happy-dom tests (no
+  // IntersectionObserver) can drive the highlight; deregister on unmount.
+  useEffect(() => {
+    helpActiveSectionSetters.set(tabKey, setActive);
+    return () => {
+      if (helpActiveSectionSetters.get(tabKey) === setActive) helpActiveSectionSetters.delete(tabKey);
+    };
+  }, [tabKey]);
+
+  // Scrollspy: observe each section within the content pane and mark the
+  // top-most intersecting one active. Guarded for environments (happy-dom)
+  // without IntersectionObserver — there the setter above drives the state.
+  useEffect(() => {
+    const root = contentRef.current;
+    if (root === null || typeof IntersectionObserver === "undefined") return;
+    const sections = entries
+      .map((e) => document.getElementById(e.anchorId))
+      .filter((el): el is HTMLElement => el !== null);
+    if (sections.length === 0) return;
+    const visible = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (records) => {
+        for (const r of records) {
+          if (r.isIntersecting) visible.set(r.target.id, r.intersectionRatio);
+          else visible.delete(r.target.id);
+        }
+        // Pick the first entry (in declared order) that is currently visible.
+        const top = entries.find((e) => visible.has(e.anchorId));
+        if (top !== undefined) setActive(top.anchorId);
+      },
+      { root, threshold: [0, 0.1, 0.5, 1] },
+    );
+    for (const s of sections) observer.observe(s);
+    return () => observer.disconnect();
+  }, [entries]);
+
+  return (
+    <div className="lw-help-docs" data-testid={`help-docs-${tabKey}`}>
+      <nav className="lw-help-nav" data-testid={`help-nav-${tabKey}`} aria-label={`${tabKey} sections`}>
+        {entries.map((e) => (
+          <button
+            key={e.anchorId}
+            type="button"
+            className={`lw-help-nav-entry${active === e.anchorId ? " lw-help-nav-entry-active" : ""}`}
+            data-testid={`help-nav-entry-${e.anchorId}`}
+            aria-current={active === e.anchorId ? "true" : undefined}
+            onClick={() => {
+              setActive(e.anchorId);
+              scrollToHelpSection(e.anchorId);
+            }}
+          >
+            {e.label}
+          </button>
+        ))}
+      </nav>
+      <div className="lw-help-content" data-testid={`help-content-${tabKey}`} ref={contentRef}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** Keyboard shortcut reference (opened with `?` or the header button). */
 const SHORTCUTS: ReadonlyArray<[string, string]> = [
   ["↑ / ↓  ·  j / k", "Move within the focused list"],
@@ -1623,31 +1742,69 @@ function HelpOverlay({
               ))}
             </dl>
           ) : tab === "item-states" ? (
-            <div className="lw-help-item-states" data-testid="help-item-states">
-              {loadErr !== null ? (
+            loadErr !== null ? (
+              <div className="lw-help-item-states" data-testid="help-item-states">
                 <p className="lw-empty">(could not load schemas: {loadErr})</p>
-              ) : schemas === null ? (
+              </div>
+            ) : schemas === null ? (
+              <div className="lw-help-item-states" data-testid="help-item-states">
                 <p className="lw-empty">(loading…)</p>
-              ) : (
-                schemas.map(({ ledger, schema }) => (
-                  <section key={ledger} className="lw-item-state" data-testid={`help-item-state-${ledger}`}>
-                    <h4>{ledger}</h4>
-                    <StateMachineDiagram ledger={ledger} schema={schema} />
-                  </section>
-                ))
-              )}
-            </div>
+              </div>
+            ) : (
+              <HelpDocsLayout
+                tabKey="item-states"
+                entries={schemas.map(({ ledger }) => ({
+                  anchorId: `help-item-state-${ledger}`,
+                  label: ledger,
+                }))}
+              >
+                <div className="lw-help-item-states" data-testid="help-item-states">
+                  {schemas.map(({ ledger, schema }) => (
+                    <section
+                      key={ledger}
+                      id={`help-item-state-${ledger}`}
+                      className="lw-item-state"
+                      data-testid={`help-item-state-${ledger}`}
+                    >
+                      <h4>{ledger}</h4>
+                      <StateMachineDiagram ledger={ledger} schema={schema} />
+                    </section>
+                  ))}
+                </div>
+              </HelpDocsLayout>
+            )
           ) : tab === "flows" ? (
-            <div className="lw-help-flows" data-testid="help-flows">
-              {ROLE_FLOWS.map((flow) => (
-                <section key={flow.id} className="lw-flow" data-testid={`help-flow-${flow.id}`}>
-                  <h4>{flow.title}</h4>
-                  <FlowDiagram flow={flow} />
-                </section>
-              ))}
-            </div>
+            <HelpDocsLayout
+              tabKey="flows"
+              entries={ROLE_FLOWS.map((flow) => ({
+                anchorId: `help-flow-${flow.id}`,
+                label: flow.title,
+              }))}
+            >
+              <div className="lw-help-flows" data-testid="help-flows">
+                {ROLE_FLOWS.map((flow) => (
+                  <section
+                    key={flow.id}
+                    id={`help-flow-${flow.id}`}
+                    className="lw-flow"
+                    data-testid={`help-flow-${flow.id}`}
+                  >
+                    <h4>{flow.title}</h4>
+                    <FlowDiagram flow={flow} />
+                  </section>
+                ))}
+              </div>
+            </HelpDocsLayout>
           ) : (
-            <AgentsTab overlay={agentOverlay} overlayError={agentOverlayError} />
+            <HelpDocsLayout
+              tabKey="agents"
+              entries={AGENT_ROLES.map((role) => ({
+                anchorId: `help-agent-${role.id}`,
+                label: role.name,
+              }))}
+            >
+              <AgentsTab overlay={agentOverlay} overlayError={agentOverlayError} />
+            </HelpDocsLayout>
           )}
         </div>
       </div>
@@ -1773,7 +1930,7 @@ function AgentsTab({
   return (
     <div className="lw-help-agents" data-testid="help-agents">
       {AGENT_ROLES.map((role) => (
-        <section key={role.id} className="lw-agent" data-testid={`help-agent-${role.id}`}>
+        <section key={role.id} id={`help-agent-${role.id}`} className="lw-agent" data-testid={`help-agent-${role.id}`}>
           <div className="lw-agent-head">
             <h4 className="lw-agent-name">{role.name}</h4>
             <span
