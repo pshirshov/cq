@@ -42,6 +42,7 @@ let
     ledgerPkgs.ledger-mcp
     ledgerPkgs.ledger-tui
     ledgerPkgs.ledger-web
+    ledgerPkgs.cq
   ];
 
   # Canonical llmAssets bundle from the two in-repo packages: skills from
