@@ -535,10 +535,10 @@ archives:
 
 ## M139
 
-### T336 — wip
+### T336 — done
 
 - createdAt: 2026-06-09T19:08:57.294Z
-- updatedAt: 2026-06-09T20:52:07.118Z
+- updatedAt: 2026-06-09T21:04:57.794Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Design the typed prompt-catalog data model + formal JSON Schemas (single source of truth)
@@ -546,6 +546,9 @@ archives:
 - acceptance: "A decisions (locked) item records the three decisions above (role-scope split, validator choice + FOD-refresh-if-new-dep, storage format) reconciling the G38 agentsCatalogue/ROLE_FLOWS question. A typed PromptCatalogEntry { id, kind, dispatched:boolean, model/tier, version, promptTemplate, inputSchema?, outputSchema? } compiles; plan-advance's inputSchema+outputSchema are valid JSON Schema (a test compiles each with the chosen validator) and accept a valid example / reject an invalid one. If a dependency was added, `nix build .#node-modules` is green. `bun run typecheck` + `bun test` pass."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G41"]
+- resultCommit: bcafd669339880d9e9167624ba1d2758a0b23f39
+- completion: Typed prompt-catalog model in @cq/config (PromptCatalogEntry + RoleKind dispatched-vs-command split; per-role sidecar) + plan-advance JSON Schemas + Ajv2020 proof; Ajv 8 added as direct @cq/config dep with flake.nix FOD refresh (node-modules green); decisions K65 locked. bun run check green.
+- sessionLogs: ["docs/logs/20260609-210203-afae2c710bbe86600.md","docs/logs/20260609-210203-a0d6f9cb0a53b0b61.md"]
 
 ### T341 — planned
 

@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 409
+  item: 410
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -718,3 +718,15 @@ archives:
 - summary: approve (T342) — follow-up.md documents the goalId-then-idea-ids grammar + append-as-scope via the existing re-open path + DRY reference to plan.md's consume-an-idea sub-procedure (anchors verified); gen.ts regen byte-faithful; grep invariants genuine; bun run check green 1418/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T342","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-204431-a320c286875860a83.md"]
+
+## M139
+
+### R410 — go-ahead
+
+- createdAt: 2026-06-09T21:04:54.073Z
+- updatedAt: 2026-06-09T21:04:54.073Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T336) — typed prompt-catalog model (PromptCatalogEntry+RoleKind dispatched-vs-command split) in @cq/config (importable by ledger-mcp+ledger-web) + plan-advance JSON Schemas (draft 2020-12) faithful to the asset, genuine Ajv2020 accept/reject proof; Ajv 8 added as direct dep with FOD refresh — nix build .#node-modules green (hash verified real); K65 records all 3 decisions; bun run check green 1434/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T336","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-210203-a0d6f9cb0a53b0b61.md"]
