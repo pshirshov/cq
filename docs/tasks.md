@@ -449,101 +449,11 @@ archives:
     summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
     title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
     status: done
+  - id: M134
+    path: ./archive/tasks/M134.md
+    summary: "G38 follow-up #1 (ledger-web help-popup UX + deepened Flows tab) COMPLETE. 6 tasks: T324 FU-2 (.lw-help hard 90vw×90vh + pinned head), T325 FU-1 (AgentModelCell stale-server message), T326 FU-4 renderer+data foundation (agentId on DiagramNode/RoleNode + exported RoleKind/ROLE_KIND_FILL/fillForRoleKind + clickable/keyboard DiagramSvg nodes; renderer fill unchanged per Q181), T327 FU-4a/c/d catalogue (agentId map ∈ AGENT_ROLES + all formalized ops as edges/worktree-main-ledger infra nodes grounded in cq-assets prompts + roleKind fills), T328 FU-3 (HelpDocsLayout sidebar + IntersectionObserver scrollspy + exported scrollToHelpSection), T329 FU-4b/d (agentId-node cross-nav to Agents tab + roleKind legend). Reviews R392-R397 go-ahead (T325 took 1 criticism round). Merged 04cc14d/82c0b66/fe7205f/b2a9b9f/891a39f/768a10d. bun run check green 1368/0; nix build .#ledger-web exit 0. FU-1's underlying Agents-tab display issue is a deploy action (rebuild+restart), out of scope."
+    title: "G38 follow-up #1 — ledger-web help-popup UX + deepened Flows tab"
+    status: done
 ---
 
 # tasks
-
-## M134
-
-### T324 — done
-
-- createdAt: 2026-06-09T15:39:29.752Z
-- updatedAt: 2026-06-09T16:43:25.168Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-2: enlarge help popup to a hard 90vw × 90vh box (pinned head, internally-scrolling body)"
-- description: "Per Q177 (hard fixed size). In the ledger-web stylesheet change `.lw-help` from the current `width:min(900px,92vw); height:min(80vh,720px)` to a hard `width:90vw; height:90vh` box (keep the existing flex column + padding/border/radius/shadow). PRESERVE the existing pinning mechanism VERBATIM (R389/minimax — name it, don't just 'keep'): `.lw-help` is a `display:flex; flex-direction:column` box; `.lw-help-head` (the tab strip) is the non-growing pinned header (flex-shrink:0 / does not scroll); `.lw-help-body` is `flex:1; min-height:0; overflow-y:auto` (the SINGLE internal scroller). The only change is the `.lw-help` size (drop the min(...,720px)/min(900px,92vw) caps → 90vw/90vh); the flex column + head-pin + body-scroll structure is unchanged so the diagram-heavy tabs get the full 90vh of scroll room and the tab strip never scrolls out of view. Web-only; no App.tsx logic change. No dep (independent leaf)."
-- acceptance: "happy-dom HelpOverlay test asserts the `.lw-help` element resolves to width:90vw + height:90vh (the min(...) caps gone) AND that `.lw-help-head` retains its pinned/non-scrolling role (flex-shrink:0) while `.lw-help-body` retains `flex:1; min-height:0; overflow-y:auto`. `bun run check` (from nix/pkg/cq-ledgers/) green; `nix build .#ledger-web` exit 0."
-- suggestedModel: sonnet-4.6
-- ledgerRefs: ["goals:G38"]
-- resultCommit: 04cc14d
-- completion: "FU-2: .lw-help hard 90vw×90vh + explicit head flex-shrink:0; body scroller intact + CSS test."
-- sessionLogs: ["docs/logs/20260609-164226-a6e54b8a99de9b19f.md","docs/logs/20260609-164226-a480192a485126cb4.md"]
-
-### T325 — done
-
-- createdAt: 2026-06-09T15:39:29.791Z
-- updatedAt: 2026-06-09T16:43:30.957Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-1: split AgentModelCell `unavailable` into a stale-server message distinct from `not-configured`"
-- description: "Per Q176 (YES, full disambiguation). In packages/ledger-web/src/App.tsx, the `unavailable` AgentModelView branch of AgentModelCell (~L1750-1751; returned by resolveAgentModelView when the get_agent_models overlay fetch threw — App.tsx L436/442-443) currently renders the SAME 'default / not configured' string that resembles the genuine `not-configured` case ('not configured (no cq.toml)', ~L1747). Change the `unavailable` cell to a clearly stale-server-distinct message, verbatim-ish: 'model overlay unavailable — server predates get_agent_models; rebuild + restart ledger-web/ledger-mcp'. Keep the `not-configured` label untouched. Label/wiring-only change; do NOT alter resolveAgentModelView's union/wiring. Add a distinct className/testid if helpful for assertion."
-- acceptance: happy-dom test renders AgentModelCell/AgentsTab with kind `unavailable` (overlayError true / undefined overlay entry) and asserts the rendered text contains 'overlay unavailable' + 'rebuild' + 'get_agent_models' and is DISTINCT from the `not-configured` text ('not configured (no cq.toml)'); a second cell with kind `not-configured` still shows its original text. `bun run check` green; `nix build .#ledger-web` exit 0.
-- suggestedModel: sonnet-4.6
-- ledgerRefs: ["goals:G38"]
-- resultCommit: 82c0b66
-- completion: "FU-1: AgentModelCell `unavailable` → distinct stale-server message; all 3 stale 'default / not configured' refs removed (1 criticism round)."
-- sessionLogs: ["docs/logs/20260609-164226-aa85d7146510b3da7.md","docs/logs/20260609-164226-ab7e8aa012d87b065.md","docs/logs/20260609-164226-a627048f8eef0a5c0.md","docs/logs/20260609-164226-a1dd5ae6444f10044.md"]
-
-### T326 — done
-
-- createdAt: 2026-06-09T15:39:38.056Z
-- updatedAt: 2026-06-09T16:43:28.020Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-4 renderer + data-model: agentId + named RoleKind type + roleKind→fill palette helper + clickable/keyboard DiagramSvg nodes"
-- description: "Per Q179 (clickable nodes) + Q181 (roleKind color), the shared renderer/data foundation for FU-4. (1) diagramLayout.ts: widen `DiagramNode` (and the laid-out node) with optional `agentId?: string`, preserved through `layoutDiagram` exactly as `fill` is. (2) roleActions.ts: widen `RoleNode` with optional `agentId?: string`. **TYPE (R390/opus): EXTRACT the currently-INLINE `RoleNode.roleKind` union (orchestrator/planner/reviewer/worker/conflict-resolver/explore/user/external) into a single EXPORTED named `RoleKind` type, and WIDEN it with the infra kinds needed by T327's infra nodes (worktree/main/ledger). Then define + EXPORT `ROLE_KIND_FILL: Record<RoleKind, string>` (one distinct hue per RoleKind, keyed exactly on the named type) and a `fillForRoleKind(kind: RoleKind)` helper.** So the palette, T327's per-node roleKind assignments, and T329's legend all reference ONE named type the type-checker (`bun run check`) enforces. (3) DiagramSvg.tsx: add an optional `onActivateAgent?: (agentId: string) => void` prop; render any node carrying `agentId` as activatable (`cursor:pointer`, `role=\"button\"`, `tabIndex={0}`, onClick + onKeyDown Enter/Space → onActivateAgent(agentId)); nodes WITHOUT agentId stay static/non-interactive. **FILL (LOCKED Q181 'no renderer change'): DiagramSvg fill resolution stays EXACTLY `n.fill ?? DEFAULT_FILL` — do NOT add fillForRoleKind into the renderer (LaidOutNode does not carry roleKind). ROLE_KIND_FILL + fillForRoleKind are roleActions.ts HELPERS that T327 uses to author `node.fill`; the renderer just honors that authored fill.** Keep the per-index edge key (T316) + existing static rendering for non-agentId nodes. This task ships the type+palette-helper+renderer affordance ONLY, tested with a synthetic model (no ROLE_FLOWS value authoring — that is T327). OWNS its tests."
-- acceptance: "happy-dom DiagramSvg tests (authored here): (a) a node with `agentId` + an `onActivateAgent` spy — click AND Enter AND Space invoke the spy with that id; the node has role='button', tabIndex=0, cursor:pointer; (b) a node WITHOUT agentId has NO role=button/onClick, clicking does nothing; (c) a node with an authored `fill` renders that fill, one without renders DEFAULT_FILL (renderer `n.fill ?? DEFAULT_FILL` UNCHANGED, no roleKind in renderer); (d) `layoutDiagram` round-trips `agentId`. Type/unit test: `RoleKind` is an exported named type INCLUDING the infra kinds (worktree/main/ledger); `ROLE_KIND_FILL` is `Record<RoleKind,string>` with one distinct hex per RoleKind value (exhaustive over the named type) and `fillForRoleKind` is referentially stable. `bun run check` (from nix/pkg/cq-ledgers/) green; `nix build .#ledger-web` exit 0."
-- suggestedModel: "opus-4.8[1m]"
-- ledgerRefs: ["goals:G38"]
-- resultCommit: fe7205f
-- completion: "FU-4 renderer+data foundation: agentId round-trip; exported RoleKind(+infra)+ROLE_KIND_FILL+fillForRoleKind; DiagramSvg onActivateAgent clickable/keyboard nodes; renderer fill unchanged (Q181)."
-- sessionLogs: ["docs/logs/20260609-164226-a7c1f72e47e8332ce.md","docs/logs/20260609-164226-adbfbe10713599512.md"]
-
-### T327 — done
-
-- createdAt: 2026-06-09T15:40:06.769Z
-- updatedAt: 2026-06-09T17:00:32.214Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-4a/c/d catalogue: enrich ROLE_FLOWS (packages/ledger-web/src/roleActions.ts) with the agentId map, ALL formalized ops (edges + infra nodes), and roleKind fills"
-- description: "Per Q179/Q180/Q181. Edit packages/ledger-web/src/roleActions.ts (where ROLE_FLOWS lives). (a) AGENTID MAP — set `agentId` on the role node representing each concrete dispatched subagent, VERBATIM map: plan flow: planner→`plan-advance`, reviewer→`plan-reviewer`; implement flow: worker→`implement-worker`, reviewer→`implement-reviewer`, conflict-resolver→`implement-conflict-resolver` (add a conflict-resolver node if absent); investigate flow: explorer→`investigate-explorer`, prober→`investigate-prober` (add a prober node if absent); advance flow: link its lane nodes to the sub-flow command ids where sensible. Abstract nodes (user/main/worktree/ledger/flow-lane) get NO agentId. AGENT_ROLES is imported into roleActions.ts from `./agentsCatalogue` (the node-free re-export of agentsCatalogue.gen.ts AGENT_ROLES); every authored agentId MUST be an id present in AGENT_ROLES. (b) FORMALIZED OPS (Q180 verbatim: 'if the flow says a particular agent performs a merge or dispatches a subagent of a particular type — it should be visible') — surface EVERY op formalized in the cq-assets flow prompts as a first-class labeled edge + infra node, GROUNDED by reading nix/pkg/cq-assets/commands/cq/plan/advance.md, .../investigate/advance.md, .../implement/advance.md, the top-level .../advance.md, and agents/*.md. Op set to depict (only those each flow actually formalizes): dispatch-subagent (by concrete type), emit candidate/result, return verdict, reconcile (strictest-wins), merge-by-SHA / cherry-pick / rebase, worktree create + teardown/prune (the landed 1a, implement/advance.md §7.3+§1), per-task + per-archive + planning-lock LEDGER COMMITS, file defect (→investigate), register question, seed/extend goal (→plan), cross-flow handoffs (advance sequencer → investigate/plan/implement), file-and-defer, archive milestone. Add infra nodes (worktree, main, ledger) where a flow touches them. Do NOT invent ops the prompts don't formalize. New edges use the SAME deterministic per-index keying as T316/T326 (no unstable keys). (c) set `roleKind` on every node and `fill` = `fillForRoleKind(roleKind)` (the T326 helper) on every node — authored on node.fill in THIS file (the renderer just honors n.fill). dependsOn T326 (widened types + palette helper). OWNS its tests."
-- acceptance: "roleActions unit tests (authored here): (1) every mapped node carries the EXACT agentId from the verbatim map above; a test imports AGENT_ROLES from ./agentsCatalogue and asserts every authored agentId ∈ AGENT_ROLES ids; abstract nodes have agentId===undefined; (2) each flow's edge/node set includes the formalized ops it performs — the implement flow has worktree create + teardown/prune + merge-by-SHA(or cherry-pick) + ≥1 ledger-commit edge against worktree/main/ledger infra nodes + a conflict-resolver node; plan/investigate carry their cross-flow handoff edges (seeds goal→plan, files defect→investigate); (3) every node has a `fill` equal to `fillForRoleKind(node.roleKind)`; (4) a happy-dom render confirms each help-flow-<id> SVG still renders with the enriched model (no duplicate React keys). `bun run check` green; `nix build .#ledger-web` exit 0."
-- suggestedModel: "opus-4.8[1m]"
-- dependsOn: ["T326"]
-- ledgerRefs: ["goals:G38"]
-- resultCommit: b2a9b9f
-- completion: "FU-4 catalogue: ROLE_FLOWS agentId map (all ∈ AGENT_ROLES) + formalized-op edges/infra nodes (worktree/main/ledger) grounded in cq-assets prompts + roleKind fills."
-- sessionLogs: ["docs/logs/20260609-165949-a4406e3b95db14176.md","docs/logs/20260609-165949-ac74b0bc6227a4899.md"]
-
-### T328 — done
-
-- createdAt: 2026-06-09T15:40:08.168Z
-- updatedAt: 2026-06-09T17:00:34.749Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-3: persistent per-tab left sidebar + scrollspy on Item-States / Flows / Agents tabs"
-- description: "Per Q178 (persistent left sidebar + scrollspy). In packages/ledger-web/src/App.tsx HelpOverlay, restructure the Item-States, Flows, and Agents tab bodies (NOT Shortcuts) into a docs-style layout inside `.lw-help-body`: a persistent left vertical nav list + a scrolling content pane. Sidebar entries derived from each tab's EXISTING section source: Item-States = one per ledger schema; Flows = one per ROLE_FLOWS entry (plan/investigate/implement/advance) from src/roleActions.ts; Agents = one per AGENT_ROLES role from src/agentsCatalogue. ANCHOR SCHEME (existing, locked verbatim — reuse, do not rename): `help-item-state-<ledger>` / `help-flow-<id>` / `help-agent-<id>`. Confirm the Agents tab already renders a `help-agent-<id>` section per AGENT_ROLES role (the FU-4b cross-nav landing targets in T329) — if any are missing, this task adds them. Click an entry → `scrollIntoView({behavior:'smooth', block:'start'})` on the matching anchor. Add a SCROLLSPY active-highlight (IntersectionObserver scoped to .lw-help-body; GUARD for happy-dom which lacks IntersectionObserver — expose the active-section setter so it is programmatically assertable) marking the in-view entry with aria-current/active class. EXPORT a reusable `scrollToHelpSection(anchorId)` helper for T329's cross-nav. Add sidebar/active CSS to the stylesheet (also a styles.css edit). SERIALIZATION (R389): dependsOn T324 (the 90vh scrolling body) AND T325 (the other App.tsx editor — ordered to avoid a same-file merge conflict). OWNS its tests."
-- acceptance: "happy-dom tests (authored here): each of the 3 tabs renders a sidebar with one entry per section (entry count == rendered help-*-<id> section count, derived from the ledger schemas / ROLE_FLOWS / AGENT_ROLES); clicking an entry invokes Element.prototype.scrollIntoView (spy) on the matching anchor (exact id help-item-state-<ledger>/help-flow-<id>/help-agent-<id>); driving the exposed active-section setter marks exactly that entry aria-current/active; the Shortcuts tab renders NO sidebar; `scrollToHelpSection` is exported. `bun run check` green; `nix build .#ledger-web` exit 0."
-- suggestedModel: "opus-4.8[1m]"
-- dependsOn: ["T324","T325"]
-- ledgerRefs: ["goals:G38"]
-- resultCommit: 891a39f
-- completion: "FU-3: HelpDocsLayout sidebar + IntersectionObserver scrollspy on Item-States/Flows/Agents; exported scrollToHelpSection; additive DOM ids on the existing anchors."
-- sessionLogs: ["docs/logs/20260609-165949-a3a4c146c1a4e149a.md","docs/logs/20260609-165949-a63707e7defcd3526.md"]
-
-### T329 — done
-
-- createdAt: 2026-06-09T15:40:15.660Z
-- updatedAt: 2026-06-09T17:15:45.644Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "FU-4b/d wiring: Flows-tab clickable-node cross-nav to Agents tab + roleKind color legend"
-- description: "Per Q179 (FU-4b cross-nav) + Q181 (FU-4d legend). In packages/ledger-web/src/App.tsx HelpOverlay Flows tab: thread `onActivateAgent` from the Flows FlowDiagram → DiagramSvg (the T326 prop) so activating an agent node (click/Enter/Space) (1) switches the help tab to 'agents' and (2) jumps to that agent via T328's exported `scrollToHelpSection` helper using the EXACT existing anchor format `help-agent-<agentId>` (R389 — locked verbatim; agentId is the AGENT_ROLES id authored by T327; matches the Agents-tab section ids T328 confirmed). Use rAF/after-mount so the Agents-tab section exists before scrolling. Also render a small color LEGEND on the Flows tab generated from the EXPORTED ROLE_KIND_FILL palette (one swatch + label per roleKind) so the FU-4d colors are interpretable. Add legend CSS to the stylesheet. dependsOn T326 (renderer onActivateAgent + palette), T327 (nodes carry agentId + fills), T328 (the scrollToHelpSection jump mechanism + confirmed help-agent-<id> anchors + App.tsx serialization). OWNS its tests."
-- acceptance: "happy-dom tests (authored here): with the Flows tab active, activating (click AND Enter) an agentId-carrying flow node (e.g. plan flow's planner→plan-advance) (a) flips the help tab to 'agents' (help-tab-agents selected) AND (b) invokes scrollIntoView on the `help-agent-<agentId>` section (spy, exact id); activating an abstract (non-agentId) node does NEITHER; the Flows tab renders a legend with one swatch per roleKind whose background-color equals ROLE_KIND_FILL[kind]. `bun run check` green; `nix build .#ledger-web` exit 0."
-- suggestedModel: "opus-4.8[1m]"
-- dependsOn: ["T326","T327","T328"]
-- ledgerRefs: ["goals:G38"]
-- resultCommit: 768a10d
-- completion: "FU-4b/d: Flows-tab agentId-node cross-nav to Agents tab (exact help-agent-<id> anchor via scrollToHelpSection, rAF-sequenced) + roleKind color legend from ROLE_KIND_FILL."
-- sessionLogs: ["docs/logs/20260609-171522-a75d30bbc69d91b5c.md","docs/logs/20260609-171522-aae0c7ae76a4db924.md"]

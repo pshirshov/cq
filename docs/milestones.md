@@ -644,6 +644,11 @@ archives:
     summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
     title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
     status: done
+  - id: M134
+    path: ./archive/milestones/M134.md
+    summary: "G38 follow-up #1 (ledger-web help-popup UX + deepened Flows tab) COMPLETE. 6 tasks: T324 FU-2 (.lw-help hard 90vw×90vh + pinned head), T325 FU-1 (AgentModelCell stale-server message), T326 FU-4 renderer+data foundation (agentId on DiagramNode/RoleNode + exported RoleKind/ROLE_KIND_FILL/fillForRoleKind + clickable/keyboard DiagramSvg nodes; renderer fill unchanged per Q181), T327 FU-4a/c/d catalogue (agentId map ∈ AGENT_ROLES + all formalized ops as edges/worktree-main-ledger infra nodes grounded in cq-assets prompts + roleKind fills), T328 FU-3 (HelpDocsLayout sidebar + IntersectionObserver scrollspy + exported scrollToHelpSection), T329 FU-4b/d (agentId-node cross-nav to Agents tab + roleKind legend). Reviews R392-R397 go-ahead (T325 took 1 criticism round). Merged 04cc14d/82c0b66/fe7205f/b2a9b9f/891a39f/768a10d. bun run check green 1368/0; nix build .#ledger-web exit 0. FU-1's underlying Agents-tab display issue is a deploy action (rebuild+restart), out of scope."
+    title: "G38 follow-up #1 — ledger-web help-popup UX + deepened Flows tab"
+    status: done
 ---
 
 # milestones
@@ -675,10 +680,3 @@ archives:
 - updatedAt: 2026-06-09T13:56:20.739Z
 - title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
 - description: "Defect-seeded fix for D45 (low): the ~/.cache mirror's mirrorMutation only mirrors docs/ledgers.yaml on the 'archive' op (early return at cacheMirror.ts:82 before the registry mirror at :84), but createLedger rewrites the registry and fires a 'create' op — so a restored mirror carries a stale registry until the next archive. Fix: mirror the registry on 'create' too."
-
-### M134 — open
-
-- createdAt: 2026-06-09T15:39:06.640Z
-- updatedAt: 2026-06-09T15:39:06.640Z
-- title: G38 follow-up #1 — ledger-web help-popup UX + deepened Flows tab
-- description: "Web-only (Q182) ledger-web HelpOverlay follow-up: FU-1 stale-server AgentModelCell message; FU-2 hard 90vw×90vh popup; FU-3 per-tab sidebar + scrollspy (Item-States/Flows/Agents); FU-4 deepen Flows tab — agentId-clickable nodes cross-nav to Agents tab, surface ALL formalized ops (edges+infra nodes), roleKind color palette + legend. Locked by Q176-Q182."
