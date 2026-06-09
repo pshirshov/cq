@@ -455,10 +455,10 @@ archives:
 
 ## M134
 
-### T324 — planned
+### T324 — done
 
 - createdAt: 2026-06-09T15:39:29.752Z
-- updatedAt: 2026-06-09T15:55:22.773Z
+- updatedAt: 2026-06-09T16:43:25.168Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "FU-2: enlarge help popup to a hard 90vw × 90vh box (pinned head, internally-scrolling body)"
@@ -466,11 +466,14 @@ archives:
 - acceptance: "happy-dom HelpOverlay test asserts the `.lw-help` element resolves to width:90vw + height:90vh (the min(...) caps gone) AND that `.lw-help-head` retains its pinned/non-scrolling role (flex-shrink:0) while `.lw-help-body` retains `flex:1; min-height:0; overflow-y:auto`. `bun run check` (from nix/pkg/cq-ledgers/) green; `nix build .#ledger-web` exit 0."
 - suggestedModel: sonnet-4.6
 - ledgerRefs: ["goals:G38"]
+- resultCommit: 04cc14d
+- completion: "FU-2: .lw-help hard 90vw×90vh + explicit head flex-shrink:0; body scroller intact + CSS test."
+- sessionLogs: ["docs/logs/20260609-164226-a6e54b8a99de9b19f.md","docs/logs/20260609-164226-a480192a485126cb4.md"]
 
-### T325 — planned
+### T325 — done
 
 - createdAt: 2026-06-09T15:39:29.791Z
-- updatedAt: 2026-06-09T15:39:29.791Z
+- updatedAt: 2026-06-09T16:43:30.957Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "FU-1: split AgentModelCell `unavailable` into a stale-server message distinct from `not-configured`"
@@ -478,11 +481,14 @@ archives:
 - acceptance: happy-dom test renders AgentModelCell/AgentsTab with kind `unavailable` (overlayError true / undefined overlay entry) and asserts the rendered text contains 'overlay unavailable' + 'rebuild' + 'get_agent_models' and is DISTINCT from the `not-configured` text ('not configured (no cq.toml)'); a second cell with kind `not-configured` still shows its original text. `bun run check` green; `nix build .#ledger-web` exit 0.
 - suggestedModel: sonnet-4.6
 - ledgerRefs: ["goals:G38"]
+- resultCommit: 82c0b66
+- completion: "FU-1: AgentModelCell `unavailable` → distinct stale-server message; all 3 stale 'default / not configured' refs removed (1 criticism round)."
+- sessionLogs: ["docs/logs/20260609-164226-aa85d7146510b3da7.md","docs/logs/20260609-164226-ab7e8aa012d87b065.md","docs/logs/20260609-164226-a627048f8eef0a5c0.md","docs/logs/20260609-164226-a1dd5ae6444f10044.md"]
 
-### T326 — planned
+### T326 — done
 
 - createdAt: 2026-06-09T15:39:38.056Z
-- updatedAt: 2026-06-09T16:05:40.588Z
+- updatedAt: 2026-06-09T16:43:28.020Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "FU-4 renderer + data-model: agentId + named RoleKind type + roleKind→fill palette helper + clickable/keyboard DiagramSvg nodes"
@@ -490,6 +496,9 @@ archives:
 - acceptance: "happy-dom DiagramSvg tests (authored here): (a) a node with `agentId` + an `onActivateAgent` spy — click AND Enter AND Space invoke the spy with that id; the node has role='button', tabIndex=0, cursor:pointer; (b) a node WITHOUT agentId has NO role=button/onClick, clicking does nothing; (c) a node with an authored `fill` renders that fill, one without renders DEFAULT_FILL (renderer `n.fill ?? DEFAULT_FILL` UNCHANGED, no roleKind in renderer); (d) `layoutDiagram` round-trips `agentId`. Type/unit test: `RoleKind` is an exported named type INCLUDING the infra kinds (worktree/main/ledger); `ROLE_KIND_FILL` is `Record<RoleKind,string>` with one distinct hex per RoleKind value (exhaustive over the named type) and `fillForRoleKind` is referentially stable. `bun run check` (from nix/pkg/cq-ledgers/) green; `nix build .#ledger-web` exit 0."
 - suggestedModel: "opus-4.8[1m]"
 - ledgerRefs: ["goals:G38"]
+- resultCommit: fe7205f
+- completion: "FU-4 renderer+data foundation: agentId round-trip; exported RoleKind(+infra)+ROLE_KIND_FILL+fillForRoleKind; DiagramSvg onActivateAgent clickable/keyboard nodes; renderer fill unchanged (Q181)."
+- sessionLogs: ["docs/logs/20260609-164226-a7c1f72e47e8332ce.md","docs/logs/20260609-164226-adbfbe10713599512.md"]
 
 ### T327 — planned
 

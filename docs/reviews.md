@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 392
+  item: 395
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -778,3 +778,39 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G38"]
 - sessionLogs: ["docs/logs/20260609-161714-a3a98ccfacda2c84e.md","docs/logs/20260609-161714-pi-codex.md","docs/logs/20260609-161714-pi-grok.md","docs/logs/20260609-161714-pi-minimax.md"]
+
+### R392 — go-ahead
+
+- createdAt: 2026-06-09T16:43:23.144Z
+- updatedAt: 2026-06-09T16:43:23.144Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T324 implement review: APPROVE (native opus). FU-2 — .lw-help changed to hard 90vw×90vh (min() caps removed); .lw-help-head gains explicit flex-shrink:0 (correct column-flex pin, not a regression); .lw-help-body scroller invariants (flex:1/min-height:0/overflow-y:auto) intact; web-only (styles.css + helpOverlaySize.test.ts reading styles.css per the holdButtonBorder pattern, 4 assertions). Re-ran bun run check at c96437d: 1337/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T324","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-164226-a6e54b8a99de9b19f.md","docs/logs/20260609-164226-a480192a485126cb4.md"]
+
+### R393 — go-ahead
+
+- createdAt: 2026-06-09T16:43:23.188Z
+- updatedAt: 2026-06-09T16:43:23.188Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T326 implement review: APPROVE (native opus; verified at commit + nix build). FU-4 renderer+data foundation: diagramLayout round-trips optional agentId; roleActions exports a named RoleKind widened with infra kinds (worktree/main/ledger) + exhaustive ROLE_KIND_FILL (11 distinct hexes) + fillForRoleKind; DiagramSvg onActivateAgent renders agentId nodes role=button/tabIndex=0/cursor:pointer keyboard-activatable (Enter+Space+click), non-agentId inert; renderer fill stays EXACTLY n.fill ?? DEFAULT_FILL (Q181 — fillForRoleKind NOT in the renderer); per-index edge key kept; NO ROLE_FLOWS value authoring (deferred to T327); tests non-vacuous. bun run check green 1333/0; nix build .#ledger-web exit 0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T326","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-164226-a7c1f72e47e8332ce.md","docs/logs/20260609-164226-adbfbe10713599512.md"]
+
+### R394 — go-ahead
+
+- createdAt: 2026-06-09T16:43:23.229Z
+- updatedAt: 2026-06-09T16:43:23.229Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T325 implement review: APPROVE at round 2 (native opus; 1 criticism loop). FU-1 — AgentModelCell `unavailable` branch now shows 'model overlay unavailable — server predates get_agent_models; rebuild + restart …' (className lw-agent-model-unavailable), distinct from not-configured. Round 1 DISAPPROVED (R-prior, stale JSDoc on resolveAgentModelView still naming 'default / not configured'); round 2 fix updated ALL THREE references (resolveAgentModelView JSDoc, AgentModelCell JSDoc, inline catch comment L433) — `grep -F 'default / not configured' App.tsx` now returns nothing; not-configured + resolveAgentModelView wiring unchanged; T297 throw-mode test non-vacuous (3 substrings + distinctness). bun run check green 1347/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T325","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-164226-aa85d7146510b3da7.md","docs/logs/20260609-164226-ab7e8aa012d87b065.md","docs/logs/20260609-164226-a627048f8eef0a5c0.md","docs/logs/20260609-164226-a1dd5ae6444f10044.md"]
