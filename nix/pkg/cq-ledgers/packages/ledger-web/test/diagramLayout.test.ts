@@ -113,11 +113,13 @@ describe("DiagramSvg (renderer)", () => {
     expect(q('[data-testid="diag-edge-wip-wip"]')).not.toBeNull();
     expect(q('[data-testid="diag-edge-wip-closed"]')).not.toBeNull();
 
-    // Edge label (only for labelled edges).
-    expect(q('[data-testid="diag-edge-label-open-wip"]')).not.toBeNull();
-    expect(q('[data-testid="diag-edge-label-open-wip"]')!.textContent).toBe("start");
-    // Unlabelled edge has no label <text>.
-    expect(q('[data-testid="diag-edge-label-wip-closed"]')).toBeNull();
+    // Edge label (only for labelled edges). Label testid includes the global
+    // edge index i (T334: makes parallel same-pair labels uniquely addressable).
+    // open→wip is edge 0 in this three-edge model.
+    expect(q('[data-testid="diag-edge-label-open-wip-0"]')).not.toBeNull();
+    expect(q('[data-testid="diag-edge-label-open-wip-0"]')!.textContent).toBe("start");
+    // Unlabelled edge has no label <text> (wip→closed has no label).
+    expect(q('[data-testid="diag-edge-label-wip-closed-2"]')).toBeNull();
 
     await act(async () => {
       root.unmount();

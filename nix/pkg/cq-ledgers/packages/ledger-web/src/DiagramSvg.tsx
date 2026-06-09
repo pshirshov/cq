@@ -8,10 +8,13 @@
  * caller can reproduce a per-context naming (e.g. T203 passes
  * `idPrefix="help-sm"` + node id `<ledger>-<status>` to recover the existing
  * `help-sm-node-<ledger>-<status>` ids):
- *   - `${idPrefix}-node-${id}`        group per node
- *   - `${idPrefix}-rect-${id}`        the node's rounded rect
- *   - `${idPrefix}-edge-${from}-${to}`        the edge polyline
- *   - `${idPrefix}-edge-label-${from}-${to}`  the edge's <text> label
+ *   - `${idPrefix}-node-${id}`                  group per node
+ *   - `${idPrefix}-rect-${id}`                  the node's rounded rect
+ *   - `${idPrefix}-edge-${from}-${to}`           the edge polyline
+ *   - `${idPrefix}-edge-label-${from}-${to}-${i}` the edge's <text> label
+ *     (i = the edge's global index in the laid-out edges array; ensures each
+ *     parallel edge on the same from→to pair gets a unique, individually
+ *     addressable testid — T334)
  *
  * Node fill + terminal styling are carried over verbatim from the previous
  * StateMachineDiagram: rounded-rect (rx 14, or 4 + thick 2.5 outline when
@@ -108,7 +111,7 @@ export function DiagramSvg({
           />
           {e.label !== undefined && e.labelPos !== undefined ? (
             <text
-              data-testid={`${idPrefix}-edge-label-${e.from}-${e.to}`}
+              data-testid={`${idPrefix}-edge-label-${e.from}-${e.to}-${i}`}
               x={e.labelPos.x}
               y={e.labelPos.y}
               fill={LABEL_FILL}

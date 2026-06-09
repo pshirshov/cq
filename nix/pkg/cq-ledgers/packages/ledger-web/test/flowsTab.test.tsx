@@ -138,11 +138,14 @@ describe("Flows tab (T316 — roles & actions)", () => {
         expect(text).toContain(n.label);
       }
       // At least one labelled action edge renders its <text> label.
-      const labelledEdges = flow.model.edges.filter((e) => e.label !== undefined);
+      // Label testid includes the global edge index (T334: unique per parallel edge).
+      const labelledEdges = flow.model.edges
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => e.label !== undefined);
       expect(labelledEdges.length).toBeGreaterThan(0);
       let renderedLabels = 0;
-      for (const e of labelledEdges) {
-        if (testid(`help-flow-${flow.id}-edge-label-${e.from}-${e.to}`) !== null) renderedLabels++;
+      for (const { e, i } of labelledEdges) {
+        if (testid(`help-flow-${flow.id}-edge-label-${e.from}-${e.to}-${i}`) !== null) renderedLabels++;
       }
       expect(renderedLabels).toBeGreaterThan(0);
     }
@@ -157,14 +160,23 @@ describe("Flows tab (T316 — roles & actions)", () => {
     expect(planText).toContain("planner");
     expect(planText).toContain("reviewer");
     // …and the reviewer's 'returns verdict' action edge.
-    const planVerdict = testid("help-flow-plan-edge-label-reviewer-orchestrator");
+    // Label testid includes the global edge index (T334); find the index dynamically.
+    const planFlow = ROLE_FLOWS.find((f) => f.id === "plan")!;
+    const verdictIdx = planFlow.model.edges.findIndex(
+      (e) => e.from === "reviewer" && e.to === "orchestrator" && e.label === "returns verdict",
+    );
+    const planVerdict = testid(`help-flow-plan-edge-label-reviewer-orchestrator-${verdictIdx}`);
     expect(planVerdict).not.toBeNull();
     expect(planVerdict!.textContent).toContain("returns verdict");
 
     // Implement flow shows the worker role and the 'merges by SHA' action.
     const implText = flowText("implement");
     expect(implText).toContain("worker");
-    const mergeEdge = testid("help-flow-implement-edge-label-orchestrator-main");
+    const implFlow = ROLE_FLOWS.find((f) => f.id === "implement")!;
+    const mergeIdx = implFlow.model.edges.findIndex(
+      (e) => e.from === "orchestrator" && e.to === "main",
+    );
+    const mergeEdge = testid(`help-flow-implement-edge-label-orchestrator-main-${mergeIdx}`);
     expect(mergeEdge).not.toBeNull();
     expect(mergeEdge!.textContent).toContain("merges by SHA");
   });
