@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 41
+  item: 42
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -260,3 +260,21 @@ archives:
 - sessionLogs: ["docs/logs/20260609-184831-a49faaf4d8748e870.md","docs/logs/20260609-191048-a7da7daa089abaf95.md","docs/logs/20260609-191048-pi-grok.md","docs/logs/20260609-191048-pi-minimax.md"]
 - milestones: ["M136","M137","M138","M139","M140"]
 - grounding: "Synthesized multi-planner plan (opus base + grok/minimax fold-ins). 5 work milestones per Q183 sequencing (quick wins 1/4/5 → large item 2 → spike item 3 last): M136 cq init cq.toml (T331 template, T338 writer w/ skip+--force+symlink-fail-loud); M137 Flows-tab polish (T332 underline activatable, T333 terminal-node rounding, T334 per-edge labels w/ proposed text for review); M138 Ideas ledger (T335 schema open|planned|discarded|postponed, T339 sidebar-above-Goals, T340 /cq:plan I-id grammar + shared consume-idea sub-proc, T342 /cq:plan:follow-up); M139 prompt catalog (T336 design+validator decision, T341 catalog store+gen, T343 MCP fetch/validate-in/validate-out endpoints, T344 plan-advance proof + Agents tab, T345 wire-all+legacy cleanup); M140 orphan-branch SPIKE-ONLY (T337 feasibility decision+findings, no prod code). Key groundings: cq-config has parser only (no TOML serializer) → template is a hand-authored literal; DiagramSvg already supports n.terminal rounding + activatable nodes (T316/T326/T329); Ideas 'no milestones' reconciled by attaching to M-AMBIENT + flat render; item 2 reconciles the G38 agentsCatalogue/ROLE_FLOWS source-of-truth question."
+
+## M141
+
+### G42 — planning
+
+- createdAt: 2026-06-09T22:34:22.347Z
+- updatedAt: 2026-06-09T22:34:22.347Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- title: Fix D47 — make the ledgers.yaml bootstrap-drift guard actually fail check
+- description: |
+    DEFECT-SEEDED goal (defects:D47; skips clarification — root cause confirmed via H34, embedded below). Fixes D47 (low): the committed nix/pkg/cq-ledgers/docs/ledgers.yaml fixture can silently drift from packages/ledger/src/constants.ts and nothing fails `bun run check`.
+    
+    ## CONFIRMED ROOT CAUSE (H34)
+    The repo HAS a committed-fixture-vs-canon guard test — packages/ledger/test/canonical-ledgers.test.ts:504-522 ('repo docs/ledgers.yaml matches canon') reads the committed docs/ledgers.yaml [:506], copies it to a temp dir [:511], boots an FsLedgerStore [:513]. BUT it constructs `new FsLedgerStore({ root: dir })` WITHOUT `onSchemaDivergence: 'abort'`, so it runs in the DEFAULT 'backup-reinit' mode (FsLedgerStore.ts:200) that SILENTLY backs up + reinitialises on divergence instead of throwing BootstrapViolationError. The test comment [:514 'init() throws BootstrapViolationError on any divergence'] is WRONG for that mode. So a STALE committed fixture (e.g. missing the sessionLogs field / handoffs user-action-required status, as at base 155d378) self-heals on init() and store.enumerate() [:518] still returns canon → the assertion PASSES, drift undetected. Secondary: schemasEqual (FsLedgerStore.ts:1515) is a STRUCTURAL compare (no byte/canonical equality); regen-bootstrap is a MANUAL script not in `bun run check`.
+    
+    ## SUGGESTED FIX (confirmed)
+    (1) PRIMARY: canonical-ledgers.test.ts:513 → `new FsLedgerStore({ root: dir, onSchemaDivergence: 'abort' })` so any structural divergence THROWS + fails `bun test`; fix the test comment. (2) STRONGER (D47's ask): add a `bun test` assertion that readFile(docs/ledgers.yaml) BYTE-EQUALS serializeRegistry({version:1, ledgers: CANONICAL_LEDGERS.map(c=>({name:c.name,schema:c.schema}))}) — the exact source scripts/regen-bootstrap.ts:34/37 emits — so serialization-order drift fails too. (3) examples/sample-ledger/docs/ledgers.yaml is an INTENTIONALLY frozen/divergent demo fixture — EXCLUDE it from the byte-equality assertion (or assert its intended divergence). REPRODUCE-FIRST: a test that PASSES against pre-fix code with a deliberately-staled committed fixture and FAILS after the fix. LINK: defects:D47 (carried on the defect's ledgerRefs).
