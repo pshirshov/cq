@@ -519,6 +519,36 @@ archives:
     summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
     title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
     status: done
+  - id: M116
+    path: ./archive/milestones/M116.md
+    summary: G34 ff#2 W1 — get_agent_models server capability. T283 (AgentModelsResult 4-state wire shape on ConfigCapability), T285 (computeAgentModels over the shared 19-role AGENT_ROLE_TIERS roster, deriveModelMappings parity), T287 (get_agent_models MCP tool, stdio+HTTP) all done + reviewed (R345/R347/R349 go-ahead). Merged to main.
+    title: "G34-ff2 W1: get_agent_models server capability (live model overlay)"
+    status: done
+  - id: M117
+    path: ./archive/milestones/M117.md
+    summary: G36 W1 — @cq/config effort core. T284 (per-harness PI_EFFORTS/CLAUDE_EFFORTS + isEffort + optional ReviewerToken.effort), T286 (parseReviewerToken last-colon effort split, reserved ':' both halves, fail-fast), T288 (formatReviewerToken round-trip), T290 (effort in reviewerTokensEqual identity) all done + reviewed (R346/R348/R352/R354 go-ahead). Merged to main.
+    title: "G36 W1: effort grammar — @cq/config core (parse/format/identity/enums)"
+    status: done
+  - id: M118
+    path: ./archive/milestones/M118.md
+    summary: G34 ff#2 W2 — ledger-web client + live overlay. T289 (getAgentModels on LedgerClient/McpLedgerClient, catch-any-error), T291 (FakeClient 4-state + throw modes), T293 (mount fetch + overlay state + AgentModelCell), T295 (resolved token chips), T297 (Q159 agentsTab overlay tests) all done + reviewed (R351/R353/R356/R359/R360 go-ahead). Merged to main.
+    title: "G34-ff2 W2: ledger-web LedgerClient + live overlay render"
+    status: done
+  - id: M119
+    path: ./archive/milestones/M119.md
+    summary: G36 W2 — effort wire-through + pi-extension. T292 (optional effort on get_planners/get_reviewers/get_config wire shapes), T294 (inlined cq-subagent-dispatch resolver mirror; pi effort via --model …:<effort> shorthand, claude inert) all done + reviewed (R355 + R354/T292 go-ahead). Merged to main.
+    title: "G36 W2: effort wire-through — MCP capability + cq-subagent-dispatch"
+    status: done
+  - id: M120
+    path: ./archive/milestones/M120.md
+    summary: "G34 ff#2 W3 — drop build-time model fields + verify. T299 (removed model/modelMappings from AgentRole + gen-agents + App.tsx static rows; overlay AgentModelCell is sole model display; freshness test narrowed), T300 (final verify: bun run check 1290/0 + nix build .#ledger-mcp/.#ledger-web exit 0) done + reviewed (R361/R362 go-ahead). Agents tab shows ONLY live-configured models."
+    title: "G34-ff2 W3: narrow build-time catalogue to static fallback + verify"
+    status: done
+  - id: M121
+    path: ./archive/milestones/M121.md
+    summary: "G36 W3 — docs + verify. T296 (cq.toml.example + token-format docs for the :<effort> suffix; reserved ':' both halves, per-harness enums, pi --model shorthand), T298 (G36 verify: bun run check 1286/0 + nix build .#ledger-mcp exit 0) done + reviewed (R357/R358 go-ahead). Merged to main."
+    title: "G36 W3: docs, cq.toml.example, full check + nix build"
+    status: done
 ---
 
 # milestones
@@ -597,43 +627,3 @@ archives:
 - createdAt: 2026-06-08T21:39:32.717Z
 - updatedAt: 2026-06-08T21:39:32.717Z
 - title: "Plan: optional thinking-effort suffix in cq model-identifier tokens"
-
-### M116 — open
-
-- createdAt: 2026-06-08T23:39:42.624Z
-- updatedAt: 2026-06-08T23:39:42.624Z
-- title: "G34-ff2 W1: get_agent_models server capability (live model overlay)"
-
-### M117 — open
-
-- createdAt: 2026-06-08T23:39:47.655Z
-- updatedAt: 2026-06-08T23:39:47.655Z
-- title: "G36 W1: effort grammar — @cq/config core (parse/format/identity/enums)"
-
-### M118 — open
-
-- createdAt: 2026-06-08T23:39:50.939Z
-- updatedAt: 2026-06-08T23:39:50.939Z
-- title: "G34-ff2 W2: ledger-web LedgerClient + live overlay render"
-- dependsOn: ["M116"]
-
-### M119 — open
-
-- createdAt: 2026-06-08T23:39:58.576Z
-- updatedAt: 2026-06-08T23:39:58.576Z
-- title: "G36 W2: effort wire-through — MCP capability + cq-subagent-dispatch"
-- dependsOn: ["M117"]
-
-### M120 — open
-
-- createdAt: 2026-06-08T23:40:02.298Z
-- updatedAt: 2026-06-08T23:40:02.298Z
-- title: "G34-ff2 W3: narrow build-time catalogue to static fallback + verify"
-- dependsOn: ["M118"]
-
-### M121 — open
-
-- createdAt: 2026-06-08T23:40:05.960Z
-- updatedAt: 2026-06-08T23:40:05.960Z
-- title: "G36 W3: docs, cq.toml.example, full check + nix build"
-- dependsOn: ["M119"]

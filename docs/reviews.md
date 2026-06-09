@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 361
+  item: 362
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -474,6 +474,36 @@ archives:
     summary: "G34 W2 complete: cq-config [tiers] inverted to (harness+provider+model)->class classifier. T268 (TiersConfig type → entries classifier), T270 (parseTiers token-keyed), T271 (classifyToken/selectTokensForTier; resolveTierToken removed; resolveAgentModel re-pointed), T272 (consumer audit — no external consumers), T273 (classifier test suite), T274 (cq.toml.example + docs + example-load test) all done; reviews R327-R332 go-ahead. Defect D42 (filed during T271, dup-token fail-loud) resolved by T282/G35. nix build .#ledger-mcp green."
     title: "G34-W2: cq-config — invert [tiers] to (harness+provider+model)→class classifier"
     status: done
+  - id: M116
+    path: ./archive/reviews/M116.md
+    summary: G34 ff#2 W1 — get_agent_models server capability. T283 (AgentModelsResult 4-state wire shape on ConfigCapability), T285 (computeAgentModels over the shared 19-role AGENT_ROLE_TIERS roster, deriveModelMappings parity), T287 (get_agent_models MCP tool, stdio+HTTP) all done + reviewed (R345/R347/R349 go-ahead). Merged to main.
+    title: "G34-ff2 W1: get_agent_models server capability (live model overlay)"
+    status: done
+  - id: M117
+    path: ./archive/reviews/M117.md
+    summary: G36 W1 — @cq/config effort core. T284 (per-harness PI_EFFORTS/CLAUDE_EFFORTS + isEffort + optional ReviewerToken.effort), T286 (parseReviewerToken last-colon effort split, reserved ':' both halves, fail-fast), T288 (formatReviewerToken round-trip), T290 (effort in reviewerTokensEqual identity) all done + reviewed (R346/R348/R352/R354 go-ahead). Merged to main.
+    title: "G36 W1: effort grammar — @cq/config core (parse/format/identity/enums)"
+    status: done
+  - id: M118
+    path: ./archive/reviews/M118.md
+    summary: G34 ff#2 W2 — ledger-web client + live overlay. T289 (getAgentModels on LedgerClient/McpLedgerClient, catch-any-error), T291 (FakeClient 4-state + throw modes), T293 (mount fetch + overlay state + AgentModelCell), T295 (resolved token chips), T297 (Q159 agentsTab overlay tests) all done + reviewed (R351/R353/R356/R359/R360 go-ahead). Merged to main.
+    title: "G34-ff2 W2: ledger-web LedgerClient + live overlay render"
+    status: done
+  - id: M119
+    path: ./archive/reviews/M119.md
+    summary: G36 W2 — effort wire-through + pi-extension. T292 (optional effort on get_planners/get_reviewers/get_config wire shapes), T294 (inlined cq-subagent-dispatch resolver mirror; pi effort via --model …:<effort> shorthand, claude inert) all done + reviewed (R355 + R354/T292 go-ahead). Merged to main.
+    title: "G36 W2: effort wire-through — MCP capability + cq-subagent-dispatch"
+    status: done
+  - id: M120
+    path: ./archive/reviews/M120.md
+    summary: "G34 ff#2 W3 — drop build-time model fields + verify. T299 (removed model/modelMappings from AgentRole + gen-agents + App.tsx static rows; overlay AgentModelCell is sole model display; freshness test narrowed), T300 (final verify: bun run check 1290/0 + nix build .#ledger-mcp/.#ledger-web exit 0) done + reviewed (R361/R362 go-ahead). Agents tab shows ONLY live-configured models."
+    title: "G34-ff2 W3: narrow build-time catalogue to static fallback + verify"
+    status: done
+  - id: M121
+    path: ./archive/reviews/M121.md
+    summary: "G36 W3 — docs + verify. T296 (cq.toml.example + token-format docs for the :<effort> suffix; reserved ':' both halves, per-harness enums, pi --model shorthand), T298 (G36 verify: bun run check 1286/0 + nix build .#ledger-mcp exit 0) done + reviewed (R357/R358 go-ahead). Merged to main."
+    title: "G36 W3: docs, cq.toml.example, full check + nix build"
+    status: done
 ---
 
 # reviews
@@ -821,219 +851,3 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G36"]
 - sessionLogs: ["docs/logs/20260608-223229-a774de5084c76524c.md","docs/logs/20260608-223229-pi-minimax-G36-review2.md"]
-
-## M116
-
-### R345 — go-ahead
-
-- createdAt: 2026-06-08T23:46:25.589Z
-- updatedAt: 2026-06-08T23:46:25.589Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T283 types-only: AgentModelStatus four-variant union + AgentModelEntry/AgentModelsResult + computeAgentModels on ConfigCapability + index re-exports; throwing T285-marked stub in the concrete impl; bun run check green 1224/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T283","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-224554-a3776cab04afb9430.md","docs/logs/20260608-224554-pi-minimax-T283.md"]
-
-### R347 — go-ahead
-
-- createdAt: 2026-06-08T23:46:40.181Z
-- updatedAt: 2026-06-08T23:46:40.181Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead after 1 criticism round (opus approve r1+r2; minimax disapprove r1 -> approve r2 after hardening; grok+codex abstained). T285 real computeAgentModels over the shared 19-role roster (AGENT_ROLE_TIERS, anti-drift via assertRosterMatchesShared); 4 statuses; deriveModelMappings parity; +multi-harness resolved test +sort-order test. bun run check green 1244/0. minimax r1 false-premise/out-of-scope items adjudicated rejected; legitimate test-hardening addressed.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T285","goals:G34"]
-- sessionLogs: ["docs/logs/20260608-230534-ace7c3cf65017fd97.md","docs/logs/20260608-232207-adfabb9f40e11648d.md","docs/logs/20260608-232207-T285-opus-review.md","docs/logs/20260608-232207-pi-minimax-T285-review.md"]
-
-### R349 — go-ahead
-
-- createdAt: 2026-06-09T00:15:41.363Z
-- updatedAt: 2026-06-09T00:15:41.363Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T287 registers the get_agent_models MCP tool in both createLedgerMcpTools + registerLedgerStdioTools (mirroring get_config; ConfigNotImplementedError without a capability), exposed over stdio+HTTP via buildServer, tool-count bumped 21->22 w/ drift tests, 19-roster + not-implemented server tests. Cherry-picked to main d750167; integrated bun run check 1262/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T287","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-001520-T287-review.md"]
-
-## M117
-
-### R346 — go-ahead
-
-- createdAt: 2026-06-08T23:46:32.102Z
-- updatedAt: 2026-06-08T23:46:32.102Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T284: PI_EFFORTS/CLAUDE_EFFORTS enums + isEffort harness-keyed guard + optional ReviewerToken.effort + index re-exports + effort.test.ts (5 acceptance cases); parseReviewerToken untouched (T286 boundary); bun run check green 1236/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T284","goals:G36"]
-- sessionLogs: ["docs/logs/20260608-224554-a1296c5cb2387a4b5.md","docs/logs/20260608-224554-pi-minimax-T284.md"]
-
-### R348 — go-ahead
-
-- createdAt: 2026-06-08T23:46:47.480Z
-- updatedAt: 2026-06-08T23:46:47.480Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead after 1 criticism round (opus approve r1+r2; minimax disapprove r1 -> approve r2; grok+codex abstained). T286 parseReviewerToken optional trailing effort (last-colon + isEffort gate; ':' reserved on BOTH model halves R342; fail-fast). minimax r1 reduced to one real finding (mislabeled rejection-path test comment) + answered confirmation-questions; criticism round relabeled the pi:prov/mo:del test + tightened the R342 pi:prov/m:o:high test. bun run check green 1246/0; parseReviewerToken logic unchanged in r2."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T286","goals:G36"]
-- sessionLogs: ["docs/logs/20260608-230534-ab4baeed6d61bcb18.md","docs/logs/20260608-232207-ac75086100dd23950.md","docs/logs/20260608-232207-T286-opus-review.md","docs/logs/20260608-232207-pi-minimax-T286-review.md"]
-
-### R350 — go-ahead
-
-- createdAt: 2026-06-09T00:15:45.051Z
-- updatedAt: 2026-06-09T00:15:45.051Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus approve; minimax abstained [no verdict JSON]; grok+codex abstained — no key). T288 formatReviewerToken re-appends ':<effort>' on both claude + pi branches (parse∘format identity Q160), byte-identical when effort null; 6/6 round-trip tests; reviewerTokensEqual untouched (T290 boundary); formatReviewerToken exported. Cherry-picked to main 29ed08e; integrated bun run check 1262/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T288","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-001520-T288-review.md"]
-
-### R352 — go-ahead
-
-- createdAt: 2026-06-09T00:29:42.750Z
-- updatedAt: 2026-06-09T00:29:42.750Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T290 folds effort into reviewerTokensEqual identity ((a.effort ?? null)===(b.effort ?? null); undefined/null one class); classifyToken + parseTiers D42 delegate unchanged; tests cover high!=low, same==, effortless==, D42 effort-differing-accepted + same-effort-collision (alias+direct key), classifyToken per-effort classes. Cherry-picked to main 8a52419; integrated bun run check 1271/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T290","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-002900-ad1af1f2ecf8fa54e.md","docs/logs/20260609-002900-T290-review.md"]
-
-## M118
-
-### R351 — go-ahead
-
-- createdAt: 2026-06-09T00:29:42.437Z
-- updatedAt: 2026-06-09T00:29:42.437Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T289 adds getAgentModels to the web LedgerClient + McpLedgerClient (one get_agent_models call, errors propagate unchanged per R341), minimal {configured:false,agents:[]} stubs on the four other LedgerClient impls deferred to T291. Cherry-picked to main a2dff68; integrated bun run check 1271/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T289","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-002900-ad0959d0752198df4.md","docs/logs/20260609-002900-T289-review.md"]
-
-### R353 — go-ahead
-
-- createdAt: 2026-06-09T00:52:31.775Z
-- updatedAt: 2026-06-09T00:52:31.775Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T291 FakeClient.getAgentModels drives all 4 Q157 states + a throw mode via a configurable switch; default not-configured preserves existing tests; resolved synthetic entries differ from the build-time catalogue (implement-worker + plan-reviewer) so T297 can prove overlay precedence; confined to test/fakeClient.ts. Cherry-picked to main 60b16ca; integrated bun run check 1279/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T291","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
-
-### R356 — go-ahead
-
-- createdAt: 2026-06-09T01:12:58.621Z
-- updatedAt: 2026-06-09T01:12:58.621Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus approve; minimax disapprove ADJUDICATED false-positive [its TS readonly/mutable claim refuted by green tsc — mutable string[] IS assignable to readonly string[]; its pre-fetch flicker is non-acceptance + non-visible since fetch is on app-mount, tab opened later]; grok+codex abstained). T293 fetches get_agent_models on mount (catch-ALL -> overlayError, R341) + resolveAgentModelView (overlay-only, T299-independent) + AgentModelCell w/ 5 distinguished labels under help-agent-<id>-model; build-time rows kept transitionally (T279 test). Cherry-picked to main 4f5a39a; integrated bun run check 1285/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T293","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
-
-### R359 — go-ahead
-
-- createdAt: 2026-06-09T01:27:20.663Z
-- updatedAt: 2026-06-09T01:27:20.663Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T295 finalizes the AgentModelCell 'resolved' branch: per-token <span class=lw-token-chip> chips + a CSS pill rule (replacing tokens.join). All 5 distinguished labels verbatim, help-agent-<id>-model per-role, overlay-only, agentsTab.test.tsx + transitional static rows untouched. Cherry-picked to main 9acd7e7; integrated bun run check 1285/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T295","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-005204-T295-worker-review.md"]
-
-### R360 — go-ahead
-
-- createdAt: 2026-06-09T02:04:32.223Z
-- updatedAt: 2026-06-09T02:04:32.223Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead after 2 criticism rounds (opus approve r3; minimax approve r3; grok+codex abstained). T297 adds the Q159 overlay-assertion bar to agentsTab.test.tsx (resolved live-value precedence w/ negative grok-build check; throw->default/not-configured; not-configured; no-live-token; orchestrator N/A) + aligned FakeClient to the real computeAgentModels. r2 fixed a stale docstring (opus); r3 fixed the no-live-token fake fidelity (modelClass=tier not null) + tightened the assertion to the full 'no live token for standard' (minimax). Test/fake-only. Cherry-picked to main ec84c10; integrated bun run check 1290/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T297","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-005204-T297-worker-review.md"]
-
-## M119
-
-### R354 — go-ahead
-
-- createdAt: 2026-06-09T00:52:31.819Z
-- updatedAt: 2026-06-09T00:52:31.819Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T292 surfaces optional effort?: string|null on ResolvedReviewer/ResolvedPlanner + GetConfigResult aliases + all 3 tiers slots (config-agnostic widening); token.effort ?? null threaded through computeReviewers/computePlanners/projectConfig; all-effortless output unchanged except the new key; xhigh+null tested for all three tools. Cherry-picked to main e3b6a37; integrated bun run check 1279/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T292","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
-
-### R355 — go-ahead
-
-- createdAt: 2026-06-09T00:57:23.473Z
-- updatedAt: 2026-06-09T00:57:23.473Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead after 1 criticism round (opus approve r1+r2; minimax r1 disapprove [self-contradictory — rationale said 'Approve', no acceptance failure] -> 2 optional coverage tests addressed r2; grok+codex abstained). T294 mirrors effort in the INLINED pi-extension resolver; emits pi effort via the '--model <provider>/<model>:<effort>' SHORTHAND (NO --thinking flag, confirmed vs the live pi CLI); claude path inert; reserved-':' both halves; lenient unsupported-effort policy documented; verified via the in-workspace local replica (extension not importable). Cherry-picked to main a4700d3+6e6e85c; integrated bun run check 1285/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T294","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-005204-T294-worker-review.md"]
-
-## M121
-
-### R357 — go-ahead
-
-- createdAt: 2026-06-09T01:13:02.956Z
-- updatedAt: 2026-06-09T01:13:02.956Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T296 documents the optional :<effort> grammar in cq.toml.example + the parseReviewerToken jsdoc (comment-only): reserved ':' both halves, per-harness enums, pi '--model …:<effort>' shorthand (no --thinking), claude-inert caveat; added grok-xhigh + opus-high effort aliases (both parse, classified in [tiers]). Cherry-picked to main d208208; integrated bun run check 1285/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T296","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
-
-### R358 — go-ahead
-
-- createdAt: 2026-06-09T01:24:57.103Z
-- updatedAt: 2026-06-09T01:24:57.103Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: "go-ahead (verification gate, orchestrator-recorded — no diff to review). T298 ran the G36 Q165 bar at d99981b: bun run check 1286/0 (tsc+eslint clean) AND nix build .#ledger-mcp exit 0 (local build; remote builder unreachable but fell back successfully). No code changes needed; all G36 code (T284-T296) merged + verified green end to end."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T298","goals:G36"]
-- sessionLogs: ["docs/logs/20260609-005204-T298-verify.md"]
-
-## M120
-
-### R361 — go-ahead
-
-- createdAt: 2026-06-09T02:22:44.781Z
-- updatedAt: 2026-06-09T02:22:44.781Z
-- author: "opus-4.8[1m]"
-- session: ae90ac43-977e-46cc-89a7-1814996d3f61
-- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T299 DROPs build-time model/modelMappings from AgentRole + gen-agents (regenerated) + removes ModelClass/HarnessModelMappings + App.tsx static rows; the overlay AgentModelCell is the sole model display; T279 role.model assertion removed (other static-field assertions intact); freshness test narrowed to static-only; T285 roster untouched. No residual AgentRole.model reads. Cherry-picked to main cfa8acb; integrated bun run check 1289/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T299","goals:G34"]
-- sessionLogs: ["docs/logs/20260609-005204-T299-worker-review.md"]
