@@ -517,10 +517,10 @@ archives:
 - ledgerRefs: ["goals:G37","defects:D43"]
 - resultCommit: 1252c98
 
-### T304 — planned
+### T304 — done
 
 - createdAt: 2026-06-09T09:47:27.024Z
-- updatedAt: 2026-06-09T09:59:02.883Z
+- updatedAt: 2026-06-09T10:29:05.180Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add chained-path commit-after-every-merge clause to advance.md
@@ -529,6 +529,7 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T303"]
 - ledgerRefs: ["goals:G37","defects:D43"]
+- resultCommit: 2acd3f7
 
 ## M125
 
