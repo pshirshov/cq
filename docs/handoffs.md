@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 43
+  item: 44
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -276,6 +276,19 @@ archives:
 - ledgerRefs: ["goals:G41","goals:G42","defects:D47"]
 - sessionLogs: ["docs/logs/20260609-191048-a7da7daa089abaf95.md","docs/logs/20260609-192700-ab459aecc48c00e6d.md","docs/logs/20260609-194117-a529026c1e49518de.md","docs/logs/20260609-223242-a50cdfb0c5b11b490.md","docs/logs/20260609-223826-af9cdea865a37cb53.md","docs/logs/20260609-224743-af85de69b2426462b.md"]
 - tags: ["G41","G42","D47","drained"]
+
+### HO44 — answers-required
+
+- createdAt: 2026-06-09T23:33:46.655Z
+- updatedAt: 2026-06-09T23:33:46.655Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "ANSWERS-REQUIRED. /cq:plan bootstrapped goal G43 (milestone M143) — implement the ledger-on-orphan-git-branch storage backend (GitObjectLedgerBackend), the production follow-up to the K66 spike (FEASIBLE-WITH-CAVEATS/GO; G41 item-3/T337 shipped no code). Store the ledger on an orphan ref (refs/heads/cq-ledger) via pure git plumbing (hash-object → scratch-index write-tree → commit-tree → CAS update-ref) with NO working-tree switch; behind the SAME LedgerStore surface as FsLedgerStore (drop-in, config-selected); honor K66's 6 caveats (CAS-in-lock concurrency, lockfiles-stay-on-FS, cat-file reads, DROP the per-merge chore(ledger) commit steps, explicit push/fetch refspec + non-ff protection, git-tag backup analogue); linked-worktree fallback; gitignore docs/*.md when active. The plan-advance planner grounded read-only (LedgerStore is ALREADY the abstraction — FsLedgerStore + InMemoryLedgerStore implement it; FsLedgerStore serves reads SYNCHRONOUSLY from an in-memory map, so 'reads via cat-file' implies an in-memory model + ref-sha coherence trigger, not per-call shellout; the cross-process invalidate + frontends both key on docs/*.md file changes which vanish under a git store; docs/*.md are currently TRACKED so migration needs git rm --cached; the ~/.cache mirror (G39) is partly redundant) and filed 8 clarifying questions Q189–Q196: Q189 config opt-in + default; Q190 shared-core-vs-standalone backend; Q191 read model + cross-process coherence trigger; Q192 frontend refresh signal under a fileless store; Q193 one-time migration of tracked docs/*.md onto the orphan ref + untracking; Q194 push/fetch policy + non-ff protection; Q195 divergence-backup tag analogue + ~/.cache mirror fate; Q196 testing strategy. G43 stays `clarifying` pending answers. NEXT (user): answer Q189–Q196 in the TUI/web (set each `answered` with a non-empty answer), then run /cq:plan:advance G43."
+- flow: plan
+- ledgerRefs: ["goals:G43"]
+- blockingQuestions: ["Q189","Q190","Q191","Q192","Q193","Q194","Q195","Q196"]
+- sessionLogs: ["docs/logs/20260609-233314-a6759b079c538e025.md"]
+- tags: ["G43","plan","answers-required","orphan-ledger"]
 
 ## M126
 
