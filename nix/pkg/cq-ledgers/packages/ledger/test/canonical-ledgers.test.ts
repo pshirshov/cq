@@ -38,6 +38,7 @@ import {
   InvalidStatusError,
   InvalidTransitionError,
   SchemaValidationError,
+  BootstrapViolationError,
   DEFECTS_SCHEMA,
   TASKS_SCHEMA,
   HYPOTHESIS_SCHEMA,
@@ -494,15 +495,22 @@ describe("fresh-cwd bootstrap shape", () => {
 });
 
 // ---------------------------------------------------------------------------
-// D01 — the committed-in-repo `docs/ledgers.yaml` (a PURE schema registry,
-// regenerated via `bun run regen-bootstrap`) must match canon. Booting an
-// FsLedgerStore against a copy of it succeeds with NO BootstrapViolationError;
-// the strict, order-significant divergence guard would fire if the on-disk
-// registry omitted any canonical `transitions` map or diverged otherwise.
+// D47 — the committed-in-repo `docs/ledgers.yaml` (a PURE schema registry,
+// regenerated via `bun run regen-bootstrap`) must match canon such that any
+// structural divergence is LOUD (throws BootstrapViolationError) and
+// `bun run check` fails. Three sub-tests cover this:
+//
+//   1. Primary: boot with onSchemaDivergence:'abort' against the real committed
+//      fixture — proves the fixture is in sync (throws on divergence).
+//   2. Byte-equality: the committed fixture BYTE-EQUALS what regen-bootstrap
+//      would emit — catches serialisation-order / field-order drift.
+//   3. Reproduce-first: a deliberately stale fixture DOES throw under abort-mode
+//      (proving the guard catches drift) but does NOT throw under the old default
+//      backup-reinit mode (proving the pre-fix test was silent).
 // ---------------------------------------------------------------------------
 
 describe("repo docs/ledgers.yaml matches canon (no bootstrap divergence)", () => {
-  it("boots against the regenerated on-disk registry", async () => {
+  it("boots against the regenerated on-disk registry with abort mode", async () => {
     const repoRegistry = path.resolve(import.meta.dir, "../../../docs/ledgers.yaml");
     const dir = await mkdtemp(path.join(tmpdir(), "ledger-canon-disk-"));
     dirs.push(dir);
@@ -510,13 +518,74 @@ describe("repo docs/ledgers.yaml matches canon (no bootstrap divergence)", () =>
     await mkdir(docsDir, { recursive: true });
     await copyFile(repoRegistry, path.join(docsDir, "ledgers.yaml"));
 
-    const store = new FsLedgerStore({ root: dir });
-    // init() throws BootstrapViolationError on any divergence; reaching the
-    // assertions proves the on-disk registry matches canon.
+    // onSchemaDivergence:'abort' makes init() throw BootstrapViolationError on
+    // any structural divergence; reaching the assertions proves the committed
+    // fixture matches canon exactly. The old default 'backup-reinit' mode would
+    // silently self-heal a stale fixture, masking drift.
+    const store = new FsLedgerStore({ root: dir, onSchemaDivergence: "abort" });
     await store.init();
     try {
       expect(store.enumerate()).toEqual(CANONICAL_LEDGERS.map((c) => c.name).sort());
     } finally {
+      await store.dispose();
+    }
+  });
+
+  it("committed docs/ledgers.yaml byte-equals what regen-bootstrap emits", async () => {
+    const repoRegistry = path.resolve(import.meta.dir, "../../../docs/ledgers.yaml");
+    const committedText = await readFile(repoRegistry, "utf8");
+    const expectedText = serializeRegistry({
+      version: 1,
+      ledgers: CANONICAL_LEDGERS.map((c) => ({ name: c.name, schema: c.schema })),
+    });
+    expect(committedText).toBe(expectedText);
+  });
+
+  it("abort-mode throws on a deliberately stale fixture; default backup-reinit does not (D47 reproduce-first)", async () => {
+    // Build a stale variant: serialize a registry where the decisions schema has
+    // one field's `required` flipped (false → true). The resulting YAML parses
+    // successfully (valid schema, transitions unchanged) but schemasEqual returns
+    // false against the real canonical schema → divergent[] is non-empty.
+    const staleText = serializeRegistry({
+      version: 1,
+      ledgers: CANONICAL_LEDGERS.map((c) => {
+        if (c.name !== DECISIONS_LEDGER) return { name: c.name, schema: c.schema };
+        // Flip decisions.rationale.required to produce a parseable divergence.
+        return {
+          name: c.name,
+          schema: {
+            ...c.schema,
+            fields: {
+              ...c.schema.fields,
+              rationale: { type: "string" as const, required: true },
+            },
+          },
+        };
+      }),
+    });
+
+    // Part A — abort mode MUST throw BootstrapViolationError for the stale fixture.
+    {
+      const dir = await mkdtemp(path.join(tmpdir(), "ledger-canon-stale-abort-"));
+      dirs.push(dir);
+      const docsDir = path.join(dir, "docs");
+      await mkdir(docsDir, { recursive: true });
+      await writeFile(path.join(docsDir, "ledgers.yaml"), staleText, "utf8");
+      const store = new FsLedgerStore({ root: dir, onSchemaDivergence: "abort" });
+      await expect(store.init()).rejects.toBeInstanceOf(BootstrapViolationError);
+    }
+
+    // Part B — the old default backup-reinit mode silently heals the stale fixture
+    // and does NOT throw, proving the pre-fix test was inadequate.
+    {
+      const dir = await mkdtemp(path.join(tmpdir(), "ledger-canon-stale-reinit-"));
+      dirs.push(dir);
+      const docsDir = path.join(dir, "docs");
+      await mkdir(docsDir, { recursive: true });
+      await writeFile(path.join(docsDir, "ledgers.yaml"), staleText, "utf8");
+      const store = new FsLedgerStore({ root: dir }); // default: 'backup-reinit'
+      // Must NOT throw — it self-heals silently (the D47 defect).
+      await store.init();
       await store.dispose();
     }
   });
