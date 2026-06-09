@@ -14,6 +14,7 @@ import {
   CANONICAL_LEDGERS,
   createLedgerMcpTools,
   type LedgerSchema,
+  type PromptCatalogCapability,
 } from "../src/index.js";
 
 const BOOTSTRAPPED = CANONICAL_LEDGERS.map((c) => c.name);
@@ -53,11 +54,11 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (22 tools)", async () => {
+  it("exports the expected tool names (25 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(22);
+    expect(LEDGER_TOOL_NAMES.length).toBe(25);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
     expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
@@ -67,6 +68,9 @@ describe("ledger MCP tools", () => {
     expect(LEDGER_TOOL_NAMES).toContain("get_planners");
     expect(LEDGER_TOOL_NAMES).toContain("get_config");
     expect(LEDGER_TOOL_NAMES).toContain("get_agent_models");
+    expect(LEDGER_TOOL_NAMES).toContain("fetch_prompt");
+    expect(LEDGER_TOOL_NAMES).toContain("validate_input");
+    expect(LEDGER_TOOL_NAMES).toContain("validate_output");
   });
 
   it("read_log against the in-memory store throws the documented not-implemented error", async () => {
@@ -76,6 +80,68 @@ describe("ledger MCP tools", () => {
     await expect(
       callTool(tools, "read_log", { path: "anything.md" }),
     ).rejects.toThrow(/not implemented/i);
+  });
+
+  it("fetch_prompt/validate_input/validate_output without a catalog capability throw not-implemented", async () => {
+    const store = await buildStore();
+    // No promptCatalog capability supplied -> the in-memory wiring has no catalog.
+    const tools = createLedgerMcpTools(store);
+    await expect(
+      callTool(tools, "fetch_prompt", { roleId: "plan-advance" }),
+    ).rejects.toThrow(/not implemented/i);
+    await expect(
+      callTool(tools, "validate_input", { roleId: "plan-advance", input: {} }),
+    ).rejects.toThrow(/not implemented/i);
+    await expect(
+      callTool(tools, "validate_output", { roleId: "plan-advance", output: {} }),
+    ).rejects.toThrow(/not implemented/i);
+  });
+
+  it("fetch_prompt/validate_input/validate_output dispatch to an injected catalog capability", async () => {
+    const store = await buildStore();
+    const calls: string[] = [];
+    const promptCatalog: PromptCatalogCapability = {
+      fetchPrompt: (roleId) => {
+        calls.push(`fetch:${roleId}`);
+        return {
+          roleId,
+          kind: "dispatched-subagent",
+          dispatched: true,
+          promptTemplate: "body",
+          version: 1,
+          inputSchema: { $schema: "x" },
+          outputSchema: { $schema: "x" },
+        };
+      },
+      validateInput: (roleId) => {
+        calls.push(`vin:${roleId}`);
+        return { ok: true };
+      },
+      validateOutput: (roleId) => {
+        calls.push(`vout:${roleId}`);
+        return { ok: false, errors: [{ path: "/x", message: "bad", keyword: "type", schemaPath: "#/x", params: {} }] };
+      },
+    };
+    const tools = createLedgerMcpTools(store, undefined, undefined, promptCatalog);
+
+    const fetched = decode<{ roleId: string; dispatched: boolean }>(
+      await callTool(tools, "fetch_prompt", { roleId: "plan-advance" }),
+    );
+    expect(fetched.roleId).toBe("plan-advance");
+    expect(fetched.dispatched).toBe(true);
+
+    const vin = decode<{ ok: boolean }>(
+      await callTool(tools, "validate_input", { roleId: "plan-advance", input: { goalId: "G1" } }),
+    );
+    expect(vin.ok).toBe(true);
+
+    const vout = decode<{ ok: boolean; errors: { path: string }[] }>(
+      await callTool(tools, "validate_output", { roleId: "plan-advance", output: {} }),
+    );
+    expect(vout.ok).toBe(false);
+    expect(vout.errors[0]?.path).toBe("/x");
+
+    expect(calls).toEqual(["fetch:plan-advance", "vin:plan-advance", "vout:plan-advance"]);
   });
 
   it("enumerate_ledgers + create_ledger + fetch_ledger round-trip (includes bootstrapped milestones)", async () => {

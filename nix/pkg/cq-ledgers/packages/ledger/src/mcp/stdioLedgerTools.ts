@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 22-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 25-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. Stdio counterpart to `createLedgerMcpTools` (the in-process
  * Claude-SDK `tool()` factory in `./ledgerTools.ts`): identical operational
@@ -27,6 +27,10 @@ import {
   ConfigNotImplementedError,
   type ConfigCapability,
 } from "./configCapability.js";
+import {
+  PromptCatalogNotImplementedError,
+  type PromptCatalogCapability,
+} from "./promptCatalogCapability.js";
 
 // ---------------------------------------------------------------------------
 // Shared Zod fragments (mirror ./ledgerTools.ts)
@@ -168,7 +172,7 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 22 ledger tools on the given MCP server. Identical
+ * Register the 25 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  *
  * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
@@ -179,12 +183,19 @@ function jsonResult(value: unknown): {
  * constructed in `@cq/ledger-mcp` over `@cq/config` (T2/T13). When omitted (no
  * cq.toml-capable config root), `get_reviewers`/`get_planners`/`get_config`
  * throw `ConfigNotImplementedError`.
+ *
+ * `promptCatalog` is the injected typed prompt-catalog capability (T343),
+ * constructed in `@cq/ledger-mcp` over `@cq/config` + the asset markdown. When
+ * omitted (no asset-capable catalog root),
+ * `fetch_prompt`/`validate_input`/`validate_output` throw
+ * `PromptCatalogNotImplementedError`.
  */
 export function registerLedgerStdioTools(
   server: McpServer,
   store: LedgerStore,
   readLog?: ReadLogCapability,
   configCapability?: ConfigCapability,
+  promptCatalog?: PromptCatalogCapability,
 ): void {
   // ---- Item / ledger surface (9) -----------------------------------------
 
@@ -649,6 +660,68 @@ ${QUERY_LANGUAGE_HELP}`,
     () => {
       if (configCapability === undefined) throw new ConfigNotImplementedError();
       return jsonResult(configCapability.computeAgentModels());
+    },
+  );
+
+  // ---- Prompt-catalog capability (3) -------------------------------------
+
+  server.registerTool(
+    "fetch_prompt",
+    {
+      description:
+        "Fetch a role's typed prompt-catalog entry: { roleId, kind, dispatched, " +
+        "promptTemplate, version?, inputSchema?, outputSchema? }. A dispatched-subagent " +
+        "role returns both JSON Schemas (draft 2020-12); an orchestrator-command role " +
+        "returns prompt + metadata with inputSchema/outputSchema ABSENT. Fails fast on an " +
+        "unknown roleId. Only available when the server has an asset-capable catalog root; " +
+        "otherwise returns a not-implemented error.",
+      inputSchema: { roleId: z.string() },
+    },
+    (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.fetchPrompt(args.roleId));
+    },
+  );
+
+  server.registerTool(
+    "validate_input",
+    {
+      description:
+        "Validate `input` against a dispatched role's inputSchema (Ajv, draft 2020-12). " +
+        "Returns { ok:true } or { ok:false, errors:[{ path, message, keyword, schemaPath, params }] } " +
+        "with every failing constraint (the failing JSON-Schema field path included). Fails fast on " +
+        "an unknown roleId, and on an orchestrator-command roleId (which has no input schema). Only " +
+        "available when the server has an asset-capable catalog root; otherwise returns a " +
+        "not-implemented error.",
+      inputSchema: {
+        roleId: z.string(),
+        input: z.unknown(),
+      },
+    },
+    (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.validateInput(args.roleId, args.input));
+    },
+  );
+
+  server.registerTool(
+    "validate_output",
+    {
+      description:
+        "Validate `output` against a dispatched role's outputSchema (Ajv, draft 2020-12). " +
+        "Returns { ok:true } or { ok:false, errors:[{ path, message, keyword, schemaPath, params }] } " +
+        "with every failing constraint (the failing JSON-Schema field path included). Fails fast on " +
+        "an unknown roleId, and on an orchestrator-command roleId (which has no output schema). Only " +
+        "available when the server has an asset-capable catalog root; otherwise returns a " +
+        "not-implemented error.",
+      inputSchema: {
+        roleId: z.string(),
+        output: z.unknown(),
+      },
+    },
+    (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.validateOutput(args.roleId, args.output));
     },
   );
 }

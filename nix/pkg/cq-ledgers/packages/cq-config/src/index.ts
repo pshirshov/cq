@@ -74,3 +74,5 @@ export {
   DISPATCHED_ROLE_IDS,
   getRoleSidecar,
 } from "./promptCatalogStore.js";
+export type { ValidationError, ValidationResult } from "./validation.js";
+export { validateAgainstSchema } from "./validation.js";

@@ -75,6 +75,19 @@ export type {
   AgentModelEntry,
   AgentModelsResult,
 } from "./mcp/configCapability.js";
+export {
+  UnknownRoleError,
+  NoSchemaForRoleError,
+  PromptCatalogNotImplementedError,
+} from "./mcp/promptCatalogCapability.js";
+export type {
+  PromptCatalogCapability,
+  FetchPromptResult,
+  PromptValidationResult,
+  PromptValidationError,
+  PromptRoleKind,
+  JSONSchemaDoc,
+} from "./mcp/promptCatalogCapability.js";
 export { LedgerSearchIndex } from "./search/LedgerSearchIndex.js";
 export type { FtsSearchOpts, FtsSearchHit } from "./search/LedgerSearchIndex.js";
 export {

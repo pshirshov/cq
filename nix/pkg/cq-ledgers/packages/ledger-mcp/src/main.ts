@@ -1,6 +1,6 @@
 #!/usr/bin/env -S bun run
 /**
- * ledger-mcp — standalone MCP server exposing the 22 ledger tools.
+ * ledger-mcp — standalone MCP server exposing the 25 ledger tools.
  *
  * This is the cq-free ledger MCP server: it serves the tool surface backed
  * by a file-backed `FsLedgerStore` rooted at the supplied `--cwd` directory,
@@ -48,9 +48,11 @@ import {
   type LedgerStore,
   type ReadLogCapability,
   type ConfigCapability,
+  type PromptCatalogCapability,
   registerLedgerStdioTools,
 } from "@cq/ledger";
 import { createConfigCapability } from "./configCapability.js";
+import { createPromptCatalogCapability } from "./promptCatalogCapability.js";
 import { startLedgerWatcher } from "./watcher.js";
 import { restoreFromCache } from "./restore.js";
 
@@ -278,7 +280,7 @@ export function projectInstructionLine(displayName: string): string {
 }
 
 /**
- * Build a fresh McpServer with the 22 ledger tools (LEDGER_TOOL_NAMES) bound to
+ * Build a fresh McpServer with the 25 ledger tools (LEDGER_TOOL_NAMES) bound to
  * `store`. read_log is wired only when `store` is filesystem-backed.
  *
  * `displayName` is the basename of the resolved `--cwd` (the project directory
@@ -311,7 +313,15 @@ export function buildServer(store: LedgerStore, displayName: string): McpServer 
   // documented not-implemented error.
   const configCapability: ConfigCapability | undefined =
     store instanceof FsLedgerStore ? createConfigCapability(store.rootDir) : undefined;
-  registerLedgerStdioTools(server, store, readLog, configCapability);
+  // Typed prompt-catalog capability (T343 / G41): like configCapability, it is
+  // bound to the SAME resolved store root and re-reads the role asset markdown
+  // per call (the schemas come from the imported @cq/config typed catalog). Wired
+  // only for an FS-backed store; an in-memory store supplies none and
+  // fetch_prompt/validate_input/validate_output then throw the documented
+  // not-implemented error.
+  const promptCatalog: PromptCatalogCapability | undefined =
+    store instanceof FsLedgerStore ? createPromptCatalogCapability(store.rootDir) : undefined;
+  registerLedgerStdioTools(server, store, readLog, configCapability, promptCatalog);
   return server;
 }
 

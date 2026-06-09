@@ -3,7 +3,7 @@
  *
  * Returns an array of `tool()` instances for
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
- * The 22-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
+ * The 25-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
  * the stdio counterpart is `registerLedgerStdioTools` (./stdioLedgerTools.ts).
  *
  * Capability-gated tools:
@@ -35,6 +35,10 @@ import {
   ConfigNotImplementedError,
   type ConfigCapability,
 } from "./configCapability.js";
+import {
+  PromptCatalogNotImplementedError,
+  type PromptCatalogCapability,
+} from "./promptCatalogCapability.js";
 
 /**
  * The SDK's `tools?:` field on createSdkMcpServer is typed as
@@ -197,6 +201,7 @@ export function createLedgerMcpTools(
   store: LedgerStore,
   readLog?: ReadLogCapability,
   configCapability?: ConfigCapability,
+  promptCatalog?: PromptCatalogCapability,
 ): AnyTool[] {
   // ---- Item / ledger surface (9) -----------------------------------------
 
@@ -645,6 +650,53 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
+  // ---- Prompt-catalog capability (3) -------------------------------------
+
+  const fetchPrompt = tool(
+    "fetch_prompt",
+    "Fetch a role's typed prompt-catalog entry: { roleId, kind, dispatched, " +
+      "promptTemplate, version?, inputSchema?, outputSchema? }. A dispatched-subagent " +
+      "role returns both JSON Schemas (draft 2020-12); an orchestrator-command role " +
+      "returns prompt + metadata with inputSchema/outputSchema ABSENT. Fails fast on an " +
+      "unknown roleId. Only available when the server has an asset-capable catalog root; " +
+      "otherwise returns a not-implemented error.",
+    { roleId: z.string() } as const,
+    async (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.fetchPrompt(args.roleId));
+    },
+  );
+
+  const validateInput = tool(
+    "validate_input",
+    "Validate `input` against a dispatched role's inputSchema (Ajv, draft 2020-12). " +
+      "Returns { ok:true } or { ok:false, errors:[{ path, message, keyword, schemaPath, params }] } " +
+      "with every failing constraint (the failing JSON-Schema field path included). Fails fast on " +
+      "an unknown roleId, and on an orchestrator-command roleId (which has no input schema). Only " +
+      "available when the server has an asset-capable catalog root; otherwise returns a " +
+      "not-implemented error.",
+    { roleId: z.string(), input: z.unknown() } as const,
+    async (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.validateInput(args.roleId, args.input));
+    },
+  );
+
+  const validateOutput = tool(
+    "validate_output",
+    "Validate `output` against a dispatched role's outputSchema (Ajv, draft 2020-12). " +
+      "Returns { ok:true } or { ok:false, errors:[{ path, message, keyword, schemaPath, params }] } " +
+      "with every failing constraint (the failing JSON-Schema field path included). Fails fast on " +
+      "an unknown roleId, and on an orchestrator-command roleId (which has no output schema). Only " +
+      "available when the server has an asset-capable catalog root; otherwise returns a " +
+      "not-implemented error.",
+    { roleId: z.string(), output: z.unknown() } as const,
+    async (args) => {
+      if (promptCatalog === undefined) throw new PromptCatalogNotImplementedError();
+      return jsonResult(promptCatalog.validateOutput(args.roleId, args.output));
+    },
+  );
+
   return [
     enumerateLedgers,
     fetchLedger,
@@ -668,6 +720,9 @@ ${QUERY_LANGUAGE_HELP}`,
     getPlanners,
     getConfig,
     getAgentModels,
+    fetchPrompt,
+    validateInput,
+    validateOutput,
   ] as unknown as AnyTool[];
 }
 
@@ -695,4 +750,7 @@ export const LEDGER_TOOL_NAMES = [
   "get_planners",
   "get_config",
   "get_agent_models",
+  "fetch_prompt",
+  "validate_input",
+  "validate_output",
 ] as const;
