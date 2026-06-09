@@ -714,15 +714,30 @@ context you are in.
   suppression; a standalone invocation has no such wrapper. Suppressing here is
   what guarantees exactly ONE handoff per run — never a duplicate.
 
-## Commit the ledger (standalone stop)
-After the standalone handoff write, persist the ledger to git — and ONLY the
+## Commit the ledger (after the planning-lock + at the standalone stop)
+The ledger files are tracked git artifacts. Commit the ledger — and ONLY the
 ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`,
-gitignored; NEVER code):
+gitignored; NEVER code) — at TWO points:
+
+- **After the planning-lock** — immediately after a goal reaches `planned` (its
+  decision locked + status `planned`; the planner's `completed` outcome at
+  sub-step 1c). Commit right then, so a locked plan's milestones / tasks /
+  locked-decision land in a durable checkpoint as soon as they exist. This
+  checkpoint **ALWAYS fires, even when chained** under `/cq:advance` — it
+  OVERRIDES the chained-suppression for THIS commit specifically (D43 part-b:
+  otherwise a planning round that reaches `planned` while chained would leave
+  the plan's milestones/tasks/locked-decision uncommitted). Use the mechanism
+  below with a message like `chore(ledger): /cq:plan:advance — planned: <G>`.
+- **At the standalone stop** — after the standalone handoff write. SUPPRESS this
+  at-stop commit when chained (the wrapper owns the single run-stop commit). The
+  after-planning-lock commit above still fires either way.
+
+Mechanism (run from the ledger root):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
-git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan:advance — <stop: <status>>
+git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan:advance — <planned: <G> | stop: <status>>
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
-The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed.
-SUPPRESS this commit when chained (the wrapper owns the single run-stop commit).
+The `git diff --cached --quiet` guard makes it a NO-OP when nothing changed
+(idempotent). Scope `git add` to the ledger artifacts only — never `git add -A`.
