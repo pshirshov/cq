@@ -981,3 +981,42 @@ describe("D43: T301-T304 prompt-hardening grep invariants — file-scoped", () =
     expect(text).toContain("it fires even when the implement sub-flow runs chained under");
   });
 });
+
+// ---------------------------------------------------------------------------
+// G38 item 1a — prompt-hardening grep-invariants: post-done cleanup + start
+// sweep markers in the source files, and all three markers present in the
+// committed gen.ts (freshness guard).
+//
+// Sources checked:
+//   cq-assets/commands/cq/implement/advance.md  — two markers
+//   cq-assets/agents/implement-worker.md        — one marker
+//   packages/ledger-web/src/agentsCatalogue.gen.ts — all three (gen guard)
+// ---------------------------------------------------------------------------
+
+describe("G38 item 1a prompt-hardening grep invariants — file-scoped", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+  const cqAgentsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/agents");
+  const genTsPath = path.resolve(import.meta.dir, "../../ledger-web/src/agentsCatalogue.gen.ts");
+
+  it("G38-1a: implement/advance.md contains post-done-cleanup marker", async () => {
+    const text = await readFile(path.join(cqCommandsRoot, "implement", "advance.md"), "utf8");
+    expect(text).toContain("G38-1a-post-done-cleanup");
+  });
+
+  it("G38-1a: implement/advance.md contains start-sweep marker", async () => {
+    const text = await readFile(path.join(cqCommandsRoot, "implement", "advance.md"), "utf8");
+    expect(text).toContain("G38-1a-start-sweep");
+  });
+
+  it("G38-1a: implement-worker.md contains worker-ephemeral marker", async () => {
+    const text = await readFile(path.join(cqAgentsRoot, "implement-worker.md"), "utf8");
+    expect(text).toContain("G38-1a-worker-ephemeral");
+  });
+
+  it("G38-1a: agentsCatalogue.gen.ts contains all three markers (freshness guard)", async () => {
+    const text = await readFile(genTsPath, "utf8");
+    expect(text).toContain("G38-1a-post-done-cleanup");
+    expect(text).toContain("G38-1a-start-sweep");
+    expect(text).toContain("G38-1a-worker-ephemeral");
+  });
+});
