@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 63
+  item: 64
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -234,3 +234,28 @@ archives:
 - headline: "G38 plan review: approved (R374 go-ahead) — flow-hardening + UI plan LOCKED"
 - rationale: "G38 (4 bundled work items, all 7 clarifying questions Q167-Q173 answered 'as recommended') reached reconciled go-ahead at review round 3 (R374; full panel opus[claude] + codex/grok/minimax[pi]; opus+codex+minimax go-ahead, grok's lone revise ADJUDICATED non-blocking as a verification artifact — it judged the round-3 prompt's recap shorthand, not the live ledger, and every cited point is satisfied in the actual task items) after two revise rounds (R372: 12 substantive criticisms incl. the LOAD-BEARING gen-agents-catalogues-commands finding; R373: 3 precision nits). Multi-planner synthesis (opus[claude]+grok+minimax[pi] candidates, orchestrator-synthesized + persisted). Locked plan: 5 work milestones M127-M131, 14 active tasks (T308/T309/T310/T322/T311; T312/T313; T315/T316; T318/T319; T321), 3 abandoned (T314/T317/T320 folded into owners), + defect D44 (low) for item 3. Decomposition: (1a, prompt-only, M127) T308 advance.md §7.3 explicit `git worktree remove --force + branch -D + prune` after the per-task done write (marker G38-1a-post-done-cleanup) + T309 §1 start-of-pass orphan/locked sweep excluding blocked/wip (G38-1a-start-sweep) + T310 implement-worker.md alignment (G38-1a-worker-ephemeral) + T322 gen-agents regen (advance.md+worker.md ARE catalogued into agentsCatalogue.gen.ts — R372/opus, verified) + T311 file-scoped grep-invariant cells over sources AND the generated gen.ts. (1b, M128) T312 @cq/ledger onMutation-driven atomic post-lock non-blocking ~/.cache mirror via a SHARED cacheMirrorDir(absRoot)=${XDG_CACHE_HOME:-~/.cache}/cq/ledgers/${basename}-${sha256(absRoot).slice(0,12)} + T313 `ledger-mcp restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + updating the main.ts header boundary. (2, web-only, M129) T315 hand-authored roleActions.ts ROLE_FLOWS (role nodes + labeled action edges as DiagramModel) + T316 render the Flows tab from ROLE_FLOWS via the existing elk DiagramSvg, REPLACING the flowData state diagrams, testids preserved. (3, defect-aware, M130) T318 LIST-focus PgUp/PgDn page cursor by listInnerH + Home/End jump first/last + remove no-Enter detail-scroll + module-level matchHomeEnd(input) ESC helper + T319 CONTENT-focus Home/End reusing the helper; both ledgerRef defects:D44. (M131) T321 cross-cutting verify (bun run check + grep the 3 markers + nix build ledger-mcp/-tui/-web + §5 intact). DAG acyclic (T309→T308 same-file serialization; T322→T308/T309/T310; T311→T322; T313→T312; T316→T315; T319→T318; T321→T311/T313/T316/T319). G38 → planned."
 - ledgerRefs: ["goals:G38","defects:D44"]
+
+## M135
+
+### K64 — locked
+
+- createdAt: 2026-06-09T19:42:20.232Z
+- updatedAt: 2026-06-09T19:42:20.232Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "G41 plan review: approved (R400 go-ahead) — 5-item next-batch plan LOCKED"
+- rationale: |
+    G41 (5 bundled items, all 6 clarifying questions Q183-Q188 answered) reached reconciled go-ahead at review round 2 (R400; full panel opus[claude]+codex+grok+minimax[pi]; opus+grok+minimax go-ahead, codex's lone revise ADJUDICATED — its #2 cq.toml.example-sync + #3 ideas-no-milestone-assertion were valid and APPLIED to T331/T335, its #1 milestone-dep concern is a defensible design choice that correctly encodes Q183's quick-wins-first ordering) after one revise round (R399: 12 substantive criticisms). Multi-planner synthesis (opus[claude] base + grok+minimax[pi] fold-ins, orchestrator-synthesized + persisted). Per Q183 the 5 items are INDEPENDENT work milestones sequenced quick-first (advisory milestone dependsOn encodes the order, not a technical prereq). LOCKED plan: 5 work milestones M136-M140, 15 tasks T331-T345.
+    
+    M136 (cq init cq.toml, Q184): T331 hand-authored CQ_TOML_TEMPLATE in cq-cli (opus/sonnet[claude:sonnet-4.6]/haiku[claude:haiku-4.5] active, pi commented; cq.toml.example is an existing read-basis, updated to stay consistent; no TOML serializer → literal) → T338 runInit writes cq.toml, skip-with-message if exists, --force overwrites (Q184 literal; symlink special-casing removed).
+    
+    M137 (Flows-tab polish, web, Q187): T332 underline activatable node labels in DiagramSvg; T333 derive zero-outgoing-edge→terminal:true in roleActions.ts (DiagramSvg already keys rx on n.terminal) all 4 flows; T334 RENDERING fix for overlapping parallel same-pair edge labels (reproduce-first layout test → fix diagramLayout elk routing + per-index labelPos) + distinct trigger label text + docs/drafts labels note.
+    
+    M138 (Ideas ledger + idea-id grammar, Q188): T335 IDEAS_SCHEMA in CANONICAL_LEDGERS (idPrefix I, title+description, statuses open|planned|discarded|postponed, terminalStatuses=[planned,discarded], postponed→open; attach to M-AMBIENT, flat render, no user milestones) → T339 ledger-web 'Ideas' SIDEBAR_GROUP above goals + flat view; T340 plan.md I-id grammar (EITHER /^I\d+$/ ids OR free text) + one-goal-per-idea + named consume-an-idea sub-procedure (fetch→seed verbatim→bidirectional ledgerRefs→idea→planned) → T342 follow-up.md appends idea text as new scope via existing re-open path + reuses the consume sub-procedure.
+    
+    M139 (typed MCP prompt catalog, Q185, advisory-deps M136/M137/M138): T336 design + LOCK decisions (dispatched-subagent vs orchestrator-command role split; validator: prefer in-workspace else Ajv+flake.nix FOD refresh; per-role schema sidecar storage) + plan-advance schemas first → T341 catalog store + gen-agents-catalogue emits typed schemas for dispatched roles, importable by ledger-mcp → T343 ledger-mcp fetch_prompt/validate_input/validate_output tools → T344 prove plan-advance end-to-end + Agents tab renders typed schemas → T345 wire all dispatched dispatch sites (plan/advance, implement/advance, investigate/advance) + remove duplicated prose ioSchema.
+    
+    M140 (orphan-branch SPIKE-ONLY, Q186, advisory-deps M139): T337 feasibility decision+findings (+ optional throwaway PoC on a throwaway repo; hash-object/mktree/commit-tree/update-ref or linked worktree; proof main checkout HEAD+worktree byte-identical; NO prod code in packages/*/src).
+    
+    DAG acyclic: T338→T331; T342→T340→T335, T339→T335; T341→T336, T343→T341, T344→T343, T345→T344; milestone advisory ordering M136/M137/M138 → M139 → M140. G41 → planned.
+- ledgerRefs: ["goals:G41"]

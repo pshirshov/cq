@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 330
+  item: 345
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -457,3 +457,201 @@ archives:
 ---
 
 # tasks
+
+## M136
+
+### T331 — planned
+
+- createdAt: 2026-06-09T19:08:19.620Z
+- updatedAt: 2026-06-09T19:40:54.463Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Write a fully-commented cq.toml template constant in cq-cli
+- description: "Add a new module (e.g. nix/pkg/cq-ledgers/packages/cq-cli/src/cqTomlTemplate.ts) exporting CQ_TOML_TEMPLATE: a static, fully-commented TOML string. **cq.toml.example already EXISTS at the repo root (read-basis, NOT new work — confirmed 5777 bytes, ships only the `opus`/`opus-high` aliases + [tiers]).** Model the template's prose/structure on it. Per Q184 the ACTIVE config must configure Opus, Sonnet AND Haiku as aliases AND list them active in `reviewers`/`planners`; every other pi-available model (the grok-build / minimax / ollama-cloud tokens) is present but COMMENTED OUT. cq.toml.example has NO Sonnet/Haiku alias today, so ADD them with these canonical token strings (cq alias grammar form, cross-checked against the live harness model ids — Sonnet 4.6, Haiku 4.5): `sonnet = \"claude:sonnet-4.6\"`, `haiku = \"claude:haiku-4.5\"` (keep `opus = \"claude:opus-4.8[1m]\"`). Include [aliases], reviewers, planners, [tiers] (opus=frontier, sonnet=standard, haiku=fast), [agent_tiers], each commented. cq-config has only a TOML PARSER (no serializer) → hand-authored literal. The template, once re-parsed by @cq/config parseConfig, MUST be schema-valid. NOTE: the `claude:<model>` grammar does NOT enum-validate the model id, so parseConfig passing does not by itself prove the token is a real dispatchable model — the acceptance below adds an explicit assertion that the three active aliases resolve to the intended opus/sonnet/haiku tokens."
+- acceptance: "A unit test feeds CQ_TOML_TEMPLATE through `parseConfig` (@cq/config) and asserts: it parses without throwing; resolveReviewers/resolvePlanners succeed; the active reviewers+planners resolve to EXACTLY the three claude tokens claude:opus-4.8[1m] / claude:sonnet-4.6 / claude:haiku-4.5 (string-equality on the resolved tokens, guarding against the no-enum-validation gap); and every commented pi model line is NOT in the active set. ALSO (R399-round2/codex #2): update the repo-root cq.toml.example to add the same sonnet/haiku aliases and make Opus/Sonnet/Haiku the active reviewers/planners, keeping it consistent with CQ_TOML_TEMPLATE — a test asserts cq.toml.example's resolved active model set EQUALS the template's (so the documented example never silently diverges from what `cq init` writes). `bun run typecheck` and `bun test` pass."
+- suggestedModel: standard
+- ledgerRefs: ["goals:G41"]
+
+### T338 — planned
+
+- createdAt: 2026-06-09T19:09:22.607Z
+- updatedAt: 2026-06-09T19:29:06.866Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Make `cq init` write cq.toml with skip/--force semantics
+- description: "Extend runInit + parseSubcommandArgs in nix/pkg/cq-ledgers/packages/cq-cli/src/main.ts. After the existing FsLedgerStore.init(), write `<root>/cq.toml` (path.join(args.cwd, CQ_CONFIG_FILENAME); CQ_CONFIG_FILENAME='cq.toml' already defined) with CQ_TOML_TEMPLATE. Behaviour per Q184 (LITERAL): if cq.toml already exists, SKIP writing and print an informative message (e.g. `cq init: cq.toml already exists at <path>; re-run with --force to overwrite`) — do NOT error; add a `--force` flag (mirror existing `--yes` parsing in SubcommandArgs/parseSubcommandArgs) that OVERWRITES the existing file. (R399: the earlier 'fail-loud on symlink/dir even under --force' scope was REMOVED — it deviated from Q184's plain '--force overwrites'.) Update USAGE to document `cq init [--cwd <path>] [--force]`. Keep the existing 'initialised ledgers…' line; add a line reporting whether cq.toml was written, skipped, or overwritten."
+- acceptance: "New cq-cli tests (packages/cq-cli/test) using a temp dir assert: (1) `cq init` on an empty root creates cq.toml whose content === CQ_TOML_TEMPLATE; (2) a second `cq init` leaves the file byte-identical and emits the skip message (exit 0); (3) `cq init --force` overwrites a modified cq.toml back to the template. `bun test` and `bun run check` pass."
+- suggestedModel: standard
+- dependsOn: ["T331"]
+- ledgerRefs: ["goals:G41"]
+
+## M137
+
+### T332 — planned
+
+- createdAt: 2026-06-09T19:08:24.319Z
+- updatedAt: 2026-06-09T19:08:24.319Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Underline activatable node names in DiagramSvg
+- description: "In nix/pkg/cq-ledgers/packages/ledger-web/src/DiagramSvg.tsx, give the <text> label of each activatable node (the branch where `activatable === true`: node has agentId AND onActivateAgent supplied) a visible clickability affordance: add `textDecoration: 'underline'` (cursor:pointer already on the <g>). Non-activatable nodes' labels stay un-decorated. Apply via a style/prop on the existing <text> element keyed off the same `activatable` boolean computed for interactiveProps; do not change layout or testids. Applies across all flows."
+- acceptance: A happy-dom test renders a flow model with at least one agentId-bearing node and one plain node, passes onActivateAgent, and asserts the activatable node's label <text> has text-decoration underline while the plain node's does not. `bun test` passes.
+- suggestedModel: standard
+- ledgerRefs: ["goals:G41"]
+
+### T333 — planned
+
+- createdAt: 2026-06-09T19:08:29.519Z
+- updatedAt: 2026-06-09T19:28:44.323Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Render terminal (no-outgoing-edge) flow nodes as visually distinct
+- description: "Terminal-action nodes (role nodes with NO outgoing edges in a flow) must look distinct (Q187: no rounding). DiagramSvg already keys rounding on `n.terminal` (RX_TERMINAL=4 vs RX_NORMAL=14, thicker stroke) and diagramLayout.ts already threads `terminal` through. CONCRETE DERIVATION SITE: in packages/ledger-web/src/roleActions.ts, at the point each RoleFlowDefinition is built, compute per node whether it has zero outgoing edges in THAT flow's `edges` array and set `terminal: true` on those RoleNodes (a small pure post-processing pass over each flow's node+edge lists, co-located with the ROLE_FLOWS definitions). If the RoleNode type does not already carry `terminal?: boolean`, add it there; confirm layoutDiagram in diagramLayout.ts forwards it to DiagramNode (it already does per T326/T329 — verify, no change expected). Apply across ALL four flows (plan/investigate/implement/advance). No DiagramSvg change beyond consuming the already-supported `n.terminal`."
+- acceptance: "A test over ROLE_FLOWS asserts for each flow: every node with zero outgoing edges has terminal===true, every node with ≥1 outgoing edge has terminal!==true. A DiagramSvg render test asserts a terminal node's rect uses rx=4 and a non-terminal node's rect uses rx=14. `bun test` passes."
+- suggestedModel: standard
+- ledgerRefs: ["goals:G41"]
+
+### T334 — planned
+
+- createdAt: 2026-06-09T19:08:42.468Z
+- updatedAt: 2026-06-09T19:29:00.301Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Make parallel/duplicate flow edges render with distinct visible labels
+- description: "REVISED (R399): the defect is a RENDERING fault, NOT missing data. CONFIRMED: all 45 ROLE_FLOWS edges in packages/ledger-web/src/roleActions.ts ALREADY carry a non-empty `label`, and DiagramSvg already renders one label per edge by index. The user's symptom ('Implement flow — 2 arrows orchestrator→ledger, 3 orchestrator→worktree with no labels') is that PARALLEL edges between the same node pair render their labels OVERLAPPING / on top of each other (and feedback edges similarly), so they read as unlabelled. FIRST reproduce: add a layout/render test that lays out a flow with parallel same-pair edges (the implement flow) and asserts each parallel edge's label is placed at a DISTINCT, non-overlapping position (distinct labelPos / y-offset) — confirm it currently FAILS (labels coincide). THEN fix the layout/render path (diagramLayout.ts elk edge routing + per-index labelPos in DiagramSvg) so parallel edges are routed/offset and their labels placed distinctly and visibly. SEPARATELY, audit the label TEXT for the parallel implement-flow edges so each names its DISTINCT trigger/action (orchestrator→ledger: 'create milestone' vs 'update item status / append scope'; orchestrator→worktree: 'dispatch implement-worker' vs 'merge task by SHA + tear down worktree' vs 'dispatch implement-reviewer' — verify against commands/cq/implement/advance.md) and collapse ONLY genuinely-identical edges. Record the PROPOSED final label set in a concrete deliverable for user review: a new docs/drafts/<ts>-flows-edge-labels.md note (NOT a 'planDoc' — that artifact does not exist)."
+- acceptance: (1) A reproduce-first layout test asserts each parallel same-pair edge in the implement flow gets a DISTINCT label position (no two coincide) — fails before the fix, passes after. (2) A render test confirms the implement flow's previously-overlapping parallel-edge labels are all visible/non-overlapping in the SVG. (3) A data test asserts every ROLE_FLOWS edge has a non-empty label and parallel edges on a node pair have distinct label strings. (4) The proposed final label set is written to docs/drafts/<ts>-flows-edge-labels.md for user review. `bun run lint` + `bun test` pass.
+- suggestedModel: standard
+- ledgerRefs: ["goals:G41"]
+
+## M138
+
+### T335 — planned
+
+- createdAt: 2026-06-09T19:08:49.874Z
+- updatedAt: 2026-06-09T19:40:59.082Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add the `ideas` ledger schema to CANONICAL_LEDGERS
+- description: "In nix/pkg/cq-ledgers/packages/ledger/src/constants.ts add IDEAS_LEDGER='ideas' and IDEAS_SCHEMA: idPrefix 'I' (verified FREE against M/D/T/H/Q/K/G/R/HO), fields { title:{string,required:true}, description:{string,required:false} } (Q188). statusValues ['open','planned','discarded','postponed']. DECIDED (R399, no longer provisional): terminalStatuses = ['planned','discarded'] — `planned` IS terminal because the consume-an-idea flow moves a consumed idea to 'planned' when its goal is seeded and it must STAY there; `discarded` is terminal; `postponed` is NON-terminal and returns to open per Q188; `open` is non-terminal. transitions: open→[planned,discarded,postponed]; postponed→[open,planned,discarded]; planned→[]; discarded→[]. Append { name: IDEAS_LEDGER, schema: IDEAS_SCHEMA } to CANONICAL_LEDGERS so bootstrap/`cq init` provisions it. RECONCILE 'no milestones' with the milestone-attachment model: ideas items attach to the immortal bootstrap milestone M-AMBIENT (MILESTONES_AMBIENT_ID) and render as a flat list (like goals via T83) — no per-idea milestone; document this in the schema doc-comment."
+- acceptance: "A ledger unit test bootstraps a fresh FsLedgerStore, asserts the `ideas` ledger exists with the expected schema (statusValues + terminalStatuses=['planned','discarded']), creates an idea under M-AMBIENT with title+description and status open, exercises open→postponed→open and open→planned, and asserts illegal transitions (planned→open, discarded→open) throw. ALSO (R399-round2/codex #3 — the 'no milestones' Q188 requirement): assert ideas carry NO user-milestone association — a created idea attaches ONLY to the ambient M-AMBIENT (not any user milestone), the schema declares no required milestone field beyond the ambient attachment, and ideas are enumerable/rendered as a FLAT list (never grouped under a user milestone). `bun test` passes."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G41"]
+
+### T339 — planned
+
+- createdAt: 2026-06-09T19:09:28.422Z
+- updatedAt: 2026-06-09T19:09:28.422Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Surface the Ideas ledger in ledger-web with an 'Ideas' sidebar button above Goals
+- description: "In nix/pkg/cq-ledgers/packages/ledger-web/src/App.tsx add an `ideas` entry to SIDEBAR_GROUPS as a NEW group placed immediately ABOVE ['goals','milestones'] (Q188: Ideas button above Goals). Define an IDEAS_LEDGER const. Ideas render as a FLAT list (no milestone subsections) like goals (T83) — reuse the goals flat-list path / ItemTable; the generic detail panel edits title/description/status through updateItem. Ensure the sidebar group divider logic still renders correctly with the new non-empty group. Pure MCP client — no direct ledger-file reads. TUI gets the Ideas ledger automatically (it lists all canonical ledgers); no special TUI work required."
+- acceptance: A happy-dom App test with a fake client exposing an `ideas` ledger asserts the `ledger-ideas` sidebar button renders ABOVE `ledger-goals` in DOM order, opening it shows the ideas items as a flat table, and an idea's detail panel edits title/description/status via updateItem. `bun test` passes.
+- suggestedModel: standard
+- dependsOn: ["T335"]
+- ledgerRefs: ["goals:G41"]
+
+### T340 — planned
+
+- createdAt: 2026-06-09T19:09:36.098Z
+- updatedAt: 2026-06-09T19:29:52.658Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Extend /cq:plan command grammar to accept idea-ids (one goal per idea)"
+- description: "EDIT LOCUS: nix/pkg/cq-assets/commands/cq/plan.md ONLY (a slash-command prompt the orchestrator executes; there is NO cq-cli arg-parser for slash commands — the 'grammar' is the documented procedure the orchestrator follows + the ledger MCP ops it performs). Extend plan.md so the orchestrator accepts I-ids as arguments. Grammar (Q188, NO 'mixed' interleaving — R399 dropped that ungrounded scope): the argument is EITHER one or more whitespace-separated idea-ids each matching /^I\\d+$/, OR free text (today's path) — not both interleaved. `/cq:plan I01 I02 I03` creates ONE goal PER idea. Define a named **consume-an-idea sub-procedure** ONCE (a numbered sub-section): (i) fetch_item the idea from the `ideas` ledger; (ii) bootstrap a new goal seeding its title from the idea title and description VERBATIM from the idea description (then the normal clarifying bootstrap); (iii) link bidirectionally — add `ideas:<I>` to the goal's ledgerRefs and `goals:<G>` to the idea's ledgerRefs; (iv) update the idea status to 'planned'. plan.md must reference this sub-procedure so /cq:plan:follow-up reuses it (DRY). Keep the existing defect-vs-goal intake guard, provenance + handoff sections."
+- acceptance: "OBSERVABLE: (1) plan.md contains a section documenting the I-id token grammar (the /^I\\d+$/ rule) and the EITHER-idea-ids-OR-free-text (no interleave) rule; (2) it contains the named consume-an-idea sub-procedure with the four steps (fetch → seed verbatim → bidirectional ledgerRefs link → idea→planned); (3) one-goal-per-idea is stated explicitly. Verified by a structural grep/asset test asserting those sections/anchors exist, plus `bun run check` stays green (no code touched). No nonexistent symbol/file is referenced."
+- suggestedModel: frontier
+- dependsOn: ["T335"]
+- ledgerRefs: ["goals:G41"]
+
+### T342 — planned
+
+- createdAt: 2026-06-09T19:09:53.795Z
+- updatedAt: 2026-06-09T19:30:14.660Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Extend /cq:plan:follow-up to append idea text as new scope on an existing goal"
+- description: "EDIT LOCUS: nix/pkg/cq-assets/commands/cq/plan/follow-up.md ONLY. Make `/cq:plan:follow-up G35 I01` accepted: the FIRST token is the target goal id, the remaining tokens are idea-ids (/^I\\d+$/). For each idea: fetch it from the `ideas` ledger and APPEND its title+description as new scope onto the existing goal G35's description, using follow-up.md's EXISTING re-open mechanism (the same goal re-open path it already documents for adding scope to a planned/building goal — R399: this is the pre-existing follow-up re-open behaviour, NOT a new 're-open semantics' invented here). Then invoke the SAME shared consume-an-idea sub-procedure defined in plan.md for the link + transition (add `goals:G35` to the idea's ledgerRefs + `ideas:I01` to the goal's; set the idea status to 'planned'). Free-text follow-up still supported. Reference (do NOT duplicate) plan.md's consume-an-idea sub-procedure for DRY."
+- acceptance: "OBSERVABLE: (1) follow-up.md documents the argument grammar (first token = goal id; remaining /^I\\d+$/ tokens = ideas) and that each idea's title+description is appended as new scope via the existing re-open path; (2) it REFERENCES (by name/anchor) plan.md's shared consume-an-idea sub-procedure for the link + idea→planned transition (no duplicated procedure text). Verified by a structural grep/asset test asserting the grammar section + the cross-reference exist, plus `bun run check` stays green. No nonexistent symbol/file referenced."
+- suggestedModel: frontier
+- dependsOn: ["T340"]
+- ledgerRefs: ["goals:G41"]
+
+## M139
+
+### T336 — planned
+
+- createdAt: 2026-06-09T19:08:57.294Z
+- updatedAt: 2026-06-09T19:29:36.863Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Design the typed prompt-catalog data model + formal JSON Schemas (single source of truth)
+- description: "Establish the typed catalog that REPLACES the hand-authored agentsCatalogue/roleActions.ts prose as the single source of truth for agent/subagent prompts + input/output schemas (Q185, reconciling G38). Current source: cq-assets/agents/*.md + commands/cq/*.md prose `## Catalogue` blocks → gen-agents-catalogue.ts → agentsCatalogue.gen.ts. DECISIONS to LOCK in this task (a decisions item): (1) **Role scope** — distinguish DISPATCHED-SUBAGENT roles (plan-advance, plan-reviewer, implement-worker, implement-reviewer, conflict-resolver, investigate-explorer, prober, plan-synthesizer, … — the roles with a non-null agentTierKey, dispatched with a parent-supplied input and returning a validated output) from ORCHESTRATOR-COMMAND roles (agentTierKey===null / not-model-configurable — the /cq:* commands, never dispatched-with-validated-input by a parent). ONLY dispatched-subagent roles get formal input/output JSON Schemas + the validate-in/out flow; orchestrator-command roles carry the prompt + metadata but no parent-validated input/output contract. (2) **Validator** — PREFER a JSON-Schema validator ALREADY in the cq-ledgers workspace; only if none exists add the most-recent stable Ajv AND, in the SAME task, perform the mandatory FOD refresh (set flake.nix outputHash to 52 A's → `nix build .#node-modules` → paste the `got:` hash) so `nix build .#node-modules` stays green. (3) **Storage format** — COMMIT to ONE representation: per-role typed schema declarations co-located with each role (a sidecar consumed by gen-agents-catalogue.ts), NOT embedded in the prose Catalogue blocks. Author the input+output JSON Schemas for ONE role first — plan-advance — matching its actual input (goal id, mode flags) and output (status token / candidate JSON) from agents/plan-advance.md."
+- acceptance: "A decisions (locked) item records the three decisions above (role-scope split, validator choice + FOD-refresh-if-new-dep, storage format) reconciling the G38 agentsCatalogue/ROLE_FLOWS question. A typed PromptCatalogEntry { id, kind, dispatched:boolean, model/tier, version, promptTemplate, inputSchema?, outputSchema? } compiles; plan-advance's inputSchema+outputSchema are valid JSON Schema (a test compiles each with the chosen validator) and accept a valid example / reject an invalid one. If a dependency was added, `nix build .#node-modules` is green. `bun run typecheck` + `bun test` pass."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G41"]
+
+### T341 — planned
+
+- createdAt: 2026-06-09T19:09:47.849Z
+- updatedAt: 2026-06-09T19:30:00.997Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Build the catalog store + extend gen-agents-catalogue to emit typed JSON Schemas
+- description: "Make the typed catalog the producer for all DISPATCHED-SUBAGENT roles (per the T336 role-scope decision: roles with a non-null agentTierKey get input/output schemas; orchestrator-command roles carry prompt+metadata only). COMMITTED storage format (T336 decision): per-role typed schema declarations co-located with each role as a SIDECAR (e.g. a `<role>.schema.ts`/`.schema.json` beside the role's prompt, or a typed schema field in a sidecar module) — NOT embedded in the prose `## Catalogue` blocks. Rework nix/pkg/cq-ledgers/packages/ledger-web/scripts/gen-agents-catalogue.ts + agentsCatalogue.ts so the generated catalogue (agentsCatalogue.gen.ts) carries the typed inputSchema/outputSchema (for dispatched roles) + promptTemplate as the single source. Keep the determinism + hard-fail contract (every role complete or nothing emitted) and the AGENT_ROLE_TIERS roster cross-check. Place the node-free typed catalog in a location ledger-mcp can import directly (a shared module), avoiding a second copy. ROLE_FLOWS edge/label data in roleActions.ts STAYS (it models flow edges, not prompts)."
+- acceptance: "`bun run gen-agents` regenerates agentsCatalogue.gen.ts byte-deterministically with typed inputSchema/outputSchema present for every dispatched-subagent role (and absent for orchestrator-command roles); a test asserts every dispatched role's two schemas validate as JSON Schema and the roster cross-check passes; the typed catalog is importable by ledger-mcp (no duplicate copy). `bun run check` passes."
+- suggestedModel: frontier
+- dependsOn: ["T336"]
+- ledgerRefs: ["goals:G41"]
+
+### T343 — planned
+
+- createdAt: 2026-06-09T19:09:59.608Z
+- updatedAt: 2026-06-09T19:09:59.608Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Expose fetch-prompt / validate-input / validate-output MCP endpoints in ledger-mcp
+- description: "Add three MCP tools to ledger-mcp (mirror the configCapability injection pattern in packages/ledger-mcp/src/configCapability.ts + tool registration in main.ts): `fetch_prompt(roleId)` → { promptTemplate, inputSchema, outputSchema } from the typed catalog; `validate_input(roleId, input)` → validates `input` against that role's inputSchema (returns ok / structured errors with the failing JSON-Schema path); `validate_output(roleId, output)` → validates against outputSchema. Build a PromptCatalogCapability injected like ConfigCapability, reading the committed typed catalog (re-read per call, no caching, consistent with the compute* methods). Use the validator chosen in the design task. Fail fast with a precise error on unknown roleId."
+- acceptance: "ledger-mcp tests (dual-tests style against the in-memory + real store wiring) assert: fetch_prompt('plan-advance') returns the prompt + both schemas; validate_input accepts a valid plan-advance input and rejects an invalid one with a structured error (failing field path); validate_output likewise; unknown roleId throws a precise error. `bun run check` passes."
+- suggestedModel: frontier
+- dependsOn: ["T341"]
+- ledgerRefs: ["goals:G41"]
+
+### T344 — planned
+
+- createdAt: 2026-06-09T19:10:09.075Z
+- updatedAt: 2026-06-09T19:10:09.075Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Wire plan-advance end-to-end through the catalog as proof, then update the Agents tab
+- description: "Prove the full flow (Q185 steps a–g) for ONE dispatching path: the plan-flow orchestrator (commands/cq/plan/advance.md and/or plan.md) dispatching plan-advance. Update that command's documented procedure to: (a) fetch_prompt('plan-advance') for the prompt template, (b) take its inputSchema, (c) compose the input, (d) validate_input via MCP, (e) run the subagent, (f) await output, (g) validate_output via MCP. Update ledger-web's Agents tab (HelpOverlay / agentsCatalogue consumers in App.tsx) to render the typed schemas from the catalog instead of the prose ioSchema strings. Degrade gracefully where the MCP tool is unavailable (older/embedded server), like the existing get_agent_models overlay-error path."
+- acceptance: plan/advance.md documents the fetch→validate-input→run→validate-output sequence for plan-advance; an Agents-tab test asserts the plan-advance row renders the typed input/output schema sourced from the catalog (not the legacy prose); `bun run check` passes. Reviewer confirms the documented flow matches the three MCP endpoints' contracts.
+- suggestedModel: frontier
+- dependsOn: ["T343"]
+- ledgerRefs: ["goals:G41"]
+
+### T345 — planned
+
+- createdAt: 2026-06-09T19:10:17.305Z
+- updatedAt: 2026-06-09T19:30:21.542Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Wire ALL remaining agents through the catalog and remove legacy prompt/schema duplication
+- description: "Generalize the plan-advance proof to every DISPATCHED-SUBAGENT dispatch path (per the T336 role-scope split): each parent that DISPATCHES a subagent fetches that subagent's prompt + validates input/output via the catalog MCP endpoints. ENUMERATED dispatch sites (the commands that spawn subagents): commands/cq/plan/advance.md (plan-advance, plan-reviewer, plan-synthesizer), commands/cq/implement/advance.md (implement-worker, implement-reviewer, conflict-resolver), commands/cq/investigate/advance.md (investigate-explorer, prober). Orchestrator-COMMAND roles (the /cq:* commands themselves, agentTierKey===null) are NOT dispatched-with-validated-input and are OUT of this wiring — they are catalogued (prompt+metadata) but get no validate-in/out. Then clean up legacy: remove the now-duplicated hand-authored prompt/schema sources the typed catalog supersedes (Q185 'clean up legacy code/prompts if any') — e.g. the prose `## Catalogue` ioSchema lines for dispatched roles once the typed schemas are authoritative, and any duplicated prompt copies. Keep roleActions.ts ROLE_FLOWS (edges/labels, not prompts), link-prompts.ts, and the AGENT_ROLE_TIERS roster consistent."
+- acceptance: Every DISPATCHED-SUBAGENT role is reachable via fetch_prompt and each of the enumerated dispatch sites above documents the validate-input → run → validate-output steps; orchestrator-command roles are catalogued without an input/output schema; a repo grep confirms no remaining hand-authored prose ioSchema duplicating a typed schema for a dispatched role; `bun run link-prompts --check` (or the equivalent asset-link check), `bun run gen-agents`, and `bun run check` all pass. Reviewer confirms no legacy prompt source the catalog replaced remains.
+- suggestedModel: frontier
+- dependsOn: ["T344"]
+- ledgerRefs: ["goals:G41"]
+
+## M140
+
+### T337 — planned
+
+- createdAt: 2026-06-09T19:09:09.731Z
+- updatedAt: 2026-06-09T19:09:09.731Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Spike: assess feasibility of storing the ledger on an orphan git branch without working-tree switches"
+- description: "SPIKE-ONLY (Q186): deliver a feasibility DECISION + documented findings (and optionally a throwaway PoC), NOT a production implementation. Investigate keeping the ledger (docs/*.md) on a SEPARATE git branch rooted at the EMPTY/zero commit (orphan ref), with the HARD constraint that writes must NOT switch the working tree to that branch. Evaluate the git-plumbing approach: `git hash-object -w` for blobs, `git mktree`/`update-index --index-info` to build trees, `git commit-tree` for commits, `git update-ref refs/heads/<ledger-branch> <sha>` to advance the orphan ref — all without checkout — and/or a dedicated linked `git worktree`. Prototype the minimal command sequence in a throwaway script under nix/pkg/cq-ledgers/debug/ run against a THROWAWAY test repo (NOT the cq repo; do not wire into ledger-mcp). Assess: correctness, concurrency/locking vs FsLedgerStore, how reads work (cat-file), interaction with the existing ledger git-commit steps in the commands, reflog/push-fetch edge cases, and failure modes. Produce a clear go/no-go recommendation; if feasible, note what a SEPARATE later goal would need."
+- acceptance: "A locked decisions item records the feasibility verdict (feasible / not-feasible / feasible-with-caveats) with concrete evidence: the exact plumbing command sequence tested, captured proof that an orphan-ref commit advanced WHILE the main checkout's HEAD ref AND working tree stayed BYTE-IDENTICAL before/after (or proof it cannot), the concurrency/locking assessment, and a recommendation for the follow-up goal. Findings written into the decision rationale and/or a docs/drafts/<ts>-orphan-ledger-feasibility.md note. NO production code merged into packages/*/src; a grep confirms the PoC is referenced only under debug/ + the findings doc."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G41"]

@@ -362,62 +362,67 @@ archives:
 - ledgerRefs: ["goals:G41"]
 - answer: as recommended
 
-### Q184 — open
+### Q184 — answered
 
 - createdAt: 2026-06-09T18:47:09.275Z
-- updatedAt: 2026-06-09T18:47:09.275Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-09T18:49:42.276Z
+- author: user
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - question: "Item 1 (cq init cq.toml): What exact default content should the generated cq.toml carry, and what is the behaviour when a cq.toml already exists? Specifically: (a) which sections/keys beyond a single Opus model entry — planners set, reviewers set, aliases, any paths? (b) which Opus model id/tier string is the default? (c) overwrite, skip, or error on an existing cq.toml; and should there be a --force?"
 - context: G34 already established cq.toml model-resolution and the get_agent_models MCP capability, and the cq-config package owns config parsing — so the schema/keys exist. The goal says 'reasonable defaults, Opus only configured', but the precise key set, the canonical Opus model string, and the idempotency/clobber behaviour of `cq init` are product decisions that determine the acceptance test for this task.
 - suggestions: ["Minimal: only a [models]/planners entry with Opus; skip (no-op) if cq.toml exists unless --force","Fuller scaffold: models + planners + reviewers + aliases all defaulted to Opus, commented; error if file exists without --force","Write a fully-commented template documenting every available key, Opus active and others commented out"]
 - recommendation: Write a fully-commented template documenting available keys with only Opus active (others commented); skip with an informative message if cq.toml already exists, and add --force to overwrite. Use the same canonical Opus model string get_agent_models resolves today.
 - ledgerRefs: ["goals:G41"]
+- answer: "as recommended with one correction: in the config we write Opus, Sonnet and Haiku should be configured and active. Other models available through pi should be commented out."
 
-### Q185 — open
+### Q185 — answered
 
 - createdAt: 2026-06-09T18:47:24.050Z
-- updatedAt: 2026-06-09T18:47:24.050Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-09T18:50:52.368Z
+- author: user
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - question: "Item 2 (formal MCP prompt catalog): What is the intended SOURCE OF TRUTH and migration path, and how far should the runtime validation flow go in THIS goal? Specifically: (a) where do the canonical prompt texts + input/output JSON Schemas live — hand-authored files the MCP serves, or fully migrated into the ledger/MCP store replacing today's hand-authored agentsCatalogue/roleActions.ts? (b) which agents/subagents must be catalogued first (all of them, or just the plan/implement/investigate roles)? (c) do you want the full fetch→validate-input→run→validate-output loop actually WIRED into dispatching agents now, or is this goal scoped to defining the catalog + MCP endpoints + schemas, with live dispatch wiring deferred?"
 - context: The goal itself calls this possibly 'overkill now', expecting payoff once an agent SDK / pi extension feeds inputs. G38's open question about agentsCatalogue / ROLE_FLOWS being the single source of truth is explicitly cited for reconciliation. The scope boundary (define-the-catalog vs fully-wire-dispatch-time-validation) and the source-of-truth decision drive whether this is a few tasks or a large multi-milestone effort, and what the acceptance criteria are.
 - suggestions: ["Phase 1 only: define the typed catalog + JSON Schemas + MCP fetch/validate endpoints; migrate agentsCatalogue/roleActions.ts to consume the catalog; DEFER live dispatch-time validation","Full flow now: catalog + schemas + endpoints AND wire at least one dispatching agent (e.g. plan-advance) to fetch/validate/run/validate end-to-end as a proof","Catalog data model + schemas only, served read-only for the Agents tab; no validation endpoints yet"]
 - recommendation: "Phase 1: build the typed catalog as the single source of truth (replacing hand-authored agentsCatalogue/roleActions.ts, reconciling G38), expose MCP fetch + validate-input + validate-output endpoints with JSON Schema, but DEFER wiring live dispatch-time validation into running agents to a follow-up — catalogue all roles, prove the endpoints with tests rather than live orchestration."
 - ledgerRefs: ["goals:G41"]
+- answer: "Full flow now: catalog + schemas + endpoints then wire at one dispatching agent (e.g. plan-advance) to fetch/validate/run/validate end-to-end as a proof, then wire ALL the agents and clean up legacy code/prompts if any."
 
-### Q186 — open
+### Q186 — answered
 
 - createdAt: 2026-06-09T18:47:33.799Z
-- updatedAt: 2026-06-09T18:47:33.799Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-09T18:51:08.445Z
+- author: user
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - question: "Item 3 (ledger on a separate orphan git branch, EXPLORATORY): Do you want this goal to (a) produce only a feasibility ASSESSMENT/spike (a decision + documented findings, possibly a throwaway prototype) and stop there, or (b) commit to a full implementation if the spike concludes it is feasible? And what is the acceptable failure mode if a working-tree branch switch turns out to be unavoidable — recommend against and abandon, or accept a worktree-based approach?"
 - context: "The goal explicitly flags this as feasibility-unknown and asks the planner to assess first and possibly recommend against. The hard constraint is: no working-tree branch switches — writes via git plumbing (hash-object/mktree/commit-tree/update-ref against an orphan ref) or a dedicated linked worktree. Whether the deliverable is a spike-then-decide or a committed implementation determines whether I plan a single investigation/decision task or a full implementation milestone gated behind it."
 - suggestions: ["Spike-only this goal: deliver a feasibility decision + documented findings (and maybe a throwaway PoC); a real implementation becomes a separate goal if feasible","Spike then implement within this goal: if the plumbing approach proves out, proceed to a full implementation milestone gated behind the spike's go/no-go","Skip exploration; you've decided you want it — plan the plumbing-based implementation directly"]
 - recommendation: "Spike then implement within this goal: first task is a time-boxed feasibility assessment of the orphan-ref + git-plumbing approach (no working-tree switch); a full implementation milestone follows ONLY on a positive go decision, otherwise the goal records a 'recommend against' decision and that item closes."
 - ledgerRefs: ["goals:G41"]
+- answer: "Spike-only this goal: deliver a feasibility decision + documented findings (and maybe a throwaway PoC); a real implementation becomes a separate goal if feasible"
 
-### Q187 — open
+### Q187 — answered
 
 - createdAt: 2026-06-09T18:47:47.715Z
-- updatedAt: 2026-06-09T18:47:47.715Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-09T18:51:33.299Z
+- author: user
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - question: "Item 4 (Flows-tab polish): For the unlabelled duplicate edges (2× orchestrator→ledger, 3× orchestrator→worktree in the Implement flow), do you want me to (a) author specific textual labels describing each distinct trigger/action, and if so are there canonical phrasings you prefer; or (b) collapse genuinely-identical edges into one? Also: G38 already shipped ROLE_FLOWS/DiagramSvg and its FU-4 covers 'Flows-tab depth' — should item 4 be folded into that existing G38 work, or implemented independently here in G41?"
 - context: The goal says ALL edges must be labelled and asks me to determine whether the duplicate orchestrator→ledger/worktree edges are genuinely distinct (different triggers — then label each) or redundant (then collapse). The correct labels depend on what those edges actually represent in the implement flow's role model (e.g. 'read DAG' vs 'record review', 'create worktree' vs 'merge back'). The clickable-underline and terminal-node (no-rounding) sub-items are mechanical and I can spec them from the existing DiagramSvg code — they don't need clarification. The open decisions are the edge-label semantics and the G38-FU-4 reconciliation (avoid double-planning the same web work).
 - suggestions: ["Implement item 4 here in G41; I derive edge labels from the role model and you review them in the plan; collapse only truly-identical edges","Fold item 4 into G38 FU-4 instead and drop it from G41 to avoid overlap","Implement here, but you will supply the exact label text for the orchestrator→ledger/worktree edges"]
 - recommendation: Implement item 4 in G41 (G38 is already 'planned' and its FU-4 is about depth, not these specific affordances) — I will derive per-edge labels from the implement-flow role model, collapse only edges that are genuinely identical, and surface the proposed label text in the plan for your review.
 - ledgerRefs: ["goals:G41"]
+- answer: as recommended
 
-### Q188 — open
+### Q188 — answered
 
 - createdAt: 2026-06-09T18:48:00.039Z
-- updatedAt: 2026-06-09T18:48:00.039Z
-- author: "opus-4.8[1m]"
+- updatedAt: 2026-06-09T18:52:51.783Z
+- author: user
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - question: "Item 5 (Ideas ledger + /cq:plan idea-id arguments): Two decisions. (A) Ideas ledger shape — what status values should an Idea have (e.g. just open/done, or open/planned/discarded), and is 'description' the only field beyond a headline/title? (B) Idea→goal mapping when /cq:plan or /cq:plan:follow-up is given I-ids: should `/cq:plan I01 I02 I03` create ONE goal aggregating all three ideas, or one goal PER idea; how does the idea's text seed the new goal's description; and once an idea has spawned a goal, does the idea get marked (e.g. status→planned) or linked to that goal?"
 - context: "The goal says the Ideas ledger is simple (status + description, no milestones) and that /cq:plan and /cq:plan:follow-up must accept I-ids alongside or instead of free text — but the exact status enum, the one-goal-vs-one-goal-per-idea aggregation rule, how idea text becomes goal description, and the idea-to-goal back-link/status-transition are all undecided and directly shape both the ledger schema and the command-grammar changes. Note: the canonical ledger set is fixed unless you ask — this explicitly asks for a new 'Ideas' ledger, so I'll add it."
 - suggestions: ["One goal per idea; idea description seeds the goal description verbatim; idea marked status→planned and linked to the spawned goal; Idea statuses: open → planned → done, plus discarded","/cq:plan with multiple I-ids creates ONE aggregate goal whose description concatenates the ideas; /cq:plan:follow-up G35 I01 appends that idea's text to G35; ideas marked planned + linked","Free choice at invocation: /cq:plan I01 I02 = one goal each by default, with a flag to aggregate"]
 - recommendation: "Idea shape: title + description + status open→planned→discarded (no milestones). /cq:plan I01 I02 I03 creates ONE goal per idea by default (each idea's description seeds that goal's description), and /cq:plan:follow-up G35 I01 appends idea I01's text as new scope on G35; in all cases the consumed idea is linked to the goal (ledgerRefs) and moved to status 'planned'."
 - ledgerRefs: ["goals:G41"]
+- answer: as recommended but I think the statuses should be open|planned|discarded|postponed, postponed is non-terminal and can go back to open.

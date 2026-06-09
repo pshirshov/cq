@@ -238,10 +238,10 @@ archives:
 
 ## M135
 
-### G41 — clarifying
+### G41 — planned
 
 - createdAt: 2026-06-09T18:45:56.874Z
-- updatedAt: 2026-06-09T18:48:50.069Z
+- updatedAt: 2026-06-09T19:42:28.495Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: cq init cq.toml + formal prompt catalog (MCP) + ledger-on-separate-git-branch + Flows-tab edge labels/clickable-affordance + Ideas ledger
@@ -257,4 +257,6 @@ archives:
     **4. Flows tab polish (web).** The Flows tab is better now but needs: (a) clickable nodes should have UNDERLINED names — currently there is no visual affordance showing what is clickable; (b) edges must be LABELLED — e.g. in 'Implement flow — roles & actions' there are two arrows orchestrator→ledger and three orchestrator→worktree with no labels, which is meaningless; if these are genuinely different edges (fire on different triggers) add appropriate textual labels. ALL edges should be labelled. (c) Terminal actions (nodes with no outgoing edges) should be visually distinct (e.g. no rounding). Applies across all flows, not just Implement. [Builds on G38 FU-4 ROLE_FLOWS / DiagramSvg work.]
     
     **5. New 'Ideas' ledger.** Add a new ledger named 'Ideas' for the user to jot ideas/notes. Its 'Ideas' button sits ABOVE 'Goals' in the sidebar. Simple structure: just a status and a 'description' field. No milestones, etc. Additionally: `/cq:plan` and `/cq:plan:follow-up` must accept idea IDs as arguments — creating goals from them and starting the usual planning cycle. E.g. `/cq:plan I01 I02 I03` instead of a free-text goal; and `/cq:plan:follow-up G35 I01`. The planner must work out how ideas map into goal creation (one goal per idea? one goal aggregating several? how the idea text seeds the goal description) and how the existing plan/follow-up command grammar is extended to accept I-ids alongside (or instead of) free text.
-- sessionLogs: ["docs/logs/20260609-184831-a49faaf4d8748e870.md"]
+- sessionLogs: ["docs/logs/20260609-184831-a49faaf4d8748e870.md","docs/logs/20260609-191048-a7da7daa089abaf95.md","docs/logs/20260609-191048-pi-grok.md","docs/logs/20260609-191048-pi-minimax.md"]
+- milestones: ["M136","M137","M138","M139","M140"]
+- grounding: "Synthesized multi-planner plan (opus base + grok/minimax fold-ins). 5 work milestones per Q183 sequencing (quick wins 1/4/5 → large item 2 → spike item 3 last): M136 cq init cq.toml (T331 template, T338 writer w/ skip+--force+symlink-fail-loud); M137 Flows-tab polish (T332 underline activatable, T333 terminal-node rounding, T334 per-edge labels w/ proposed text for review); M138 Ideas ledger (T335 schema open|planned|discarded|postponed, T339 sidebar-above-Goals, T340 /cq:plan I-id grammar + shared consume-idea sub-proc, T342 /cq:plan:follow-up); M139 prompt catalog (T336 design+validator decision, T341 catalog store+gen, T343 MCP fetch/validate-in/validate-out endpoints, T344 plan-advance proof + Agents tab, T345 wire-all+legacy cleanup); M140 orphan-branch SPIKE-ONLY (T337 feasibility decision+findings, no prod code). Key groundings: cq-config has parser only (no TOML serializer) → template is a hand-authored literal; DiagramSvg already supports n.terminal rounding + activatable nodes (T316/T326/T329); Ideas 'no milestones' reconciled by attaching to M-AMBIENT + flat render; item 2 reconciles the G38 agentsCatalogue/ROLE_FLOWS source-of-truth question."

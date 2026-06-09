@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 398
+  item: 400
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -640,3 +640,29 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G38"]
 - sessionLogs: ["docs/logs/20260609-123546-a7dc5893fcb1df067.md","docs/logs/20260609-123546-pi-codex.md","docs/logs/20260609-123546-pi-grok.md","docs/logs/20260609-123546-pi-minimax.md"]
+
+## M135
+
+### R399 — revise
+
+- createdAt: 2026-06-09T19:26:15.839Z
+- updatedAt: 2026-06-09T19:27:35.451Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "REVISE (G41 round 1; full panel opus[claude]+codex+grok+minimax[pi], 4/4 usable, ALL revise → reconciled revise). Plan is well-grounded on most file/symbol claims and complete across all 5 items, but carries ~12 planner-fixable criticisms (edge-label task misdiagnosis, undefined planDoc artifact, Ajv-dependency FOD-hash omission, non-operational doc-task acceptance, ungrounded scope deviations, role-set conflation). 0 user-only questions (all fixable autonomously). 0 out-of-scope defects."
+- new_questions: []
+- criticism: ["[opus][codex][grok] M139 dependsOn [M136,M137,M138] and M140 dependsOn M139 OVERSTATE prerequisites: per Q183 the five are INDEPENDENT work milestones with only a work-ORDER preference (quick wins first). The prompt catalog/spike share no technical coupling with cq-init/flows/ideas. Either drop the cross-workstream edges or record them as ADVISORY ordering (not blocking prerequisites) so an unrelated milestone stall doesn't block M139.","[opus][grok] T334 misdiagnoses the edge-label defect: every ROLE_FLOWS edge ALREADY carries a non-empty label and DiagramSvg/diagramLayout already render per-edge labels by index, so T334's data-only acceptance ('no empty label' + 'parallel labels distinct') PASSES against current code WITHOUT fixing the user-visible symptom ('arrows with no labels' = a RENDERING fault on parallel/feedback edges). T334 must reproduce the rendering defect (a layout/render test asserting each parallel edge's label actually places + displays distinctly in the Flows-tab SVG) and scope the fix to the layout/render path, not just label-text authoring.","[codex][grok] T334's 'planDoc' artifact is undefined (no such file/constant/draft exists). Name a CONCRETE reviewable deliverable for the proposed edge labels (e.g. a specific docs/drafts/<ts>-flows-edge-labels.md note, or ROLE_FLOWS source comments, or a test fixture) instead of a nonexistent 'planDoc'.","[opus][codex][grok] M139/T336 may add Ajv (a validator not in the cq-ledgers workspace deps) but NO task carries the mandatory post-dependency step from CLAUDE.md: refresh the flake.nix FOD `outputHash` (52 A's → `nix build .#node-modules` → paste `got:` hash) after a `bun.lock` change — otherwise `nix build .#node-modules` breaks. Prefer a validator ALREADY in-workspace to avoid the dependency; if a new dep is unavoidable, add the FOD-refresh step to T336/T341 (or a dedicated task).","[codex][grok] T340/T342 acceptance is NON-OPERATIONAL ('rubric review confirms', 'asset-link check passes') and does not name the concrete implementation sites. Make acceptance observable (a grep/test/`bun run check` invariant) and identify the exact edit loci (cq-assets command markdown ONLY, vs any tokenization/arg-parsing/MCP-dispatch/ledgerRefs logic) for the I-id grammar + the shared consume-an-idea sub-procedure.","[codex][grok][minimax] T340's 'mixed free-text handling' is ungrounded vs Q188 (which gives a pure idea-id grammar, '/cq:plan I01 I02 I03'). Either DEFINE 'mixed' precisely (idea-ids interleaved with prose?) or DROP it and stick to Q188's grammar.","[grok][minimax] T338's 'fail-loud on symlink/dir even under --force' is UNREQUESTED scope deviating from Q184 ('--force to overwrite'). Revert T338 to Q184's literal behaviour (skip-with-message if cq.toml exists; --force overwrites) and drop the symlink/dir fail-loud (or demote it to a non-blocking safety note that does not contradict --force).","[opus][codex][grok] T336/T341/T345 conflate orchestrator-command roles (agentTierKey===null / not-model-configurable, never dispatched-with-validated-input by a parent) with dispatched-subagent roles. Distinguish them: only dispatched subagents get input/output JSON Schemas + validate-in/out wiring; T345's blanket 'every catalogued role reachable via fetch_prompt with validate-in/out' is over-broad for orchestrator commands.","[opus] T335 ships terminalStatuses:['planned','discarded'] while its OWN note leaves `planned` terminality unresolved. Decide it decisively (the consume-idea flow implies an idea moved to 'planned' stays planned → terminal) and align the transition map; do not ship a schema whose terminalStatuses is provisional/load-bearing-but-flagged.","[codex][minimax] T341's 'extend cq-assets Catalogue blocks OR sibling per-role schema files' leaves the schema STORAGE FORMAT undecided (forces an in-flight choice). Commit to ONE representation in the plan (per-role JSON Schema files, or schema fields embedded in the Catalogue blocks).","[grok] T333 mixes investigation + implementation without naming the EXACT derivation site for zero-outgoing-edge→terminal:true (inside DiagramSvg from its edges prop? a ROLE_FLOWS preprocessing step in roleActions.ts? the layout?) and any required RoleNode type/layout edits. Make it a crisp deliverable naming the concrete site.","[codex] T331 cites 'basis cq.toml.example' but no task creates/commits cq.toml.example. Clarify that cq.toml.example is an EXISTING read-basis already in the repo (not new work) — or, if it does not exist, add the step; do not leave the reference dangling."]
+- ledgerRefs: ["goals:G41"]
+- sessionLogs: ["docs/logs/20260609-192700-ab459aecc48c00e6d.md","docs/logs/20260609-192700-pi-codex.md","docs/logs/20260609-192700-pi-grok.md","docs/logs/20260609-192700-pi-minimax.md"]
+
+### R400 — go-ahead
+
+- createdAt: 2026-06-09T19:41:12.603Z
+- updatedAt: 2026-06-09T19:41:54.634Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "GO-AHEAD (G41 round 2; full panel opus[claude]+codex+grok+minimax[pi], 4/4 usable; opus+grok+minimax go-ahead, codex revise — ADJUDICATED to go-ahead). All 12 R399 criticisms verified resolved by 3/4 reviewers incl. the repo-grounded opus reviewer (advisory-ordering notes; T334 reproduce-first rendering fix + docs/drafts deliverable; in-workspace-validator-else-Ajv+FOD; pinned edit-loci + structural-grep acceptance; 'mixed' dropped; T338 reverted to Q184 literal; dispatched-vs-orchestrator role split + enumerated dispatch sites; terminalStatuses decided; per-role sidecar storage; roleActions.ts derivation site; cq.toml.example clarified). codex raised 3 round-2 points: (#2 cq.toml.example sync + #3 ideas-no-milestone acceptance) were VALID and APPLIED to T331/T335 this round; (#1 milestone dependsOn still serializes the quick wins) is ADJUDICATED NON-BLOCKING — the M139←{M136,M137,M138} / M140←M139 edges correctly ENCODE Q183's explicit 'do the quick wins (1/4/5) first, then 2, then 3' ordering (the implement-flow milestone-readiness gate enforces exactly that order), the descriptions document them as advisory, and opus (reading the live repo+ledger) + grok + minimax all judged C1 resolved; the surviving criticism is a defensible design choice honoring the user's stated sequencing, not a plan defect (citation-validation per the R374 precedent). Plan LOCKED."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G41"]
+- sessionLogs: ["docs/logs/20260609-194117-a529026c1e49518de.md","docs/logs/20260609-194117-pi-codex.md","docs/logs/20260609-194117-pi-grok.md","docs/logs/20260609-194117-pi-minimax.md"]

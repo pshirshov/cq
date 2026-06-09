@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 135
+  item: 140
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -683,3 +683,40 @@ archives:
 - createdAt: 2026-06-09T18:45:36.463Z
 - updatedAt: 2026-06-09T18:45:36.463Z
 - title: "Plan: cq init cq.toml + prompt catalog + ledger git-branch + Flows-tab polish + Ideas ledger"
+
+### M136 — open
+
+- createdAt: 2026-06-09T19:07:17.380Z
+- updatedAt: 2026-06-09T19:07:17.380Z
+- title: G41-1 cq init writes cq.toml
+- description: "Work milestone for G41 item 1: `cq init` writes a fully-commented cq.toml (Opus/Sonnet/Haiku active, pi models commented out; skip-if-exists + --force). cq-cli + cq-config."
+
+### M137 — open
+
+- createdAt: 2026-06-09T19:07:18.787Z
+- updatedAt: 2026-06-09T19:07:18.787Z
+- title: G41-4 Flows-tab polish (web)
+- description: "Work milestone for G41 item 4: ledger-web Flows-tab polish — underlined clickable node names, ALL edges labelled (per-edge distinct labels, collapse only identical), terminal nodes visually distinct (no rounding). DiagramSvg + roleActions + diagramLayout."
+
+### M138 — open
+
+- createdAt: 2026-06-09T19:07:20.136Z
+- updatedAt: 2026-06-09T19:07:20.136Z
+- title: G41-5 Ideas ledger + idea-id command args
+- description: "Work milestone for G41 item 5: new 'Ideas' ledger (title+description; open|planned|discarded|postponed); 'Ideas' sidebar button above Goals; /cq:plan + /cq:plan:follow-up accept idea I-ids."
+
+### M139 — open
+
+- createdAt: 2026-06-09T19:07:25.818Z
+- updatedAt: 2026-06-09T19:28:17.768Z
+- title: G41-2 Formal typed MCP prompt catalog
+- description: "Work milestone for G41 item 2 (LARGE): typed prompt catalog as single source of truth (replacing hand-authored agentsCatalogue/roleActions prose, reconciling G38) + JSON Schemas + MCP fetch-prompt/validate-input/validate-output endpoints; wire plan-advance end-to-end as proof, then ALL dispatched-subagent roles + clean up legacy. NOTE (R399): the dependsOn [M136,M137,M138] is ADVISORY WORK-ORDERING per Q183 (do the quick wins 1/4/5 first), NOT a technical prerequisite — these workstreams touch disjoint packages and share no code/data coupling. The edges only sequence execution preference; an unrelated milestone stall should not be treated as a hard block."
+- dependsOn: ["M136","M137","M138"]
+
+### M140 — open
+
+- createdAt: 2026-06-09T19:07:29.607Z
+- updatedAt: 2026-06-09T19:28:20.036Z
+- title: G41-3 Ledger-on-orphan-branch feasibility spike
+- description: "Work milestone for G41 item 3 (SPIKE-ONLY, Q186): assess feasibility of storing the ledger on an orphan git branch (rooted at zero commit) with writes that never switch the working tree (orphan-ref plumbing or linked worktree). Deliverable = locked decision + findings doc (+ optional throwaway PoC); NO production code. NOTE (R399): the dependsOn [M139] is ADVISORY WORK-ORDERING per Q183 (spike last), NOT a technical prerequisite — the spike shares no code coupling with the prompt-catalog work."
+- dependsOn: ["M139"]
