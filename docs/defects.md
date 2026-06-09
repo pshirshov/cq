@@ -174,10 +174,10 @@ archives:
 
 ## M130
 
-### D44 — open
+### D44 — resolved
 
 - createdAt: 2026-06-09T11:51:32.936Z
-- updatedAt: 2026-06-09T12:14:20.717Z
+- updatedAt: 2026-06-09T13:26:22.645Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: TUI paging keys do not respect the focused pane and lack Home/End support
@@ -188,6 +188,7 @@ archives:
 - ledgerRefs: ["goals:G38"]
 - tags: ["tui","keybindings","ux"]
 - dependsOn: ["tasks:T318","tasks:T319"]
+- fix: Resolved by T318 (LIST-focus PgUp/PgDn page cursor by listInnerH + Home/End jump rows; no-Enter detail-scroll removed; module-scope matchHomeEnd helper) + T319 (CONTENT-focus Home/End reusing matchHomeEnd; PgUp/PgDn keep CONTENT_PAGE), both merged + reviewed go-ahead (R378/R382). ledger-tui paging keys now respect the focused pane and support Home/End (via key.home/key.end || matchHomeEnd raw-ESC fallback for ink 7.0.5).
 
 ## M128
 

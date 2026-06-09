@@ -453,10 +453,10 @@ archives:
 - dependsOn: ["T308"]
 - ledgerRefs: ["goals:G38"]
 
-### T310 — wip
+### T310 — done
 
 - createdAt: 2026-06-09T11:52:07.613Z
-- updatedAt: 2026-06-09T12:39:21.358Z
+- updatedAt: 2026-06-09T13:26:10.051Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: Align agents/implement-worker.md with the orchestrator's post-done worktree teardown
@@ -464,6 +464,9 @@ archives:
 - acceptance: grep -F 'G38-1a-worker-ephemeral' nix/pkg/cq-assets/agents/implement-worker.md returns exactly one line; the new text states the orchestrator prunes the worktree after the per-task done write/merge-back; edit scoped to the relevant Boundaries/worktree region. bun run check green.
 - suggestedModel: sonnet-4.6
 - ledgerRefs: ["goals:G38"]
+- resultCommit: b61ae54
+- completion: implement-worker.md worktree-lifetime note + marker G38-1a-worker-ephemeral; gen.ts regenerated (cumulative with T308).
+- sessionLogs: ["docs/logs/20260609-132507-a38dc8212b005ac2e.md","docs/logs/20260609-132507-af39e6301b4ac9520.md"]
 
 ### T311 — planned
 
@@ -508,10 +511,10 @@ archives:
 - completion: "@cq/ledger ~/.cache mirror via onMutation + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose(). Filed D45 (low, deferred)."
 - sessionLogs: ["docs/logs/20260609-125621-abae75975ed510c6f.md","docs/logs/20260609-130634-a016ed28d484b2e10.md"]
 
-### T313 — planned
+### T313 — done
 
 - createdAt: 2026-06-09T11:52:35.199Z
-- updatedAt: 2026-06-09T12:14:05.289Z
+- updatedAt: 2026-06-09T13:26:12.882Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "Add `ledger-mcp restore --from-cache [--cwd <root>]` subcommand (+ update the main.ts header boundary)"
@@ -520,6 +523,9 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T312"]
 - ledgerRefs: ["goals:G38"]
+- resultCommit: e9ad2df
+- completion: "ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomicWrite copy-back; header updated; nix build .#ledger-mcp green."
+- sessionLogs: ["docs/logs/20260609-132507-a7451d211f2b0894f.md","docs/logs/20260609-132507-a4d8be792a9a2729e.md"]
 
 ### T314 — abandoned
 
@@ -551,10 +557,10 @@ archives:
 - completion: roleActions.ts ROLE_FLOWS catalogue (4 flows, role nodes + labeled action edges, DiagramModel-assignable) + unit test.
 - sessionLogs: ["docs/logs/20260609-125621-a568453f0d59bd061.md","docs/logs/20260609-130634-ac6e5154210a5967d.md"]
 
-### T316 — planned
+### T316 — done
 
 - createdAt: 2026-06-09T11:52:58.197Z
-- updatedAt: 2026-06-09T11:52:58.197Z
+- updatedAt: 2026-06-09T13:26:15.769Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: Render the Flows tab from ROLE_FLOWS, replacing the abstract state diagrams
@@ -563,6 +569,9 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T315"]
 - ledgerRefs: ["goals:G38"]
+- resultCommit: c875921
+- completion: Flows tab renders ROLE_FLOWS via existing DiagramSvg (replaces flowData state diagrams); + latent DiagramSvg multigraph React-key fix.
+- sessionLogs: ["docs/logs/20260609-132507-aae2834dc1f5e81ec.md","docs/logs/20260609-132507-af5a5ceaf72c69698.md"]
 
 ### T317 — abandoned
 
@@ -594,10 +603,10 @@ archives:
 - completion: TUI LIST-focus PgUp/PgDn page cursor by listInnerH + Home/End jump rows; no-Enter detail-scroll removed; module-scope matchHomeEnd helper (shared w/ T319); D44 part 1.
 - sessionLogs: ["docs/logs/20260609-125621-a3a6c0e90504c5f69.md","docs/logs/20260609-130634-af817be6d7f4da074.md"]
 
-### T319 — planned
+### T319 — done
 
 - createdAt: 2026-06-09T11:53:16.153Z
-- updatedAt: 2026-06-09T12:14:19.416Z
+- updatedAt: 2026-06-09T13:26:18.523Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: Add Home/End to CONTENT focus (PgUp/PgDn keep paging by CONTENT_PAGE)
@@ -606,6 +615,9 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T318"]
 - ledgerRefs: ["goals:G38","defects:D44"]
+- resultCommit: 0992cd3
+- completion: TUI CONTENT-focus Home/End (scroll top/bottom) reusing matchHomeEnd; PgUp/PgDn keep CONTENT_PAGE; D44 part 2.
+- sessionLogs: ["docs/logs/20260609-132507-aa20b4ba803433a2c.md","docs/logs/20260609-132507-a8abd44acd2a5d3e8.md"]
 
 ### T320 — abandoned
 

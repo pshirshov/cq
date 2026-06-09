@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 379
+  item: 383
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -699,6 +699,18 @@ archives:
 - ledgerRefs: ["tasks:T308","goals:G38"]
 - sessionLogs: ["docs/logs/20260609-125621-a9ae81be184eedffd.md","docs/logs/20260609-130634-ab05a6689d34eb44e.md"]
 
+### R379 — go-ahead
+
+- createdAt: 2026-06-09T13:25:49.628Z
+- updatedAt: 2026-06-09T13:25:49.628Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T310 implement review: APPROVE (native opus). Marker G38-1a-worker-ephemeral ×1 in implement-worker.md Boundaries region; gen.ts cumulative (T308 + T310 markers); gen-agents regeneration byte-identical at the commit; scoped edit; check green 1314/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T310","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-132507-a38dc8212b005ac2e.md","docs/logs/20260609-132507-af39e6301b4ac9520.md"]
+
 ## M128
 
 ### R376 — go-ahead
@@ -712,6 +724,18 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T312","goals:G38"]
 - sessionLogs: ["docs/logs/20260609-125621-abae75975ed510c6f.md","docs/logs/20260609-130634-a016ed28d484b2e10.md"]
+
+### R380 — go-ahead
+
+- createdAt: 2026-06-09T13:25:54.371Z
+- updatedAt: 2026-06-09T13:25:54.371Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T313 implement review: APPROVE (native opus; verified at commit + built-binary smoke). `ledger-mcp restore --from-cache [--cwd]` positional subcommand; default no-subcommand server-launch UNCHANGED (live HTTP serve confirmed); shared cacheMirrorDir imported (no dup hash; test asserts summary.cacheDir===cacheMirrorDir(root)); additive atomicWrite export reused for tmp+rename byte-identical copy-back; refuses (exit 1) on absent/empty cache; main.ts header updated per Q169; restore.ts tracked so nix build .#ledger-mcp EXIT=0. check green 1321/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T313","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-132507-a7451d211f2b0894f.md","docs/logs/20260609-132507-a4d8be792a9a2729e.md"]
 
 ## M129
 
@@ -727,6 +751,18 @@ archives:
 - ledgerRefs: ["tasks:T315","goals:G38"]
 - sessionLogs: ["docs/logs/20260609-125621-a568453f0d59bd061.md","docs/logs/20260609-130634-ac6e5154210a5967d.md"]
 
+### R381 — go-ahead
+
+- createdAt: 2026-06-09T13:25:59.563Z
+- updatedAt: 2026-06-09T13:25:59.563Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T316 implement review: APPROVE (native opus). Flows tab renders ROLE_FLOWS via the existing DiagramSvg/layoutDiagram, replacing flowData state machines; `grep flowData App.tsx` empty; testids help-tab-flows/help-flow-<id> stable; flowData.ts retained (flowData.test.ts imports it); tui+Agents tab untouched; orphaned imports cleaned. The extra DiagramSvg `edge-${index}` key is a LEGITIMATE multigraph latent-defect fix (parallel role-edges previously collided on the React key) that does NOT regress the non-multigraph State-machine tab (its tests pass); duplicate edge testid for parallel edges is benign + within the documented scheme. check green 1316/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T316","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-132507-aae2834dc1f5e81ec.md","docs/logs/20260609-132507-af5a5ceaf72c69698.md"]
+
 ## M130
 
 ### R378 — go-ahead
@@ -740,3 +776,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T318","goals:G38"]
 - sessionLogs: ["docs/logs/20260609-125621-a3a6c0e90504c5f69.md","docs/logs/20260609-130634-af817be6d7f4da074.md"]
+
+### R382 — go-ahead
+
+- createdAt: 2026-06-09T13:26:03.651Z
+- updatedAt: 2026-06-09T13:26:03.651Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T319 implement review: APPROVE (native opus; D44 part 2). CONTENT-focus Home/End reuses the module-level matchHomeEnd (no duplication); End→contentMaxScroll.current (no over-scroll, confirmed by the End-then-PgDn clamp test); Home→0; PgUp/PgDn CONTENT_PAGE unchanged; T318 LIST-focus untouched; no interference with the numeric-answer branch; 5 non-vacuous tests vs the 40-line HUGE_NOTE fixture. check green (typecheck 0, lint 0, 1313 pass/0 fail)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T319","goals:G38","defects:D44"]
+- sessionLogs: ["docs/logs/20260609-132507-aa20b4ba803433a2c.md","docs/logs/20260609-132507-a8abd44acd2a5d3e8.md"]
