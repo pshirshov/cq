@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 395
+  item: 397
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -814,3 +814,27 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T325","goals:G38"]
 - sessionLogs: ["docs/logs/20260609-164226-aa85d7146510b3da7.md","docs/logs/20260609-164226-ab7e8aa012d87b065.md","docs/logs/20260609-164226-a627048f8eef0a5c0.md","docs/logs/20260609-164226-a1dd5ae6444f10044.md"]
+
+### R395 — go-ahead
+
+- createdAt: 2026-06-09T17:00:29.968Z
+- updatedAt: 2026-06-09T17:00:29.968Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T327 implement review: APPROVE (native opus; verified at commit in a clean worktree). ROLE_FLOWS enriched: all 10 agentIds verbatim-match the locked map + are exact AGENT_ROLES ids (abstract nodes agentId-free); every surfaced op GROUNDED in the real cq-assets prompts (implement worktree create+teardown/prune + rebase + conflict-resolver + merge-by-SHA + per-task ledger commit + file-defect→investigate; investigate prober lifecycle + seed-goal→plan; plan planning-lock/auto-investigate; advance run-stop commit) — none invented; every node fill=fillForRoleKind(roleKind); DiagramSvg per-index edge keys (parallel edges OK), node ids unique; 'merges by SHA' orchestrator→main testid preserved. check green 1358/0; nix build .#ledger-web exit 0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T327","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-165949-a4406e3b95db14176.md","docs/logs/20260609-165949-ac74b0bc6227a4899.md"]
+
+### R396 — go-ahead
+
+- createdAt: 2026-06-09T17:00:30.029Z
+- updatedAt: 2026-06-09T17:00:30.029Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "T328 implement review: APPROVE (native opus). FU-3: new HelpDocsLayout (persistent left sidebar + scrolling content pane) on Item-States/Flows/Agents (Shortcuts none); entries from each tab's section source; DOM `id` added ADDITIVELY beside the existing data-testid (no testid renames); IntersectionObserver scrollspy happy-dom-guarded + active-section setters exposed via exported helpActiveSectionSetters Map; scrollToHelpSection exported (T329 reuses); Agents tab still renders help-agent-<id> per AGENT_ROLES; tests non-vacuous (exact scrollIntoView receiver + exactly-one aria-current + Shortcuts-no-sidebar); T324 .lw-help-body 90vh scroller unaffected. check green 1353/0; nix build exit 0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T328","goals:G38"]
+- sessionLogs: ["docs/logs/20260609-165949-a3a4c146c1a4e149a.md","docs/logs/20260609-165949-a63707e7defcd3526.md"]

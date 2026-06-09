@@ -500,10 +500,10 @@ archives:
 - completion: "FU-4 renderer+data foundation: agentId round-trip; exported RoleKind(+infra)+ROLE_KIND_FILL+fillForRoleKind; DiagramSvg onActivateAgent clickable/keyboard nodes; renderer fill unchanged (Q181)."
 - sessionLogs: ["docs/logs/20260609-164226-a7c1f72e47e8332ce.md","docs/logs/20260609-164226-adbfbe10713599512.md"]
 
-### T327 — planned
+### T327 — done
 
 - createdAt: 2026-06-09T15:40:06.769Z
-- updatedAt: 2026-06-09T15:54:53.929Z
+- updatedAt: 2026-06-09T17:00:32.214Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "FU-4a/c/d catalogue: enrich ROLE_FLOWS (packages/ledger-web/src/roleActions.ts) with the agentId map, ALL formalized ops (edges + infra nodes), and roleKind fills"
@@ -512,11 +512,14 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T326"]
 - ledgerRefs: ["goals:G38"]
+- resultCommit: b2a9b9f
+- completion: "FU-4 catalogue: ROLE_FLOWS agentId map (all ∈ AGENT_ROLES) + formalized-op edges/infra nodes (worktree/main/ledger) grounded in cq-assets prompts + roleKind fills."
+- sessionLogs: ["docs/logs/20260609-165949-a4406e3b95db14176.md","docs/logs/20260609-165949-ac74b0bc6227a4899.md"]
 
-### T328 — planned
+### T328 — done
 
 - createdAt: 2026-06-09T15:40:08.168Z
-- updatedAt: 2026-06-09T15:55:04.914Z
+- updatedAt: 2026-06-09T17:00:34.749Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - headline: "FU-3: persistent per-tab left sidebar + scrollspy on Item-States / Flows / Agents tabs"
@@ -525,6 +528,9 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T324","T325"]
 - ledgerRefs: ["goals:G38"]
+- resultCommit: 891a39f
+- completion: "FU-3: HelpDocsLayout sidebar + IntersectionObserver scrollspy on Item-States/Flows/Agents; exported scrollToHelpSection; additive DOM ids on the existing anchors."
+- sessionLogs: ["docs/logs/20260609-165949-a3a4c146c1a4e149a.md","docs/logs/20260609-165949-a63707e7defcd3526.md"]
 
 ### T329 — planned
 
