@@ -1228,3 +1228,70 @@ describe("T340: /cq:plan idea-id grammar — structural grep invariants", () => 
     expect(text).toContain("plan.md");
   });
 });
+
+// ---------------------------------------------------------------------------
+// T342 — /cq:plan:follow-up idea-ids grammar (G35 I01 …): structural grep
+// invariants over follow-up.md (and its committed gen.ts embedding). follow-up.md
+// must document (1) the argument grammar — first token = target goal id, the
+// remaining /^I\d+$/ tokens = idea-ids (vs free text, no interleave) — and that
+// each idea's title+description is APPENDED as new scope onto the existing goal
+// via the pre-existing follow-up re-open path; (2) it must REFERENCE (by
+// name/anchor) plan.md's shared §Consume-an-idea sub-procedure for the link +
+// idea→planned transition, NOT re-derive that procedure text. The committed
+// agentsCatalogue.gen.ts must carry the same grammar markers (freshness guard:
+// `bun run gen-agents` was re-run after editing the asset).
+// ---------------------------------------------------------------------------
+
+describe("T342: /cq:plan:follow-up idea-ids grammar — structural grep invariants", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+  const followUpMd = path.join(cqCommandsRoot, "plan", "follow-up.md");
+  const genTsPath = path.resolve(import.meta.dir, "../../ledger-web/src/agentsCatalogue.gen.ts");
+
+  it("follow-up.md documents the <goalId>-then-idea-ids argument grammar (first token = goal id; remaining /^I\\d+$/ = ideas)", async () => {
+    const text = await readFile(followUpMd, "utf8");
+    expect(text).toContain("## Argument grammar");
+    // first token is the target goal id
+    expect(text).toContain("target goal id");
+    // remaining tokens are idea-ids by the /^I\d+$/ rule
+    expect(text).toContain("/^I\\d+$/");
+    // mutually-exclusive with free text, no interleave (mirrors plan.md)
+    expect(text).toContain("mutually-exclusive");
+    expect(text).toContain("no interleave");
+  });
+
+  it("follow-up.md appends each idea's title+description as new scope via the existing re-open path", async () => {
+    const text = await readFile(followUpMd, "utf8");
+    // each idea's title + description is appended as new scope
+    expect(text).toContain("title + description");
+    expect(text).toContain("new scope");
+    // reusing the pre-existing follow-up re-open path (not a new re-open semantics)
+    expect(text).toContain("re-open path");
+    // appends onto the SAME existing target goal G (not a new goal)
+    expect(text).toContain("Consume-an-idea-into-this-goal");
+  });
+
+  it("follow-up.md references plan.md's shared consume-an-idea sub-procedure for the link + idea→planned transition (DRY, not re-derived)", async () => {
+    const text = await readFile(followUpMd, "utf8");
+    // cross-reference by name/anchor to plan.md's canonical sub-procedure
+    expect(text).toContain("§Consume-an-idea sub-procedure defined in `/cq:plan` (`plan.md`)");
+    // the bidirectional link refs + the idea→planned flip are mentioned as the
+    // reused (not re-derived) steps
+    expect(text).toContain("goals:<G>");
+    expect(text).toContain("ideas:<I>");
+    expect(text).toContain('update_item("ideas", I, status: "planned")');
+    // explicit DRY statement: do not re-derive the sub-procedure here
+    expect(text).toContain("DRY");
+  });
+
+  it("free-text follow-up is still supported", async () => {
+    const text = await readFile(followUpMd, "utf8");
+    expect(text).toContain("Free-text mode");
+  });
+
+  it("agentsCatalogue.gen.ts carries the follow-up grammar markers (freshness guard)", async () => {
+    const text = await readFile(genTsPath, "utf8");
+    expect(text).toContain("Argument grammar");
+    expect(text).toContain("Consume-an-idea-into-this-goal");
+    expect(text).toContain("target goal id");
+  });
+});

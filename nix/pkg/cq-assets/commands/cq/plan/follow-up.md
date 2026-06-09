@@ -1,6 +1,6 @@
 ---
 description: Add new scope to an EXISTING plan-flow goal — append the follow-up request, re-open the goal, and hand to the planner for a fresh clarifying round.
-argument-hint: <goalId> <follow-up request>
+argument-hint: <goalId> <follow-up request> | <goalId> <I-id> [<I-id> ...]
 allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ---
 
@@ -8,22 +8,26 @@ allowed-tools: mcp__ledger__*, Agent, Write, Bash, Read, Grep, Glob
 ```yaml
 inputs:
   - "goal id G (first whitespace-delimited token of $ARGUMENTS)"
-  - "follow-up request text (remainder of $ARGUMENTS after goal id)"
+  - "follow-up scope: EITHER one-or-more idea-ids (each /^I\\d+$/) OR free-text request (remainder of $ARGUMENTS after the goal id)"
 outputs:
-  - "goal description updated (follow-up appended)"
+  - "goal description updated (follow-up appended; for each idea, its title+description appended as new scope)"
+  - "for each idea-seeded follow-up: bidirectional ledgerRefs link (goal↔idea) + idea status→planned"
   - "goal re-opened to clarifying status"
   - "new clarifying questions filed by plan-advance subagent"
   - "session log file docs/logs/<timestamp>-<agent-id>.md"
   - "handoffs item (answers-required) and ledger git commit"
 ioSchema:
   - "bootstrap only — appends scope and re-opens; plan-advance subagent owns question generation"
+  - "argument grammar: first token = target goal id; remaining tokens are EITHER all idea-ids (/^I\\d+$/) OR free text (no interleave)"
+  - "idea-ids path: reuses plan.md's §Consume-an-idea sub-procedure for the link + idea→planned transition (DRY)"
   - "phase gate: done/abandoned goals cannot be re-opened (user must start a fresh goal)"
   - "handoffs item: flow=plan, ledgerRefs=goals:<G>, blockingQuestions=filed question ids"
 ```
 
 You are adding a **follow-up** to an existing plan-flow goal. The first
-whitespace-delimited token of the arguments is the goal id; the REST is the
-follow-up request (free text):
+whitespace-delimited token of the arguments is the **target goal id**; the REST
+is the follow-up scope — EITHER a free-text request OR one-or-more idea-ids (see
+**§Argument grammar** below):
 
 > $ARGUMENTS
 
@@ -33,12 +37,48 @@ way (`building`) — and the user wants to add MORE scope to the SAME goal. Like
 request and re-open the goal — then hands off to the `plan-advance` planner for a
 fresh clarifying round (clarify-first). It owns NO question or plan logic itself.
 
-> **Seeding follow-up scope from an idea.** When the follow-up request is itself
-> an idea-id (matching `/^I\d+$/` from the `ideas` ledger), reuse the
-> **§Consume-an-idea sub-procedure defined in `/cq:plan` (`plan.md`)** — fetch the
-> idea, seed the appended scope from its description verbatim, link the goal↔idea
-> `ledgerRefs` bidirectionally, and flip the idea to `planned`. Do NOT re-derive
-> that sub-procedure here (DRY); it lives in exactly one place (`plan.md`).
+## Argument grammar — `<goalId>` then idea-ids OR free text (no interleave)
+`$ARGUMENTS` is the target goal id **G** (the FIRST whitespace-delimited token)
+followed by the follow-up scope. The scope is parsed in exactly ONE of two
+mutually-exclusive modes — there is NO 'mixed' interleaving (mirrors `plan.md`'s
+§Argument grammar, applied to the tokens AFTER the goal id):
+
+- **Idea-ids mode.** If every remaining token matches the idea-id pattern
+  **`/^I\d+$/`** (an `I` followed by one-or-more digits, e.g. `I01`, `I2`,
+  `I137`), treat them as a list of idea-ids. `/cq:plan:follow-up G35 I01 I02`
+  appends EACH idea as new scope onto the SAME existing goal G35 — iterate the
+  ids in order, running the §Consume-an-idea-into-this-goal steps below once per
+  id. (Unlike `/cq:plan`, which creates one NEW goal per idea, here every idea
+  folds into the one pre-existing target goal G.)
+- **Free-text mode.** Otherwise (any remaining token does NOT match `/^I\d+$/`),
+  treat the WHOLE remainder as a single free-text follow-up request — the
+  existing path (step 3 records it verbatim).
+
+The two modes do not mix: you do not interleave idea-ids with free text after the
+goal id. If the remainder is empty, stop and ask the user what to add.
+
+### Consume-an-idea-into-this-goal (idea-ids mode)
+Run this ONCE per idea-id, for the SAME target goal **G**. For each idea-id **I**:
+
+1. **Fetch the idea.** `fetch_item("ideas", I)` from the `ideas` ledger. If `I`
+   does not exist (or is not on the `ideas` ledger), report it and skip this id
+   (continue with the remaining ids).
+2. **Append the idea as new scope onto G.** Append the idea's **title +
+   description** to G's `description` as a new follow-up scope section, using the
+   SAME re-open path this command already documents for adding scope to a
+   `planned`/`building` goal — i.e. step 3 (append the section) + step 4 (re-open
+   to `clarifying`). This is the pre-existing follow-up re-open behaviour; no new
+   re-open semantics are introduced.
+3. **Link + transition via the shared sub-procedure.** For the goal↔idea
+   `ledgerRefs` link and the idea→`planned` flip, reuse the
+   **§Consume-an-idea sub-procedure defined in `/cq:plan` (`plan.md`)** — add
+   `goals:<G>` to the idea's `ledgerRefs` AND `ideas:<I>` to the goal's
+   `ledgerRefs` (bidirectional, preserving pre-existing refs), then
+   `update_item("ideas", I, status: "planned")`. Do NOT re-derive that
+   link-and-transition sub-procedure here (DRY); its canonical definition lives
+   in exactly one place (`plan.md`'s §Consume-an-idea sub-procedure). The only
+   difference from `plan.md` is the target: there a freshly-created goal, here
+   the pre-existing goal G — the link + idea→`planned` steps are identical.
 
 > **Follow-up scope vs a defect.** Use this for MORE greenfield scope on an
 > existing goal. If the follow-up is really a **DEFECT report** — an existing
@@ -58,10 +98,13 @@ the Codex equivalent; omit if unavailable).
 
 ## Steps
 
-1. **Parse + validate.** Split off the goal id **G** (first token); the
-   remainder is the follow-up **request**. If the request is empty, stop and ask
-   the user what to add. `fetch_item("goals", G)` — if G does not exist, report
-   and stop.
+1. **Parse + validate.** Split off the goal id **G** (first token); classify the
+   remainder per §Argument grammar — **idea-ids mode** (every remaining token
+   matches `/^I\d+$/`) or **free-text mode** (otherwise). If the remainder is
+   empty, stop and ask the user what to add. `fetch_item("goals", G)` — if G does
+   not exist, report and stop. In idea-ids mode, the per-idea append + link +
+   transition runs via §Consume-an-idea-into-this-goal (which drives steps 3–4
+   per idea); in free-text mode, step 3 records the request verbatim.
 
 2. **Phase gate.** Read `G`'s status (phase):
    - **`done` / `abandoned`** (terminal): a finished goal canNOT be re-opened —
@@ -72,11 +115,17 @@ the Codex equivalent; omit if unavailable).
      append (step 3) and hand off (step 5).
    - **`planning` / `planned` / `building`**: proceed.
 
-3. **Record the request on the goal.** Append it to the goal's `description`,
+3. **Record the scope on the goal.** Append it to the goal's `description`,
    preserving the existing text and history — add a section like:
-   `\n\n## Follow-up (<short date or ordinal>)\n<the request verbatim>`.
+   `\n\n## Follow-up (<short date or ordinal>)\n<the scope>`.
    `update_item("goals", G, fields: { description: "<existing + appended>" })`.
    (Keep prior follow-up sections; never overwrite the original goal text.)
+   - **Free-text mode:** `<the scope>` is the request verbatim.
+   - **Idea-ids mode:** `<the scope>` is each idea's **title + description**
+     (fetched per §Consume-an-idea-into-this-goal step 1), one appended section
+     per idea — and after appending, perform that sub-procedure's step 3 (the
+     bidirectional `ledgerRefs` link + idea→`planned` flip, reusing `plan.md`'s
+     §Consume-an-idea sub-procedure).
 
 4. **Re-open the goal to `clarifying`** (clarify-first). Apply the FIRST matching
    path — the goals guard allows each hop:
