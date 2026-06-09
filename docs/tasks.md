@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 323
+  item: 324
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -488,3 +488,17 @@ archives:
 - suggestedModel: "opus-4.8[1m]"
 - dependsOn: ["T312","T313"]
 - ledgerRefs: ["goals:G38"]
+
+## M133
+
+### T323 — planned
+
+- createdAt: 2026-06-09T14:00:49.365Z
+- updatedAt: 2026-06-09T14:08:37.255Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- headline: Mirror layout.registryPath on the 'create' op in cacheMirror.mirrorMutation + reproduce-first createLedger mirror test
+- description: "Fix D45 (root cause H32, confirmed). PRECISE EDIT (R386/minimax): in packages/ledger/src/store/cacheMirror.ts `mirrorMutation`, AFTER the per-op `await mirrorFile(layout, mirrorRoot, path.join(layout.docsDir, `${ledgerId}.md`))` (cacheMirror.ts:81) and BEFORE the existing `if (op !== \"archive\") return;` (cacheMirror.ts:82), INSERT: `if (op === \"create\" || op === \"archive\") await mirrorFile(layout, mirrorRoot, layout.registryPath);` — then KEEP the existing `if (op !== \"archive\") return;` and the archive-dir readdir/enumeration UNCHANGED (the docs/archive/<ledgerId>/ enumeration stays archive-only; 'update' must NOT mirror the registry). Do NOT disturb the surrounding .md mirroring or the atomicWrite/ENOENT-tolerance behavior. Update the function docstring (cacheMirror.ts:56-64) to state the registry (docs/ledgers.yaml) is mirrored on BOTH 'create' and 'archive' (the two ops that rewrite it). RATIONALE: FsLedgerStore.createLedger() rewrites the registry (writeRegistry(), FsLedgerStore.ts:756) then fires fireMutation(name,'create') (:759) → scheduleMirror forwards op='create' into mirrorMutation, where today the :82 early return short-circuits before the :84 registry mirror. Surgical: ONLY cacheMirror.ts (logic + docstring) + packages/ledger/test/cache-mirror.test.ts (new test cell)."
+- acceptance: "REPRODUCE-FIRST, ORDERED (R386/minimax): (1) ADD the new test cell FIRST to packages/ledger/test/cache-mirror.test.ts (the existing cache-mirror suite added by T312 — place it alongside the existing 'mirrors the archive file + ledgers.yaml on archive' it-cell, reusing that file's XDG_CACHE_HOME-redirect + store.dispose()-drain harness). The cell: construct an FsLedgerStore on a tmp ledger root with XDG_CACHE_HOME pointed at a SEPARATE tmp dir, init(), createLedger(<a new non-canonical ledger name>, <a minimal valid schema>), await store.dispose() to drain the fire-and-forget mirror, then read BOTH (a) the TEST's tmp ledger-root registry `<tmpRoot>/docs/ledgers.yaml` (written by writeRegistry) and (b) the mirror registry at `cacheMirrorDir(<tmpRoot>)/docs/ledgers.yaml` (under the XDG-redirected cache dir) and assert they are BYTE-EQUAL. (2) RUN it against the UNPATCHED code and CONFIRM it FAILS for the right reason — the mirror registry (b) is ABSENT after a 'create' (the read rejects with ENOENT / the file does not exist), NOT some unrelated error. (3) THEN make the cacheMirror.ts edit above. (4) RE-RUN → the new cell PASSES, and the existing 'on archive' cell still PASSES (no regression). Finally: `cd nix/pkg/cq-ledgers && bun run check` exits 0; `nix build .#ledger-mcp` (repo root) exits 0; the final diff is surgical (only cacheMirror.ts + cache-mirror.test.ts)."
+- suggestedModel: sonnet-4.6
+- ledgerRefs: ["goals:G39","defects:D45"]

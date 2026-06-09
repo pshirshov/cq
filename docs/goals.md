@@ -238,12 +238,14 @@ archives:
 
 ## M132
 
-### G39 — planning
+### G39 — planned
 
 - createdAt: 2026-06-09T13:56:55.520Z
-- updatedAt: 2026-06-09T13:56:55.520Z
+- updatedAt: 2026-06-09T14:20:17.574Z
 - author: "opus-4.8[1m]"
 - session: 242ca46f-d593-40f1-9dc2-480c12cf887c
 - title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
 - description: "Defect-seeded (D45, severity low; the defect's ledgerRefs back-link goals:G39). CONFIRMED ROOT CAUSE (H32): packages/ledger/src/store/cacheMirror.ts `mirrorMutation` mirrors docs/<ledgerId>.md for every op, then `if (op !== \"archive\") return;` (cacheMirror.ts:82) BEFORE mirroring `layout.registryPath` (cacheMirror.ts:84) — so docs/ledgers.yaml is mirrored ONLY on 'archive'. But FsLedgerStore.createLedger() rewrites the registry (writeRegistry, FsLedgerStore.ts:756) then fires fireMutation(name,'create') (FsLedgerStore.ts:759), so after a createLedger the ~/.cache mirror's ledgers.yaml lags the in-repo registry until the next archive. SUGGESTED FIX (verbatim): in cacheMirror.ts mirrorMutation, mirror `layout.registryPath` on the 'create' op too (createLedger + archive are the two ops that rewrite ledgers.yaml; 'update' never touches it) — e.g. mirror the registry when op==='create' || op==='archive', or unconditionally (it is small); update the function docstring (cacheMirror.ts:56-64) to match; add a test: createLedger on a tmp root with XDG_CACHE_HOME redirected, then assert the mirror's docs/ledgers.yaml is byte-equal to the in-repo registry. Likely a single fix task; the fix task must ledgerRef defects:D45. bun run check + nix build .#ledger-mcp green."
 - grounding: "Root cause H32 confirmed via validated citations: cacheMirror.ts:79-84 (op-gated early return before registryPath mirror) + FsLedgerStore.ts:754-759 (createLedger writeRegistry + fireMutation 'create'). Fix locus: cacheMirror.ts mirrorMutation op-gate. Test affordance: XDG_CACHE_HOME redirection (per the existing T312 cache-mirror tests in packages/ledger/test/cache-mirror.test.ts)."
+- milestones: ["M132","M133"]
+- sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md","docs/logs/20260609-140117-a7ebe7a1ddc5c1af8.md","docs/logs/20260609-140117-pi-grok.md","docs/logs/20260609-140117-pi-minimax.md"]

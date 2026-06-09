@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 132
+  item: 133
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -672,3 +672,10 @@ archives:
 - updatedAt: 2026-06-09T13:56:20.739Z
 - title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
 - description: "Defect-seeded fix for D45 (low): the ~/.cache mirror's mirrorMutation only mirrors docs/ledgers.yaml on the 'archive' op (early return at cacheMirror.ts:82 before the registry mirror at :84), but createLedger rewrites the registry and fires a 'create' op — so a restored mirror carries a stale registry until the next archive. Fix: mirror the registry on 'create' too."
+
+### M133 — open
+
+- createdAt: 2026-06-09T14:00:33.846Z
+- updatedAt: 2026-06-09T14:00:33.846Z
+- title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
+- description: "Defect-seeded work milestone for D45 (low). One fix task: broaden cacheMirror.mirrorMutation's registry-mirror gate to op==='create'||'archive' (keeping the archive-dir enumeration archive-only) + docstring + reproduce-first test."
