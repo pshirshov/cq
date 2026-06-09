@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 40
+  item: 41
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -209,6 +209,30 @@ archives:
 - ledgerRefs: ["goals:G38","goals:G39","defects:D44","defects:D45"]
 - sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md","docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md","docs/logs/20260609-141937-addc5274986ba5f0c.md"]
 - tags: ["G38","G39","D44","D45","drained"]
+
+### HO40 — drained
+
+- createdAt: 2026-06-09T17:17:41.646Z
+- updatedAt: 2026-06-09T17:17:41.646Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: |
+    DRAINED. Final predicate gate: P-investigate=FALSE (every defect terminal — D39/D43/D44/D45 resolved) / P-plan=FALSE (no goal in clarifying|planning; G37 building, G38+G39 planned) / P-implement=FALSE (no active task). open-Q-gate: none (all 16 questions answered). Nothing actionable remains.
+    
+    This /cq:advance run folded in the user's answers to Q176-Q182 and drove the G38 FOLLOW-UP #1 (ledger-web help-popup UX + deepened Flows tab) from a re-opened clarifying goal through plan to landed+verified code.
+    
+    PLAN G38 follow-up: multi-planner synthesis (opus+grok+minimax) → reviewer panel (opus+codex+grok+minimax); 3 rounds (R389 unanimous revise — 8 substantive incl. the Q181 renderer-fill contradiction + App.tsx serialization; R390 1 RoleKind type-extraction; R391 reconciled go-ahead with a grok false-positive adjudicated + minimax abstained-garbled); K62 locked.
+    IMPLEMENT G38 follow-up: 6 tasks merged across 3 waves, each per-task review go-ahead (R392-R397, native opus implement-reviewer; T325 took 1 criticism round on a stale JSDoc): T324 FU-2 (.lw-help hard 90vw×90vh + explicit head pin); T325 FU-1 (AgentModelCell `unavailable`→stale-server message distinct from not-configured, all 3 'default / not configured' refs removed); T326 FU-4 renderer+data foundation (agentId on DiagramNode/RoleNode; exported named RoleKind widened with infra kinds + ROLE_KIND_FILL + fillForRoleKind; DiagramSvg clickable/keyboard onActivateAgent; renderer fill unchanged per Q181); T327 FU-4a/c/d catalogue (agentId map all ∈ AGENT_ROLES + every formalized op as edges + worktree/main/ledger infra nodes grounded in the cq-assets prompts + roleKind fills); T328 FU-3 (HelpDocsLayout sidebar + IntersectionObserver scrollspy + exported scrollToHelpSection on Item-States/Flows/Agents); T329 FU-4b/d (Flows-tab agentId-node cross-nav to the Agents tab + roleKind legend). M134 archived. bun run check green (1368/0) at every merge + final; nix build .#ledger-web exit 0.
+    
+    The D43 discipline was dogfooded throughout (workers reset only their own worktrees; ledger committed after every merge + planning-lock + archive). Two reviewer worktree-leaks into the main checkout (stray staged code files) were caught + cleaned SURGICALLY (preserving the uncommitted docs/ ledger) before each affected cherry-pick — no data loss.
+    
+    NET this run: G38 follow-up #1 fully implemented (FU-1..FU-4) + verified.
+    
+    NEXT (user, optional — NOT blockers; genuinely drained): (1) LIVE ACTIVATION (the recurring deploy gap): all of G37/G38/G39's source is merged on main, but the deployed ~/.claude + ~/.pi assets + the running ledger-web/ledger-mcp regenerate only on the next `home-manager switch` + restart — this is exactly what makes the Agents tab show 'default / not configured' (FU-1's underlying cause) and why the ~/.cache mirror (G39) + the new help-popup UX aren't visible yet. (2) GOAL CLOSURE: goals never auto-close — G38 + G39 (planned) + G37 (building) + the older planned goals await the user setting them `done` in the TUI/web; their coordination milestones (M126/M132/M122) archive on the next /cq:advance sweep once closed.
+- flow: advance
+- ledgerRefs: ["goals:G38","goals:G39"]
+- sessionLogs: ["docs/logs/20260609-171522-a75d30bbc69d91b5c.md","docs/logs/20260609-171522-aae0c7ae76a4db924.md","docs/logs/20260609-145017-a0c176e7567c5e292.md"]
+- tags: ["G38","follow-up","ledger-web","drained"]
 
 ## M122
 
