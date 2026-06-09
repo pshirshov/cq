@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 364
+  item: 368
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -877,3 +877,39 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G37","defects:D43"]
 - sessionLogs: ["docs/logs/20260609-100347-a2b3e6cf98362d441.md","docs/logs/20260609-100347-G37-review-r2-minimax.md"]
+
+### R365 — go-ahead
+
+- createdAt: 2026-06-09T10:22:42.486Z
+- updatedAt: 2026-06-09T10:22:42.486Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T301 implement review: APPROVE (panel opus[claude] + minimax[pi], both approve 0/0; grok+codex abstained). The new 'Worktree confinement' hard Boundary in implement-worker.md has all 4 clauses (general cross-checkout-git prohibition with checkout/reset --hard/cherry-pick + git -C/--git-dir as non-exhaustive exemplars; additive, not weakening the no-merge/push/rebase ban; reset --hard <base> only within own worktree; status=fail+blockedReason on a stale/wrong base). Marker 'MUST NOT run git against the main checkout' verbatim ×1. opus re-ran gen-agents → zero drift (the agentsCatalogue.gen.ts regen is byte-faithful/mechanical). bun run check green 1224/0. Edit scoped to the Boundaries region."
+- ledgerRefs: ["tasks:T301","goals:G37","defects:D43"]
+
+### R366 — go-ahead
+
+- createdAt: 2026-06-09T10:22:48.600Z
+- updatedAt: 2026-06-09T10:22:48.600Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T302 implement review: APPROVE (reconciled; opus[claude] approve 0/0 authoritative; minimax[pi] approve with 2 cosmetic nitpicks ADJUDICATED non-blocking; grok+codex abstained). plan/advance.md gained a permanent after-planning-lock ledger-commit checkpoint that fires after a goal reaches `planned` and ALWAYS fires even when chained (overriding chained-suppression for THIS commit), with the standalone at-stop commit + its chained-suppression left intact (no deletion). Marker 'after the planning-lock' verbatim. ADJUDICATION: minimax flagged the `<planned: <G> | stop: <status>>` commit-message template as 'two formats disagreeing' — this rests on misreading the `|` as a literal pipe rather than ALTERNATION (the template shows: emit `planned: <G>` for the planning-lock variant OR `stop: <status>` for the at-stop variant); the after-planning-lock example `planned: <G>` is the planning-lock branch of that union, so they AGREE. opus (authoritative) approved 0/0 + ran gen-agents zero-drift. bun run check green."
+- ledgerRefs: ["tasks:T302","goals:G37","defects:D43"]
+
+### R367 — go-ahead
+
+- createdAt: 2026-06-09T10:22:53.308Z
+- updatedAt: 2026-06-09T10:22:53.308Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T303 implement review: APPROVE (panel opus[claude] + minimax[pi], both approve 0/0; grok+codex abstained). implement/advance.md §7 gained §7.5 — a per-merged-task ledger-commit checkpoint after the done write + defect closure that ALWAYS fires even when chained; the Commit-the-ledger section rewritten to enumerate THREE checkpoints (2 always-fire: after-every-merge-back + after-archive; 1 chained-suppressed: at-stop), preserving the existing after-archive + at-stop steps and clearly distinguishing them (no deletion). Marker 'after every task merge-back' verbatim ×3. agentsCatalogue.gen.ts regen mechanical. bun run check green 1224/0. Edit scoped to §7 + Commit-the-ledger."
+- ledgerRefs: ["tasks:T303","goals:G37","defects:D43"]
+
+### R368 — go-ahead
+
+- createdAt: 2026-06-09T10:22:58.025Z
+- updatedAt: 2026-06-09T10:22:58.025Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "T305 implement review: APPROVE (opus[claude] approve 0/0; doc-only task, opus-authoritative). The repro doc docs/drafts/20260609-1007-D43-reflog-repro.md contains all 4 documented elements (precondition: uncommitted ledger + stale-base worktree; exact stray cross-checkout git op with main-vs-worktree paths + pre/post git -C status --porcelain + reflog HEAD@{0}-HEAD@{4}; observed data-loss outcome incl. recovery-by-replay; expected post-fix outcome citing T301 Boundary + T302/T303/T304 commit-discipline) + references D43/H31/Q166 + the T301-T304/T306 fix linkage. opus verified the reflog sequence matches D43.description verbatim (HEAD@{3} `reset: moving to 84d8942` as the destructive op). Markdown-only addition; bun run check green 1224/0."
+- ledgerRefs: ["tasks:T305","goals:G37","defects:D43"]

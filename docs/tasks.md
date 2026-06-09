@@ -476,10 +476,10 @@ archives:
 
 ## M123
 
-### T301 — planned
+### T301 — wip
 
 - createdAt: 2026-06-09T09:46:48.937Z
-- updatedAt: 2026-06-09T09:59:22.294Z
+- updatedAt: 2026-06-09T10:06:17.057Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add worktree-confinement hard Boundary to implement-worker.md
@@ -490,10 +490,10 @@ archives:
 
 ## M124
 
-### T302 — planned
+### T302 — wip
 
 - createdAt: 2026-06-09T09:47:01.233Z
-- updatedAt: 2026-06-09T09:47:01.233Z
+- updatedAt: 2026-06-09T10:06:18.471Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add commit-after-planning-lock checkpoint to plan/advance.md
@@ -502,10 +502,10 @@ archives:
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G37","defects:D43"]
 
-### T303 — planned
+### T303 — wip
 
 - createdAt: 2026-06-09T09:47:14.115Z
-- updatedAt: 2026-06-09T09:47:14.115Z
+- updatedAt: 2026-06-09T10:06:20.152Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add commit-after-every-merge-back checkpoint to implement/advance.md §7
@@ -529,10 +529,10 @@ archives:
 
 ## M125
 
-### T305 — planned
+### T305 — wip
 
 - createdAt: 2026-06-09T09:47:42.722Z
-- updatedAt: 2026-06-09T09:59:30.242Z
+- updatedAt: 2026-06-09T10:06:21.851Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add a documented repro of the reflog data-loss sequence
