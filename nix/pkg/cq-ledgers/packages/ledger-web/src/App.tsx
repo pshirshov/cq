@@ -17,7 +17,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSchema, LedgerSummary, MilestonePatch } from "./types.js";
+import type { AgentModelEntry, ArchiveContent, FetchedLedger, FetchedMilestoneGroup, FieldValue, FtsHit, Item, LedgerClient, LedgerSchema, LedgerSummary, MilestonePatch } from "./types.js";
 import { DagView } from "./DagView.js";
 import { Markdown } from "./Markdown.js";
 import { loadDagData, type DagData } from "./dagData.js";
@@ -252,6 +252,15 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
   const [client, setClient] = useState<LedgerClient | null>(null);
   const [conn, setConn] = useState<"connecting" | "connected" | "error">("connecting");
   const [connErr, setConnErr] = useState("");
+  // Per-agent live model overlay (T293), fetched once on connect via
+  // get_agent_models and keyed by AgentRole.id. `agentOverlay` is the resolved
+  // map on success; `agentOverlayError` is true when the fetch threw for ANY
+  // reason (a LedgerToolError, OR a generic SDK unknown-tool error from an
+  // older/embedded server that does not advertise the tool — catch-ALL). The
+  // Agents help tab builds its per-role model cell PURELY from this overlay
+  // (Q155=DROP / R341): there is no build-time AgentRole.model fallback.
+  const [agentOverlay, setAgentOverlay] = useState<Map<string, AgentModelEntry> | null>(null);
+  const [agentOverlayError, setAgentOverlayError] = useState(false);
   const [ledgers, setLedgers] = useState<LedgerSummary[]>([]);
   const [ledger, setLedger] = useState<string | null>(null);
   const [view, setView] = useState<FetchedLedger | null>(null);
@@ -396,6 +405,8 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
     setConn("connecting");
     setConnErr("");
     setClient(null);
+    setAgentOverlay(null);
+    setAgentOverlayError(false);
     setLedger(null);
     setView(null);
     setSelected(null);
@@ -416,6 +427,22 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
         setClient(c);
         setLedgers(ls);
         setConn("connected");
+        // Fetch the live per-agent model overlay once on connect (T293). A
+        // catch-ALL: any thrown error — a LedgerToolError, or a generic SDK
+        // unknown-tool error from an older/embedded server that does not
+        // advertise get_agent_models — flips overlayError so the Agents tab
+        // renders the 'default / not configured' fallback rather than a stale
+        // or build-time value.
+        try {
+          const overlay = await c.getAgentModels();
+          if (!alive) {
+            await c.close();
+            return;
+          }
+          setAgentOverlay(new Map(overlay.agents.map((e) => [e.id, e])));
+        } catch {
+          if (alive) setAgentOverlayError(true);
+        }
         // Restore the previous view (reload persistence): re-open the saved
         // ledger, re-select the saved item, and re-enter graph mode if it was
         // active. Silently skipped when the saved ledger/item no longer exists.
@@ -1028,7 +1055,14 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
         </div>
         </div>
       </header>
-      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} client={client} />}
+      {helpOpen && (
+        <HelpOverlay
+          onClose={() => setHelpOpen(false)}
+          client={client}
+          agentOverlay={agentOverlay}
+          agentOverlayError={agentOverlayError}
+        />
+      )}
       {batchOpen && batchSchema !== null && (
         <BatchAnswerModal
           rows={batchRows}
@@ -1491,9 +1525,15 @@ interface NamedSchema {
 function HelpOverlay({
   onClose,
   client,
+  agentOverlay,
+  agentOverlayError,
 }: {
   onClose: () => void;
   client: LedgerClient | null;
+  /** Live per-agent model overlay keyed by AgentRole.id, or null until fetched. */
+  agentOverlay: Map<string, AgentModelEntry> | null;
+  /** True when the overlay fetch threw (any error) — Agents tab shows the fallback. */
+  agentOverlayError: boolean;
 }): React.ReactElement {
   const [tab, setTab] = useState<"shortcuts" | "item-states" | "flows" | "agents">("shortcuts");
   const [schemas, setSchemas] = useState<NamedSchema[] | null>(null);
@@ -1608,7 +1648,7 @@ function HelpOverlay({
               ))}
             </div>
           ) : (
-            <AgentsTab />
+            <AgentsTab overlay={agentOverlay} overlayError={agentOverlayError} />
           )}
         </div>
       </div>
@@ -1617,12 +1657,11 @@ function HelpOverlay({
 }
 
 /**
- * Render one role's per-harness model mapping (T278). `modelMappings` is
- * `{claude?: string[], pi?: string[]}`. When the role's configured `model` is
- * `N/A` (not separately model-configurable, e.g. a pure orchestrator), show
- * `N/A`; when no per-harness mapping is declared at all, show `default` (the
- * role runs at the host's default model). Otherwise list each declared harness
- * with its concrete model tokens.
+ * Render one role's per-harness BUILD-TIME model mapping (T278). `modelMappings`
+ * is `{claude?: string[], pi?: string[]}`. When the role's configured `model` is
+ * `N/A`, show `N/A`; when no per-harness mapping is declared at all, show
+ * `default`. Otherwise list each declared harness with its concrete model
+ * tokens. Slated for removal by T299 alongside the static model rows.
  */
 function AgentModelMappings({ role }: { role: AgentRole }): React.ReactElement {
   if (role.model === "N/A") return <span className="lw-agent-model-na">N/A</span>;
@@ -1642,6 +1681,99 @@ function AgentModelMappings({ role }: { role: AgentRole }): React.ReactElement {
 }
 
 /**
+ * The resolved model VIEW for one role's Agents-tab cell (T293, R341/Q155=DROP).
+ *
+ * Built PURELY from the live `get_agent_models` overlay entry (keyed by
+ * `AgentRole.id`) plus the overlay-error flag — it NEVER reads `AgentRole.model`
+ * / `AgentRole.modelMappings`, so once T299 drops those static fields the model
+ * cell needs no change. A discriminated union so the render (T295) only formats
+ * what is resolved here:
+ *
+ * - `resolved`        — a live token (or tokens) was found; carries the tier
+ *                       `modelClass` and the per-harness `mappings`.
+ * - `no-live-token`   — cq.toml present but no live token of the role's class;
+ *                       carries the (nullable) `tier` for the label.
+ * - `not-configured`  — no cq.toml at all.
+ * - `not-model-configurable` — orchestrator command; model selection is N/A.
+ * - `unavailable`     — the overlay fetch threw (overlayError) OR the role has
+ *                       no overlay entry; renders the offline fallback.
+ */
+export type AgentModelView =
+  | { kind: "resolved"; modelClass: "frontier" | "standard" | "fast"; mappings: { claude?: readonly string[]; pi?: readonly string[] } }
+  | { kind: "no-live-token"; tier: string | null }
+  | { kind: "not-configured" }
+  | { kind: "not-model-configurable" }
+  | { kind: "unavailable" };
+
+/**
+ * Resolve a role's {@link AgentModelView} from the live overlay (T293). When the
+ * overlay fetch failed (`overlayError`) OR the role has no entry, the view is
+ * `unavailable` (the 'default / not configured' fallback). A `resolved` entry
+ * with a null `modelClass` is treated as `no-live-token` — a resolved tier class
+ * is the operational precondition for the resolved label.
+ */
+export function resolveAgentModelView(
+  entry: AgentModelEntry | undefined,
+  overlayError: boolean,
+): AgentModelView {
+  if (overlayError || entry === undefined) return { kind: "unavailable" };
+  switch (entry.status) {
+    case "resolved":
+      return entry.modelClass !== null
+        ? { kind: "resolved", modelClass: entry.modelClass, mappings: entry.modelMappings }
+        : { kind: "no-live-token", tier: null };
+    case "no-live-token":
+      return { kind: "no-live-token", tier: entry.modelClass };
+    case "not-configured":
+      return { kind: "not-configured" };
+    case "not-model-configurable":
+      return { kind: "not-model-configurable" };
+  }
+}
+
+/**
+ * Render a role's model cell from its resolved {@link AgentModelView} (T293
+ * resolves the value; T295 owns the final formatting). One status→label mapping
+ * is the single source of truth for what the user sees:
+ * - `resolved`              → the tier class + per-harness token chips;
+ * - `no-live-token`         → `no live token for <tier>`;
+ * - `not-configured`        → `not configured (no cq.toml)`;
+ * - `not-model-configurable`→ `N/A`;
+ * - `unavailable`           → `default / not configured`.
+ */
+function AgentModelCell({ view }: { view: AgentModelView }): React.ReactElement {
+  switch (view.kind) {
+    case "resolved": {
+      const entries: [string, readonly string[]][] = [];
+      if (view.mappings.claude !== undefined) entries.push(["claude", view.mappings.claude]);
+      if (view.mappings.pi !== undefined) entries.push(["pi", view.mappings.pi]);
+      return (
+        <span className="lw-agent-model-resolved">
+          {view.modelClass}
+          {entries.length > 0 && (
+            <ul className="lw-field-list">
+              {entries.map(([harness, tokens]) => (
+                <li key={harness}>
+                  <strong>{harness}:</strong> {tokens.length > 0 ? tokens.join(", ") : "default"}
+                </li>
+              ))}
+            </ul>
+          )}
+        </span>
+      );
+    }
+    case "no-live-token":
+      return <span className="lw-agent-model-no-token">{`no live token for ${view.tier ?? "?"}`}</span>;
+    case "not-configured":
+      return <span className="lw-agent-model-unconfigured">not configured (no cq.toml)</span>;
+    case "not-model-configurable":
+      return <span className="lw-agent-model-na">N/A</span>;
+    case "unavailable":
+      return <span className="lw-agent-model-default">default / not configured</span>;
+  }
+}
+
+/**
  * Agents help tab (T278, goal G34): one section per Q148 role from the
  * GENERATED {@link AGENT_ROLES} catalogue (re-exported by `agentsCatalogue.ts`).
  * Static data only — like FLOWS, no MCP fetch. Each section shows the role's
@@ -1652,7 +1784,13 @@ function AgentModelMappings({ role }: { role: AgentRole }): React.ReactElement {
  * folded until the reader expands it. Per-role testids follow the documented
  * scheme: `help-agent-<id>`, `-privilege`, `-tools`, `-prompt`.
  */
-function AgentsTab(): React.ReactElement {
+function AgentsTab({
+  overlay,
+  overlayError,
+}: {
+  overlay: Map<string, AgentModelEntry> | null;
+  overlayError: boolean;
+}): React.ReactElement {
   return (
     <div className="lw-help-agents" data-testid="help-agents">
       {AGENT_ROLES.map((role) => (
@@ -1679,11 +1817,22 @@ function AgentsTab(): React.ReactElement {
             <dd>{role.outputs.length > 0 ? renderListField(role.outputs) : <span className="lw-empty">(none)</span>}</dd>
             <dt>IO schema</dt>
             <dd>{role.ioSchema.length > 0 ? renderListField(role.ioSchema) : <span className="lw-empty">(none)</span>}</dd>
+            {/*
+             * Build-time static model rows (T278). These read AgentRole.model /
+             * .modelMappings and are SLATED FOR REMOVAL by T299 (the codegen-drop
+             * task). Until then they remain so the T279 render test stays green;
+             * the LIVE overlay-driven model cell below is the Q155/R341 source of
+             * truth and reads ONLY the overlay (never role.model).
+             */}
             <dt>Model class</dt>
             <dd>{role.model}</dd>
             <dt>Model mappings</dt>
             <dd>
               <AgentModelMappings role={role} />
+            </dd>
+            <dt>Model</dt>
+            <dd data-testid={`help-agent-${role.id}-model`}>
+              <AgentModelCell view={resolveAgentModelView(overlay?.get(role.id), overlayError)} />
             </dd>
             <dt>Exposed tools</dt>
             <dd className="lw-agent-tools" data-testid={`help-agent-${role.id}-tools`}>
