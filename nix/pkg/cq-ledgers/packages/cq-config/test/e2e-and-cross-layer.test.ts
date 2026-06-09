@@ -481,4 +481,34 @@ describe("Q165 pi-extension effort mirror (T294, R342)", () => {
       CqConfigError,
     );
   });
+
+  it("(e) cross-harness wrong-effort — 'max' (CLAUDE_EFFORTS, not PI_EFFORTS) on a pi token → null (parent fallback)", () => {
+    // 'max' is a member of CLAUDE_EFFORTS but NOT PI_EFFORTS. On a pi token the
+    // per-harness guard isEffort('pi','max') is false, so the trailing ':max'
+    // is NOT stripped as an effort; it stays in the model half as a reserved
+    // residual ':' → replicaParseCqToken returns null (lenient parent fallback).
+    // This pins the per-harness effort-set partitioning: an effort legal for
+    // one harness must not leak into another.
+    expect(replicaIsEffort("pi", "max")).toBe(false);
+    expect(replicaIsEffort("claude", "max")).toBe(true);
+    expect(replicaParseCqToken("pi:grok-build/grok-build:max")).toBeNull();
+    expect(replicaParseAndConvert("pi:grok-build/grok-build:max")).toBeNull();
+    // Same input: @cq/config throws (fail-fast at the harness boundary).
+    expect(() =>
+      parseReviewerToken("pi:grok-build/grok-build:max"),
+    ).toThrow(CqConfigError);
+  });
+
+  it("(f) empty trailing-colon suffix — 'pi:grok-build/grok-build:' → null (parent fallback)", () => {
+    // A trailing ':' yields an empty effort candidate. isEffort('pi','') is
+    // false → the ':' is not stripped → it remains a reserved residual ':' in
+    // the model half → replicaParseCqToken returns null.
+    expect(replicaIsEffort("pi", "")).toBe(false);
+    expect(replicaParseCqToken("pi:grok-build/grok-build:")).toBeNull();
+    expect(replicaParseAndConvert("pi:grok-build/grok-build:")).toBeNull();
+    // Same input: @cq/config throws (fail-fast at the harness boundary).
+    expect(() => parseReviewerToken("pi:grok-build/grok-build:")).toThrow(
+      CqConfigError,
+    );
+  });
 });
