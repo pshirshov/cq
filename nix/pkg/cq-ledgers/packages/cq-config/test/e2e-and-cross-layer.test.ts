@@ -17,6 +17,12 @@
  *     Over pi tokens: parseReviewerToken ACCEPTS iff replica ACCEPTS, and when
  *     both accept they agree on provider+model.
  *     Over claude tokens: each layer's independent expected behavior is asserted.
+ *
+ * (4) Q165 pi-extension effort mirror (T294, R342): the replica is extended with
+ *     the effort suffix + the childArgs `--model` builder and asserts pi emits
+ *     effort as the `<provider>/<model>:<effort>` shorthand (NO '--thinking'),
+ *     claude records effort inertly with a parent fallback, and the lenient
+ *     unsupported-effort policy (null, not throw) diverges from @cq/config.
  */
 
 import { describe, it, expect } from "bun:test";
@@ -165,36 +171,62 @@ minimax = "pi:minimax-m3"
 
 // ── (3) Cross-layer consistency test (K50 regression guard) ──────────────────
 //
-// LOCAL REPLICA of tokenToChildModel from
-// nix/pkg/pi-extensions/cq-subagent-dispatch.ts (T233 version).
-// This function is COPIED, not imported — the extension is a standalone
-// store-path file outside the cq-ledgers workspace.
+// LOCAL REPLICA of parseCqToken / tokenToChildModel + the childArgs `--model`
+// builder from nix/pkg/pi-extensions/cq-subagent-dispatch.ts (T294 version,
+// extending the T233 replica with the R342 effort suffix). These functions are
+// COPIED, not imported — the extension is a standalone store-path file outside
+// the cq-ledgers workspace and cannot be imported here. Keep in sync with the
+// extension.
 //
-// Signature mirrors the extension exactly:
-//   tokenToChildModel(token: {harness: string, model: string})
-//     -> {provider: string | null, model: string} | null
-//
-// Logic (T233 version):
-//  - harness !== 'pi' → null (claude cannot drive a child pi process; falls back)
-//  - no '/' in model → null (bare pi token — REFUSED, mirrors @cq/config THROW)
-//  - empty provider or empty model half → null (empty half — REFUSED)
-//  - else → {provider, model}
+// Logic (T294 version):
+//  parseCqToken("<harness>:<model>[:<effort>]"):
+//   - first ':' splits harness from remainder; empty harness/remainder → null
+//   - harness must be 'claude' | 'pi' → else null
+//   - OPTIONAL trailing effort split off the LAST ':' of the remainder, kept
+//     ONLY when isEffort(harness, suffix) (PI_EFFORTS / CLAUDE_EFFORTS)
+//   - after stripping a valid effort, a residual ':' in the model → null
+//     (R342: reserved; lenient mirror of @cq/config's fail-fast throw)
+//  tokenToChildModel:
+//   - harness !== 'pi' → null (claude cannot drive a child pi process; falls back)
+//   - no '/' in model → null (bare pi token — REFUSED, mirrors @cq/config THROW)
+//   - empty provider/model half → null (empty half — REFUSED)
+//   - else → {provider, model, effort}
+//  buildChildModelArg(model, emittedEffort): the `--model` value the extension
+//   pushes — `<model>:<effort>` when an effort rides along (pi path only), else
+//   `<model>`. NO separate '--thinking' token is ever emitted.
+
+const PI_EFFORTS_REPLICA = new Set([
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+]);
+const CLAUDE_EFFORTS_REPLICA = new Set(["low", "medium", "high", "xhigh", "max"]);
+
+function replicaIsEffort(harness: string, value: string): boolean {
+  return (harness === "pi" ? PI_EFFORTS_REPLICA : CLAUDE_EFFORTS_REPLICA).has(
+    value,
+  );
+}
 
 interface CqTokenReplica {
   harness: string;
   model: string;
+  effort: string | null;
 }
 
 function replicaTokenToChildModel(
   token: CqTokenReplica,
-): { provider: string | null; model: string } | null {
+): { provider: string | null; model: string; effort: string | null } | null {
   if (token.harness !== "pi") return null;
   const slash = token.model.indexOf("/");
   if (slash < 0) return null; // bare pi token — REFUSED (mirror @cq/config THROW)
   const provider = token.model.slice(0, slash);
   const model = token.model.slice(slash + 1);
   if (provider === "" || model === "") return null; // empty half — REFUSED
-  return { provider, model };
+  return { provider, model, effort: token.effort };
 }
 
 /**
@@ -206,10 +238,22 @@ function replicaParseCqToken(token: string): CqTokenReplica | null {
   const sep = token.indexOf(":");
   if (sep < 0) return null;
   const harness = token.slice(0, sep);
-  const model = token.slice(sep + 1);
-  if (harness === "" || model === "") return null;
+  const remainder = token.slice(sep + 1);
+  if (harness === "" || remainder === "") return null;
   if (harness !== "claude" && harness !== "pi") return null;
-  return { harness, model };
+  let model = remainder;
+  let effort: string | null = null;
+  const lastColon = remainder.lastIndexOf(":");
+  if (lastColon >= 0) {
+    const candidate = remainder.slice(lastColon + 1);
+    if (replicaIsEffort(harness, candidate)) {
+      effort = candidate;
+      model = remainder.slice(0, lastColon);
+    }
+  }
+  if (model === "") return null;
+  if (model.includes(":")) return null; // R342 reserved residual ':' → null
+  return { harness, model, effort };
 }
 
 /**
@@ -218,10 +262,28 @@ function replicaParseCqToken(token: string): CqTokenReplica | null {
  */
 function replicaParseAndConvert(
   token: string,
-): { provider: string | null; model: string } | null {
+): { provider: string | null; model: string; effort: string | null } | null {
   const cqToken = replicaParseCqToken(token);
   if (cqToken === null) return null;
   return replicaTokenToChildModel(cqToken);
+}
+
+/**
+ * Replica of the extension's childArgs `--model` construction (R342): the
+ * value pushed after "--model". An effort rides along as the
+ * `<model>:<effort>` thinking-level shorthand ONLY on the pi path; the claude
+ * fallback never appends (it keeps the parent model). Returns the FULL argv the
+ * extension would build for the model selection, so a test can assert that no
+ * "--thinking" token is ever present.
+ */
+function replicaBuildModelArgs(
+  child: { provider: string | null; model: string; effort: string | null } | null,
+): string[] {
+  if (child === null) return []; // parent fallback — extension uses ctx.model
+  const args: string[] = [];
+  if (child.provider) args.push("--provider", child.provider);
+  args.push("--model", child.effort ? `${child.model}:${child.effort}` : child.model);
+  return args;
 }
 
 // Fixture table for pi tokens — the core K50 regression guard.
@@ -308,5 +370,115 @@ describe("cross-layer consistency: claude tokens (T238)", () => {
     // returns null (harness !== 'pi'). Both refuse to produce a usable pi child model.
     const replica = replicaParseAndConvert("claude:x/y");
     expect(replica).toBeNull();
+  });
+});
+
+// ── (4) Q165 pi-extension effort mirror test (T294, R342) ────────────────────
+//
+// Exercises the pure resolver functions (parseCqToken / tokenToChildModel) + the
+// childArgs `--model` builder WITHOUT spawning. Asserts the R342 emission
+// contract: pi's reasoning effort is the thinking-level SHORTHAND appended to
+// the --model token (`<provider>/<model>:<effort>`), NEVER a separate
+// '--thinking' flag. Also asserts agreement with @cq/config parseReviewerToken
+// where the grammars overlap, and pins the lenient unsupported-effort policy.
+describe("Q165 pi-extension effort mirror (T294, R342)", () => {
+  it("(a) pi:grok-build/grok-build:xhigh — effort 'xhigh'; child --model is 'grok-build/grok-build:xhigh'; NO --thinking", () => {
+    const token = replicaParseCqToken("pi:grok-build/grok-build:xhigh");
+    expect(token).not.toBeNull();
+    expect(token!.harness).toBe("pi");
+    expect(token!.model).toBe("grok-build/grok-build");
+    expect(token!.effort).toBe("xhigh");
+
+    const child = replicaTokenToChildModel(token!);
+    expect(child).not.toBeNull();
+    expect(child!.provider).toBe("grok-build");
+    expect(child!.model).toBe("grok-build");
+    expect(child!.effort).toBe("xhigh");
+
+    const modelArgs = replicaBuildModelArgs(child);
+    // The extension splits the provider out: it pushes `--provider <provider>`
+    // and `--model <model>:<effort>` (the effort rides on the --model token as
+    // pi's thinking-level shorthand). For pi:grok-build/grok-build:xhigh that is
+    // `--provider grok-build --model grok-build:xhigh`.
+    expect(modelArgs).toEqual([
+      "--provider",
+      "grok-build",
+      "--model",
+      "grok-build:xhigh",
+    ]);
+    const modelIdx = modelArgs.indexOf("--model");
+    expect(modelIdx).toBeGreaterThanOrEqual(0);
+    expect(modelArgs[modelIdx + 1]).toBe("grok-build:xhigh");
+    // The fully-qualified model token the child resolves to (the acceptance's
+    // `provider/model:effort` form) is the provider re-joined to the --model
+    // shorthand — confirming the effort is the `:<effort>` suffix.
+    expect(`${child!.provider}/${modelArgs[modelIdx + 1]}`).toBe(
+      "grok-build/grok-build:xhigh",
+    );
+    // CRITICAL: no separate --thinking token anywhere.
+    expect(modelArgs).not.toContain("--thinking");
+
+    // Agreement with @cq/config: parseReviewerToken parses the same shape.
+    const parsed = parseReviewerToken("pi:grok-build/grok-build:xhigh");
+    expect(parsed.harness).toBe("pi");
+    expect(parsed.provider).toBe("grok-build");
+    expect(parsed.model).toBe("grok-build");
+    expect(parsed.effort).toBe("xhigh");
+  });
+
+  it("(b) claude:opus-4.8[1m]:high — tokenToChildModel null (parent fallback); effort recorded inertly; no --thinking, no error", () => {
+    const token = replicaParseCqToken("claude:opus-4.8[1m]:high");
+    expect(token).not.toBeNull();
+    expect(token!.harness).toBe("claude");
+    expect(token!.model).toBe("opus-4.8[1m]");
+    // Effort is recorded on the token (observable / inert) ...
+    expect(token!.effort).toBe("high");
+    // ... but tokenToChildModel REFUSES a claude token → parent fallback.
+    const child = replicaTokenToChildModel(token!);
+    expect(child).toBeNull();
+    // No child model args at all → the parent model is used, no effort passed.
+    const modelArgs = replicaBuildModelArgs(child);
+    expect(modelArgs).toEqual([]);
+    expect(modelArgs).not.toContain("--thinking");
+
+    // Agreement with @cq/config: parseReviewerToken accepts and records 'high'.
+    const parsed = parseReviewerToken("claude:opus-4.8[1m]:high");
+    expect(parsed.harness).toBe("claude");
+    expect(parsed.model).toBe("opus-4.8[1m]");
+    expect(parsed.effort).toBe("high");
+  });
+
+  it("(c) effortless pi token — child --model has NO ':<effort>' suffix", () => {
+    const child = replicaParseAndConvert("pi:ollama-cloud/minimax-m3");
+    expect(child).not.toBeNull();
+    expect(child!.effort).toBeNull();
+    const modelArgs = replicaBuildModelArgs(child);
+    const modelIdx = modelArgs.indexOf("--model");
+    // No ':<effort>' suffix on the --model value; provider is split out.
+    expect(modelArgs[modelIdx + 1]).toBe("minimax-m3");
+    expect(modelArgs[modelIdx + 1]).not.toContain(":");
+    expect(modelArgs).toEqual(["--provider", "ollama-cloud", "--model", "minimax-m3"]);
+    expect(modelArgs).not.toContain("--thinking");
+  });
+
+  it("(d) unsupported-effort policy is LENIENT — invalid suffix → null (parent fallback), NOT a throw", () => {
+    // 'turbo' is not a pi effort. The trailing ':' is then a reserved residual
+    // ':' in the model half → parseCqToken returns null (the extension's
+    // lenient policy: a bad token degrades to the parent-model fallback, never
+    // aborts a dispatch). This is the DOCUMENTED divergence from @cq/config,
+    // which FAILS FAST (throws) at its config-load boundary.
+    expect(replicaParseCqToken("pi:grok-build/grok-build:turbo")).toBeNull();
+    expect(replicaParseAndConvert("pi:grok-build/grok-build:turbo")).toBeNull();
+    // Same input: @cq/config throws (fail-fast at the harness boundary).
+    expect(() =>
+      parseReviewerToken("pi:grok-build/grok-build:turbo"),
+    ).toThrow(CqConfigError);
+
+    // An out-of-vocabulary claude effort behaves the same way (lenient null).
+    // 'off' is a pi effort but NOT a claude effort → residual ':' → null.
+    expect(replicaParseCqToken("claude:opus-4.8[1m]:off")).toBeNull();
+    expect(() => parseReviewerToken("claude:opus-4.8[1m]:off")).toThrow(
+      CqConfigError,
+    );
   });
 });

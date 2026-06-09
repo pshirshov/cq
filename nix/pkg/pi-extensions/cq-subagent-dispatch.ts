@@ -95,6 +95,13 @@ interface DispatchDetails {
    * (fallback to the parent session's active model).
    */
   modelSource: "explicit" | "tier" | "parent";
+  /**
+   * The resolved effort level (R342). For a pi child this is APPENDED to the
+   * `--model` arg as the `<provider>/<model>:<effort>` thinking-level shorthand.
+   * For a claude token (parent fallback) it is recorded INERTLY here — observable
+   * but NOT passed to the child. null when the resolved token carried no effort.
+   */
+  childEffort: string | null;
   /** The tier the agent NAME mapped to via [agent_tiers] (null when not tiered). */
   resolvedTier: string | null;
   /** provider/model the child actually opened against, read from its JSON stream. */
@@ -157,10 +164,41 @@ function resolveCqConfigPath(cwd: string): string {
 // a full TOML 1.0 parser (the smol-toml dep @cq/config uses), only a flat-table
 // reader. Anything outside these three tables is ignored.
 
-/** A `<harness>:<model>` token: harness is "claude" or "pi". */
+// ── Effort vocabulary — mirror of @cq/config (T284/T286) ─────────────────────
+//
+// MIRROR of @cq/config (packages/cq-config/src/types.ts PI_EFFORTS /
+// CLAUDE_EFFORTS) — keep in sync. Copied, NOT imported (standalone store-path
+// extension outside the cq-ledgers workspace). These are the closed
+// per-harness vocabularies of the trailing `:<effort>` suffix; pi's set
+// matches the pi CLI's `--thinking` levels (off/minimal/low/medium/high/xhigh),
+// which is the same vocabulary the `--model provider/model:<effort>` shorthand
+// accepts.
+const PI_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh"]);
+const CLAUDE_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
+
+/**
+ * Type guard mirroring @cq/config isEffort: is `value` a valid effort string
+ * for `harness`? pi: off/minimal/low/medium/high/xhigh; claude:
+ * low/medium/high/xhigh/max.
+ */
+function isEffort(harness: string, value: string): boolean {
+  return (harness === "pi" ? PI_EFFORTS : CLAUDE_EFFORTS).has(value);
+}
+
+/** The legal effort set for a harness, rendered for error messages. */
+function legalEfforts(harness: string): string {
+  return [...(harness === "pi" ? PI_EFFORTS : CLAUDE_EFFORTS)].join(" | ");
+}
+
+/**
+ * A `<harness>:<model>[:<effort>]` token: harness is "claude" or "pi", with an
+ * OPTIONAL trailing effort suffix (mirror of @cq/config ReviewerToken — T284/
+ * T286). `effort` is null when no valid suffix was present.
+ */
 interface CqToken {
   harness: string;
   model: string;
+  effort: string | null;
 }
 
 /** The subset of cq.toml this extension reads: three flat string tables. */
@@ -243,19 +281,59 @@ function parseFlatToml(source: string): CqConfigSubset {
 }
 
 /**
- * Parse a `"<harness>:<model>"` token. First `:` splits harness from model;
- * further colons stay in the model. Returns null on a malformed/empty token.
- * MIRRORS @cq/config parseReviewerToken (but lenient: returns null instead of
- * throwing, since a bad token here just means "fall back to the parent model").
+ * Parse a `"<harness>:<model>[:<effort>]"` token. The FIRST `:` splits harness
+ * from the remainder; an OPTIONAL trailing effort suffix is split off the LAST
+ * `:` of that remainder and validated against the per-harness effort set
+ * (PI_EFFORTS / CLAUDE_EFFORTS); after stripping a valid effort, `:` is
+ * RESERVED inside the residual model on BOTH the claude model and the pi model
+ * half (mirroring @cq/config parseReviewerToken — T286/R342: a stray `:` in the
+ * model would collide with the `--model provider/model:<effort>` shorthand the
+ * extension emits).
+ *
+ * UNSPECIFIED-EFFORT POLICY (PINNED — Q163): @cq/config FAILS FAST (throws) on
+ * an invalid effort suffix or a reserved `:` in the model, because it sits at
+ * the config-load boundary. This inlined mirror instead keeps THIS FILE'S
+ * EXISTING LENIENT policy — a malformed token returns `null`, and the caller
+ * falls back to the PARENT session's active model rather than dispatching an
+ * unusable model token. Rationale: the only consumer here is a best-effort
+ * child-model override; a bad token must never abort a dispatch, it must
+ * degrade to the parent fallback (the same policy already applied to bare/
+ * empty/unknown-harness tokens above). An invalid effort suffix, or a reserved
+ * `:` left in the residual model, therefore yields `null` (not a throw).
+ *
+ * Returns null on a malformed/empty/invalid token.
  */
 function parseCqToken(token: string): CqToken | null {
   const sep = token.indexOf(":");
   if (sep < 0) return null;
   const harness = token.slice(0, sep);
-  const model = token.slice(sep + 1);
-  if (harness === "" || model === "") return null;
+  const remainder = token.slice(sep + 1);
+  if (harness === "" || remainder === "") return null;
   if (harness !== "claude" && harness !== "pi") return null;
-  return { harness, model };
+
+  // Split a candidate effort suffix off the LAST `:` of the remainder.
+  // Recognised as effort ONLY when isEffort(harness, suffix); a present-but-
+  // invalid suffix is NOT silently absorbed — it leaves a reserved `:` in the
+  // residual model, which is rejected below (→ null, parent fallback).
+  let model = remainder;
+  let effort: string | null = null;
+  const lastColon = remainder.lastIndexOf(":");
+  if (lastColon >= 0) {
+    const candidate = remainder.slice(lastColon + 1);
+    if (isEffort(harness, candidate)) {
+      effort = candidate;
+      model = remainder.slice(0, lastColon);
+    }
+    // else: invalid effort — fall through; the residual `:` is caught below.
+  }
+  if (model === "") return null;
+  // R342: after stripping a valid effort, `:` is reserved in the residual
+  // model (both harnesses) — it would collide with the pi `--model
+  // provider/model:<effort>` shorthand. A leftover `:` means the token is
+  // malformed -> null (parent fallback), the lenient mirror of @cq/config's
+  // fail-fast throw.
+  if (model.includes(":")) return null;
+  return { harness, model, effort };
 }
 
 /** Load + parse cq.toml from `configPath`; null if absent or unreadable. */
@@ -321,17 +399,24 @@ function resolveAgentToken(config: CqConfigSubset, agentName: string): CqToken |
  * - `claude:<model>`: a Claude provider CANNOT be driven by a child `pi -p`
  *   process, so this yields null — the caller falls back to the parent's model.
  *   (A `/` qualifier is pi-only; claude carries no provider here either way.)
+ *   The token's `effort` is recorded INERTLY on the dispatch details by the
+ *   caller (so it is observable) but is NEVER passed to the child.
  *
- * Returns the {provider, model} to pass to the child, or null to fall back.
+ * EFFORT (R342): for a pi token, the resolved `effort` is carried through so
+ * the caller can append it to the child `--model` as the
+ * `<provider>/<model>:<effort>` thinking-level SHORTHAND — pi has NO separate
+ * `--thinking`-style flag in the child token; the level rides on `--model`.
+ *
+ * Returns {provider, model, effort} to pass to the child, or null to fall back.
  */
-function tokenToChildModel(token: CqToken): { provider: string | null; model: string } | null {
+function tokenToChildModel(token: CqToken): { provider: string | null; model: string; effort: string | null } | null {
   if (token.harness !== "pi") return null;
   const slash = token.model.indexOf("/");
   if (slash < 0) return null; // bare pi token — REFUSED (mirror @cq/config THROW)
   const provider = token.model.slice(0, slash);
   const model = token.model.slice(slash + 1);
   if (provider === "" || model === "") return null; // empty half — REFUSED
-  return { provider, model };
+  return { provider, model, effort: token.effort };
 }
 
 /** Read + parse the named agent markdown from the cq-agents directory. */
@@ -537,6 +622,7 @@ export default function cqSubagentDispatch(pi: ExtensionAPI): void {
         model: null,
         provider: null,
         modelSource: "parent",
+        childEffort: null,
         resolvedTier: null,
         childProvider: null,
         childModel: null,
@@ -568,22 +654,38 @@ export default function cqSubagentDispatch(pi: ExtensionAPI): void {
       let provider: string | null = parentProvider;
       let modelSource: "explicit" | "tier" | "parent" = "parent";
       let resolvedTier: string | null = null;
+      // R342: the resolved effort recorded on the details (observable). For a
+      // pi child it ALSO rides on --model as the `<provider>/<model>:<effort>`
+      // shorthand; for a claude token (parent fallback) it is recorded here
+      // inertly and NOT passed to the child.
+      let childEffort: string | null = null;
+      // The effort to actually APPEND to the child --model. Distinct from the
+      // inert `childEffort`: it is set ONLY on the pi path (a real child model
+      // resolved from a pi token), never on the claude parent-fallback path.
+      let emittedEffort: string | null = null;
 
       const explicit = args.model && args.model.trim().length > 0 ? args.model.trim() : null;
       if (explicit !== null) {
-        // An explicit override may be a "<harness>:<model>" token or a bare pi
-        // --model pattern (a non-token string with no ':'). tokenToChildModel
-        // REFUSES (→null) a claude: token (can't drive a child pi process) AND
-        // a bare/empty-half pi: token (must be "pi:<provider>/<model>", mirror
-        // of @cq/config); a null child keeps the parent-model fallback.
+        // An explicit override may be a "<harness>:<model>[:<effort>]" token or
+        // a bare pi --model pattern (a non-token string with no ':').
+        // tokenToChildModel REFUSES (→null) a claude: token (can't drive a child
+        // pi process) AND a bare/empty-half pi: token (must be
+        // "pi:<provider>/<model>", mirror of @cq/config); a null child keeps the
+        // parent-model fallback. A claude token's effort is still recorded
+        // inertly below.
         const token = parseCqToken(explicit);
-        const child = token ? tokenToChildModel(token) : { provider: null, model: explicit };
+        const child = token ? tokenToChildModel(token) : { provider: null, model: explicit, effort: null };
         if (child !== null) {
           model = child.model;
           provider = child.provider;
+          childEffort = child.effort;
+          emittedEffort = child.effort;
           modelSource = "explicit";
+        } else if (token !== null) {
+          // claude: override -> keep the parent-model fallback, but record the
+          // requested effort INERTLY (observable, never passed to the child).
+          childEffort = token.effort;
         }
-        // else: claude: override -> keep the parent-model fallback already set.
       } else {
         // Tier resolution from the agent NAME via cq.toml.
         const config = loadCqConfig(cqConfigPath);
@@ -594,9 +696,14 @@ export default function cqSubagentDispatch(pi: ExtensionAPI): void {
           if (child !== null) {
             model = child.model;
             provider = child.provider;
+            childEffort = child.effort;
+            emittedEffort = child.effort;
             modelSource = "tier";
+          } else if (token !== null) {
+            // claude: tier -> parent-model fallback; record effort inertly.
+            childEffort = token.effort;
           }
-          // else: no [tiers]/slot, or a claude: tier -> parent-model fallback.
+          // else: no [tiers]/slot -> parent-model fallback.
         }
       }
 
@@ -609,7 +716,17 @@ export default function cqSubagentDispatch(pi: ExtensionAPI): void {
       // discovered via settings, its tool is filtered out of the child.
       const childArgs: string[] = ["--mode", "json", "-p", "--no-session"];
       if (provider) childArgs.push("--provider", provider);
-      if (model) childArgs.push("--model", model);
+      if (model) {
+        // R342: pi's reasoning-effort mechanism is the thinking-level SHORTHAND
+        // appended to the --model token (`<provider>/<model>:<effort>`), NOT a
+        // separate --thinking flag. Append `emittedEffort` — set ONLY on the pi
+        // path (a real child model resolved from a pi token); it is NEVER set on
+        // the claude parent-fallback path, so the parent model is never
+        // contaminated with a claude effort. The pi CLI documents `--model
+        // <pattern>` as supporting an optional `:<thinking>` suffix
+        // (off/minimal/low/medium/high/xhigh).
+        childArgs.push("--model", emittedEffort ? `${model}:${emittedEffort}` : model);
+      }
       if (excludeTools.length > 0) childArgs.push("--exclude-tools", excludeTools.join(","));
 
       const tmp = writePromptToTempFile(agent.name, agent.systemPrompt);
@@ -622,6 +739,7 @@ export default function cqSubagentDispatch(pi: ExtensionAPI): void {
         model,
         provider,
         modelSource,
+        childEffort,
         resolvedTier,
         excludedTools: excludeTools,
       };
