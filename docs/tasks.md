@@ -592,10 +592,10 @@ archives:
 - completion: FakeClient.getAgentModels drives all 4 Q157 states + throw (default not-configured preserves existing tests; resolved differs from catalogue); cherry-picked to main (integrated 1279/0).
 - sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
 
-### T293 — planned
+### T293 — done
 
 - createdAt: 2026-06-08T23:43:59.290Z
-- updatedAt: 2026-06-08T23:44:20.258Z
+- updatedAt: 2026-06-09T01:13:05.203Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Fetch get_agent_models on mount and overlay live model fields onto the static AGENT_ROLES in AppState
@@ -604,6 +604,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T291"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 4f5a39a
+- completion: App.tsx fetches get_agent_models on mount (catch-ALL fallback) + overlay-only resolveAgentModelView/AgentModelCell (5 labels, T299-independent); build-time rows kept transitionally; cherry-picked to main (integrated 1285/0).
+- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
 
 ### T295 — planned
 
@@ -667,10 +670,10 @@ archives:
 
 ## M121
 
-### T296 — planned
+### T296 — done
 
 - createdAt: 2026-06-08T23:44:53.948Z
-- updatedAt: 2026-06-08T23:44:53.948Z
+- updatedAt: 2026-06-09T01:13:07.752Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Update cq.toml.example and the token-format docs for the effort suffix
@@ -679,6 +682,9 @@ archives:
 - suggestedModel: fast
 - dependsOn: ["T292","T294"]
 - ledgerRefs: ["goals:G36"]
+- resultCommit: d208208
+- completion: "Documented the optional :<effort> grammar in cq.toml.example + parseReviewerToken jsdoc (comment-only) + 2 effort-suffixed example aliases; cherry-picked to main (integrated 1285/0)."
+- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
 
 ### T298 — planned
 

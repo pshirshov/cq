@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 355
+  item: 357
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -936,6 +936,18 @@ archives:
 - ledgerRefs: ["tasks:T291","goals:G34"]
 - sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
 
+### R356 — go-ahead
+
+- createdAt: 2026-06-09T01:12:58.621Z
+- updatedAt: 2026-06-09T01:12:58.621Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus approve; minimax disapprove ADJUDICATED false-positive [its TS readonly/mutable claim refuted by green tsc — mutable string[] IS assignable to readonly string[]; its pre-fetch flicker is non-acceptance + non-visible since fetch is on app-mount, tab opened later]; grok+codex abstained). T293 fetches get_agent_models on mount (catch-ALL -> overlayError, R341) + resolveAgentModelView (overlay-only, T299-independent) + AgentModelCell w/ 5 distinguished labels under help-agent-<id>-model; build-time rows kept transitionally (T279 test). Cherry-picked to main 4f5a39a; integrated bun run check 1285/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T293","goals:G34"]
+- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
+
 ## M119
 
 ### R354 — go-ahead
@@ -961,3 +973,17 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T294","goals:G36"]
 - sessionLogs: ["docs/logs/20260609-005204-T294-worker-review.md"]
+
+## M121
+
+### R357 — go-ahead
+
+- createdAt: 2026-06-09T01:13:02.956Z
+- updatedAt: 2026-06-09T01:13:02.956Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T296 documents the optional :<effort> grammar in cq.toml.example + the parseReviewerToken jsdoc (comment-only): reserved ':' both halves, per-harness enums, pi '--model …:<effort>' shorthand (no --thinking), claude-inert caveat; added grok-xhigh + opus-high effort aliases (both parse, classified in [tiers]). Cherry-picked to main d208208; integrated bun run check 1285/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T296","goals:G36"]
+- sessionLogs: ["docs/logs/20260609-005204-T293-T296-workers-reviews.md"]
