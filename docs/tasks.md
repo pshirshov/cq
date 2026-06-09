@@ -469,6 +469,11 @@ archives:
     summary: "G41 item 2 COMPLETE (formal typed MCP prompt catalog): T336 typed PromptCatalogEntry model + RoleKind split + plan-advance JSON Schemas in @cq/config (Ajv2020 + FOD refresh; K65 locked); T341 catalog store + 7 dispatched-role schema sidecars + gen-agents emits typed schemas (deterministic, drift-guarded, ledger-mcp-importable); T343 fetch_prompt/validate_input/validate_output MCP tools (both stdio+SDK factories); T344 plan-advance dispatch wired through the catalog (proof) + Agents tab renders typed schemas; T345 all 7 dispatched subagents wired at plan/implement/investigate advance.md + duplicated prose ioSchema removed. Reviews R410-R414 go-ahead. bun run check green (1486). Merged bcafd66/b502a61/dc87ba7/c2fa526/a873912."
     title: G41-2 Formal typed MCP prompt catalog
     status: done
+  - id: M140
+    path: ./archive/tasks/M140.md
+    summary: "G41 item 3 COMPLETE (orphan-branch feasibility SPIKE): T337 — verdict FEASIBLE-WITH-CAVEATS (GO) in locked decision K66, with an executed throwaway PoC proving the pure git-plumbing path (hash-object→scratch-index write-tree→commit-tree→CAS update-ref) advances an orphan ledger ref while the main checkout HEAD/worktree/index stay byte-identical; findings doc docs/drafts/20260609-221530-orphan-ledger-feasibility.md + PoC under debug/; no production code. A separate follow-up goal would implement a GitObjectLedgerBackend + drop the per-merge chore(ledger) commits + explicit push/fetch of the orphan ref. Review R415 go-ahead. Merged e108827."
+    title: G41-3 Ledger-on-orphan-branch feasibility spike
+    status: done
 ---
 
 # tasks
@@ -537,17 +542,3 @@ archives:
 - resultCommit: 02ceded75c4634b95c1ec52360b9b8eaeeb88b68
 - completion: "/cq:plan:follow-up.md accepts `<goalId> I..` — appends idea title+description as new scope via the existing re-open path + references plan.md's consume-an-idea sub-procedure (DRY); gen.ts regen + grep invariants; bun run check green."
 - sessionLogs: ["docs/logs/20260609-204431-aae55e850271aa44a.md","docs/logs/20260609-204431-a320c286875860a83.md"]
-
-## M140
-
-### T337 — wip
-
-- createdAt: 2026-06-09T19:09:09.731Z
-- updatedAt: 2026-06-09T22:14:24.813Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: "Spike: assess feasibility of storing the ledger on an orphan git branch without working-tree switches"
-- description: "SPIKE-ONLY (Q186): deliver a feasibility DECISION + documented findings (and optionally a throwaway PoC), NOT a production implementation. Investigate keeping the ledger (docs/*.md) on a SEPARATE git branch rooted at the EMPTY/zero commit (orphan ref), with the HARD constraint that writes must NOT switch the working tree to that branch. Evaluate the git-plumbing approach: `git hash-object -w` for blobs, `git mktree`/`update-index --index-info` to build trees, `git commit-tree` for commits, `git update-ref refs/heads/<ledger-branch> <sha>` to advance the orphan ref — all without checkout — and/or a dedicated linked `git worktree`. Prototype the minimal command sequence in a throwaway script under nix/pkg/cq-ledgers/debug/ run against a THROWAWAY test repo (NOT the cq repo; do not wire into ledger-mcp). Assess: correctness, concurrency/locking vs FsLedgerStore, how reads work (cat-file), interaction with the existing ledger git-commit steps in the commands, reflog/push-fetch edge cases, and failure modes. Produce a clear go/no-go recommendation; if feasible, note what a SEPARATE later goal would need."
-- acceptance: "A locked decisions item records the feasibility verdict (feasible / not-feasible / feasible-with-caveats) with concrete evidence: the exact plumbing command sequence tested, captured proof that an orphan-ref commit advanced WHILE the main checkout's HEAD ref AND working tree stayed BYTE-IDENTICAL before/after (or proof it cannot), the concurrency/locking assessment, and a recommendation for the follow-up goal. Findings written into the decision rationale and/or a docs/drafts/<ts>-orphan-ledger-feasibility.md note. NO production code merged into packages/*/src; a grep confirms the PoC is referenced only under debug/ + the findings doc."
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G41"]

@@ -674,6 +674,11 @@ archives:
     summary: "G41 item 2 COMPLETE (formal typed MCP prompt catalog): T336 typed PromptCatalogEntry model + RoleKind split + plan-advance JSON Schemas in @cq/config (Ajv2020 + FOD refresh; K65 locked); T341 catalog store + 7 dispatched-role schema sidecars + gen-agents emits typed schemas (deterministic, drift-guarded, ledger-mcp-importable); T343 fetch_prompt/validate_input/validate_output MCP tools (both stdio+SDK factories); T344 plan-advance dispatch wired through the catalog (proof) + Agents tab renders typed schemas; T345 all 7 dispatched subagents wired at plan/implement/investigate advance.md + duplicated prose ioSchema removed. Reviews R410-R414 go-ahead. bun run check green (1486). Merged bcafd66/b502a61/dc87ba7/c2fa526/a873912."
     title: G41-2 Formal typed MCP prompt catalog
     status: done
+  - id: M140
+    path: ./archive/milestones/M140.md
+    summary: "G41 item 3 COMPLETE (orphan-branch feasibility SPIKE): T337 — verdict FEASIBLE-WITH-CAVEATS (GO) in locked decision K66, with an executed throwaway PoC proving the pure git-plumbing path (hash-object→scratch-index write-tree→commit-tree→CAS update-ref) advances an orphan ledger ref while the main checkout HEAD/worktree/index stay byte-identical; findings doc docs/drafts/20260609-221530-orphan-ledger-feasibility.md + PoC under debug/; no production code. A separate follow-up goal would implement a GitObjectLedgerBackend + drop the per-merge chore(ledger) commits + explicit push/fetch of the orphan ref. Review R415 go-ahead. Merged e108827."
+    title: G41-3 Ledger-on-orphan-branch feasibility spike
+    status: done
 ---
 
 # milestones
@@ -705,11 +710,3 @@ archives:
 - updatedAt: 2026-06-09T19:07:20.136Z
 - title: G41-5 Ideas ledger + idea-id command args
 - description: "Work milestone for G41 item 5: new 'Ideas' ledger (title+description; open|planned|discarded|postponed); 'Ideas' sidebar button above Goals; /cq:plan + /cq:plan:follow-up accept idea I-ids."
-
-### M140 — open
-
-- createdAt: 2026-06-09T19:07:29.607Z
-- updatedAt: 2026-06-09T19:28:20.036Z
-- title: G41-3 Ledger-on-orphan-branch feasibility spike
-- description: "Work milestone for G41 item 3 (SPIKE-ONLY, Q186): assess feasibility of storing the ledger on an orphan git branch (rooted at zero commit) with writes that never switch the working tree (orphan-ref plumbing or linked worktree). Deliverable = locked decision + findings doc (+ optional throwaway PoC); NO production code. NOTE (R399): the dependsOn [M139] is ADVISORY WORK-ORDERING per Q183 (spike last), NOT a technical prerequisite — the spike shares no code coupling with the prompt-catalog work."
-- dependsOn: ["M139"]
