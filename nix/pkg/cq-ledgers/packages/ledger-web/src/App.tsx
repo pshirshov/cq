@@ -36,7 +36,7 @@ import { useBackdropDismiss } from "./useBackdropDismiss.js";
 import { eligibleColumnFields, defaultColumns } from "@cq/ledger/columns";
 // Leaf subpath: constants.ts is data-only (no Node.js builtins). Importing
 // MILESTONES_SCHEMA from here avoids the duplicated local copy (D6).
-import { MILESTONES_SCHEMA } from "@cq/ledger/constants";
+import { MILESTONES_SCHEMA, IDEAS_LEDGER } from "@cq/ledger/constants";
 
 // Ledger names for the relationship panels — consistent with the canonical
 // constants in @cq/ledger but defined locally to avoid bundling Node.js
@@ -84,6 +84,7 @@ const UI_AUTHOR = "user";
  */
 const SIDEBAR_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ["questions"],
+  ["ideas"],
   ["goals", "milestones"],
   ["defects", "tasks"],
   ["handoffs"],
@@ -1294,7 +1295,7 @@ export function App({ connect, initialUrl, liveUrl = null, liveWsCtor, holdClock
                 groups={view.milestones}
                 schema={view.schema}
                 isMilestones={isMilestones}
-                isGoals={ledger === GOALS_LEDGER}
+                isGoals={ledger === GOALS_LEDGER || ledger === IDEAS_LEDGER}
                 statusFilter={filter}
                 milestoneFilter={milestoneFilter}
                 extraColumns={
