@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 403
+  item: 407
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -679,6 +679,16 @@ archives:
 - ledgerRefs: ["tasks:T331","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-195301-a96245ea42545ec46.md"]
 
+### R404 — go-ahead
+
+- createdAt: 2026-06-09T20:20:14.604Z
+- updatedAt: 2026-06-09T20:20:14.604Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T338) — cq init writes cq.toml with skip/--force per Q184 (no symlink special-casing; reuses pathExists); tests assert create/skip/force + template equality; bun run check green 1400/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T338","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-201031-a35d29a6ff9932cde.md"]
+
 ## M138
 
 ### R402 — go-ahead
@@ -691,6 +701,26 @@ archives:
 - ledgerRefs: ["tasks:T335","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-195301-a9c0789cc58edc22e.md"]
 
+### R406 — go-ahead
+
+- createdAt: 2026-06-09T20:20:20.791Z
+- updatedAt: 2026-06-09T20:20:20.791Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "approve (T339) — ['ideas'] SIDEBAR_GROUPS entry above ['goals','milestones'] (ledger-ideas renders above ledger-goals); isGoals flat-list path reused for ideas (no milestone grouping); generic updateItem detail edit; pure MCP; ideasFlat 3/3 + bun run check green 1400/0. Native opus implement-reviewer."
+- ledgerRefs: ["tasks:T339","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-201031-ab3a53a6728cc9212.md"]
+
+### R407 — go-ahead
+
+- createdAt: 2026-06-09T20:20:23.873Z
+- updatedAt: 2026-06-09T20:20:23.873Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T340) — plan.md documents the Q188 I-id grammar (no-interleave) + named 4-step consume-an-idea sub-procedure (DRY-referenced by follow-up.md); 5 structural grep-invariants pass; agentsCatalogue.gen.ts regen byte-for-byte faithful; bun run check green 1403/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T340","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-201031-a03c758596a249aa0.md"]
+
 ## M137
 
 ### R403 — go-ahead
@@ -702,3 +732,13 @@ archives:
 - summary: approve (T332) — underline correctly gated on the existing `activatable` boolean (agentId && onActivateAgent); happy-dom test asserts both cases via style.textDecoration; no layout/testid change; bun run check green 1369/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T332","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-195301-a419a03c786bd7181.md"]
+
+### R405 — go-ahead
+
+- createdAt: 2026-06-09T20:20:17.507Z
+- updatedAt: 2026-06-09T20:20:17.507Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: approve (T333) — withTerminalNodes marks zero-outgoing-edge nodes terminal across all 4 ROLE_FLOWS (self-loop→non-terminal, sink→terminal); tests assert invariant + rx=4/14 render; confirmed worker's '8 TUI failures' = worktree-local artifact not a regression (TUI green on main); bun run check 1397/0. Native opus implement-reviewer.
+- ledgerRefs: ["tasks:T333","goals:G41"]
+- sessionLogs: ["docs/logs/20260609-201031-a360ee5576a9deb33.md"]

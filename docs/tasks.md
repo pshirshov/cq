@@ -475,10 +475,10 @@ archives:
 - completion: CQ_TOML_TEMPLATE constant in cq-cli (opus/sonnet/haiku active, pi commented) + synced cq.toml.example + parity/string-equality tests; bun run check green.
 - sessionLogs: ["docs/logs/20260609-195301-ae2b63ff41b615dc6.md","docs/logs/20260609-195301-a96245ea42545ec46.md"]
 
-### T338 — planned
+### T338 — done
 
 - createdAt: 2026-06-09T19:09:22.607Z
-- updatedAt: 2026-06-09T19:29:06.866Z
+- updatedAt: 2026-06-09T20:20:30.674Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Make `cq init` write cq.toml with skip/--force semantics
@@ -487,6 +487,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T331"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: 03a3ac7fb9a7b69dddadc490173f64844e59144a
+- completion: cq init writes cq.toml (CQ_TOML_TEMPLATE) with skip-if-exists + --force overwrite per Q184; create/skip/force tests; bun run check green.
+- sessionLogs: ["docs/logs/20260609-201031-a015ff215853dacb0.md","docs/logs/20260609-201031-a35d29a6ff9932cde.md"]
 
 ## M137
 
@@ -505,10 +508,10 @@ archives:
 - completion: Underline on activatable DiagramSvg node labels (gated on the existing activatable boolean) + happy-dom test; bun run check green.
 - sessionLogs: ["docs/logs/20260609-195301-a980130128544a7a0.md","docs/logs/20260609-195301-a419a03c786bd7181.md"]
 
-### T333 — wip
+### T333 — done
 
 - createdAt: 2026-06-09T19:08:29.519Z
-- updatedAt: 2026-06-09T19:43:38.954Z
+- updatedAt: 2026-06-09T20:20:34.554Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Render terminal (no-outgoing-edge) flow nodes as visually distinct
@@ -516,6 +519,9 @@ archives:
 - acceptance: "A test over ROLE_FLOWS asserts for each flow: every node with zero outgoing edges has terminal===true, every node with ≥1 outgoing edge has terminal!==true. A DiagramSvg render test asserts a terminal node's rect uses rx=4 and a non-terminal node's rect uses rx=14. `bun test` passes."
 - suggestedModel: standard
 - ledgerRefs: ["goals:G41"]
+- resultCommit: 18d73dc121485250bc1e73e294ad410f98ac1052
+- completion: "withTerminalNodes() derives terminal:true on zero-outgoing-edge nodes across all 4 ROLE_FLOWS; DiagramSvg renders rx=4 (terminal) vs rx=14; tests + bun run check green."
+- sessionLogs: ["docs/logs/20260609-201031-a656a0bfa3e0b268f.md","docs/logs/20260609-201031-a360ee5576a9deb33.md"]
 
 ### T334 — wip
 
@@ -546,10 +552,10 @@ archives:
 - completion: ideas ledger schema (idPrefix I, title+description, open|planned|discarded|postponed, postponed→open) in CANONICAL_LEDGERS + ledgers.yaml regen + lifecycle/illegal-transition/flat-attachment tests; bun run check green.
 - sessionLogs: ["docs/logs/20260609-195301-af0e8528968c08a21.md","docs/logs/20260609-195301-a9c0789cc58edc22e.md"]
 
-### T339 — planned
+### T339 — done
 
 - createdAt: 2026-06-09T19:09:28.422Z
-- updatedAt: 2026-06-09T19:09:28.422Z
+- updatedAt: 2026-06-09T20:20:38.782Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Surface the Ideas ledger in ledger-web with an 'Ideas' sidebar button above Goals
@@ -558,11 +564,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T335"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: a39fd9433bc6d5de45a1bc86a5cc08e11db70e2a
+- completion: "'Ideas' sidebar group above Goals in ledger-web App.tsx; ideas reuse the flat goals list path + generic updateItem detail edit; ideasFlat tests; bun run check green. (Recovered via format-patch + git am — worker commit was unreachable from main's object db.)"
+- sessionLogs: ["docs/logs/20260609-201031-a2e9e3e7a4527c18c.md","docs/logs/20260609-201031-ab3a53a6728cc9212.md"]
 
-### T340 — planned
+### T340 — done
 
 - createdAt: 2026-06-09T19:09:36.098Z
-- updatedAt: 2026-06-09T19:29:52.658Z
+- updatedAt: 2026-06-09T20:20:42.883Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Extend /cq:plan command grammar to accept idea-ids (one goal per idea)"
@@ -571,6 +580,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T335"]
 - ledgerRefs: ["goals:G41"]
+- resultCommit: 6aedb28c362ddc99aa7f1ec8a37bfd75546b0a30
+- completion: plan.md I-id grammar (EITHER /^I\d+$/ ids OR free text) + named consume-an-idea sub-procedure (DRY, referenced by follow-up.md) + agentsCatalogue.gen.ts regen + 5 grep-invariants; bun run check green.
+- sessionLogs: ["docs/logs/20260609-201031-a6676de77b1de785c.md","docs/logs/20260609-201031-a03c758596a249aa0.md"]
 
 ### T342 — planned
 
