@@ -491,10 +491,10 @@ archives:
 
 ## M124
 
-### T302 — wip
+### T302 — done
 
 - createdAt: 2026-06-09T09:47:01.233Z
-- updatedAt: 2026-06-09T10:06:18.471Z
+- updatedAt: 2026-06-09T10:24:19.316Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add commit-after-planning-lock checkpoint to plan/advance.md
@@ -502,6 +502,7 @@ archives:
 - acceptance: "plan/advance.md contains a permanent commit checkpoint that (1) fires after a goal reaches `planned`, (2) explicitly fires even when chained under /cq:advance (overriding chained-suppression for THIS checkpoint), (3) leaves the existing standalone at-stop commit + its chained-suppression unchanged (verify the standalone-stop block still present, no deletion). The grep marker phrase present verbatim. Edit scoped to the Commit-the-ledger section. bun run check green."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G37","defects:D43"]
+- resultCommit: 147d589
 
 ### T303 — wip
 
