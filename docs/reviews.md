@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 415
+  item: 416
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -728,3 +728,17 @@ archives:
 - summary: approve (T342) — follow-up.md documents the goalId-then-idea-ids grammar + append-as-scope via the existing re-open path + DRY reference to plan.md's consume-an-idea sub-procedure (anchors verified); gen.ts regen byte-faithful; grep invariants genuine; bun run check green 1418/0. Native opus implement-reviewer.
 - ledgerRefs: ["tasks:T342","goals:G41"]
 - sessionLogs: ["docs/logs/20260609-204431-a320c286875860a83.md"]
+
+## M141
+
+### R416 — go-ahead
+
+- createdAt: 2026-06-09T22:38:40.832Z
+- updatedAt: 2026-06-09T22:38:40.832Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "GO-AHEAD (G42 fix-D47 plan; single opus plan-reviewer — proportionate for a one-task confirmed-root-cause defect fix; pi panel conserved). T346 verified fine-grained/grounded/testable/complete: onSchemaDivergence:'abort' genuinely throws on structural drift (FsLedgerStore.ts:441-445/200), the byte-equality assertion matches regen-bootstrap.ts:32-37 exactly, sample-ledger exclusion is conservative, reproduce-first concrete; no regression on the in-sync fixture. 0 criticisms / 0 questions. Plan LOCKED."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G42","defects:D47"]
+- sessionLogs: ["docs/logs/20260609-223826-af9cdea865a37cb53.md"]

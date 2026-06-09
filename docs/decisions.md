@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 66
+  item: 67
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -269,3 +269,15 @@ archives:
     
     DAG acyclic: T338→T331; T342→T340→T335, T339→T335; T341→T336, T343→T341, T344→T343, T345→T344; milestone advisory ordering M136/M137/M138 → M139 → M140. G41 → planned.
 - ledgerRefs: ["goals:G41"]
+
+## M141
+
+### K67 — locked
+
+- createdAt: 2026-06-09T22:38:47.426Z
+- updatedAt: 2026-06-09T22:38:47.426Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "G42 plan review: approved (go-ahead) — D47 fix plan LOCKED (single test-only task T346)"
+- rationale: "Defect-seeded goal G42 (fix D47, root cause confirmed via H34, clarification skipped). Orchestrator-authored plan (the confirmed root cause + exact fix locus leave nothing for parallel candidate planners to diverge on) reviewed by a single opus plan-reviewer → go-ahead (0 criticisms; all cited symbols verified against source). LOCKED plan: 1 work milestone M142, 1 task T346 (standard). T346 (test-only, packages/ledger/test/canonical-ledgers.test.ts): (1) flip the existing committed-vs-canon guard test to `new FsLedgerStore({root, onSchemaDivergence:'abort'})` so structural drift THROWS instead of silently self-healing (default backup-reinit); (2) add a byte-equality assertion (committed docs/ledgers.yaml === serializeRegistry(CANONICAL_LEDGERS)) running under bun run check so serialization-order drift fails too; (3) exclude the intentionally-frozen examples/sample-ledger fixture; reproduce-first against a deliberately-staled fixture copy. G42 → planned."
+- ledgerRefs: ["goals:G42","defects:D47"]

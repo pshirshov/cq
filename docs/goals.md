@@ -263,10 +263,10 @@ archives:
 
 ## M141
 
-### G42 — planning
+### G42 — planned
 
 - createdAt: 2026-06-09T22:34:22.347Z
-- updatedAt: 2026-06-09T22:34:22.347Z
+- updatedAt: 2026-06-09T22:38:48.575Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: Fix D47 — make the ledgers.yaml bootstrap-drift guard actually fail check
@@ -278,3 +278,6 @@ archives:
     
     ## SUGGESTED FIX (confirmed)
     (1) PRIMARY: canonical-ledgers.test.ts:513 → `new FsLedgerStore({ root: dir, onSchemaDivergence: 'abort' })` so any structural divergence THROWS + fails `bun test`; fix the test comment. (2) STRONGER (D47's ask): add a `bun test` assertion that readFile(docs/ledgers.yaml) BYTE-EQUALS serializeRegistry({version:1, ledgers: CANONICAL_LEDGERS.map(c=>({name:c.name,schema:c.schema}))}) — the exact source scripts/regen-bootstrap.ts:34/37 emits — so serialization-order drift fails too. (3) examples/sample-ledger/docs/ledgers.yaml is an INTENTIONALLY frozen/divergent demo fixture — EXCLUDE it from the byte-equality assertion (or assert its intended divergence). REPRODUCE-FIRST: a test that PASSES against pre-fix code with a deliberately-staled committed fixture and FAILS after the fix. LINK: defects:D47 (carried on the defect's ledgerRefs).
+- milestones: ["M142"]
+- grounding: "Defect-seeded fix for D47 (confirmed H34). Single test-only task T346 under M142: switch the committed-vs-canon guard test to onSchemaDivergence:'abort' + add a byte-equality assertion (committed docs/ledgers.yaml === serializeRegistry(CANONICAL_LEDGERS)) running under bun run check; exclude the intentionally-frozen examples/sample-ledger fixture; reproduce-first against a deliberately-staled fixture copy. Fix locus: packages/ledger/test/canonical-ledgers.test.ts."
+- sessionLogs: ["docs/logs/20260609-223826-af9cdea865a37cb53.md"]
