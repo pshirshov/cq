@@ -23,6 +23,11 @@ export interface ResolvedReviewer {
   /** The pi `--provider` qualifier; null for claude. */
   readonly provider: string | null;
   readonly alias: string;
+  /**
+   * The optional effort level from the token's trailing `:<effort>` suffix
+   * (T284/T286). `null` means absent — the provider/model default applies.
+   */
+  readonly effort?: string | null;
 }
 
 /**
@@ -47,6 +52,11 @@ export interface ResolvedPlanner {
   /** The pi `--provider` qualifier; null for claude. */
   readonly provider: string | null;
   readonly alias: string;
+  /**
+   * The optional effort level from the token's trailing `:<effort>` suffix
+   * (T284/T286). `null` means absent — the provider/model default applies.
+   */
+  readonly effort?: string | null;
 }
 
 /**
@@ -64,7 +74,13 @@ export interface GetConfigResult {
   readonly configured: boolean;
   readonly aliases: Record<
     string,
-    { harness: string; model: string; provider: string | null }
+    {
+      harness: string;
+      model: string;
+      provider: string | null;
+      /** Optional effort level; null/absent means no override. */
+      effort?: string | null;
+    }
   >;
   readonly reviewers: readonly string[];
   readonly planners: readonly string[];
@@ -77,16 +93,22 @@ export interface GetConfigResult {
       readonly harness: string;
       readonly model: string;
       readonly provider: string | null;
+      /** Optional effort level; null/absent means no override. */
+      readonly effort?: string | null;
     };
     readonly standard?: {
       readonly harness: string;
       readonly model: string;
       readonly provider: string | null;
+      /** Optional effort level; null/absent means no override. */
+      readonly effort?: string | null;
     };
     readonly frontier?: {
       readonly harness: string;
       readonly model: string;
       readonly provider: string | null;
+      /** Optional effort level; null/absent means no override. */
+      readonly effort?: string | null;
     };
   } | null;
   /**

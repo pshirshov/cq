@@ -55,6 +55,7 @@ export function computeReviewers(repoRoot: string): GetReviewersResult {
     provider: token.provider,
     // resolveReviewers preserves order, so the alias is config.reviewers[i].
     alias: config.reviewers[i] as string,
+    effort: token.effort ?? null,
   }));
   return { configured: reviewers.length > 0, reviewers };
 }
@@ -79,6 +80,7 @@ export function computePlanners(repoRoot: string): GetPlannersResult {
     provider: token.provider,
     // resolvePlanners preserves order, so the alias is config.planners[i].
     alias: config.planners[i] as string,
+    effort: token.effort ?? null,
   }));
   return { configured: planners.length > 0, planners };
 }
@@ -100,15 +102,13 @@ export function computeConfig(repoRoot: string): GetConfigResult {
 }
 
 function projectConfig(config: CqConfig): GetConfigResult {
-  const aliases: Record<
-    string,
-    { harness: string; model: string; provider: string | null }
-  > = {};
+  const aliases: GetConfigResult["aliases"] = {};
   for (const [name, token] of Object.entries(config.aliases)) {
     aliases[name] = {
       harness: token.harness,
       model: token.model,
       provider: token.provider,
+      effort: token.effort ?? null,
     };
   }
 
@@ -128,6 +128,7 @@ function projectConfig(config: CqConfig): GetConfigResult {
               harness: entry.token.harness,
               model: entry.token.model,
               provider: entry.token.provider,
+              effort: entry.token.effort ?? null,
             },
           };
     };

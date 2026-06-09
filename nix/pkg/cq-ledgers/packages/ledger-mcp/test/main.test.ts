@@ -292,26 +292,26 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
       await withClientAtRoot(cfgRoot, async (client) => {
         const reviewers = decode<{
           configured: boolean;
-          reviewers: Array<{ harness: string; model: string; provider: string | null; alias: string }>;
+          reviewers: Array<{ harness: string; model: string; provider: string | null; alias: string; effort: string | null }>;
         }>(await client.callTool({ name: "get_reviewers", arguments: {} }));
         expect(reviewers.configured).toBe(true);
         expect(reviewers.reviewers).toEqual([
-          { harness: "pi", model: "grok-build", provider: "grok-build", alias: "codex" },
-          { harness: "claude", model: "opus-4.8[1m]", provider: null, alias: "opus" },
+          { harness: "pi", model: "grok-build", provider: "grok-build", alias: "codex", effort: null },
+          { harness: "claude", model: "opus-4.8[1m]", provider: null, alias: "opus", effort: null },
         ]);
 
         const planners = decode<{
           configured: boolean;
-          planners: Array<{ harness: string; model: string; provider: string | null; alias: string }>;
+          planners: Array<{ harness: string; model: string; provider: string | null; alias: string; effort: string | null }>;
         }>(await client.callTool({ name: "get_planners", arguments: {} }));
         expect(planners.configured).toBe(true);
         expect(planners.planners).toEqual([
-          { harness: "claude", model: "opus-4.8[1m]", provider: null, alias: "opus" },
+          { harness: "claude", model: "opus-4.8[1m]", provider: null, alias: "opus", effort: null },
         ]);
 
         const config = decode<{
           configured: boolean;
-          aliases: Record<string, { harness: string; model: string; provider: string | null }>;
+          aliases: Record<string, { harness: string; model: string; provider: string | null; effort: string | null }>;
           reviewers: string[];
           planners: string[];
         }>(await client.callTool({ name: "get_config", arguments: {} }));
@@ -319,8 +319,8 @@ describe("ledger-mcp stdio config capability (cq.toml)", () => {
         expect(config.reviewers).toEqual(["codex", "opus"]);
         expect(config.planners).toEqual(["opus"]);
         expect(config.aliases).toEqual({
-          codex: { harness: "pi", model: "grok-build", provider: "grok-build" },
-          opus: { harness: "claude", model: "opus-4.8[1m]", provider: null },
+          codex: { harness: "pi", model: "grok-build", provider: "grok-build", effort: null },
+          opus: { harness: "claude", model: "opus-4.8[1m]", provider: null, effort: null },
         });
       });
     } finally {
