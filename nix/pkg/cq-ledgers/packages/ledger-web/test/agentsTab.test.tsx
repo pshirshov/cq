@@ -277,6 +277,57 @@ describe("Agents tab — live model overlay (T297)", () => {
     expect(cell!.textContent?.trim()).toBe("no live token for standard");
   });
 
+  it("plan-advance row renders the typed input/output schema sourced from the catalog (T344)", async () => {
+    await openAgentsTab();
+
+    // The plan-advance role is a dispatched subagent, so its agentsCatalogue
+    // entry carries the typed inputSchema/outputSchema from the @cq/config
+    // sidecars (T341). These cells render the typed JSON Schema, NOT just the
+    // legacy prose ioSchema strings.
+    const role = AGENT_ROLES.find((r) => r.id === "plan-advance");
+    expect(role).not.toBeUndefined();
+    expect(role!.inputSchema, "plan-advance must carry a typed inputSchema").not.toBeUndefined();
+    expect(role!.outputSchema, "plan-advance must carry a typed outputSchema").not.toBeUndefined();
+
+    const inputCell = testid("help-agent-plan-advance-input-schema");
+    expect(inputCell).not.toBeNull();
+    const inputText = inputCell!.textContent ?? "";
+    // The typed schema's $id and a known property (goalId) are part of the
+    // rendered JSON — proving the cell sources the TYPED schema, not the prose.
+    expect(inputText).toContain("cq:prompt-catalog/plan-advance/input");
+    expect(inputText).toContain("goalId");
+    expect(inputText).not.toBe("(no typed schema)");
+
+    const outputCell = testid("help-agent-plan-advance-output-schema");
+    expect(outputCell).not.toBeNull();
+    const outputText = outputCell!.textContent ?? "";
+    expect(outputText).toContain("cq:prompt-catalog/plan-advance/output");
+    // The DEFAULT-mode status-token enum members appear in the typed output schema.
+    expect(outputText).toContain("review-requested");
+    expect(outputText).not.toBe("(no typed schema)");
+  });
+
+  it("degrades gracefully: an orchestrator-command role with no typed schema shows the placeholder (T344)", async () => {
+    await openAgentsTab();
+
+    // plan/advance is an orchestrator-command role (agentTierKey===null), so it
+    // carries NO typed schema (inputSchema/outputSchema undefined). The cells
+    // must degrade to the placeholder rather than throwing — mirroring the
+    // get_agent_models overlay-error degradation path.
+    const role = AGENT_ROLES.find((r) => r.id === "plan/advance");
+    expect(role).not.toBeUndefined();
+    expect(role!.inputSchema, "orchestrator-command must NOT carry inputSchema").toBeUndefined();
+    expect(role!.outputSchema, "orchestrator-command must NOT carry outputSchema").toBeUndefined();
+
+    const inputCell = testid("help-agent-plan/advance-input-schema");
+    expect(inputCell).not.toBeNull();
+    expect(inputCell!.textContent?.trim()).toBe("(no typed schema)");
+
+    const outputCell = testid("help-agent-plan/advance-output-schema");
+    expect(outputCell).not.toBeNull();
+    expect(outputCell!.textContent?.trim()).toBe("(no typed schema)");
+  });
+
   it("orchestrator-command role renders 'N/A' regardless of mode (not-model-configurable)", async () => {
     // "advance" is confirmed as an orchestrator-command role: agentTierKey===null in
     // AGENT_ROLE_TIERS (agentRoster.ts), model="N/A" in agentsCatalogue.gen.ts.

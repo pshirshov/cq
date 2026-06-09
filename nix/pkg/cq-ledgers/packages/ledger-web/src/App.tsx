@@ -26,6 +26,7 @@ import { layoutDiagram, type LaidOutDiagram, type DiagramModel } from "./diagram
 import { DiagramSvg } from "./DiagramSvg.js";
 import { ROLE_FLOWS, ROLE_KIND_FILL, type RoleFlowDefinition, type RoleKind } from "./roleActions.js";
 import { AGENT_ROLES } from "./agentsCatalogue.js";
+import type { JSONSchema } from "@cq/config";
 import { LiveManager, type LiveStats } from "@cq/ledger-live";
 import { defectFixTaskIds, hypothesisRelationships } from "@cq/ledger/relationships";
 import { HoldButton, type HoldClock } from "./HoldButton.js";
@@ -187,6 +188,29 @@ function renderListField(items: string[]): React.ReactElement {
         <li key={i}>{item}</li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Render an {@link AgentRole}'s typed `inputSchema`/`outputSchema` from the
+ * catalogue (T344, goal G41). The typed JSON Schema is present IFF the role is a
+ * DISPATCHED-SUBAGENT (sourced from the `@cq/config` sidecars via T341's
+ * agentsCatalogue.gen.ts); orchestrator-command roles carry no schema. Degrades
+ * gracefully like the `get_agent_models` overlay-error path: when the schema is
+ * ABSENT the cell shows a `(no typed schema)` placeholder rather than throwing,
+ * so a role without a sidecar (or a future shape change) renders cleanly. When
+ * present the schema is pretty-printed inside a COLLAPSED `<details>` so the
+ * (large) JSON stays folded until the reader expands it.
+ */
+function renderTypedSchema(schema: JSONSchema | undefined): React.ReactElement {
+  if (schema === undefined) {
+    return <span className="lw-empty">(no typed schema)</span>;
+  }
+  return (
+    <details className="lw-agent-schema">
+      <summary>{typeof schema.title === "string" ? schema.title : "JSON Schema"}</summary>
+      <pre className="lw-agent-schema-json">{JSON.stringify(schema, null, 2)}</pre>
+    </details>
   );
 }
 const SUMMARIZE_MAX = 80;
@@ -1984,6 +2008,10 @@ function AgentsTab({
             <dd>{role.outputs.length > 0 ? renderListField(role.outputs) : <span className="lw-empty">(none)</span>}</dd>
             <dt>IO schema</dt>
             <dd>{role.ioSchema.length > 0 ? renderListField(role.ioSchema) : <span className="lw-empty">(none)</span>}</dd>
+            <dt>Input schema</dt>
+            <dd data-testid={`help-agent-${role.id}-input-schema`}>{renderTypedSchema(role.inputSchema)}</dd>
+            <dt>Output schema</dt>
+            <dd data-testid={`help-agent-${role.id}-output-schema`}>{renderTypedSchema(role.outputSchema)}</dd>
             <dt>Model</dt>
             <dd data-testid={`help-agent-${role.id}-model`}>
               <AgentModelCell view={resolveAgentModelView(overlay?.get(role.id), overlayError)} />

@@ -116,8 +116,44 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
       performs EXACTLY ONE state-driven step against the goal, **writes the
       ledger itself** (files questions / emits or revises the plan / locks the
       decision and reaches `planned`), and returns a single status token. The
-      orchestrator writes NOTHING for the plan this round. Take that returned
-      token and go to **sub-step 1c** (read the token, drive the loop).
+      orchestrator writes NOTHING for the plan this round.
+
+      **Catalog-driven dispatch (G41, Q185 steps a–g) — the proof path.** Drive
+      this `plan-advance` dispatch through the typed prompt-catalog MCP tools the
+      ledger-mcp server added in T343 (`fetch_prompt` / `validate_input` /
+      `validate_output`). The full sequence is:
+      - **(a) fetch the prompt template.** Call `fetch_prompt("plan-advance")`
+        for the role's `promptTemplate` plus its typed `inputSchema` /
+        `outputSchema` (the dispatched-subagent payload — `plan-advance` is a
+        dispatched subagent, so the schemas are present).
+      - **(b) take its `inputSchema`.** Read the `inputSchema` off that
+        `fetch_prompt` result — the input contract for the dispatch.
+      - **(c) compose the input.** Build the input object against that schema:
+        `{ goalId: "<G>" }` (`$ARGUMENTS`), with `candidateMode` omitted/false in
+        this single-planner mode.
+      - **(d) validate the input.** Call `validate_input("plan-advance", input)`.
+        On `{ ok: false, errors }`, FIX the composed input and re-validate — do
+        NOT dispatch an input the schema rejects.
+      - **(e) run the subagent.** Dispatch the `Agent` (`subagent_type:
+        "plan-advance"`) with the validated input rendered into the prompt
+        (goal id + DEFAULT mode), as above.
+      - **(f) await the output.** Capture the subagent's reply — its status token
+        (and, for a candidate run, its candidate JSON).
+      - **(g) validate the output.** Call `validate_output("plan-advance",
+        output)` against the role's `outputSchema`. A validation failure is a
+        contract breach to surface (log it, §Session logs), not silently dropped.
+
+      **Degrade gracefully when the catalog tools are absent** (an older or
+      embedded ledger-mcp server that predates T343 does not advertise
+      `fetch_prompt` / `validate_input` / `validate_output`) — exactly like the
+      `get_agent_models` / `get_planners` / `get_reviewers` tool-absence paths:
+      when these tools are unavailable, SKIP steps (a)–(d) and (g) and fall
+      straight through to the bare `Agent` dispatch (step (e)) on the prompt as
+      authored. The validate steps are an ADDITIVE contract check, never a hard
+      dependency — their absence never blocks the round.
+
+      Take the returned token and go to **sub-step 1c** (read the token, drive
+      the loop).
 
    1b. **Multi-planner path** (configured) — **generate-N-then-JUDGE+SYNTHESIS**
       (Q100/Q101). Launch ALL active planners **in parallel** as
