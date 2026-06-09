@@ -439,69 +439,16 @@ archives:
     summary: "G38 cross-cutting verification COMPLETE. T321 final-verify PASS (orchestrator-run, R385 go-ahead): bun run check 1332/0; grep-invariant markers G38-1a-post-done-cleanup/start-sweep (advance.md) + worker-ephemeral (implement-worker.md) each =1; §5 'worktree INTACT' intact; nix build .#ledger-mcp/.#ledger-tui/.#ledger-web all exit 0. All G38 items 1a/1b/2/3 landed + verified."
     title: G38 — cross-cutting verification (full check + grep-invariant audit + nix builds)
     status: done
+  - id: M133
+    path: ./archive/tasks/M133.md
+    summary: "D45 fix COMPLETE. T323 (cacheMirror.mirrorMutation now mirrors layout.registryPath on op==='create'||'archive' — before the archive-only early return; 'update' excluded; archive-dir enumeration unchanged; docstring updated; reproduce-first createLedger mirror test: ENOENT before, byte-equal after). Reviewed go-ahead R388. Merged 367654c. D45 RESOLVED. bun run check green 1333/0."
+    title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
+    status: done
+  - id: M128
+    path: ./archive/tasks/M128.md
+    summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
+    title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
+    status: done
 ---
 
 # tasks
-
-## M128
-
-### T312 — done
-
-- createdAt: 2026-06-09T11:52:27.205Z
-- updatedAt: 2026-06-09T13:07:43.756Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: Add a ~/.cache mirror writer to @cq/ledger driven by onMutation, with a SHARED path-scheme function
-- description: "In packages/ledger/src/store add a node-only cache-mirror module. Factor ONE exported pure function `cacheMirrorDir(absRootDir: string): string` returning `path.join(cacheBase, 'cq', 'ledgers', `${path.basename(absRootDir)}-${createHash('sha256').update(absRootDir).digest('hex').slice(0, 12)}`)` where `cacheBase = process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), '.cache')` — this SAME function MUST be reused by the restore CLI (T313); never duplicate the hash logic. On each mutation, mirror ONLY the file(s) the op touched (per Q168): the changed docs/<ledgerId>.md, plus on an `archive` op the new archive file + docs/ledgers.yaml. Overwrite-in-place single latest mirror (no journal, no rotation). Reuse the store's existing atomic-write primitive (tmp + rename). Wire it into FsLedgerStore.fireMutation() AFTER the existing onMutation hook, guarded so a mirror failure is swallowed (logged to stderr) exactly like onMutation — it MUST NOT block or unwind the write path. onMutation(ledgerId, op) carries the ledgerId not a file path, so map ledgerId→ledgerPath internally (the store owns docsDir/archiveDir/registryPath/rootDir). TEST AFFORDANCE (R372/grok): rely on honoring XDG_CACHE_HOME to redirect the mirror into a temp dir under test — do NOT add a new FsLedgerStoreOpts flag unless honoring XDG_CACHE_HOME proves insufficient. This task OWNS its mirror tests."
-- acceptance: "New @cq/ledger test cells (authored here): construct an FsLedgerStore on a tmp root with XDG_CACHE_HOME set to another tmp dir; create_item then update_item; assert the mirror file at `${XDG_CACHE_HOME}/cq/ledgers/${path.basename(absRoot)}-${sha256hex(absRoot).slice(0,12)}/docs/<ledger>.md` exists and its bytes equal the in-repo docs/<ledger>.md; assert the computed cache dir NAME equals exactly `${path.basename(absRoot)}-<12 lowercase hex>` (full name, not just the suffix); on archive the archive file + ledgers.yaml also appear under the mirror; a deliberately-thrown mirror error is swallowed (write still succeeds, item present — post-lock isolation); the mirror write is atomic (tmp+rename, no partial file). bun run check green."
-- suggestedModel: "opus-4.8[1m]"
-- ledgerRefs: ["goals:G38"]
-- resultCommit: b681160
-- completion: "@cq/ledger ~/.cache mirror via onMutation + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose(). Filed D45 (low, deferred)."
-- sessionLogs: ["docs/logs/20260609-125621-abae75975ed510c6f.md","docs/logs/20260609-130634-a016ed28d484b2e10.md"]
-
-### T313 — done
-
-- createdAt: 2026-06-09T11:52:35.199Z
-- updatedAt: 2026-06-09T13:26:12.882Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "Add `ledger-mcp restore --from-cache [--cwd <root>]` subcommand (+ update the main.ts header boundary)"
-- description: "packages/ledger-mcp/src/main.ts currently has NO subcommand dispatch (VERIFIED: parseArgs/main handle only --cwd/--http and launch the server). Introduce positional-subcommand parsing so `ledger-mcp restore --from-cache [--cwd <root>]` is recognized while the default (no subcommand) still launches the server UNCHANGED. The restore handler resolves the root (--cwd > $LEDGER_ROOT > CWD; absolute or resolved vs CWD per repo convention), recomputes the cache dir via the SHARED cacheMirrorDir() function from T312 (single import, no divergent copy), and atomically copies the mirror back into <root>/docs/ (symmetric with FsLedgerStore.reset(): read mirror, atomic tmp+rename onto each in-repo path). Refuse with a clear non-zero error if the cache dir is absent/empty. Print a per-ledger restored-file-count summary (ResetSummary style). Update --help/usage. IMPORTANT (R372/opus+codex+minimax): the main.ts header comment (L23-24) currently states lifecycle ops (backup+reinit, erase) live in the `cq` CLI and 'this server only serves the tool surface' — adding `restore` here CONTRADICTS that boundary, so UPDATE that header comment to record that `restore --from-cache` is now hosted by ledger-mcp (per the Q169 decision) while the other lifecycle ops remain in `cq`. This task OWNS its restore tests."
-- acceptance: "New test cells (authored in THIS task) drive restore via the parseArgs/handler entrypoint (not a real shellout): seed a cache mirror dir, run restore against an empty/wiped tmp docs/, assert docs/<ledger>.md reappear byte-identical to the mirror; absent-cache yields a non-zero/throwing error; `ledger-mcp` with no subcommand still parses to the server-launch path. The cache path is computed by the SAME cacheMirrorDir import used by T312 (no duplicated hash). The main.ts header comment no longer claims lifecycle ops live ONLY in `cq` (it documents the new restore subcommand). nix build .#ledger-mcp succeeds; bun run check green."
-- suggestedModel: "opus-4.8[1m]"
-- dependsOn: ["T312"]
-- ledgerRefs: ["goals:G38"]
-- resultCommit: e9ad2df
-- completion: "ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomicWrite copy-back; header updated; nix build .#ledger-mcp green."
-- sessionLogs: ["docs/logs/20260609-132507-a7451d211f2b0894f.md","docs/logs/20260609-132507-a4d8be792a9a2729e.md"]
-
-### T314 — abandoned
-
-- createdAt: 2026-06-09T11:52:41.272Z
-- updatedAt: 2026-06-09T12:14:32.934Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: "[FOLDED into T312/T313 — R372] Consolidated 1b tests"
-- description: "ABANDONED per R372 (codex+grok): a standalone test task is incoherent for this flow (each impl worktree must pass `bun run check` with its own cells). The six 1b test scenarios were folded into the owning impl tasks: mirror-on-write / archive-mirrors-archive+ledgers.yaml / path-scheme-12-hex / atomicity / post-lock-isolation → T312; restore-copies-back / absent-cache-error → T313."
-- acceptance: bun test (from nix/pkg/cq-ledgers/) passes all six cells across packages/ledger + packages/ledger-mcp; bun run check green.
-- suggestedModel: "opus-4.8[1m]"
-- dependsOn: ["T312","T313"]
-- ledgerRefs: ["goals:G38"]
-
-## M133
-
-### T323 — done
-
-- createdAt: 2026-06-09T14:00:49.365Z
-- updatedAt: 2026-06-09T14:31:50.072Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: Mirror layout.registryPath on the 'create' op in cacheMirror.mirrorMutation + reproduce-first createLedger mirror test
-- description: "Fix D45 (root cause H32, confirmed). PRECISE EDIT (R386/minimax): in packages/ledger/src/store/cacheMirror.ts `mirrorMutation`, AFTER the per-op `await mirrorFile(layout, mirrorRoot, path.join(layout.docsDir, `${ledgerId}.md`))` (cacheMirror.ts:81) and BEFORE the existing `if (op !== \"archive\") return;` (cacheMirror.ts:82), INSERT: `if (op === \"create\" || op === \"archive\") await mirrorFile(layout, mirrorRoot, layout.registryPath);` — then KEEP the existing `if (op !== \"archive\") return;` and the archive-dir readdir/enumeration UNCHANGED (the docs/archive/<ledgerId>/ enumeration stays archive-only; 'update' must NOT mirror the registry). Do NOT disturb the surrounding .md mirroring or the atomicWrite/ENOENT-tolerance behavior. Update the function docstring (cacheMirror.ts:56-64) to state the registry (docs/ledgers.yaml) is mirrored on BOTH 'create' and 'archive' (the two ops that rewrite it). RATIONALE: FsLedgerStore.createLedger() rewrites the registry (writeRegistry(), FsLedgerStore.ts:756) then fires fireMutation(name,'create') (:759) → scheduleMirror forwards op='create' into mirrorMutation, where today the :82 early return short-circuits before the :84 registry mirror. Surgical: ONLY cacheMirror.ts (logic + docstring) + packages/ledger/test/cache-mirror.test.ts (new test cell)."
-- acceptance: "REPRODUCE-FIRST, ORDERED (R386/minimax): (1) ADD the new test cell FIRST to packages/ledger/test/cache-mirror.test.ts (the existing cache-mirror suite added by T312 — place it alongside the existing 'mirrors the archive file + ledgers.yaml on archive' it-cell, reusing that file's XDG_CACHE_HOME-redirect + store.dispose()-drain harness). The cell: construct an FsLedgerStore on a tmp ledger root with XDG_CACHE_HOME pointed at a SEPARATE tmp dir, init(), createLedger(<a new non-canonical ledger name>, <a minimal valid schema>), await store.dispose() to drain the fire-and-forget mirror, then read BOTH (a) the TEST's tmp ledger-root registry `<tmpRoot>/docs/ledgers.yaml` (written by writeRegistry) and (b) the mirror registry at `cacheMirrorDir(<tmpRoot>)/docs/ledgers.yaml` (under the XDG-redirected cache dir) and assert they are BYTE-EQUAL. (2) RUN it against the UNPATCHED code and CONFIRM it FAILS for the right reason — the mirror registry (b) is ABSENT after a 'create' (the read rejects with ENOENT / the file does not exist), NOT some unrelated error. (3) THEN make the cacheMirror.ts edit above. (4) RE-RUN → the new cell PASSES, and the existing 'on archive' cell still PASSES (no regression). Finally: `cd nix/pkg/cq-ledgers && bun run check` exits 0; `nix build .#ledger-mcp` (repo root) exits 0; the final diff is surgical (only cacheMirror.ts + cache-mirror.test.ts)."
-- suggestedModel: sonnet-4.6
-- ledgerRefs: ["goals:G39","defects:D45"]
-- resultCommit: 367654c
-- completion: cacheMirror.mirrorMutation now mirrors docs/ledgers.yaml on the 'create' op (op==='create'||'archive') + docstring + reproduce-first createLedger mirror test; D45 fixed.
-- sessionLogs: ["docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md"]

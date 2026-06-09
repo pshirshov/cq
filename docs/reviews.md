@@ -574,6 +574,16 @@ archives:
     summary: "G38 cross-cutting verification COMPLETE. T321 final-verify PASS (orchestrator-run, R385 go-ahead): bun run check 1332/0; grep-invariant markers G38-1a-post-done-cleanup/start-sweep (advance.md) + worker-ephemeral (implement-worker.md) each =1; §5 'worktree INTACT' intact; nix build .#ledger-mcp/.#ledger-tui/.#ledger-web all exit 0. All G38 items 1a/1b/2/3 landed + verified."
     title: G38 — cross-cutting verification (full check + grep-invariant audit + nix builds)
     status: done
+  - id: M133
+    path: ./archive/reviews/M133.md
+    summary: "D45 fix COMPLETE. T323 (cacheMirror.mirrorMutation now mirrors layout.registryPath on op==='create'||'archive' — before the archive-only early return; 'update' excluded; archive-dir enumeration unchanged; docstring updated; reproduce-first createLedger mirror test: ENOENT before, byte-equal after). Reviewed go-ahead R388. Merged 367654c. D45 RESOLVED. bun run check green 1333/0."
+    title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
+    status: done
+  - id: M128
+    path: ./archive/reviews/M128.md
+    summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
+    title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
+    status: done
 ---
 
 # reviews
@@ -705,32 +715,6 @@ archives:
 - ledgerRefs: ["goals:G38"]
 - sessionLogs: ["docs/logs/20260609-123546-a7dc5893fcb1df067.md","docs/logs/20260609-123546-pi-codex.md","docs/logs/20260609-123546-pi-grok.md","docs/logs/20260609-123546-pi-minimax.md"]
 
-## M128
-
-### R376 — go-ahead
-
-- createdAt: 2026-06-09T13:07:22.064Z
-- updatedAt: 2026-06-09T13:07:22.064Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- summary: "T312 implement review: APPROVE (native opus implement-reviewer). @cq/ledger ~/.cache mirror: shared exported cacheMirrorDir matches the spec formula byte-for-byte; atomicWrite extracted to fsAtomic.ts (byte-identical, no dup hash); mirror is fire-and-forget tracked in pendingMirrors + drained by dispose() (write-path timing unchanged, deterministic test drain); fires after lockfile release; 4 tests assert byte-equality/archive+ledgers.yaml/swallow-path/atomicity. check green 1300/0. Filed 1 out-of-scope defect D45 (low): registry not mirrored on createLedger (file-and-defer, does not block merge)."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T312","goals:G38"]
-- sessionLogs: ["docs/logs/20260609-125621-abae75975ed510c6f.md","docs/logs/20260609-130634-a016ed28d484b2e10.md"]
-
-### R380 — go-ahead
-
-- createdAt: 2026-06-09T13:25:54.371Z
-- updatedAt: 2026-06-09T13:25:54.371Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- summary: "T313 implement review: APPROVE (native opus; verified at commit + built-binary smoke). `ledger-mcp restore --from-cache [--cwd]` positional subcommand; default no-subcommand server-launch UNCHANGED (live HTTP serve confirmed); shared cacheMirrorDir imported (no dup hash; test asserts summary.cacheDir===cacheMirrorDir(root)); additive atomicWrite export reused for tmp+rename byte-identical copy-back; refuses (exit 1) on absent/empty cache; main.ts header updated per Q169; restore.ts tracked so nix build .#ledger-mcp EXIT=0. check green 1321/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T313","goals:G38"]
-- sessionLogs: ["docs/logs/20260609-132507-a7451d211f2b0894f.md","docs/logs/20260609-132507-a4d8be792a9a2729e.md"]
-
 ## M132
 
 ### R386 — revise
@@ -756,17 +740,3 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G39"]
 - sessionLogs: ["docs/logs/20260609-141937-addc5274986ba5f0c.md","docs/logs/20260609-141937-pi-codex.md","docs/logs/20260609-141937-pi-grok.md","docs/logs/20260609-141937-pi-minimax.md"]
-
-## M133
-
-### R388 — go-ahead
-
-- createdAt: 2026-06-09T14:31:47.990Z
-- updatedAt: 2026-06-09T14:31:47.990Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- summary: "T323 implement review: APPROVE (native opus; D45 fix). Inserted `if (op === \"create\" || op === \"archive\") await mirrorFile(..., layout.registryPath)` at cacheMirror.ts:86 BEFORE the archive-only early return — create mirrors the registry, 'update' does not, archive-dir readdir stays archive-only; docstring updated. Reproduce-first test (createLedger + XDG_CACHE_HOME redirect + dispose() drain → mirror ledgers.yaml byte-equal to tmp-root registry) is non-vacuous (ENOENT without the fix). 7 cache-mirror cells pass; bun run check green 1333/0; surgical 2-file diff."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T323","goals:G39","defects:D45"]
-- sessionLogs: ["docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md"]

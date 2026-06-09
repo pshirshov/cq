@@ -634,6 +634,16 @@ archives:
     summary: "G38 cross-cutting verification COMPLETE. T321 final-verify PASS (orchestrator-run, R385 go-ahead): bun run check 1332/0; grep-invariant markers G38-1a-post-done-cleanup/start-sweep (advance.md) + worker-ephemeral (implement-worker.md) each =1; §5 'worktree INTACT' intact; nix build .#ledger-mcp/.#ledger-tui/.#ledger-web all exit 0. All G38 items 1a/1b/2/3 landed + verified."
     title: G38 — cross-cutting verification (full check + grep-invariant audit + nix builds)
     status: done
+  - id: M133
+    path: ./archive/milestones/M133.md
+    summary: "D45 fix COMPLETE. T323 (cacheMirror.mirrorMutation now mirrors layout.registryPath on op==='create'||'archive' — before the archive-only early return; 'update' excluded; archive-dir enumeration unchanged; docstring updated; reproduce-first createLedger mirror test: ENOENT before, byte-equal after). Reviewed go-ahead R388. Merged 367654c. D45 RESOLVED. bun run check green 1333/0."
+    title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
+    status: done
+  - id: M128
+    path: ./archive/milestones/M128.md
+    summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
+    title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
+    status: done
 ---
 
 # milestones
@@ -659,23 +669,9 @@ archives:
 - title: "Plan: worktree cleanup + ledger backup + flows-tab role-actions + TUI focus keybindings"
 - description: "Coordination milestone for a multi-item goal: (1a) auto-delete implement-worker worktrees after merge-back via the flow prompts; (1b) ledger code writes a restore-without-replay backup under ~/.cache/cq/ledgers/; (2) Flows help tab shows per-role actions (orchestrator dispatches planner, etc.) instead of an abstract state machine; (3) TUI focus-respecting keybindings (pgup/pgdown/home/end move the item cursor when items focused; scroll item content when inside item view)."
 
-### M128 — open
-
-- createdAt: 2026-06-09T11:51:08.863Z
-- updatedAt: 2026-06-09T11:51:08.863Z
-- title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
-- description: "@cq/ledger mirrors each touched file to ${XDG_CACHE_HOME:-~/.cache}/cq/ledgers/${basename}-${sha256(absRoot).slice(0,12)}/ off the onMutation post-lock hook (atomic, swallows throws, overwrite-in-place, no journal); a shared path-scheme function is reused by a new `ledger-mcp restore --from-cache [--cwd]` subcommand that copies the mirror back into docs/. Resolves G38 item 1b (Q168/Q169)."
-
 ### M132 — open
 
 - createdAt: 2026-06-09T13:56:20.739Z
 - updatedAt: 2026-06-09T13:56:20.739Z
 - title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
 - description: "Defect-seeded fix for D45 (low): the ~/.cache mirror's mirrorMutation only mirrors docs/ledgers.yaml on the 'archive' op (early return at cacheMirror.ts:82 before the registry mirror at :84), but createLedger rewrites the registry and fires a 'create' op — so a restored mirror carries a stale registry until the next archive. Fix: mirror the registry on 'create' too."
-
-### M133 — open
-
-- createdAt: 2026-06-09T14:00:33.846Z
-- updatedAt: 2026-06-09T14:00:33.846Z
-- title: Fix D45 — mirror docs/ledgers.yaml on the 'create' op in cacheMirror
-- description: "Defect-seeded work milestone for D45 (low). One fix task: broaden cacheMirror.mirrorMutation's registry-mirror gate to op==='create'||'archive' (keeping the archive-dir enumeration archive-only) + docstring + reproduce-first test."

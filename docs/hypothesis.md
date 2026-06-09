@@ -89,6 +89,11 @@ archives:
     summary: G28 W5 (pi subagent dispatch acceptance demo) COMPLETE — all tasks terminal. Archived in the post-G37 cleanup sweep.
     title: Pi subagent dispatch — acceptance demo
     status: done
+  - id: M128
+    path: ./archive/hypothesis/M128.md
+    summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
+    title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
+    status: done
 ---
 
 # hypothesis
@@ -106,17 +111,3 @@ archives:
 - ledgerRefs: ["defects:D43"]
 - evidence: ["[correct] agents/implement-worker.md:47-55 — 'Boundaries (hard rules)': 'No merge, no push, no rebase. Stay on your task branch inside the worktree' + 'Scope = this task only' — forbids merge/push/rebase + scope but NO rule confining git ops to the worktree / forbidding git against the main checkout. Validated: excerpt matches source. [part a]","[correct] agents/implement-worker.md:25-29 — 'working entirely inside your own isolated git worktree' is a descriptive premise, not an enforceable prohibition with examples of forbidden cross-checkout git. [part a]","[correct] agents/implement-worker.md:38-43 — the base commit + worktree path are PASSED IN by the harness (Claude native isolation:worktree); the worker does NOT establish its own base, so a stale base is a harness-side fact the worker inherits with no sanctioned base-fixing procedure. [part a / stale-base trigger]","[correct] agents/implement-worker.md:71-73 — the ONLY sanctioned worker git mutation is `git add -A && git commit` on the task branch + report the SHA; no instruction restricting git invocation to the worktree dir. Validated: matches source. [part a]","[correct] commands/cq/implement/advance.md:293-302 — merge-back (rebase + ff merge) is the ORCHESTRATOR's job, confirming the worker's git role is solely commit-on-branch + report-SHA. [part a]","[correct] commands/cq/implement/advance.md:395-405 — 'Commit the ledger (after every milestone archive + at the standalone stop)': commits ONLY after archive_milestone + at the standalone at-stop (suppressed when chained). No commit-after-every-task-merge. Validated: matches source. [part b]","[correct] commands/cq/advance.md:506-518 — top-level wrapper commits after every archive + at the single run-stop, NOT after every task merge. [part b]","[correct] commands/cq/plan/advance.md:717+ — 'Commit the ledger (standalone stop)': only commit is at the standalone stop, suppressed when chained; no commit-after-planning-lock checkpoint. Validated: section present at L717. [part b]","[correct] commands/cq/implement/advance.md:542-549 — chained sub-flows SUPPRESS the at-stop commit; under /cq:advance only the wrapper's run-stop + per-archive commits fire, maximizing the uncommitted-ledger window between archives. [part b]"]
 - sessionLogs: ["docs/logs/20260609-093502-a4b0d0d4f781c94c2.md"]
-
-## M128
-
-### H32 — confirmed
-
-- createdAt: 2026-06-09T13:54:13.235Z
-- updatedAt: 2026-06-09T13:56:01.434Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: cacheMirror's mirrorMutation copies docs/ledgers.yaml ONLY on the 'archive' op, so a 'create' op (createLedger, which rewrites the registry) does not mirror the updated ledgers.yaml
-- description: "What would make this true: in packages/ledger/src/store/cacheMirror.ts, mirrorMutation switches on the op and includes docs/ledgers.yaml (the registry) in the mirrored file-set ONLY for op === 'archive', not for op === 'create'. AND FsLedgerStore.createLedger() writes the registry (writeRegistry / ledgers.yaml) then fires fireMutation(<name>, 'create'). Therefore after a createLedger, the cache mirror's ledgers.yaml lags the in-repo registry until a later archive op re-mirrors it. Confirm by reading both loci."
-- ledgerRefs: ["defects:D45"]
-- evidence: ["[correct] cacheMirror.ts:79-84 — mirrorMutation copies docs/<ledgerId>.md for every op, then `if (op !== \"archive\") return;` (L82) BEFORE `mirrorFile(layout, mirrorRoot, layout.registryPath)` (L84). So the registry (docs/ledgers.yaml) is mirrored ONLY on archive. VALIDATED against source verbatim.","[correct] cacheMirror.ts:56-64 — the function docstring lists the registry (docs/ledgers.yaml) only under 'an archive op additionally', confirming create/update mirror only docs/<ledgerId>.md.","[correct] FsLedgerStore.ts:754-759 — createLedger pushes the new ledger to this.registry.ledgers, calls writeRegistry() (rewrites docs/ledgers.yaml), then fireMutation(name, \"create\"). VALIDATED against source verbatim.","[correct] FsLedgerStore.ts:247-273 — fireMutation→scheduleMirror forwards op verbatim into mirrorMutation(layout, ledgerId, op); registryPath IS plumbed into layout, so the omission on 'create' is purely the op-gated early return, not a missing field."]
-- sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md"]

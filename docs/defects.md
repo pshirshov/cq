@@ -134,6 +134,11 @@ archives:
     summary: G38 item 3 (TUI focus-respecting paging/jump keybindings, defect-aware) COMPLETE. T318 (LIST-focus PgUp/PgDn page cursor by listInnerH + Home/End jump rows; no-Enter detail-scroll removed; module-scope matchHomeEnd helper) + T319 (CONTENT-focus Home/End reusing matchHomeEnd). Defect D44 RESOLVED. T320 abandoned (tests folded into T318/T319). Reviews R378/R382 go-ahead. Merged 46a0f95 + 0992cd3. bun run check green.
     title: G38 item 3 — TUI focus-respecting paging/jump keybindings (defect-aware)
     status: done
+  - id: M128
+    path: ./archive/defects/M128.md
+    summary: G38 item 1b (ledger ~/.cache mirror backup + restore CLI) COMPLETE. T312 (@cq/ledger onMutation-driven ~/.cache mirror + shared exported cacheMirrorDir + fsAtomic extraction; fire-and-forget drained by dispose()) + T313 (ledger-mcp `restore --from-cache [--cwd]` positional subcommand reusing cacheMirrorDir + atomic copy-back; main.ts header updated; nix build .#ledger-mcp green). Out-of-scope defect D45 (filed by T312 review) RESOLVED via G39/T323 (registry-on-create mirror). Reviews R376/R380 go-ahead. Merged b681160/e9ad2df. bun run check green.
+    title: G38 item 1b — ledger ~/.cache mirror backup + restore CLI
+    status: done
 ---
 
 # defects
@@ -176,22 +181,3 @@ archives:
 - rootCause: "CONFIRMED (H31, validated against current cq-assets). A two-part prompt gap let a single stray worker git op erase the run's ledger: (a) PERMISSIVE-GAP in agents/implement-worker.md — its 'Boundaries (hard rules)' (L47-55) forbid merge/push/rebase + scope-creep but contain NO rule confining git to the worker's own worktree and NO ban on `git reset --hard`/checkout/cherry-pick against the MAIN checkout or other worktrees; the only sanctioned worker git mutation is `git add -A && git commit` on the task branch (L71-73). The base commit + worktree are PASSED IN by the harness (native isolation:worktree, L38-43), so the worker never establishes its own base — a STALE base (observed: worktree forked from 087b889 vs current main) is a harness-side fact the worker inherits with no sanctioned base-fixing procedure, so a worker improvising to 'fix' it reaches the main checkout unguarded. (b) DEFERRED-COMMIT window — implement/advance.md commits the ledger ONLY after archive_milestone + at the standalone stop (L395-405), suppressing the at-stop commit when chained (L542-549); advance.md commits after every archive + at the single run-stop (L506-518); plan/advance.md commits only at the standalone stop with no commit-after-planning-lock (L717+). So a long chained plan+implement run accrues a large UNCOMMITTED ledger between milestone archives that a `git reset --hard` erases with no git-recoverable trace (the observed incident: HEAD@{3} reset in the main checkout discarded M116-M121/T283-T300/R341-R348/K57-K58 + the Q154-Q165 answers)."
 - sessionLogs: ["docs/logs/20260609-093502-a4b0d0d4f781c94c2.md"]
 - dependsOn: ["tasks:T301","tasks:T302","tasks:T303","tasks:T304","tasks:T305","tasks:T306","tasks:T307"]
-
-## M128
-
-### D45 — resolved
-
-- createdAt: 2026-06-09T13:07:11.710Z
-- updatedAt: 2026-06-09T14:31:52.651Z
-- author: "opus-4.8[1m]"
-- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
-- headline: Cache mirror omits ledgers.yaml on createLedger (registry mirror lags until next archive)
-- description: "Filed by the T312 implement-reviewer (file-and-defer, out-of-scope to T312 whose acceptance explicitly scoped registry mirroring to the archive op). mirrorMutation (packages/ledger/src/store/cacheMirror.ts) mirrors docs/ledgers.yaml only on the 'archive' op. FsLedgerStore.createLedger() rewrites docs/ledgers.yaml (writeRegistry()) then fires fireMutation(name,'create'); the mirror for a 'create' op copies only docs/<name>.md, so the mirrored registry does not reflect a newly-created ledger until a later archive op re-mirrors ledgers.yaml. Low severity: createLedger is rare in this repo (the canonical set is created in init(), which does not route through fireMutation at all), so a restored mirror would carry a slightly stale registry only in the narrow window between a createLedger and the next archive. Default disposition FIX (separate task)."
-- severity: low
-- suggestedFix: "In cacheMirror.ts `mirrorMutation`, mirror `layout.registryPath` (docs/ledgers.yaml) on the 'create' op too — since createLedger rewrites the registry. Cleanest: mirror the registry whenever op is 'create' OR 'archive' (createLedger + archive are the two ops that rewrite ledgers.yaml; 'update' never touches the registry), OR mirror the registry unconditionally on every mutation (it is small). Update the function docstring (cacheMirror.ts:56-64) to match. Add a test cell: createLedger on a tmp root with XDG_CACHE_HOME redirected, then assert the mirror's docs/ledgers.yaml reflects the new ledger (byte-equal to the in-repo registry)."
-- ledgerRefs: ["tasks:T312","goals:G38","goals:G39"]
-- tags: ["ledger","cache-mirror"]
-- rootCause: "CONFIRMED (H32, citations validated against source verbatim). packages/ledger/src/store/cacheMirror.ts `mirrorMutation` copies docs/<ledgerId>.md for EVERY op, then executes `if (op !== \"archive\") return;` (cacheMirror.ts:82) BEFORE mirroring `layout.registryPath` (cacheMirror.ts:84) — so docs/ledgers.yaml (the registry) is mirrored ONLY on the 'archive' op. FsLedgerStore.createLedger() pushes the new ledger to this.registry.ledgers, calls writeRegistry() (rewrites docs/ledgers.yaml, FsLedgerStore.ts:756), then fires fireMutation(name, 'create') (FsLedgerStore.ts:759); fireMutation→scheduleMirror forwards op='create' verbatim into mirrorMutation (registryPath IS plumbed into the layout, so the omission is purely the op-gated early return). Consequence: after a createLedger, the ~/.cache mirror's docs/ledgers.yaml does NOT reflect the new ledger until a later 'archive' op re-mirrors it — a restored mirror would carry a stale registry in that window. Low severity: createLedger is rare (the canonical set is created via init(), which does not route through fireMutation)."
-- sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md"]
-- dependsOn: ["tasks:T323"]
-- fix: Resolved by T323 (merged 367654c, reviewed go-ahead R388). cacheMirror.mirrorMutation now mirrors layout.registryPath (docs/ledgers.yaml) on op==='create'||'archive' (inserted before the archive-only early return; 'update' still excluded; archive-dir enumeration unchanged). So after a createLedger the ~/.cache mirror's registry stays in sync — no lag. Reproduce-first test in cache-mirror.test.ts (ENOENT before, byte-equal after). bun run check green 1333/0.
