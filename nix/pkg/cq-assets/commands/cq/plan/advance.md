@@ -311,6 +311,23 @@ axis, by the **concrete stop predicates** in the auto-investigate phase (cite
       Then go to **sub-step 2c** (continue the loop). EXACTLY ONE `reviews` item
       is written this round (by the reviewer).
 
+      **Catalog-driven dispatch (G41 — plan-reviewer).** Drive this
+      `plan-reviewer` dispatch through the same typed prompt-catalog MCP tools the
+      `plan-advance` dispatch uses in sub-step 1a, MIRRORING that a–g sequence for
+      the `plan-reviewer` role: **(a)** `fetch_prompt("plan-reviewer")` for its
+      `promptTemplate` + typed `inputSchema`/`outputSchema` (present — a dispatched
+      subagent); **(b–c)** compose the input against that `inputSchema`
+      (`{ goalId: "<G>" }`); **(d)** `validate_input("plan-reviewer", input)`, fix
+      and re-validate on `{ ok: false, errors }`; **(e)** dispatch the `Agent`
+      (`subagent_type: "plan-reviewer"`) with the validated input rendered into the
+      prompt; **(f–g)** await its reply and `validate_output("plan-reviewer",
+      output)` against the role's `outputSchema` (a validation failure is a
+      contract breach to surface, §Session logs). **Degrade gracefully when the
+      catalog tools are absent** — exactly as sub-step 1a degrades for
+      `plan-advance`: skip (a)–(d) and (g) and fall straight through to the bare
+      `Agent` dispatch (e). The validate steps are an ADDITIVE contract check,
+      never a hard dependency.
+
    2b. **Multi-reviewer path** (configured). Launch ALL active reviewers **in
       parallel** and collect each one's verdict JSON. In this mode NO reviewer
       writes the ledger — the orchestrator writes the single aggregated item

@@ -16,10 +16,9 @@ outputs:
   - "UNCONFIGURED mode: one reviews ledger item (go-ahead | revise) written directly"
   - "CONFIGURED mode: fenced JSON verdict returned, no ledger writes"
 ioSchema:
-  - "output JSON shape: {summary, verdict, new_questions[], criticism[], defects[]}"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar)"
   - "verdict go-ahead requires empty new_questions AND empty criticism"
   - "verdict revise requires at least one of new_questions/criticism non-empty"
-  - "defects items shape: {headline, severity, rootCause?, suggestedFix?}"
   - "defects is independent of verdict — out-of-scope/pre-existing faults"
 ```
 

@@ -14,11 +14,10 @@ inputs:
 outputs:
   - "structured JSON verdict block as final reply content"
 ioSchema:
-  - "output JSON: {taskId, verdict, criticism[], questions[], defects[], rationale, summary?}"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar)"
   - "verdict=approve requires empty criticism AND empty questions AND green bun run check"
   - "verdict=disapprove requires at least one of criticism/questions non-empty"
   - "defects[] is independent of verdict — out-of-scope/pre-existing faults only"
-  - "defects items shape: {headline, description, severity, suggestedFix?}"
 ```
 
 You are the **implement-flow adversarial reviewer**. You judge ONE task's

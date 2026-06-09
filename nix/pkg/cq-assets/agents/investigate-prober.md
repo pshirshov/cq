@@ -15,9 +15,7 @@ inputs:
 outputs:
   - "structured JSON evidence block as final reply content (same shape as investigate-explorer)"
 ioSchema:
-  - "output JSON: {hypothesisId, evidence[], lean, notes?}"
-  - "evidence items: {n, citation (path:line, URL, or exact command run), excerpt (verbatim file excerpt or command output), relevance}"
-  - "lean values: supports | contradicts | mixed | insufficient"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar; shared investigate-evidence shape)"
   - "no probeRequest in output (prober executes; it does not escalate further)"
   - "no ledger writes and no adjudication — orchestrator validates citations and sets hypothesis status"
   - "all execution confined to the discardable worktree; no persisted edits to main checkout"

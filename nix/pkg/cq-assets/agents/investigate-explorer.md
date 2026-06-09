@@ -13,11 +13,8 @@ inputs:
 outputs:
   - "structured JSON evidence block as final reply content"
 ioSchema:
-  - "output JSON: {hypothesisId, evidence[], lean, notes?, probeRequest?}"
-  - "evidence items: {n, citation (path:line or URL), excerpt (3-5 line verbatim), relevance}"
-  - "lean values: supports | contradicts | mixed | insufficient"
-  - "probeRequest (omitted by default): {what, why} — only when execution is needed to settle H"
-  - "when probeRequest present, lean must be insufficient"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar; shared investigate-evidence shape)"
+  - "probeRequest omitted by default — present only when execution is needed to settle H; when present, lean must be insufficient"
   - "no ledger writes and no adjudication — orchestrator validates citations and sets hypothesis status"
 ```
 

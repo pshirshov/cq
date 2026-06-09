@@ -171,6 +171,25 @@ single branch, dispatch its children SERIALLY — wait for each explorer's
 validated findings before framing the next child. Write each explorer's session
 log on return (§Session logs).
 
+**Catalog-driven dispatch (G41 — investigate-explorer).** Drive each
+`investigate-explorer` dispatch through the typed prompt-catalog MCP tools the
+ledger-mcp server added in T343 (`fetch_prompt` / `validate_input` /
+`validate_output`), MIRRORING the a–g sequence `commands/cq/plan/advance.md`
+sub-step 1a established for `plan-advance`: **(a)**
+`fetch_prompt("investigate-explorer")` for its `promptTemplate` + typed
+`inputSchema`/`outputSchema` (present — a dispatched subagent); **(b–c)** compose
+the input against that `inputSchema` (`{ hypothesisId, statement, branchContext,
+leads? }`); **(d)** `validate_input("investigate-explorer", input)`, fix and
+re-validate on `{ ok: false, errors }`; **(e)** dispatch the `Agent`
+(`subagent_type: "investigate-explorer"`, most-capable `opus`, NO worktree);
+**(f–g)** await its evidence-json and `validate_output("investigate-explorer",
+output)` against the role's `outputSchema` — the shared `investigate-evidence`
+shape (`{ hypothesisId, evidence[], lean, notes?, probeRequest? }`); a validation
+failure is a contract breach to surface (§Session logs). **Degrade gracefully
+when the catalog tools are absent** — skip (a)–(d) and (g) and fall straight
+through to the bare `Agent` dispatch (e). The validate steps are an ADDITIVE
+contract check, never a hard dependency.
+
 **An explorer may return a `probeRequest` instead of (or alongside) settling H**
 when it cannot adjudicate by reading alone — it needs something RUN. Do not run
 the probe inline; handle it in step 4 by dispatching an `investigate-prober` into
@@ -194,7 +213,25 @@ citation yourself:
   defect, the base commit / branch the worktree was cut from, parent hypothesis,
   sibling findings already validated, what to confirm or rule out). The prober runs
   **read+execute** in that worktree and RETURNS the SAME evidence-json shape an
-  explorer returns. **Scope guard (Q89):** probes are **LOCAL-ONLY, NO network**,
+  explorer returns.
+  **Catalog-driven dispatch (G41 — investigate-prober).** Drive this dispatch
+  through the typed prompt-catalog MCP tools, MIRRORING the a–g sequence
+  `commands/cq/plan/advance.md` sub-step 1a established for `plan-advance`:
+  **(a)** `fetch_prompt("investigate-prober")` for its `promptTemplate` + typed
+  `inputSchema`/`outputSchema` (present — a dispatched subagent); **(b–c)** compose
+  the input against that `inputSchema` (`{ hypothesisId, statement, probeRequest:
+  { what, why }, branchContext, leads? }`); **(d)**
+  `validate_input("investigate-prober", input)`, fix and re-validate on
+  `{ ok: false, errors }`; **(e)** dispatch the `Agent` (`subagent_type:
+  "investigate-prober"`, `isolation: "worktree"`, most-capable `opus`); **(f–g)**
+  await its evidence-json and `validate_output("investigate-prober", output)`
+  against the role's `outputSchema` — the shared `investigate-evidence` shape
+  (`{ hypothesisId, evidence[], lean, notes? }`, no `probeRequest`); a validation
+  failure is a contract breach to surface (§Session logs). **Degrade gracefully
+  when the catalog tools are absent** — skip (a)–(d) and (g) and fall straight
+  through to the bare `Agent` dispatch (e). The validate steps are an ADDITIVE
+  contract check, never a hard dependency.
+  **Scope guard (Q89):** probes are **LOCAL-ONLY, NO network**,
   and make **NO persisted edits to the main checkout** — every write stays confined
   to the discardable worktree. Write the prober's session log on return (§Session
   logs). **Harvest-then-discard:** harvest the prober's returned evidence through the

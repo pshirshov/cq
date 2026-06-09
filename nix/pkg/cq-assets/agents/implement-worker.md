@@ -17,8 +17,8 @@ outputs:
   - "structured JSON result block as final reply content"
   - "one git commit on branch implement/<taskId> (resultCommit)"
 ioSchema:
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar)"
   - "input delivered via dispatch prompt; no ledger reads required"
-  - "output JSON: {taskId, status, resultCommit, branch, filesTouched, checkSummary, summary, blockedReason?}"
   - "status=pass requires bun run check green AND a commit; anything else is status=fail"
 ```
 

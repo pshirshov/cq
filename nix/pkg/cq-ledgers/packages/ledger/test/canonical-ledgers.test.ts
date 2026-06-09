@@ -1295,3 +1295,125 @@ describe("T342: /cq:plan:follow-up idea-ids grammar — structural grep invarian
     expect(text).toContain("target goal id");
   });
 });
+
+// ---------------------------------------------------------------------------
+// T345 — every DISPATCHED-SUBAGENT role is wired through the typed prompt
+// catalog (G41). Two structural grep-invariants over the cq-assets markdown:
+//
+// (1) NO-DUPLICATED-PROSE-ioSchema: a dispatched role's hand-authored
+//     `## Catalogue` `ioSchema:` block must NOT restate the JSON shape its TYPED
+//     inputSchema/outputSchema (the @cq/config sidecar) now supersedes. The
+//     removed prose took the form of a JSON-object literal listing the schema's
+//     field names (e.g. `output JSON: {taskId, status, ...}`); the invariant
+//     forbids any `ioSchema` line containing such a brace-delimited field-list,
+//     and REQUIRES the typed-contract POINTER line in its place. Scoped to the 7
+//     dispatched roles ONLY — orchestrator-command roles carry no typed schema,
+//     so their prose ioSchema (which may still restate a JSON shape) is exempt.
+//
+// (2) EACH-DISPATCH-SITE documents the validate-in → run → validate-out flow for
+//     its dispatched subagents, MIRRORING the T344 plan-advance proof: each of
+//     the three enumerated dispatch-site command files carries a
+//     `Catalog-driven dispatch (G41 — <role>)` marker per subagent it dispatches.
+//
+// Path resolution mirrors the T255/T264/D43/T340 blocks above.
+// ---------------------------------------------------------------------------
+
+describe("T345: dispatched roles wired through the typed prompt catalog — grep invariants", () => {
+  const cqAgentsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/agents");
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+
+  /** The 7 dispatched-subagent role asset basenames (non-null agentTierKey). */
+  const dispatchedRoles = [
+    "plan-advance",
+    "plan-reviewer",
+    "implement-worker",
+    "implement-reviewer",
+    "implement-conflict-resolver",
+    "investigate-explorer",
+    "investigate-prober",
+  ];
+
+  /** The literal typed-contract pointer line authored in place of the duplicated shape. */
+  const pointerMarker =
+    "see the role's inputSchema/outputSchema in the prompt catalog";
+
+  /**
+   * Extract the `- "…"` items of a role asset's `## Catalogue` `ioSchema:` list.
+   * Pure string slice of the fenced-yaml block (same shape parseCatalogueBlock
+   * reads), so the test depends on nothing but the asset text.
+   */
+  function extractIoSchemaLines(markdown: string): string[] {
+    const fence = markdown.match(/## Catalogue\s*```[a-zA-Z]*\r?\n([\s\S]*?)\r?\n```/);
+    if (!fence) throw new Error("no ## Catalogue fenced block");
+    const yaml = fence[1] ?? "";
+    const lines = yaml.split(/\r?\n/);
+    const out: string[] = [];
+    let inIoSchema = false;
+    for (const line of lines) {
+      if (/^ioSchema:\s*$/.test(line)) {
+        inIoSchema = true;
+        continue;
+      }
+      // A new top-level key ends the ioSchema list.
+      if (inIoSchema && /^[A-Za-z][A-Za-z0-9_]*:\s*$/.test(line)) break;
+      if (inIoSchema) {
+        const item = line.match(/^\s*-\s+(.*\S)\s*$/);
+        if (item) out.push(item[1]!);
+      }
+    }
+    return out;
+  }
+
+  for (const role of dispatchedRoles) {
+    it(`${role}.md ioSchema carries the typed-contract pointer (not a duplicated JSON shape)`, async () => {
+      const text = await readFile(path.join(cqAgentsRoot, `${role}.md`), "utf8");
+      const ioLines = extractIoSchemaLines(text);
+      expect(ioLines.length).toBeGreaterThan(0);
+      // The pointer line is present.
+      expect(ioLines.some((l) => l.includes(pointerMarker))).toBe(true);
+      // No line restates the typed JSON shape: a brace-delimited, comma-bearing
+      // field-list (e.g. `{taskId, status, resultCommit, …}`) is exactly the
+      // prose the typed schema now supersedes. The pointer line has no braces.
+      const shapeLiteral = /\{[^}]*,[^}]*\}/;
+      for (const l of ioLines) {
+        expect(shapeLiteral.test(l)).toBe(false);
+      }
+    });
+  }
+
+  // Each enumerated dispatch site documents the catalog-driven dispatch for the
+  // subagent(s) it spawns (mirroring T344's plan-advance block). plan-advance's
+  // own block was authored in T344; T345 adds the siblings.
+  const dispatchSiteMarkers: Array<{ file: string; roles: string[] }> = [
+    { file: path.join(cqCommandsRoot, "plan", "advance.md"), roles: ["plan-advance", "plan-reviewer"] },
+    {
+      file: path.join(cqCommandsRoot, "implement", "advance.md"),
+      roles: ["implement-worker", "implement-reviewer", "implement-conflict-resolver"],
+    },
+    {
+      file: path.join(cqCommandsRoot, "investigate", "advance.md"),
+      roles: ["investigate-explorer", "investigate-prober"],
+    },
+  ];
+
+  for (const { file, roles } of dispatchSiteMarkers) {
+    const label = file.replace(/.*\/commands\/cq\//, "cq/");
+    for (const role of roles) {
+      it(`${label} documents catalog-driven dispatch for ${role}`, async () => {
+        const text = await readFile(file, "utf8");
+        // plan-advance's own block was authored by T344 with the original
+        // `(G41, Q185 steps a–g) — the proof path` marker (T345 must NOT retouch
+        // it); the sibling roles T345 adds carry the uniform `(G41 — <role>)`
+        // site marker. Either marker form proves the block is present.
+        expect(
+          text.includes(`Catalog-driven dispatch (G41 — ${role})`) ||
+            (role === "plan-advance" && text.includes("Catalog-driven dispatch (G41, Q185 steps a–g)")),
+        ).toBe(true);
+        // and the validate-in / run / validate-out tool calls for that role.
+        expect(text).toContain(`fetch_prompt("${role}")`);
+        expect(text).toContain(`validate_input("${role}", input)`);
+        expect(text).toContain(`validate_output("${role}",`);
+      });
+    }
+  }
+});

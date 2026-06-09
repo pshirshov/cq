@@ -15,7 +15,7 @@ inputs:
 outputs:
   - "structured JSON result block as final reply content"
 ioSchema:
-  - "output JSON: {taskId, status, resultCommit, filesResolved[], checkSummary, summary, blockedReason?}"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar)"
   - "status=pass requires rebase completed AND bun run check green"
   - "status=fail when intents are genuinely incompatible or gate cannot be made green"
   - "on fail: worktree left intact for inspection; blockedReason explains why"

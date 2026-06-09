@@ -126,6 +126,25 @@ the task id + verbatim `headline`/`description`/`acceptance`, the branch
 `criticism[]`. Issue the batch's `Agent` calls in ONE message so they run
 concurrently. Write each worker's session log on return (§Session logs).
 
+**Catalog-driven dispatch (G41 — implement-worker).** Drive each
+`implement-worker` dispatch through the typed prompt-catalog MCP tools the
+ledger-mcp server added in T343 (`fetch_prompt` / `validate_input` /
+`validate_output`), MIRRORING the a–g sequence `commands/cq/plan/advance.md`
+sub-step 1a established for `plan-advance`: **(a)** `fetch_prompt("implement-worker")`
+for its `promptTemplate` + typed `inputSchema`/`outputSchema` (present — a
+dispatched subagent); **(b–c)** compose the input against that `inputSchema`
+(`{ taskId, headline, description, acceptance, worktreePath, branch, baseCommit,
+priorCriticism? }`); **(d)** `validate_input("implement-worker", input)`, fix and
+re-validate on `{ ok: false, errors }`; **(e)** dispatch the `Agent`
+(`subagent_type: "implement-worker"`, resolved `model`, `isolation: "worktree"`)
+with the validated input rendered into the prompt; **(f–g)** await its result and
+`validate_output("implement-worker", output)` against the role's `outputSchema`
+(a validation failure is a contract breach to surface, §Session logs). **Degrade
+gracefully when the catalog tools are absent** (an older / embedded ledger-mcp
+that predates T343) — skip (a)–(d) and (g) and fall straight through to the bare
+`Agent` dispatch (e). The validate steps are an ADDITIVE contract check, never a
+hard dependency — their absence never blocks the pass.
+
 ### 3. Review each finished worker (multi-reviewer panel, reconciled)
 For every worker that returned `status: "pass"`, run the **reviewer panel** for
 that task (below) against its worktree diff (`base..HEAD`), passing the task
@@ -170,6 +189,27 @@ concurrently, keyed by `harness`:
   rubric (`commands/cq/implement-review.md`, T174) PLUS the task acceptance, the
   worktree diff (`base..HEAD`), and the latest `bun run check` output. `pi` runs
   in default text mode; parse the (possibly fence-wrapped) json from its stdout.
+
+**Catalog-driven dispatch (G41 — implement-reviewer).** Drive each NATIVE
+`claude:*` `implement-reviewer` `Agent` dispatch (3a single-native fallback and
+each `claude:*` panel member in 3b) through the typed prompt-catalog MCP tools,
+MIRRORING the a–g sequence `commands/cq/plan/advance.md` sub-step 1a established
+for `plan-advance`: **(a)** `fetch_prompt("implement-reviewer")` for its
+`promptTemplate` + typed `inputSchema`/`outputSchema` (present — a dispatched
+subagent); **(b–c)** compose the input against that `inputSchema` (`{ taskId,
+acceptance, worktreePath, branch, baseCommit, workerResult, round,
+priorCriticism? }`); **(d)** `validate_input("implement-reviewer", input)`, fix
+and re-validate on `{ ok: false, errors }`; **(e)** dispatch the `Agent`
+(`subagent_type: "implement-reviewer"`, most-capable `opus`); **(f–g)** await its
+verdict and `validate_output("implement-reviewer", output)` against the role's
+`outputSchema` (a validation failure is a contract breach to surface, §Session
+logs). **Degrade gracefully when the catalog tools are absent** — skip (a)–(d)
+and (g) and fall straight through to the bare `Agent` dispatch (e). The validate
+steps are an ADDITIVE contract check, never a hard dependency. (The `pi:*` panel
+members are EXTERNAL shellouts driving the shared `/cq:implement-review` rubric,
+not `Agent` dispatches of this catalog role — they are out of this catalog
+validate-in/out path; their stdout-json is parsed and reconciled as 3b/3c
+describe.)
 
 Every reviewer — native `implement-reviewer` and the shared `/cq:implement-review`
 rubric driving `pi` — returns the SAME byte-identical contract: `{ taskId,
@@ -314,6 +354,22 @@ after every task in its `dependsOn` has merged). For each:
    continue; on its `fail`, treat like a question bailout (§5: register a
    `questions` item, set the task `blocked`, leave the worktree) and SKIP merging
    this task (and transitively anything depending on it) this pass.
+   **Catalog-driven dispatch (G41 — implement-conflict-resolver).** Drive this
+   dispatch through the typed prompt-catalog MCP tools, MIRRORING the a–g sequence
+   `commands/cq/plan/advance.md` sub-step 1a established for `plan-advance`:
+   **(a)** `fetch_prompt("implement-conflict-resolver")` for its `promptTemplate`
+   + typed `inputSchema`/`outputSchema` (present — a dispatched subagent);
+   **(b–c)** compose the input against that `inputSchema` (`{ taskId, headline?,
+   description?, worktreePath, branch, baseCommit, conflictingFiles, baseSideNote?
+   }`); **(d)** `validate_input("implement-conflict-resolver", input)`, fix and
+   re-validate on `{ ok: false, errors }`; **(e)** dispatch the `Agent`
+   (`subagent_type: "implement-conflict-resolver"`, most-capable `opus`,
+   `isolation: "worktree"`); **(f–g)** await its result and
+   `validate_output("implement-conflict-resolver", output)` against the role's
+   `outputSchema` (a validation failure is a contract breach to surface, §Session
+   logs). **Degrade gracefully when the catalog tools are absent** — skip (a)–(d)
+   and (g) and fall straight through to the bare `Agent` dispatch (e). The
+   validate steps are an ADDITIVE contract check, never a hard dependency.
 3. On a clean rebase (or resolved conflict) → fast-forward merge into the base,
    set `update_item("tasks", <id>, status: "done", fields: { resultCommit:
    "<merged sha>", completion: "<1-line: what landed>", sessionLogs:

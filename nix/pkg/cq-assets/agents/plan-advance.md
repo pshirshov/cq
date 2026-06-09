@@ -14,9 +14,7 @@ outputs:
   - "DEFAULT mode: one ledger mutation (questions / plan / plan-revision / decision+planned) then one status token"
   - "CANDIDATE mode: fenced JSON candidate task-DAG, no ledger writes"
 ioSchema:
-  - "DEFAULT output token (last line): awaiting-answers | review-requested | completed | noop"
-  - "CANDIDATE output JSON: {milestones[], tasks[], rationale}"
-  - "candidate tasks fields: headline, description, acceptance, suggestedModel, milestone, dependsOn?, ledgerRefs"
+  - "typed input/output contract: see the role's inputSchema/outputSchema in the prompt catalog (@cq/config sidecar)"
   - "each ledger write stamped with author (own model class) and session ($CLAUDE_CODE_SESSION_ID)"
 ```
 
