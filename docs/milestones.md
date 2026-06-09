@@ -664,6 +664,11 @@ archives:
     summary: "G41 item 1 COMPLETE (cq init writes cq.toml): T331 CQ_TOML_TEMPLATE constant in cq-cli (opus/sonnet/haiku active, pi commented) + synced cq.toml.example + parity/string-equality tests; T338 runInit writes cq.toml with skip-if-exists + --force overwrite per Q184. Reviews R401/R404 go-ahead. bun run check green. Merged 03a3ac7 (+ T331 e2179a3)."
     title: G41-1 cq init writes cq.toml
     status: done
+  - id: M137
+    path: ./archive/milestones/M137.md
+    summary: "G41 item 4 COMPLETE (Flows-tab polish, web): T332 underline on activatable DiagramSvg node labels; T333 withTerminalNodes derives terminal:true on zero-outgoing-edge nodes (rx=4 vs rx=14) across all 4 ROLE_FLOWS; T334 parallel-edge labels get distinct per-index testids (ELK already routes them 30-34px apart — no visual overlap; the defect was a testid collision) + docs/drafts label audit. Reviews R403/R405/R408 go-ahead. bun run check green. Merged 3f14794/18d73dc/565500b."
+    title: G41-4 Flows-tab polish (web)
+    status: done
 ---
 
 # milestones
@@ -688,13 +693,6 @@ archives:
 - createdAt: 2026-06-09T18:45:36.463Z
 - updatedAt: 2026-06-09T18:45:36.463Z
 - title: "Plan: cq init cq.toml + prompt catalog + ledger git-branch + Flows-tab polish + Ideas ledger"
-
-### M137 — open
-
-- createdAt: 2026-06-09T19:07:18.787Z
-- updatedAt: 2026-06-09T19:07:18.787Z
-- title: G41-4 Flows-tab polish (web)
-- description: "Work milestone for G41 item 4: ledger-web Flows-tab polish — underlined clickable node names, ALL edges labelled (per-edge distinct labels, collapse only identical), terminal nodes visually distinct (no rounding). DiagramSvg + roleActions + diagramLayout."
 
 ### M138 — open
 

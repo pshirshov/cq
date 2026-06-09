@@ -459,56 +459,14 @@ archives:
     summary: "G41 item 1 COMPLETE (cq init writes cq.toml): T331 CQ_TOML_TEMPLATE constant in cq-cli (opus/sonnet/haiku active, pi commented) + synced cq.toml.example + parity/string-equality tests; T338 runInit writes cq.toml with skip-if-exists + --force overwrite per Q184. Reviews R401/R404 go-ahead. bun run check green. Merged 03a3ac7 (+ T331 e2179a3)."
     title: G41-1 cq init writes cq.toml
     status: done
+  - id: M137
+    path: ./archive/tasks/M137.md
+    summary: "G41 item 4 COMPLETE (Flows-tab polish, web): T332 underline on activatable DiagramSvg node labels; T333 withTerminalNodes derives terminal:true on zero-outgoing-edge nodes (rx=4 vs rx=14) across all 4 ROLE_FLOWS; T334 parallel-edge labels get distinct per-index testids (ELK already routes them 30-34px apart — no visual overlap; the defect was a testid collision) + docs/drafts label audit. Reviews R403/R405/R408 go-ahead. bun run check green. Merged 3f14794/18d73dc/565500b."
+    title: G41-4 Flows-tab polish (web)
+    status: done
 ---
 
 # tasks
-
-## M137
-
-### T332 — done
-
-- createdAt: 2026-06-09T19:08:24.319Z
-- updatedAt: 2026-06-09T20:00:57.778Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Underline activatable node names in DiagramSvg
-- description: "In nix/pkg/cq-ledgers/packages/ledger-web/src/DiagramSvg.tsx, give the <text> label of each activatable node (the branch where `activatable === true`: node has agentId AND onActivateAgent supplied) a visible clickability affordance: add `textDecoration: 'underline'` (cursor:pointer already on the <g>). Non-activatable nodes' labels stay un-decorated. Apply via a style/prop on the existing <text> element keyed off the same `activatable` boolean computed for interactiveProps; do not change layout or testids. Applies across all flows."
-- acceptance: A happy-dom test renders a flow model with at least one agentId-bearing node and one plain node, passes onActivateAgent, and asserts the activatable node's label <text> has text-decoration underline while the plain node's does not. `bun test` passes.
-- suggestedModel: standard
-- ledgerRefs: ["goals:G41"]
-- resultCommit: 3f14794453b8434e77174edd3b553b55f5c935d3
-- completion: Underline on activatable DiagramSvg node labels (gated on the existing activatable boolean) + happy-dom test; bun run check green.
-- sessionLogs: ["docs/logs/20260609-195301-a980130128544a7a0.md","docs/logs/20260609-195301-a419a03c786bd7181.md"]
-
-### T333 — done
-
-- createdAt: 2026-06-09T19:08:29.519Z
-- updatedAt: 2026-06-09T20:20:34.554Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Render terminal (no-outgoing-edge) flow nodes as visually distinct
-- description: "Terminal-action nodes (role nodes with NO outgoing edges in a flow) must look distinct (Q187: no rounding). DiagramSvg already keys rounding on `n.terminal` (RX_TERMINAL=4 vs RX_NORMAL=14, thicker stroke) and diagramLayout.ts already threads `terminal` through. CONCRETE DERIVATION SITE: in packages/ledger-web/src/roleActions.ts, at the point each RoleFlowDefinition is built, compute per node whether it has zero outgoing edges in THAT flow's `edges` array and set `terminal: true` on those RoleNodes (a small pure post-processing pass over each flow's node+edge lists, co-located with the ROLE_FLOWS definitions). If the RoleNode type does not already carry `terminal?: boolean`, add it there; confirm layoutDiagram in diagramLayout.ts forwards it to DiagramNode (it already does per T326/T329 — verify, no change expected). Apply across ALL four flows (plan/investigate/implement/advance). No DiagramSvg change beyond consuming the already-supported `n.terminal`."
-- acceptance: "A test over ROLE_FLOWS asserts for each flow: every node with zero outgoing edges has terminal===true, every node with ≥1 outgoing edge has terminal!==true. A DiagramSvg render test asserts a terminal node's rect uses rx=4 and a non-terminal node's rect uses rx=14. `bun test` passes."
-- suggestedModel: standard
-- ledgerRefs: ["goals:G41"]
-- resultCommit: 18d73dc121485250bc1e73e294ad410f98ac1052
-- completion: "withTerminalNodes() derives terminal:true on zero-outgoing-edge nodes across all 4 ROLE_FLOWS; DiagramSvg renders rx=4 (terminal) vs rx=14; tests + bun run check green."
-- sessionLogs: ["docs/logs/20260609-201031-a656a0bfa3e0b268f.md","docs/logs/20260609-201031-a360ee5576a9deb33.md"]
-
-### T334 — done
-
-- createdAt: 2026-06-09T19:08:42.468Z
-- updatedAt: 2026-06-09T20:51:35.468Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Make parallel/duplicate flow edges render with distinct visible labels
-- description: "REVISED (R399): the defect is a RENDERING fault, NOT missing data. CONFIRMED: all 45 ROLE_FLOWS edges in packages/ledger-web/src/roleActions.ts ALREADY carry a non-empty `label`, and DiagramSvg already renders one label per edge by index. The user's symptom ('Implement flow — 2 arrows orchestrator→ledger, 3 orchestrator→worktree with no labels') is that PARALLEL edges between the same node pair render their labels OVERLAPPING / on top of each other (and feedback edges similarly), so they read as unlabelled. FIRST reproduce: add a layout/render test that lays out a flow with parallel same-pair edges (the implement flow) and asserts each parallel edge's label is placed at a DISTINCT, non-overlapping position (distinct labelPos / y-offset) — confirm it currently FAILS (labels coincide). THEN fix the layout/render path (diagramLayout.ts elk edge routing + per-index labelPos in DiagramSvg) so parallel edges are routed/offset and their labels placed distinctly and visibly. SEPARATELY, audit the label TEXT for the parallel implement-flow edges so each names its DISTINCT trigger/action (orchestrator→ledger: 'create milestone' vs 'update item status / append scope'; orchestrator→worktree: 'dispatch implement-worker' vs 'merge task by SHA + tear down worktree' vs 'dispatch implement-reviewer' — verify against commands/cq/implement/advance.md) and collapse ONLY genuinely-identical edges. Record the PROPOSED final label set in a concrete deliverable for user review: a new docs/drafts/<ts>-flows-edge-labels.md note (NOT a 'planDoc' — that artifact does not exist)."
-- acceptance: (1) A reproduce-first layout test asserts each parallel same-pair edge in the implement flow gets a DISTINCT label position (no two coincide) — fails before the fix, passes after. (2) A render test confirms the implement flow's previously-overlapping parallel-edge labels are all visible/non-overlapping in the SVG. (3) A data test asserts every ROLE_FLOWS edge has a non-empty label and parallel edges on a node pair have distinct label strings. (4) The proposed final label set is written to docs/drafts/<ts>-flows-edge-labels.md for user review. `bun run lint` + `bun test` pass.
-- suggestedModel: standard
-- ledgerRefs: ["goals:G41"]
-- resultCommit: 565500bb02654f581e2aa7fce3535458936df4a2
-- completion: Parallel flow-edge labels get distinct per-index testids (ELK already routes them 30–34px apart, no visual overlap); reproduce-first render test + data/layout invariants + docs/drafts label audit; bun run check green.
-- sessionLogs: ["docs/logs/20260609-204431-ad8528d9a44056e1d.md","docs/logs/20260609-204431-a8b312818e7f72557.md"]
 
 ## M138
 
@@ -577,10 +535,10 @@ archives:
 
 ## M139
 
-### T336 — planned
+### T336 — wip
 
 - createdAt: 2026-06-09T19:08:57.294Z
-- updatedAt: 2026-06-09T19:29:36.863Z
+- updatedAt: 2026-06-09T20:52:07.118Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Design the typed prompt-catalog data model + formal JSON Schemas (single source of truth)
