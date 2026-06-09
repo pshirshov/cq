@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 40
+  item: 41
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -235,3 +235,26 @@ archives:
     **3 TUI focus keybinding** — ledger-tui/src/app.tsx useInput (L767-882). CONFIRMED current behavior: in LIST focus (top.focus==='list', L840-845) ↑↓/j/k move the cursor (reset scroll:0); key.pageUp/pageDown scroll the CONTENT/detail pane (top.scroll, CONTENT_PAGE=10) WITHOUT switching focus — an INTENTIONAL prior affordance (comment L836-839: 'scroll the detail pane in place WITHOUT switching focus, so the detail is scrollable without the Enter-to-focus step'). Enter (L846) switches focus to 'content'. In CONTENT focus (L802-834) pageUp/pageDown scroll content. There is NO Home/End handling anywhere (ink useInput key object may not expose Home/End — needs verification). So the requested change (list-focus PgUp/PgDn/Home/End page/jump the CURSOR; content scroll only after Enter) REVERSES the deliberate no-Enter-scroll design and ADDS Home/End. Established focus-gated-keys pattern exists (the !cursorInArchive guards, D24/H14). cq convention routes faults via /cq:investigate (reproduce->root-cause->defect-seeded fix); user labeled this a 'defect' — routing decision pending.
 - sessionLogs: ["docs/logs/20260609-110956-a9f05a8253269dee6.md","docs/logs/20260609-114934-ac3e829c2282bd91c.md","docs/logs/20260609-114934-pi-grok.md","docs/logs/20260609-114934-pi-minimax.md","docs/logs/20260609-145017-a0c176e7567c5e292.md","docs/logs/20260609-154027-aaf85331f25793153.md","docs/logs/20260609-154027-pi-grok.md","docs/logs/20260609-154027-pi-minimax.md"]
 - milestones: ["M126","M127","M128","M129","M130","M131","M134"]
+
+## M135
+
+### G41 — clarifying
+
+- createdAt: 2026-06-09T18:45:56.874Z
+- updatedAt: 2026-06-09T18:48:50.069Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- title: cq init cq.toml + formal prompt catalog (MCP) + ledger-on-separate-git-branch + Flows-tab edge labels/clickable-affordance + Ideas ledger
+- description: |
+    Next batch — five related items bundled in one /cq:plan invocation; the planner may decompose into separate work milestones.
+    
+    **1. `cq init` writes cq.toml.** Ensure `cq init` writes a cq.toml with reasonable defaults (Opus only configured). Currently cq init may not emit a config file; the new file should carry sensible defaults with only Opus configured as the model.
+    
+    **2. Fully formal, typed catalog of agent/subagent prompts (served over MCP).** Create a formal catalog of the prompts used for agents and subagents. The catalog is the single source of truth used BOTH to display the Agents tab AND by agents when they dispatch other agents. Instead of reading a prompt from a file, a dispatching agent would: (a) ask the catalog MCP server for the prompt, (b) take the input schema from the catalog, (c) compose the input, (d) validate the composed input against the schema via another MCP endpoint, (e) run the subagent, (f) await output, (g) validate the output against the output schema via an MCP endpoint. The user acknowledges this full flow may be overkill now but expects it to pay off once the agent SDK / pi extension feeds inputs to the orchestrator. Schemas must be fully formal and typed (JSON Schema?). [Note: relates to the existing agentsCatalogue / ROLE_FLOWS source-of-truth question from G38; planner should reconcile.]
+    
+    **3. (EXPLORATORY — feasibility unknown) Ledger stored in a SEPARATE git branch rooted at the zero commit.** Idea worth exploring: the MCP keeps the ledger in a separate git branch — NOT branched from main, branched from the zero (root/empty) commit — containing only the ledger. This is additional hardening against data loss during git operations on the working branch. CRITICAL constraint: ledger writes into that branch should NOT require switching the repo to the branch, committing, and switching back — ideally done without any working-tree branch switches (e.g. via plumbing: git hash-object / mktree / commit-tree / update-ref against an orphan ref, or a separate worktree). The user is unsure whether this is feasible/workable; the planner must assess feasibility first and may recommend against it.
+    
+    **4. Flows tab polish (web).** The Flows tab is better now but needs: (a) clickable nodes should have UNDERLINED names — currently there is no visual affordance showing what is clickable; (b) edges must be LABELLED — e.g. in 'Implement flow — roles & actions' there are two arrows orchestrator→ledger and three orchestrator→worktree with no labels, which is meaningless; if these are genuinely different edges (fire on different triggers) add appropriate textual labels. ALL edges should be labelled. (c) Terminal actions (nodes with no outgoing edges) should be visually distinct (e.g. no rounding). Applies across all flows, not just Implement. [Builds on G38 FU-4 ROLE_FLOWS / DiagramSvg work.]
+    
+    **5. New 'Ideas' ledger.** Add a new ledger named 'Ideas' for the user to jot ideas/notes. Its 'Ideas' button sits ABOVE 'Goals' in the sidebar. Simple structure: just a status and a 'description' field. No milestones, etc. Additionally: `/cq:plan` and `/cq:plan:follow-up` must accept idea IDs as arguments — creating goals from them and starting the usual planning cycle. E.g. `/cq:plan I01 I02 I03` instead of a free-text goal; and `/cq:plan:follow-up G35 I01`. The planner must work out how ideas map into goal creation (one goal per idea? one goal aggregating several? how the idea text seeds the goal description) and how the existing plan/follow-up command grammar is extended to accept I-ids alongside (or instead of) free text.
+- sessionLogs: ["docs/logs/20260609-184831-a49faaf4d8748e870.md"]

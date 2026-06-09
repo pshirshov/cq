@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 41
+  item: 42
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -238,6 +238,19 @@ archives:
 - ledgerRefs: ["goals:G38","goals:G39"]
 - sessionLogs: ["docs/logs/20260609-171522-a75d30bbc69d91b5c.md","docs/logs/20260609-171522-aae0c7ae76a4db924.md","docs/logs/20260609-145017-a0c176e7567c5e292.md"]
 - tags: ["G38","follow-up","ledger-web","drained"]
+
+### HO42 — answers-required
+
+- createdAt: 2026-06-09T18:49:20.947Z
+- updatedAt: 2026-06-09T18:49:20.947Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "ANSWERS-REQUIRED. /cq:plan bootstrapped goal G41 (milestone M135) — a five-item next-batch goal: (1) `cq init` writes cq.toml with reasonable defaults (Opus only configured); (2) a fully formal, typed (JSON Schema) catalog of agent/subagent prompts served over MCP, single source of truth for the Agents tab AND for agents dispatching subagents (fetch prompt + input schema, validate input via MCP, run, validate output via MCP); (3) EXPLORATORY/feasibility-unknown — keep the ledger in a SEPARATE git branch rooted at the zero commit, with writes that do NOT require working-tree branch switches (orphan-ref plumbing); (4) Flows-tab polish (web): underlined clickable node names, ALL edges labelled (the unlabelled orchestrator→ledger ×2 / orchestrator→worktree ×3 edges in Implement flow are meaningless), terminal nodes visually distinct (no rounding); (5) new 'Ideas' ledger (status + description only, no milestones), 'Ideas' sidebar button ABOVE 'Goals', plus extending /cq:plan and /cq:plan:follow-up to accept idea I-ids as args (e.g. `/cq:plan I01 I02 I03`, `/cq:plan:follow-up G35 I01`). The plan-advance planner grounded read-only (workspace layout: cq-cli/cq-config for item 1; ledger-mcp for items 2/3/5; ledger-web for items 4/5; gen-agents-catalogue.ts/link-prompts.ts for item 2) and filed 6 clarifying questions Q183–Q188 (Q183 overall scope+sequencing; Q184 item 1 cq.toml default content + clobber behaviour; Q185 item 2 prompt-catalog source-of-truth + how far to wire the validate-input/run/validate-output loop; Q186 item 3 orphan-branch spike-only vs spike-then-implement + failure mode; Q187 item 4 edge-label semantics + G38-FU-4 reconciliation; Q188 item 5 Ideas ledger shape + idea→goal mapping). Item 4 overlaps G38's `planned` FU-4 (Flows-tab depth) — Q187 seeks the reconciliation to avoid double-planning. G41 stays `clarifying` pending answers. NEXT (user): answer Q183–Q188 in the TUI/web (set each `answered` with a non-empty answer), then run /cq:plan:advance G41."
+- flow: plan
+- ledgerRefs: ["goals:G41"]
+- blockingQuestions: ["Q183","Q184","Q185","Q186","Q187","Q188"]
+- sessionLogs: ["docs/logs/20260609-184831-a49faaf4d8748e870.md"]
+- tags: ["G41","plan","answers-required"]
 
 ## M126
 

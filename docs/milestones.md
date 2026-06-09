@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 134
+  item: 135
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -677,3 +677,9 @@ archives:
 - updatedAt: 2026-06-09T11:05:21.585Z
 - title: "Plan: worktree cleanup + ledger backup + flows-tab role-actions + TUI focus keybindings"
 - description: "Coordination milestone for a multi-item goal: (1a) auto-delete implement-worker worktrees after merge-back via the flow prompts; (1b) ledger code writes a restore-without-replay backup under ~/.cache/cq/ledgers/; (2) Flows help tab shows per-role actions (orchestrator dispatches planner, etc.) instead of an abstract state machine; (3) TUI focus-respecting keybindings (pgup/pgdown/home/end move the item cursor when items focused; scroll item content when inside item view)."
+
+### M135 — open
+
+- createdAt: 2026-06-09T18:45:36.463Z
+- updatedAt: 2026-06-09T18:45:36.463Z
+- title: "Plan: cq init cq.toml + prompt catalog + ledger git-branch + Flows-tab polish + Ideas ledger"
