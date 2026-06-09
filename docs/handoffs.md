@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 36
+  item: 37
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -206,3 +206,17 @@ archives:
 - flow: advance
 - ledgerRefs: ["defects:D43","goals:G37"]
 - sessionLogs: ["docs/logs/20260609-094843-acbd76d5c9472ebf8.md","docs/logs/20260609-095419-G37-review-r1-opus.md","docs/logs/20260609-100347-a2b3e6cf98362d441.md","docs/logs/20260609-1010-a06628017a2431ea0.md","docs/logs/20260609-1010-a5009f1013db471df.md","docs/logs/20260609-1010-af44ae98400fc02bd.md","docs/logs/20260609-1010-aab920f19e55117c1.md","docs/logs/20260609-1010-a210d0b4d71d1b4aa.md","docs/logs/20260609-1010-a95b30e12643ec732.md","docs/logs/20260609-1010-a98dd4079468ed2fc.md"]
+
+## M126
+
+### HO37 — answers-required
+
+- createdAt: 2026-06-09T11:10:26.498Z
+- updatedAt: 2026-06-09T11:10:26.498Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "ANSWERS-REQUIRED. /cq:plan bootstrapped goal G38 (Flow hardening + UI: 1a auto-delete worker worktrees after merge-back; 1b @cq/ledger restore-without-replay backup under ~/.cache/cq/ledgers/${dir-name}-${path-hash}/; 2 Flows help tab shows per-role ACTIONS not an abstract state machine; 3 TUI focus-respecting PgUp/PgDn/Home/End keybindings). The plan-advance planner grounded read-only across all four items and filed 7 clarifying questions Q167-Q173 (worktree-removal ownership/locked-worktree cleanup; backup granularity/format + write-trigger; backup path-scheme/rotation/restore-CLI; flows-tab source-of-truth + visual form + replace-vs-add; web-only-vs-TUI scope; item-3 defect-routing; item-3 exact key-map + the intentional-affordance reversal + Home/End feasibility). G38 stays `clarifying` pending answers. Answer Q167-Q173 in the TUI/web, then run /cq:plan:advance G38."
+- flow: plan
+- ledgerRefs: ["goals:G38"]
+- blockingQuestions: ["Q167","Q168","Q169","Q170","Q171","Q172","Q173"]
+- sessionLogs: ["docs/logs/20260609-110956-a9f05a8253269dee6.md"]

@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 37
+  item: 38
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -201,3 +201,36 @@ archives:
 - grounding: "Confirmed root cause H31 (9 validated [correct] citations). Fix files: nix/pkg/cq-assets/agents/implement-worker.md (Boundaries), nix/pkg/cq-assets/commands/cq/{advance,implement/advance,plan/advance}.md (Commit-the-ledger sections). Builds on the commit-after-merge discipline already adopted ad-hoc this run (proven across 12 post-incident dispatches)."
 - milestones: ["M123","M124","M125"]
 - sessionLogs: ["docs/logs/20260609-094843-acbd76d5c9472ebf8.md","docs/logs/20260609-094843-pi-minimax-G37-planner.md","docs/logs/20260609-095419-G37-review-r1-opus.md","docs/logs/20260609-095419-G37-review-r1-minimax.md","docs/logs/20260609-100347-a2b3e6cf98362d441.md","docs/logs/20260609-100347-G37-review-r2-minimax.md"]
+
+## M126
+
+### G38 — clarifying
+
+- createdAt: 2026-06-09T11:05:44.034Z
+- updatedAt: 2026-06-09T11:10:09.249Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- title: "Flow hardening + UI: worktree auto-cleanup, ledger ~/.cache backup, flows-tab role-actions, TUI focus keybindings"
+- description: |
+    Four related flow-robustness + UI work items (bundled by the user in one /cq:plan invocation; the planner may decompose into separate work milestones, and item 4 may route to a defect — see note):
+    
+    **1a. Auto-delete implement-worker worktrees after merge-back.** Modify the cq flow prompts so a worker's isolated git worktree is removed automatically once its task commit has been merged back (cherry-picked) to main — instead of accumulating (this session observed ~140 stale locked worktrees from prior runs under .claude/worktrees/). The merge-back step in commands/cq/implement/advance.md §7 (and the chained path) should `git worktree remove` (and prune the branch) the worker's worktree after a successful merge. Decide: who owns removal (orchestrator post-merge vs the native isolation:worktree auto-clean), how to handle a worktree whose changes are committed (the harness only auto-cleans UNCHANGED worktrees), and the locked-worktree cleanup.
+    
+    **1b. Ledger restore-without-replay backup under ~/.cache.** As an additional safeguard against ledger state loss (the D43 incident), the @cq/ledger code should mirror every ledger write into a backup location under ~/.cache, e.g. ~/.cache/cq/ledgers/${dir-name}-${absolute-path-hash}/content — so that even if another failure (e.g. a stray git reset) wipes the in-repo docs/, the data is trivially restorable WITHOUT replaying MCP writes from a session transcript. Decide: backup granularity/format (mirror the docs/*.md tree? append-only journal? both?), when it is written (every applyCreateItem/applyUpdateItem, or batched), the exact path scheme (${dir-name}-${hash} keyed on the absolute ledger root path), pruning/rotation, and the restore procedure/CLI.
+    
+    **2. Flows help tab: per-role ACTIONS, not an abstract state machine.** Improve the "Flows" tab (ledger-web help popup; possibly TUI too) to show what ACTIONS each role can take — e.g. orchestrator dispatches planner, planner emits candidate plan, reviewer returns verdict, orchestrator merges by SHA — rather than the current abstract item-state-machine diagrams. Decide: the source of truth for the role→actions mapping (derive from cq-assets agent/command definitions? a hand-authored catalogue?), the visual form (per-role action lists, a role-interaction/sequence diagram), web-only vs TUI too.
+    
+    **3 (labeled "TUI defect" by the user). Focus-respecting paging keys in the TUI.** Currently, while exploring ledger content, up/down move the item cursor but PageUp/PageDown scroll the item CONTENT — focus is not respected. Desired: when the ITEMS list is focused, PgUp/PgDn AND Home/End operate on the items list (page/jump the cursor); only after the user presses Enter to enter the ITEM VIEW should those keys scroll the item content. Keybindings must respect the focused pane. NOTE: this is fault-shaped; under the cq convention a fault normally routes through /cq:investigate (reproduce → root-cause → defect-seeded fix). The planner should decide whether to keep it as a fix-task work-milestone under this goal or recommend filing it as a defect; either way the desired behavior above is the spec.
+    
+    All four are greenfield/UX/robustness changes to the cq tooling itself (prompts under nix/pkg/cq-assets/, @cq/ledger code, ledger-web/ledger-tui).
+- grounding: |
+    Read-only grounding for G38 (4 work items). Files/findings that shape the plan:
+    
+    **1a worktree cleanup** — nix/pkg/cq-assets/commands/cq/implement/advance.md §7 (merge-back) step 3 already says 'remove the worktree (Claude: auto; Codex: git worktree remove + delete the branch)'. §K4 (L47-55): Claude workers use native Agent isolation:worktree which 'auto-removed if unchanged, never auto-merged' — but a worker that COMMITTED its task IS changed, so native auto-clean does NOT remove it; that is the accumulation source (the ~140 stale locked worktrees under .claude/worktrees/). §5 deliberately leaves the worktree INTACT for blocked tasks. So the gap is: nothing removes the CHANGED worktree after a successful merge under Claude (Codex path already does). Fix locus is the prompt(s): implement/advance.md §7.3 + the §5 blocked path + possibly agents/implement-worker.md. D43 (just resolved) hardened worker git boundaries and per-merge ledger commits; this item is the orthogonal worktree-disk-cleanup half.
+    
+    **1b ~/.cache backup** — @cq/ledger FsLedgerStore (packages/ledger/src/store/FsLedgerStore.ts). Writes funnel through writeLedgerFile()->atomicWrite() (docs/<ledger>.md), plus archive files + writeRegistry(). An onMutation hook (FsLedgerStoreOpts.onMutation, fired in fireMutation() AFTER lockfile release, for create/update/archive; MUST NOT block, swallows throws) is the natural mirror trigger. EXISTING backup machinery: backupAndReinit()/reset() snapshot to docs/.backup/<ts>/ — but that is IN-REPO, so a git reset wipes it too (exactly the D43 failure mode); hence the ask for an OUT-OF-REPO ~/.cache mirror. Store already exposes rootDir. Path scheme requested: ~/.cache/cq/ledgers/${dir-name}-${absolute-path-hash}/. No CLI exists yet for restore (reset() is the only operator entrypoint, in-repo).
+    
+    **2 Flows tab** — Built by G23 (done): hand-authored TS flow-data module (T204) -> elk DiagramSvg renderer (T202) in ledger-web/src/App.tsx HelpOverlay, tab key 'flows', testids help-tab-flows / help-flow-<id>. Currently renders FLOW STATE diagrams (node kinds: waiting-for-input/handoff/state/terminal) — i.e. the 'abstract state machine' the user now wants REPLACED by per-role ACTIONS (orchestrator dispatches planner, planner emits candidate plan, reviewer returns verdict, orchestrator merges by SHA). Q114 (G23): the prose flow doc lives separately under cq-assets/docs (not single-source with the tab data). Q145 (G34, answered): the tabbed help dialog is WEB-ONLY; the TUI (ledger-tui/src/app.tsx) has NO help overlay/tabs. Role/action source candidates: derive from cq-assets agent+command prompts vs a hand-authored catalogue.
+    
+    **3 TUI focus keybinding** — ledger-tui/src/app.tsx useInput (L767-882). CONFIRMED current behavior: in LIST focus (top.focus==='list', L840-845) ↑↓/j/k move the cursor (reset scroll:0); key.pageUp/pageDown scroll the CONTENT/detail pane (top.scroll, CONTENT_PAGE=10) WITHOUT switching focus — an INTENTIONAL prior affordance (comment L836-839: 'scroll the detail pane in place WITHOUT switching focus, so the detail is scrollable without the Enter-to-focus step'). Enter (L846) switches focus to 'content'. In CONTENT focus (L802-834) pageUp/pageDown scroll content. There is NO Home/End handling anywhere (ink useInput key object may not expose Home/End — needs verification). So the requested change (list-focus PgUp/PgDn/Home/End page/jump the CURSOR; content scroll only after Enter) REVERSES the deliberate no-Enter-scroll design and ADDS Home/End. Established focus-gated-keys pattern exists (the !cursorInArchive guards, D24/H14). cq convention routes faults via /cq:investigate (reproduce->root-cause->defect-seeded fix); user labeled this a 'defect' — routing decision pending.
+- sessionLogs: ["docs/logs/20260609-110956-a9f05a8253269dee6.md"]
