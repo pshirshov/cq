@@ -98,14 +98,42 @@ export interface RoleFlowDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// Plan flow — orchestrator ↔ planner ↔ reviewer ↔ user
+// Helpers — author node.fill from node.roleKind (locked Q181: authored HERE).
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a {@link RoleNode} with `fill` authored from its `roleKind` via
+ * {@link fillForRoleKind} (T327 (c)). Centralises the rule so EVERY node in
+ * every flow carries `fill === fillForRoleKind(node.roleKind)`. `agentId` is
+ * set ONLY for concrete dispatched-subagent / sub-flow-command nodes (T327
+ * (a)); abstract nodes (user / main / worktree / ledger / flow-lane) omit it.
+ */
+function roleNode(
+  id: string,
+  label: string,
+  roleKind: RoleKind,
+  agentId?: string,
+): RoleNode {
+  const node: RoleNode = { id, label, roleKind, fill: fillForRoleKind(roleKind) };
+  if (agentId !== undefined) node.agentId = agentId;
+  return node;
+}
+
+// ---------------------------------------------------------------------------
+// Plan flow — orchestrator ↔ planner ↔ reviewer ↔ user, over the ledger.
+// Formalized ops (commands/cq/plan/advance.md): dispatch planner / reviewer,
+// emit candidate plan, return verdict, criticism re-dispatch, register
+// questions, planning-lock + per-round ledger commit, and the auto-investigate
+// cross-flow handoff (file defect → investigate).
 // ---------------------------------------------------------------------------
 
 const planRoleNodes: RoleNode[] = [
-  { id: "orchestrator", label: "orchestrator", roleKind: "orchestrator" },
-  { id: "planner", label: "planner", roleKind: "planner" },
-  { id: "reviewer", label: "reviewer", roleKind: "reviewer" },
-  { id: "user", label: "user", roleKind: "user" },
+  roleNode("orchestrator", "orchestrator", "orchestrator"),
+  roleNode("planner", "planner", "planner", "plan-advance"),
+  roleNode("reviewer", "reviewer", "reviewer", "plan-reviewer"),
+  roleNode("user", "user", "user"),
+  roleNode("ledger", "ledger", "ledger"),
+  roleNode("investigate-flow", "investigate flow", "external", "investigate/advance"),
 ];
 
 const planRoleEdges: RoleEdge[] = [
@@ -116,10 +144,14 @@ const planRoleEdges: RoleEdge[] = [
   // Critic loop: reviewer disapproves → orchestrator re-dispatches planner.
   { from: "orchestrator", to: "planner", label: "re-dispatches (criticism)" },
   // Planner needs user input → orchestrator registers open questions.
-  { from: "planner", to: "user", label: "files questions" },
+  { from: "planner", to: "user", label: "registers questions" },
   { from: "user", to: "orchestrator", label: "answers questions" },
-  // Orchestrator locks the plan once reviewer approves.
-  { from: "orchestrator", to: "orchestrator", label: "locks plan (decision)" },
+  // Plan reaches `planned`: orchestrator locks the plan into the ledger.
+  { from: "orchestrator", to: "ledger", label: "locks plan (planned)" },
+  // Per-round ledger commit (planning-lock artifacts) lands in the ledger.
+  { from: "orchestrator", to: "ledger", label: "commits ledger (per round)" },
+  // Cross-flow: auto-investigate a goal-linked defect → investigate flow.
+  { from: "orchestrator", to: "investigate-flow", label: "files defect → investigate" },
 ];
 
 const planRoleFlow: RoleFlowDefinition = {
@@ -129,13 +161,21 @@ const planRoleFlow: RoleFlowDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Investigate flow — orchestrator ↔ explore ↔ user
+// Investigate flow — orchestrator ↔ explorer ↔ prober ↔ user, over the ledger.
+// Formalized ops (commands/cq/investigate/advance.md): dispatch explorer
+// (read-only), dispatch prober (isolation=worktree) on a probeRequest, prober
+// worktree create + teardown, return citations, hypothesis-tree ledger writes,
+// and the file-and-defer cross-flow handoff (seed/extend goal → plan flow).
 // ---------------------------------------------------------------------------
 
 const investigateRoleNodes: RoleNode[] = [
-  { id: "orchestrator", label: "orchestrator", roleKind: "orchestrator" },
-  { id: "explore", label: "explorer", roleKind: "explore" },
-  { id: "user", label: "user", roleKind: "user" },
+  roleNode("orchestrator", "orchestrator", "orchestrator"),
+  roleNode("explore", "explorer", "explore", "investigate-explorer"),
+  roleNode("prober", "prober", "worker", "investigate-prober"),
+  roleNode("user", "user", "user"),
+  roleNode("worktree", "probe worktree", "worktree"),
+  roleNode("ledger", "ledger", "ledger"),
+  roleNode("plan-flow", "plan flow", "external", "plan/advance"),
 ];
 
 const investigateRoleEdges: RoleEdge[] = [
@@ -143,8 +183,16 @@ const investigateRoleEdges: RoleEdge[] = [
   { from: "explore", to: "orchestrator", label: "returns citations" },
   // Orchestrator adjudicates hypothesis nodes and re-dispatches on new leads.
   { from: "orchestrator", to: "explore", label: "re-dispatches (new lead)" },
-  // Confirmed root cause seeds a goal → plan flow handoff.
-  { from: "orchestrator", to: "orchestrator", label: "seeds goal → plan" },
+  // Explorer requests a probe → orchestrator dispatches the prober into a
+  // throwaway worktree, which is created then torn down after harvest.
+  { from: "orchestrator", to: "worktree", label: "creates probe worktree" },
+  { from: "orchestrator", to: "prober", label: "dispatches prober" },
+  { from: "prober", to: "orchestrator", label: "returns probe evidence" },
+  { from: "orchestrator", to: "worktree", label: "tears down / prunes worktree" },
+  // Validated hypothesis-tree mutations land in the ledger.
+  { from: "orchestrator", to: "ledger", label: "writes hypothesis tree" },
+  // Confirmed root cause: file-and-defer — seed/extend a goal → plan flow.
+  { from: "orchestrator", to: "plan-flow", label: "seeds goal → plan" },
   // User can close or wontfix the defect at any point.
   { from: "user", to: "orchestrator", label: "wontfix / close" },
 ];
@@ -156,31 +204,53 @@ const investigateRoleFlow: RoleFlowDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Implement flow — orchestrator ↔ worker ↔ reviewer ↔ user
+// Implement flow — orchestrator ↔ worker ↔ reviewer ↔ conflict-resolver ↔ user,
+// over the worktree / main / ledger git+ledger substrate.
+// Formalized ops (commands/cq/implement/advance.md): worktree prune sweep +
+// create, dispatch worker (isolation=worktree), emit result commit, dispatch
+// reviewer, return verdict, criticism re-dispatch, register questions, file
+// out-of-scope defect → investigate (file-and-defer), rebase-before-merge,
+// dispatch conflict-resolver on conflict, merge-by-SHA into main, explicit
+// worktree teardown/prune, and per-task ledger commit after every merge-back.
 // ---------------------------------------------------------------------------
 
 const implementRoleNodes: RoleNode[] = [
-  { id: "orchestrator", label: "orchestrator", roleKind: "orchestrator" },
-  { id: "worker", label: "worker", roleKind: "worker" },
-  { id: "reviewer", label: "reviewer", roleKind: "reviewer" },
-  { id: "user", label: "user", roleKind: "user" },
-  { id: "main", label: "main branch", roleKind: "external" },
+  roleNode("orchestrator", "orchestrator", "orchestrator"),
+  roleNode("worker", "worker", "worker", "implement-worker"),
+  roleNode("reviewer", "reviewer", "reviewer", "implement-reviewer"),
+  roleNode("conflict-resolver", "conflict-resolver", "conflict-resolver", "implement-conflict-resolver"),
+  roleNode("user", "user", "user"),
+  roleNode("worktree", "worktree", "worktree"),
+  roleNode("main", "main branch", "main"),
+  roleNode("ledger", "ledger", "ledger"),
+  roleNode("investigate-flow", "investigate flow", "external", "investigate/advance"),
 ];
 
 const implementRoleEdges: RoleEdge[] = [
+  // Start-of-pass sweep + per-task worktree creation on the worktree substrate.
+  { from: "orchestrator", to: "worktree", label: "creates worktree" },
   { from: "orchestrator", to: "worker", label: "dispatches worker" },
   { from: "worker", to: "orchestrator", label: "emits result commit" },
   { from: "orchestrator", to: "reviewer", label: "dispatches reviewer" },
   { from: "reviewer", to: "orchestrator", label: "returns verdict" },
   // Autonomous criticism loop: reviewer disapproves → re-dispatch worker.
   { from: "orchestrator", to: "worker", label: "re-dispatches (criticism)" },
-  // Reviewer files out-of-scope defect → investigate.
-  { from: "reviewer", to: "orchestrator", label: "files defect" },
+  // Reviewer files out-of-scope defect → investigate (file-and-defer).
+  { from: "orchestrator", to: "investigate-flow", label: "files defect → investigate" },
   // User questions park the task.
   { from: "worker", to: "user", label: "registers question" },
   { from: "user", to: "orchestrator", label: "answers question" },
-  // Merge-back: orchestrator rebases and pushes to main.
+  // Merge-back: rebase the branch onto the current base before merging.
+  { from: "orchestrator", to: "worktree", label: "rebases branch" },
+  // On a rebase conflict → dispatch the conflict-resolver.
+  { from: "orchestrator", to: "conflict-resolver", label: "dispatches on conflict" },
+  { from: "conflict-resolver", to: "orchestrator", label: "returns resolved commit" },
+  // Clean rebase → fast-forward merge the result commit into main.
   { from: "orchestrator", to: "main", label: "merges by SHA" },
+  // Per-task ledger commit after every merge-back.
+  { from: "orchestrator", to: "ledger", label: "commits ledger (per task)" },
+  // Explicit worktree teardown + prune after a merged task.
+  { from: "orchestrator", to: "worktree", label: "tears down / prunes worktree" },
 ];
 
 const implementRoleFlow: RoleFlowDefinition = {
@@ -193,12 +263,16 @@ const implementRoleFlow: RoleFlowDefinition = {
 // Advance sequencer — orchestrator drives all three flows in sequence
 // ---------------------------------------------------------------------------
 
+// Each lane is the concrete sub-flow COMMAND the sequencer chains (Q180:
+// "if the flow … dispatches a subagent of a particular type — it should be
+// visible"); its agentId is that command's catalogue id so the node activates.
 const advanceRoleNodes: RoleNode[] = [
-  { id: "orchestrator", label: "orchestrator", roleKind: "orchestrator" },
-  { id: "investigate-flow", label: "investigate flow", roleKind: "external" },
-  { id: "plan-flow", label: "plan flow", roleKind: "external" },
-  { id: "implement-flow", label: "implement flow", roleKind: "external" },
-  { id: "user", label: "user", roleKind: "user" },
+  roleNode("orchestrator", "orchestrator", "orchestrator"),
+  roleNode("investigate-flow", "investigate flow", "external", "investigate/advance"),
+  roleNode("plan-flow", "plan flow", "external", "plan/advance"),
+  roleNode("implement-flow", "implement flow", "external", "implement/advance"),
+  roleNode("user", "user", "user"),
+  roleNode("ledger", "ledger", "ledger"),
 ];
 
 const advanceRoleEdges: RoleEdge[] = [
@@ -211,6 +285,8 @@ const advanceRoleEdges: RoleEdge[] = [
   { from: "implement-flow", to: "orchestrator", label: "done / merged" },
   // After a full cycle the orchestrator checks for further work.
   { from: "orchestrator", to: "orchestrator", label: "checks drain condition" },
+  // Run-stop handoff: write the handoffs item + run-stop ledger commit.
+  { from: "orchestrator", to: "ledger", label: "commits run-stop handoff" },
   // Blocked on user questions.
   { from: "orchestrator", to: "user", label: "registers blocking questions" },
   { from: "user", to: "orchestrator", label: "answers questions" },
