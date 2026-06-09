@@ -476,10 +476,10 @@ archives:
 
 ## M123
 
-### T301 — wip
+### T301 — done
 
 - createdAt: 2026-06-09T09:46:48.937Z
-- updatedAt: 2026-06-09T10:06:17.057Z
+- updatedAt: 2026-06-09T10:23:59.352Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add worktree-confinement hard Boundary to implement-worker.md
@@ -487,6 +487,7 @@ archives:
 - acceptance: "implement-worker.md 'Boundaries (hard rules)' contains a new hard rule with all 4 clauses: (1) git confined to the worker's own worktree dir — a GENERAL prohibition on any git op that switches/mutates/writes-refs of another working tree (checkout/reset --hard/cherry-pick named as non-exhaustive exemplars; git -C/--git-dir against another tree covered); (2) the prohibition is general (not just the three exemplars) and does not weaken the existing no-merge/push/rebase ban; (3) `git reset --hard <base>` permitted ONLY within its own worktree; (4) status=fail on a stale/wrong base instead of cross-checkout git. The chosen verbatim marker phrase is grep-able. git diff scoped to the Boundaries region (+ minimal L25-29). bun run check stays green."
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G37","defects:D43"]
+- resultCommit: 5d0f12a
 
 ## M124
 
