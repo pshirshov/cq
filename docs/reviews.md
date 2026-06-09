@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 389
+  item: 392
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -740,3 +740,41 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G39"]
 - sessionLogs: ["docs/logs/20260609-141937-addc5274986ba5f0c.md","docs/logs/20260609-141937-pi-codex.md","docs/logs/20260609-141937-pi-grok.md","docs/logs/20260609-141937-pi-minimax.md"]
+
+## M134
+
+### R389 — revise
+
+- createdAt: 2026-06-09T15:53:45.410Z
+- updatedAt: 2026-06-09T15:54:13.798Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "REVISE (G38 follow-up #1 round 1; full panel opus[claude]+codex+grok+minimax[pi], 4/4 usable, all revise → reconciled revise). Plan is fine-grained/acyclic/web-only with the agentId map + FU-4c op list VERIFIED grounded against the real repo + cq-assets prompts (opus). One LOAD-BEARING fix (T326 vs locked Q181) + same-file serialization + several precision/grounding nits. 0 new_questions, 0 out-of-scope defects."
+- new_questions: []
+- criticism: ["[opus] LOAD-BEARING: T326's renderer fill-precedence `n.fill ?? fillForRoleKind(roleKind) ?? DEFAULT_FILL` CONTRADICTS the LOCKED Q181 decision ('no renderer change; set node.fill in roleActions.ts'). VERIFIED: DiagramSvg's LaidOutNode (diagramLayout.ts) carries id/label/x/y/w/h/terminal/fill but NOT roleKind, so fillForRoleKind(roleKind) in the renderer is dead OR forces threading roleKind through the renderer — exactly the change Q181 declined. FIX: keep DiagramSvg's `n.fill ?? DEFAULT_FILL` UNCHANGED; ROLE_KIND_FILL + fillForRoleKind are roleActions.ts helpers that T327 uses to author node.fill on every ROLE_FLOWS node (T327 acceptance already authors fill on every node, so the existing path suffices). T326 may EXPORT fillForRoleKind for T327 but must not put it in the renderer precedence.","[opus][codex][grok][minimax] App.tsx same-file serialization gap (UNANIMOUS): T325 (AgentModelCell ~L1750), T328 (HelpOverlay tab-body restructure ~L1613-1651 + AgentsTab), T329 (Flows wiring+legend) all edit packages/ledger-web/src/App.tsx; T329 deps T328 but T325 is unserialized vs T328 — the same-file merge-conflict class R372 flagged. FIX: add `dependsOn` so the App.tsx editors are ordered (T328 dependsOn T325; chain T325→T328→T329).","[codex][grok][minimax] T327 is not self-contained: it refers to 'the locked map' + 'every formalized op grounded in the cq-assets prompts' without INLINING the verbatim role→agentId map (planner→plan-advance, reviewer→plan-reviewer; worker→implement-worker, reviewer→implement-reviewer, conflict-resolver→implement-conflict-resolver; explorer→investigate-explorer, prober→investigate-prober) or the explicit ops list + the exact cq-assets prompt file paths, and does not NAME the AGENT_ROLES import path (it is re-exported via packages/ledger-web/src/agentsCatalogue). FIX: inline the map + ops list + prompt paths; add an acceptance asserting every authored agentId is an id in AGENT_ROLES (imported from the named module).","[codex][grok] Acceptance unevenness: T326-T329 say 'OWNS its tests' without listing the key assertions T324/T325 do. FIX: enumerate 2-4 concrete happy-dom assertions per task (T326: agentId node has role=button/tabIndex/onKeyDown, non-agentId static, onActivateAgent fires only for agentId, layoutDiagram round-trips agentId, ROLE_KIND_FILL one-hex-per-kind; T327: agentId-map correctness + each ∈ AGENT_ROLES + formalized-op edges/infra nodes present + every node has fill; T328: per-section sidebar entry count + scrollIntoView spy + scrollspy active-setter; T329: click+Enter switch-to-agents + scrollIntoView(help-agent-<id>) + legend swatches).","[grok][minimax] Lock the help-anchor id FORMAT: T328/T329 reference help-agent-<agentId> (and help-flow-<id>/help-item-state-<ledger>) but the plan never pins the exact format; T329's cross-nav FAILS on a naming mismatch. FIX: T328 states the existing anchor scheme verbatim (help-item-state-<ledger>/help-flow-<id>/help-agent-<id>) and confirms the Agents tab already renders help-agent-<id> per AGENT_ROLES (the FU-4b landing targets); T329 reuses that exact format.","[minimax] T327 must own DETERMINISTIC, index-stable keys for the NEW FU-4c edges (worktree create/teardown, ledger commits, handoffs, etc.) consistent with the T316/T326 per-index edge keying — state this in T327.","[minimax] T324 should NAME the .lw-help-head pinning mechanism it must preserve (flex column; .lw-help-head flex-shrink:0; .lw-help-body flex:1 + min-height:0 + overflow-y:auto) so the test surface is unambiguous (not just 'keep').","[codex][minimax] COSMETIC (no ledger change): the review-prompt recap's DAG arrow line ('T327→T326') reads reversed vs the per-task dependsOn; the actual ledger tasks use correct dependsOn (T327 dependsOn T326 etc.) — adjudicated non-blocking, a recap artifact only."]
+- ledgerRefs: ["goals:G38"]
+- sessionLogs: ["docs/logs/20260609-155351-a0a22d695f10e6eca.md","docs/logs/20260609-155351-pi-codex.md","docs/logs/20260609-155351-pi-grok.md","docs/logs/20260609-155351-pi-minimax.md"]
+
+### R390 — revise
+
+- createdAt: 2026-06-09T16:04:55.819Z
+- updatedAt: 2026-06-09T16:05:36.054Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: REVISE (G38 follow-up #1 round 2; full panel 4/4 usable; codex+grok+minimax go-ahead, opus revise → reconciled revise STRICTEST-WINS). All 8 R389 items verified landed + grounded by all four (renderer keeps n.fill ?? DEFAULT_FILL with no roleKind; 7 agentIds all real AGENT_ROLES ids; App.tsx editors serialized T325→T328→T329; roleActions T326→T327; anchors locked; T324 head-pin named). opus raised ONE NEW minor in-scope type-precision nit. Convergent.
+- new_questions: []
+- criticism: ["[opus] T326/T327/T329 reference a named `RoleKind` type (`ROLE_KIND_FILL: Record<RoleKind,string>`, 'one distinct hex per RoleKind', the T329 legend) that does NOT exist as an export today — roleActions.ts declares `roleKind` only as an INLINE 8-value union on the RoleNode interface (orchestrator/planner/reviewer/worker/conflict-resolver/explore/user/external), no named export, no infra kinds. Since T326 needs infra kinds (worktree/main/ledger) and T327 authors roleKind on those infra nodes, the union must be WIDENED + EXTRACTED. FIX: T326 extracts the inline RoleNode.roleKind union into a single EXPORTED named `RoleKind` type, WIDENED with worktree/main/ledger, and `ROLE_KIND_FILL: Record<RoleKind,string>` keys exactly on it — so the palette, T327's per-node roleKind assignments, and T329's legend all reference one named type the type-checker (`bun run check`) enforces."]
+- ledgerRefs: ["goals:G38"]
+- sessionLogs: ["docs/logs/20260609-160501-a3898d18a1730cb0d.md","docs/logs/20260609-160501-pi-codex.md","docs/logs/20260609-160501-pi-grok.md","docs/logs/20260609-160501-pi-minimax.md"]
+
+### R391 — go-ahead
+
+- createdAt: 2026-06-09T16:17:05.981Z
+- updatedAt: 2026-06-09T16:17:39.864Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: "GO-AHEAD (G38 follow-up #1 round 3; reconciled). opus + codex go-ahead, each verifying the R390 RoleKind fix landed in T326 (exported named RoleKind widened with infra kinds + ROLE_KIND_FILL: Record<RoleKind,string> + fillForRoleKind + exhaustive-palette test; renderer still n.fill ?? DEFAULT_FILL per Q181) against live source (roleActions.ts/diagramLayout.ts/DiagramSvg.tsx). grok revise ADJUDICATED non-blocking (false against ground truth): it claimed the onActivateAgent cross-nav contract is undocumented, but every sub-point is ALREADY explicit in the live tasks — T326 gives `onActivateAgent?: (agentId: string) => void` (signature), 'nodes WITHOUT agentId stay static/non-interactive' (agent-node guard), the optional prop is synthetic-tested (no-op default); T329 gives 'switches the help tab to agents ... Use rAF/after-mount so the Agents-tab section exists before scrolling' (tab-switch + DOM-ready timing). grok judged the round-3 recap, not the live ledger tasks (same artifact as R374's grok adjudication). minimax ABSTAINED (garbled non-contract output, dropped per the abstention rule). Surviving real-criticism set empty → reconciled go-ahead. Convergent: round1 8 substantive→fixed; round2 1 type-precision→fixed; round3 clean. Plan LOCKED."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G38"]
+- sessionLogs: ["docs/logs/20260609-161714-a3a98ccfacda2c84e.md","docs/logs/20260609-161714-pi-codex.md","docs/logs/20260609-161714-pi-grok.md","docs/logs/20260609-161714-pi-minimax.md"]

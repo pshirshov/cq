@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 62
+  item: 63
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -243,3 +243,15 @@ archives:
 - headline: "G39 plan review: approved (R387 go-ahead) — D45 cache-mirror-on-create fix LOCKED"
 - rationale: "G39 (defect-seeded fix for D45, low; confirmed root cause H32) reached reconciled go-ahead at review round 2 (R387; panel opus[claude]+codex+grok+minimax[pi]; round1 opus+codex+grok go-ahead + minimax revise/R386 with 4 plan-text precision nits; round2 opus+codex+grok go-ahead, minimax abstained-garbled) after one precision-revise round. Multi-planner synthesis (opus+grok+minimax candidates all converged on 1 task). Locked plan: ONE work milestone M133, ONE fix task T323 (sonnet-4.6, ledgerRefs goals:G39 + defects:D45): in packages/ledger/src/store/cacheMirror.ts mirrorMutation, insert `if (op === 'create' || op === 'archive') await mirrorFile(layout, mirrorRoot, layout.registryPath)` after the per-op .md mirror (L81) and before the existing `if (op !== 'archive') return;` (L82) — so docs/ledgers.yaml mirrors on BOTH create + archive (the two ops that rewrite it; 'update' excluded); archive-dir enumeration stays archive-only; docstring (L56-64) updated; reproduce-first test in packages/ledger/test/cache-mirror.test.ts (createLedger + XDG_CACHE_HOME redirect → mirror ledgers.yaml byte-equal to the tmp-root registry; fails-ENOENT on unpatched, passes after). bun run check + nix build .#ledger-mcp green; surgical 2-file diff. D45.dependsOn back-links tasks:T323. G39 → planned."
 - ledgerRefs: ["goals:G39","defects:D45"]
+
+## M134
+
+### K62 — locked
+
+- createdAt: 2026-06-09T16:17:57.614Z
+- updatedAt: 2026-06-09T16:17:57.614Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- headline: "G38 follow-up #1 plan review: approved (R391 go-ahead) — ledger-web help-popup UX + deepened Flows tab LOCKED"
+- rationale: "G38 follow-up #1 (web-only ledger-web HelpOverlay; all 7 clarifying answers Q176-Q182 locked) reached reconciled go-ahead at review round 3 (R391; panel opus[claude]+codex+grok+minimax[pi]; round1 unanimous revise R389 (8 substantive items); round2 codex+grok+minimax go-ahead + opus revise R390 (1 RoleKind type-extraction); round3 opus+codex go-ahead, grok revise adjudicated false-against-ground-truth, minimax abstained-garbled). Multi-planner synthesis (opus+grok+minimax candidates). Locked plan: ONE work milestone M134, 6 tasks: T324 FU-2 (.lw-help hard 90vw×90vh, head-pin/body-scroll preserved); T325 FU-1 (AgentModelCell `unavailable`→stale-server message distinct from not-configured); T326 FU-4 renderer+data foundation (agentId on DiagramNode/RoleNode; exported named RoleKind widened with infra kinds worktree/main/ledger + ROLE_KIND_FILL: Record<RoleKind,string> + fillForRoleKind; DiagramSvg clickable/keyboard onActivateAgent; renderer fill stays n.fill ?? DEFAULT_FILL per LOCKED Q181); T327 FU-4a/c/d catalogue (inlined role→agentId map [plan planner→plan-advance, reviewer→plan-reviewer; implement worker→implement-worker, reviewer→implement-reviewer, conflict-resolver→implement-conflict-resolver; investigate explorer→investigate-explorer, prober→investigate-prober], each ∈ AGENT_ROLES; every formalized op as edges+worktree/main/ledger infra nodes grounded in the cq-assets prompts; roleKind+fill on every node; deterministic per-index edge keys); T328 FU-3 (persistent sidebar + scrollspy on Item-States/Flows/Agents; locked help-*-<id> anchor scheme; exports scrollToHelpSection); T329 FU-4b/d (clickable-node cross-nav to Agents tab via scrollToHelpSection(help-agent-<agentId>) + roleKind legend). DAG acyclic; roleActions.ts T326→T327; App.tsx editors serialized T325→T328→T329. Each task OWNS happy-dom tests + bun run check + nix build .#ledger-web. FU-1's underlying Agents-tab display issue is a deploy action (rebuild+restart), NOT in scope. G38 → planned."
+- ledgerRefs: ["goals:G38"]

@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 133
+  item: 134
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -675,3 +675,10 @@ archives:
 - updatedAt: 2026-06-09T13:56:20.739Z
 - title: "Plan: fix D45 — cache mirror omits ledgers.yaml on createLedger"
 - description: "Defect-seeded fix for D45 (low): the ~/.cache mirror's mirrorMutation only mirrors docs/ledgers.yaml on the 'archive' op (early return at cacheMirror.ts:82 before the registry mirror at :84), but createLedger rewrites the registry and fires a 'create' op — so a restored mirror carries a stale registry until the next archive. Fix: mirror the registry on 'create' too."
+
+### M134 — open
+
+- createdAt: 2026-06-09T15:39:06.640Z
+- updatedAt: 2026-06-09T15:39:06.640Z
+- title: G38 follow-up #1 — ledger-web help-popup UX + deepened Flows tab
+- description: "Web-only (Q182) ledger-web HelpOverlay follow-up: FU-1 stale-server AgentModelCell message; FU-2 hard 90vw×90vh popup; FU-3 per-tab sidebar + scrollspy (Item-States/Flows/Agents); FU-4 deepen Flows tab — agentId-clickable nodes cross-nav to Agents tab, surface ALL formalized ops (edges+infra nodes), roleKind color palette + legend. Locked by Q176-Q182."
