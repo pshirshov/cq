@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 352
+  item: 355
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -923,3 +923,41 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T289","goals:G34"]
 - sessionLogs: ["docs/logs/20260609-002900-ad0959d0752198df4.md","docs/logs/20260609-002900-T289-review.md"]
+
+### R353 — go-ahead
+
+- createdAt: 2026-06-09T00:52:31.775Z
+- updatedAt: 2026-06-09T00:52:31.775Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T291 FakeClient.getAgentModels drives all 4 Q157 states + a throw mode via a configurable switch; default not-configured preserves existing tests; resolved synthetic entries differ from the build-time catalogue (implement-worker + plan-reviewer) so T297 can prove overlay precedence; confined to test/fakeClient.ts. Cherry-picked to main 60b16ca; integrated bun run check 1279/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T291","goals:G34"]
+- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
+
+## M119
+
+### R354 — go-ahead
+
+- createdAt: 2026-06-09T00:52:31.819Z
+- updatedAt: 2026-06-09T00:52:31.819Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus + minimax both approve; grok+codex abstained — no key). T292 surfaces optional effort?: string|null on ResolvedReviewer/ResolvedPlanner + GetConfigResult aliases + all 3 tiers slots (config-agnostic widening); token.effort ?? null threaded through computeReviewers/computePlanners/projectConfig; all-effortless output unchanged except the new key; xhigh+null tested for all three tools. Cherry-picked to main e3b6a37; integrated bun run check 1279/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T292","goals:G36"]
+- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
+
+### R355 — go-ahead
+
+- createdAt: 2026-06-09T00:57:23.473Z
+- updatedAt: 2026-06-09T00:57:23.473Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead after 1 criticism round (opus approve r1+r2; minimax r1 disapprove [self-contradictory — rationale said 'Approve', no acceptance failure] -> 2 optional coverage tests addressed r2; grok+codex abstained). T294 mirrors effort in the INLINED pi-extension resolver; emits pi effort via the '--model <provider>/<model>:<effort>' SHORTHAND (NO --thinking flag, confirmed vs the live pi CLI); claude path inert; reserved-':' both halves; lenient unsupported-effort policy documented; verified via the in-workspace local replica (extension not importable). Cherry-picked to main a4700d3+6e6e85c; integrated bun run check 1285/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T294","goals:G36"]
+- sessionLogs: ["docs/logs/20260609-005204-T294-worker-review.md"]

@@ -576,10 +576,10 @@ archives:
 - completion: Added getAgentModels to the web LedgerClient + McpLedgerClient (errors propagate per R341; minimal fakes deferred to T291); cherry-picked to main (integrated check 1271/0).
 - sessionLogs: ["docs/logs/20260609-002900-ad0959d0752198df4.md","docs/logs/20260609-002900-T289-review.md"]
 
-### T291 — planned
+### T291 — done
 
 - createdAt: 2026-06-08T23:43:21.202Z
-- updatedAt: 2026-06-08T23:43:40.614Z
+- updatedAt: 2026-06-09T00:52:31.852Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Implement getAgentModels in the test FakeClient returning a synthetic live overlay
@@ -588,6 +588,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T289"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: 60b16ca
+- completion: FakeClient.getAgentModels drives all 4 Q157 states + throw (default not-configured preserves existing tests; resolved differs from catalogue); cherry-picked to main (integrated 1279/0).
+- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
 
 ### T293 — planned
 
@@ -630,10 +633,10 @@ archives:
 
 ## M119
 
-### T292 — planned
+### T292 — done
 
 - createdAt: 2026-06-08T23:43:51.569Z
-- updatedAt: 2026-06-08T23:43:51.569Z
+- updatedAt: 2026-06-09T00:52:33.092Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Add optional effort to get_planners/get_reviewers/get_config wire shapes
@@ -642,11 +645,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T286"]
 - ledgerRefs: ["goals:G36"]
+- resultCommit: e3b6a37
+- completion: Optional effort surfaced on get_reviewers/get_planners/get_config wire shapes (config-agnostic widening); cherry-picked to main (integrated 1279/0).
+- sessionLogs: ["docs/logs/20260609-005204-T291-T292-workers-reviews.md"]
 
-### T294 — planned
+### T294 — done
 
 - createdAt: 2026-06-08T23:44:34.976Z
-- updatedAt: 2026-06-08T23:44:34.976Z
+- updatedAt: 2026-06-09T00:57:26.286Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: "Thread effort through the cq-subagent-dispatch inlined resolver; emit pi effort via the --model :<effort> shorthand"
@@ -655,6 +661,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T286"]
 - ledgerRefs: ["goals:G36"]
+- resultCommit: 6e6e85c
+- completion: "pi-extension inlined resolver threads effort; emits pi effort via the --model :<effort> shorthand (no --thinking; claude inert); verified via in-workspace replica. Cherry-picked to main (a4700d3 impl + 6e6e85c r2 tests; integrated 1285/0)."
+- sessionLogs: ["docs/logs/20260609-005204-T294-worker-review.md"]
 
 ## M121
 
