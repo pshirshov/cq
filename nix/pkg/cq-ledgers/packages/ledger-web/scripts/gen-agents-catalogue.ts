@@ -37,7 +37,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AGENT_ROLE_TIERS } from "@cq/config";
+import { AGENT_ROLE_TIERS, getRoleSidecar, DISPATCHED_ROLE_IDS } from "@cq/config";
 import {
   parseAgentMarkdown,
   deriveSubagentPrivilege,
@@ -150,6 +150,25 @@ function buildRole(spec: RoleSpec): AgentRole {
       : deriveCommandPrivilege(frontmatter.allowedTools);
   const exposedTools = formatExposedTools(frontmatter, spec.kind);
 
+  // Typed I/O schemas (T341, role-scope decision 1): a DISPATCHED-SUBAGENT role
+  // (non-null agentTierKey) MUST have a sidecar in the @cq/config typed catalog —
+  // its parent-validated input/output contract is sourced from there, NOT from a
+  // duplicate. An orchestrator-command role (agentTierKey null) carries NO such
+  // contract; its schema fields stay undefined. Hard-fail (the complete-or-nothing
+  // contract) if a dispatched role is missing its sidecar.
+  const dispatched = spec.agentTierKey !== null;
+  const sidecar = getRoleSidecar(spec.id);
+  if (dispatched && sidecar === undefined) {
+    throw new GenError(
+      `role "${spec.id}": dispatched-subagent (non-null agentTierKey) has no schema sidecar in @cq/config typed catalog (DISPATCHED_ROLE_SIDECARS)`,
+    );
+  }
+  if (!dispatched && sidecar !== undefined) {
+    throw new GenError(
+      `role "${spec.id}": orchestrator-command (null agentTierKey) must NOT carry a schema sidecar, but one is present in @cq/config`,
+    );
+  }
+
   return {
     id: spec.id,
     name: spec.name,
@@ -162,6 +181,9 @@ function buildRole(spec: RoleSpec): AgentRole {
     promptTemplate,
     privilege,
     exposedTools,
+    ...(sidecar !== undefined
+      ? { inputSchema: sidecar.inputSchema, outputSchema: sidecar.outputSchema }
+      : {}),
   };
 }
 
@@ -170,6 +192,20 @@ function buildRole(spec: RoleSpec): AgentRole {
 /** Serialize a JS value with a stable 2-space indent (JSON is deterministic). */
 function lit(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+/**
+ * Serialize a (possibly nested) value with a stable 2-space indent, then shift
+ * every line after the first right by `baseIndent` spaces so a multi-line schema
+ * object nests cleanly under its `key:` column. Deterministic: relies only on
+ * `JSON.stringify`'s stable key order (insertion order of the sidecar objects).
+ */
+function litIndented(value: unknown, baseIndent: number): string {
+  const pad = " ".repeat(baseIndent);
+  return JSON.stringify(value, null, 2)
+    .split("\n")
+    .map((line, i) => (i === 0 ? line : pad + line))
+    .join("\n");
 }
 
 /** Render the generated module source for the assembled roles. */
@@ -188,8 +224,15 @@ function emitModule(roles: readonly AgentRole[]): string {
         `    promptTemplate: ${lit(r.promptTemplate)},`,
         `    privilege: ${lit(r.privilege)},`,
         `    exposedTools: ${lit(r.exposedTools)},`,
-      ].join("\n");
-      return `  {\n${fields}\n  },`;
+      ];
+      // Typed I/O schemas are emitted ONLY for dispatched-subagent roles
+      // (role-scope decision 1); orchestrator-commands omit the keys entirely so
+      // the generated entry has no `inputSchema`/`outputSchema` at all.
+      if (r.inputSchema !== undefined && r.outputSchema !== undefined) {
+        fields.push(`    inputSchema: ${litIndented(r.inputSchema, 4)},`);
+        fields.push(`    outputSchema: ${litIndented(r.outputSchema, 4)},`);
+      }
+      return `  {\n${fields.join("\n")}\n  },`;
     })
     .join("\n");
 
@@ -241,8 +284,31 @@ function assertRosterMatchesShared(): void {
   }
 }
 
+/**
+ * Fail the codegen if the `@cq/config` typed-catalog STORE
+ * (`DISPATCHED_ROLE_SIDECARS`, surfaced as {@link DISPATCHED_ROLE_IDS}) has
+ * drifted from the dispatched-subagent subset of the roster (the roles with a
+ * non-null `agentTierKey`). The two MUST cover EXACTLY the same role ids in the
+ * same order, so every dispatched role has a typed input/output contract and no
+ * orchestrator-command does (role-scope decision 1).
+ */
+function assertSidecarsMatchDispatchedRoster(): void {
+  const dispatchedRoster = ROLES.filter((r) => r.agentTierKey !== null).map((r) => r.id);
+  const store = [...DISPATCHED_ROLE_IDS];
+  if (
+    dispatchedRoster.length !== store.length ||
+    dispatchedRoster.some((id, i) => id !== store[i])
+  ) {
+    throw new Error(
+      `gen-agents: dispatched-role roster drifted from @cq/config typed-catalog store — ` +
+        `roster=[${dispatchedRoster.join(", ")}] store=[${store.join(", ")}]`,
+    );
+  }
+}
+
 function main(): void {
   assertRosterMatchesShared();
+  assertSidecarsMatchDispatchedRoster();
 
   const roles: AgentRole[] = [];
   const errors: string[] = [];

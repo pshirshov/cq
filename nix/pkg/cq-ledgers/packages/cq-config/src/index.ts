@@ -56,3 +56,21 @@ export type {
   RoleSchemaSidecar,
 } from "./promptCatalog.js";
 export { planAdvanceSidecar, PLAN_ADVANCE_STATUS_TOKENS } from "./schemas/plan-advance.js";
+export { planReviewerSidecar, PLAN_REVIEW_VERDICTS } from "./schemas/plan-reviewer.js";
+export { implementWorkerSidecar, IMPLEMENT_WORKER_STATUSES } from "./schemas/implement-worker.js";
+export {
+  implementReviewerSidecar,
+  IMPLEMENT_REVIEW_VERDICTS,
+} from "./schemas/implement-reviewer.js";
+export {
+  implementConflictResolverSidecar,
+  CONFLICT_RESOLVER_STATUSES,
+} from "./schemas/implement-conflict-resolver.js";
+export { investigateExplorerSidecar } from "./schemas/investigate-explorer.js";
+export { investigateProberSidecar } from "./schemas/investigate-prober.js";
+export { EVIDENCE_LEANS } from "./schemas/investigate-evidence.js";
+export {
+  DISPATCHED_ROLE_SIDECARS,
+  DISPATCHED_ROLE_IDS,
+  getRoleSidecar,
+} from "./promptCatalogStore.js";

@@ -139,6 +139,29 @@ describe("AGENT_ROLES — Q148 role-set invariants (part a)", () => {
     }
   });
 
+  it("every dispatched-subagent role carries typed input + output schemas (T341)", () => {
+    // The 7 subagents are the dispatched-subagent roles (non-null agentTierKey);
+    // each must carry the typed schemas sourced from the @cq/config sidecars.
+    const subagentIds = EXPECTED_ROLE_IDS.slice(0, 7);
+    for (const id of subagentIds) {
+      const role = AGENT_ROLES.find((r) => r.id === id)!;
+      expect(role.inputSchema, `${id}: missing inputSchema`).toBeDefined();
+      expect(role.outputSchema, `${id}: missing outputSchema`).toBeDefined();
+      // Draft 2020-12, carried verbatim from the sidecar.
+      expect(role.inputSchema!.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
+      expect(role.outputSchema!.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
+    }
+  });
+
+  it("no orchestrator-command role carries a typed schema (T341)", () => {
+    const cmdIds = EXPECTED_ROLE_IDS.slice(7);
+    for (const id of cmdIds) {
+      const role = AGENT_ROLES.find((r) => r.id === id)!;
+      expect(role.inputSchema, `${id}: unexpected inputSchema`).toBeUndefined();
+      expect(role.outputSchema, `${id}: unexpected outputSchema`).toBeUndefined();
+    }
+  });
+
   it("the AgentRole type carries all required fields (compile-time + run-time)", () => {
     // A literal that must satisfy the full AgentRole shape — catches field
     // renames or type changes at compile time.

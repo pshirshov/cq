@@ -24,6 +24,8 @@
  * module, never from the `.gen` file directly.
  */
 
+import type { JSONSchema } from "@cq/config";
+
 /** Which side of the implement/plan/investigate flows a role plays. */
 export type AgentKind = "orchestrator" | "agent-subagent";
 
@@ -87,6 +89,19 @@ export interface AgentRole {
    * `allowed-tools`; `"none declared"` when the frontmatter key is absent.
    */
   exposedTools: string;
+  /**
+   * The parent-supplied INPUT contract as JSON Schema (T341, role-scope decision
+   * 1) — present IFF this role is a DISPATCHED-SUBAGENT (non-null `agentTierKey`
+   * in `AGENT_ROLE_TIERS`), sourced from the `@cq/config` typed catalog
+   * (`DISPATCHED_ROLE_SIDECARS`). Absent (`undefined`) for orchestrator-commands.
+   */
+  inputSchema?: JSONSchema;
+  /**
+   * The validated OUTPUT contract as JSON Schema (T341) — present IFF this role
+   * is a dispatched-subagent, sourced from the same `@cq/config` typed catalog.
+   * Absent for orchestrator-commands.
+   */
+  outputSchema?: JSONSchema;
 }
 
 /**
