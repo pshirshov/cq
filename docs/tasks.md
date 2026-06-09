@@ -624,10 +624,10 @@ archives:
 - completion: Finalized AgentModelCell resolved-branch token chips (+CSS pill); 5 labels verbatim, per-role testid, overlay-only. Cherry-picked to main (integrated 1285/0).
 - sessionLogs: ["docs/logs/20260609-005204-T295-worker-review.md"]
 
-### T297 — planned
+### T297 — done
 
 - createdAt: 2026-06-08T23:45:02.882Z
-- updatedAt: 2026-06-08T23:45:02.882Z
+- updatedAt: 2026-06-09T02:04:35.075Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: "Extend agentsTab.test.tsx: assert live overlay AND distinguished fallback labels"
@@ -636,6 +636,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T295"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: ec84c10
+- completion: agentsTab.test.tsx Q159 overlay assertions (all 5 states + overlay-precedence) + FakeClient fidelity aligned to computeAgentModels (no-live-token modelClass=tier); cherry-picked to main (integrated 1290/0). 2 criticism rounds (docstring + no-live-token fidelity).
+- sessionLogs: ["docs/logs/20260609-005204-T297-worker-review.md"]
 
 ## M119
 

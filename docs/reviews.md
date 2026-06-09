@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 359
+  item: 360
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -959,6 +959,18 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T295","goals:G34"]
 - sessionLogs: ["docs/logs/20260609-005204-T295-worker-review.md"]
+
+### R360 — go-ahead
+
+- createdAt: 2026-06-09T02:04:32.223Z
+- updatedAt: 2026-06-09T02:04:32.223Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: go-ahead after 2 criticism rounds (opus approve r3; minimax approve r3; grok+codex abstained). T297 adds the Q159 overlay-assertion bar to agentsTab.test.tsx (resolved live-value precedence w/ negative grok-build check; throw->default/not-configured; not-configured; no-live-token; orchestrator N/A) + aligned FakeClient to the real computeAgentModels. r2 fixed a stale docstring (opus); r3 fixed the no-live-token fake fidelity (modelClass=tier not null) + tightened the assertion to the full 'no live token for standard' (minimax). Test/fake-only. Cherry-picked to main ec84c10; integrated bun run check 1290/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T297","goals:G34"]
+- sessionLogs: ["docs/logs/20260609-005204-T297-worker-review.md"]
 
 ## M119
 
