@@ -937,3 +937,47 @@ describe("T264: D39 stop-discipline grep invariant — turn-vs-run + euphemism-b
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// D43 — prompt-hardening grep-invariants for T301-T304: each marker is
+// asserted against exactly ONE file (file-scoped, not a repo-wide grep).
+//
+// Cell 1 (T301): implement-worker.md — worktree-confinement Boundary.
+//   Marker: `MUST NOT run git against the main checkout`
+// Cell 2 (T302): plan/advance.md — commit-after-planning-lock checkpoint.
+//   Marker: `after the planning-lock`
+// Cell 3 (T303): implement/advance.md — commit-after-every-merge-back checkpoint.
+//   Marker: `after every task merge-back`
+// Cell 4 (T304): advance.md — chained-path clause (absent from implement/advance.md,
+//   confirming file-specificity).
+//   Marker: `it fires even when the implement sub-flow runs chained under`
+//
+// Path resolution: same pattern as T255/T264 above.
+//   cq-assets/commands/cq/  → path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq")
+//   cq-assets/agents/       → path.resolve(import.meta.dir, "../../../../cq-assets/agents")
+// ---------------------------------------------------------------------------
+
+describe("D43: T301-T304 prompt-hardening grep invariants — file-scoped", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+  const cqAgentsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/agents");
+
+  it("D43/T301: implement-worker.md contains worktree-confinement Boundary marker", async () => {
+    const text = await readFile(path.join(cqAgentsRoot, "implement-worker.md"), "utf8");
+    expect(text).toContain("MUST NOT run git against the main checkout");
+  });
+
+  it("D43/T302: plan/advance.md contains commit-after-planning-lock checkpoint marker", async () => {
+    const text = await readFile(path.join(cqCommandsRoot, "plan", "advance.md"), "utf8");
+    expect(text).toContain("after the planning-lock");
+  });
+
+  it("D43/T303: implement/advance.md contains commit-after-every-merge-back checkpoint marker", async () => {
+    const text = await readFile(path.join(cqCommandsRoot, "implement", "advance.md"), "utf8");
+    expect(text).toContain("after every task merge-back");
+  });
+
+  it("D43/T304: advance.md contains chained-path clause marker (file-specific, absent from implement/advance.md)", async () => {
+    const text = await readFile(path.join(cqCommandsRoot, "advance.md"), "utf8");
+    expect(text).toContain("it fires even when the implement sub-flow runs chained under");
+  });
+});
