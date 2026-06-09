@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 37
+  item: 39
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -184,6 +184,31 @@ archives:
 - blockingQuestions: ["Q166"]
 - handoffReasons: ["drained","answers-required"]
 - sessionLogs: ["docs/logs/20260609-005204-T299-worker-review.md","docs/logs/20260609-005204-T300-verify.md"]
+
+### HO38 — drained
+
+- createdAt: 2026-06-09T14:34:32.023Z
+- updatedAt: 2026-06-09T14:34:32.023Z
+- author: "opus-4.8[1m]"
+- session: 242ca46f-d593-40f1-9dc2-480c12cf887c
+- summary: |
+    DRAINED. Final predicate gate: P-investigate=FALSE (every defect terminal — D39/D43/D44/D45 resolved) / P-plan=FALSE (no goal in clarifying|planning; G37 building, G38+G39 planned) / P-implement=FALSE (no non-terminal task). open-Q-gate: only Q174 open, a FULFILLED traceability pointer (its subject G39 is planned + implemented + D45 resolved) that blocks no actionable item — not a BLOCKED-ON-QUESTIONS condition. Nothing actionable remains.
+    
+    This /cq:advance run folded in the user's answers (Q167-Q173) and drove G38 (4-item flow-hardening + UI goal) from clarifying through plan to landed+verified code, then auto-discovered+fixed a follow-up defect D45 end-to-end.
+    
+    CYCLE 1 — PLAN G38: multi-planner synthesis (opus+grok+minimax candidates) → reviewer panel (opus+codex+grok+minimax); 2 revise rounds (R372 12 substantive criticisms incl. the LOAD-BEARING gen-agents-catalogues-commands finding; R373 3 precision nits) → R374 go-ahead; K60 locked. IMPLEMENT G38: 11 tasks merged across 3 waves — 1a (T308 advance.md §7.3 explicit per-merge worktree teardown + T309 §1 start-of-pass orphan/locked sweep gated to terminal-task worktrees + T310 implement-worker.md alignment + T311 grep-invariant guard; gen.ts regenerated per the discovered freshness-guard; T322 abandoned as redundant), 1b (T312 @cq/ledger ~/.cache mirror via onMutation + shared cacheMirrorDir + T313 `ledger-mcp restore --from-cache` subcommand), 2 (T315 roleActions catalogue + T316 render Flows tab from ROLE_FLOWS via existing DiagramSvg, replacing the state diagrams + a latent multigraph React-key fix), 3 (T318 LIST-focus paging/Home-End + T319 CONTENT-focus Home/End, D44 RESOLVED). Each per-task review go-ahead (R375-R385, native opus implement-reviewer). Archived M127/M129/M130/M131.
+    
+    CYCLE 2 — D45 (filed by the T312 review, file-and-defer): INVESTIGATE → H32 confirmed (cacheMirror.mirrorMutation early-returns before mirroring the registry on the 'create' op) → seeded G39. PLAN G39 (multi-planner; R386 1 precision-revise → R387 go-ahead; K61 locked). IMPLEMENT G39: T323 (mirror registryPath on op==='create'||'archive' + reproduce-first test); D45 RESOLVED. Archived M133 + M128.
+    
+    VERIFY: bun run check 1333/0 (typecheck+lint+test) at every merge; T321 final gate green incl. nix build .#ledger-mcp/.#ledger-tui/.#ledger-web. The D43 worktree-confinement + per-merge/per-planning-lock commit discipline was dogfooded all run (workers reset only their own worktrees; ledger committed after each merge + planning-lock + archive) — no data loss.
+    
+    NET: G38 (all 4 items) + G39 implemented; D44 + D45 resolved. Full per-subagent traces under docs/logs/ (~50 files this run).
+    
+    NEXT (user, optional — NOT blockers; the flow is genuinely drained): (1) LIVE ACTIVATION (like D43/D37): the G38 cq-assets prompt edits (worktree-cleanup) + the @cq/ledger/ledger-mcp/ledger-web/ledger-tui code are merged on main, but the deployed ~/.claude + ~/.pi assets + the running ledger-mcp regenerate only on the next `home-manager switch` + MCP restart. (2) GOAL CLOSURE: goals never auto-close — G38, G39 (planned) + G37 (building) + the older planned goals await the user setting them `done` in the TUI/web; their coordination milestones (M126/M132/M122 etc.) archive on the next /cq:advance sweep once closed. (3) Q174 is a fulfilled traceability pointer (G39/D45 done) — closeable in the TUI/web.
+- flow: advance
+- ledgerRefs: ["goals:G38","goals:G39","defects:D44","defects:D45"]
+- sessionLogs: ["docs/logs/20260609-135544-a93c151fe66352f62.md","docs/logs/20260609-143128-a94eefebc04d0bceb.md","docs/logs/20260609-143128-a484b55f56e3c90d2.md","docs/logs/20260609-141937-addc5274986ba5f0c.md"]
+- tags: ["G38","G39","D44","D45","drained"]
 
 ## M122
 
