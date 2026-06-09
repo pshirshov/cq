@@ -88,6 +88,19 @@ For each target milestone, `list_milestone_items` and collect its `tasks`. Also
 read the `questions` ledger items linked `tasks:<id>` and the milestones' own
 `dependsOn`/`blockedBy`.
 
+**Start-of-pass worktree prune sweep (G38-1a-start-sweep).** <!-- G38-1a-start-sweep -->
+Before deriving the ready-set, prune orphaned and locked worktrees left by prior
+interrupted runs. Run `git worktree prune` (clears stale administrative entries).
+Then, for each worktree under the implement worktree root whose branch matches
+`implement/<taskId>` and whose task is already **terminal** (`done` or
+`abandoned`) in the ledger, run:
+```
+git worktree remove --force <wt> && git branch -D implement/<taskId>
+```
+**Scope: terminal tasks ONLY.** Worktrees for tasks still `blocked` or `wip`
+MUST survive intact — do NOT remove them. Those worktrees hold in-progress or
+paused work that §2 (dispatch) and §5 (questions/blocked) rely on for resumption.
+
 First, **resume bookkeeping (Q7)**: for any task currently `blocked` whose
 linked blocking `questions` are now all `answered` (non-empty `answer`), flip it
 back `update_item("tasks", <id>, status: "planned")` and fold the answer text
