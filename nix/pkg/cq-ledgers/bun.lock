@@ -22,6 +22,7 @@
         "cq": "./src/main.ts",
       },
       "dependencies": {
+        "@cq/config": "workspace:*",
         "@cq/ledger": "workspace:*",
       },
       "devDependencies": {

@@ -14,12 +14,12 @@
 # reviewers — List of ALIAS NAMES (keys from [aliases] below) to activate as reviewers.
 # Each alias is resolved through [aliases] to its reviewer token at runtime.
 # The reviewers will be invoked in plan-flow and implement-flow review steps.
-reviewers = ["codex", "grok", "opus"]
+reviewers = ["opus", "sonnet", "haiku"]
 
 # planners — List of ALIAS NAMES to activate as planners. Planners MIRROR
 # reviewers: same alias-name list shape, resolved through the SAME shared
 # [aliases] table below.
-planners = ["opus", "grok"]
+planners = ["opus", "sonnet", "haiku"]
 
 # [aliases] — Define reviewer instances as reviewer tokens.
 #
@@ -53,12 +53,18 @@ planners = ["opus", "grok"]
 #
 # Reference: D36 (pi provider routing), T286 (effort suffix)
 [aliases]
-  codex = "pi:grok-build/grok-build"
-  grok = "pi:grok-build/grok-build"
+  # Active Claude trio (listed in reviewers/planners above):
+  opus   = "claude:opus-4.8[1m]"   # most capable / frontier tier
+  sonnet = "claude:sonnet-4.6"     # balanced / standard tier
+  haiku  = "claude:haiku-4.5"      # fastest / cheapest (fast tier)
+
+  # Inactive pi aliases (defined here for reference; add to reviewers/planners
+  # above to activate — also uncomment the matching [tiers] entries below):
+  codex      = "pi:grok-build/grok-build"
+  grok       = "pi:grok-build/grok-build"
   grok-xhigh = "pi:grok-build/grok-build:xhigh"
-  opus = "claude:opus-4.8[1m]"
-  opus-high = "claude:opus-4.8[1m]:high"
-  minimax = "pi:ollama-cloud/minimax-m3"
+  opus-high  = "claude:opus-4.8[1m]:high"
+  minimax    = "pi:ollama-cloud/minimax-m3"
 
 # [tiers] — CLASSIFIER: maps each concrete (harness, provider, model) token to
 # its dispatch tier class.  THIS IS NOT A DISPATCH TABLE — it tells cq what
@@ -81,7 +87,12 @@ planners = ["opus", "grok"]
 #   standard — balanced (default tier for agents with no [agent_tiers] entry)
 #   frontier — most capable (e.g. Claude Opus or Grok)
 [tiers]
-  "claude:opus-4.8[1m]"           = "frontier"    # full token key
+  # Active Claude trio — classified by capability:
+  opus   = "frontier"   # alias key — resolves to claude:opus-4.8[1m]
+  sonnet = "standard"   # alias key — resolves to claude:sonnet-4.6
+  haiku  = "fast"       # alias key — resolves to claude:haiku-4.5
+
+  # Inactive pi entries (add alias names to reviewers/planners above to activate):
   "claude:opus-4.8[1m]:high"      = "frontier"    # full token key with effort suffix
   minimax                          = "fast"         # alias key (resolves to pi:ollama-cloud/minimax-m3)
   "pi:grok-build/grok-build"      = "standard"    # full token key
