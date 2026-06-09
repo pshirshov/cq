@@ -14,6 +14,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
+  AgentModelsResult,
   ArchiveContent,
   FetchedLedger,
   FtsHit,
@@ -198,6 +199,10 @@ export class McpLedgerClient implements LedgerClient {
 
   async readLog(path: string): Promise<ReadLogResult> {
     return await this.call<ReadLogResult>("read_log", { path });
+  }
+
+  async getAgentModels(): Promise<AgentModelsResult> {
+    return await this.call<AgentModelsResult>("get_agent_models", {});
   }
 
   async close(): Promise<void> {

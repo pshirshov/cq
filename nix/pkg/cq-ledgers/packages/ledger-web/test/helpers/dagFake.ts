@@ -7,6 +7,7 @@
  */
 
 import type {
+  AgentModelsResult,
   FetchedLedger,
   Item,
   LedgerClient,
@@ -134,6 +135,10 @@ export class DagFakeClient implements LedgerClient {
   }
   async readLog(): Promise<ReadLogResult> {
     throw new Error("not used in DAG tests");
+  }
+  async getAgentModels(): Promise<AgentModelsResult> {
+    // Minimal stub — not used in DAG tests.
+    return { configured: false, agents: [] };
   }
   async close(): Promise<void> {
     /* no-op */

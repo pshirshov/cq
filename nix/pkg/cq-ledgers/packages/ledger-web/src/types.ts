@@ -12,10 +12,13 @@ import type {
   LedgerSummary,
   ResolvedMilestone,
   LedgerSchema,
+  AgentModelsResult,
+  AgentModelEntry,
+  AgentModelStatus,
 } from "@cq/ledger";
 import type { ArchiveContent } from "@cq/ledger";
 
-export type { Item, FieldValue, FetchedLedger, FetchedMilestoneGroup, LedgerSummary, ResolvedMilestone, LedgerSchema, ArchiveContent };
+export type { Item, FieldValue, FetchedLedger, FetchedMilestoneGroup, LedgerSummary, ResolvedMilestone, LedgerSchema, ArchiveContent, AgentModelsResult, AgentModelEntry, AgentModelStatus };
 
 export interface FtsHit {
   ledgerId: string;
@@ -84,5 +87,7 @@ export interface LedgerClient {
   updateMilestone(milestoneId: string, patch: MilestonePatch): Promise<Item>;
   /** Read a log file under docs/logs/ via the read_log MCP tool. */
   readLog(path: string): Promise<ReadLogResult>;
+  /** Retrieve per-agent resolved model overlays via the get_agent_models MCP tool. */
+  getAgentModels(): Promise<AgentModelsResult>;
   close(): Promise<void>;
 }

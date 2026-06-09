@@ -15,6 +15,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import { FakeClient } from "./fakeClient";
 import type {
+  AgentModelsResult,
   ArchiveContent,
   FetchedLedger,
   FtsHit,
@@ -166,6 +167,9 @@ class ProgressFakeClient implements LedgerClient {
   }
   async readLog(path: string): Promise<ReadLogResult> {
     return this.base.readLog(path);
+  }
+  async getAgentModels(): Promise<AgentModelsResult> {
+    return this.base.getAgentModels();
   }
   async close(): Promise<void> {
     return this.base.close();

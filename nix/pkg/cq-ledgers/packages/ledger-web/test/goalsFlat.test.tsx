@@ -20,6 +20,7 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "../src/App";
 import type {
+  AgentModelsResult,
   ArchiveContent,
   FetchedLedger,
   FtsHit,
@@ -134,6 +135,10 @@ class GoalsClient implements LedgerClient {
   }
   async readLog(): Promise<ReadLogResult> {
     throw new Error("not used");
+  }
+  async getAgentModels(): Promise<AgentModelsResult> {
+    // Minimal stub — not used in goals-flat tests.
+    return { configured: false, agents: [] };
   }
   async close(): Promise<void> {
     /* no-op */

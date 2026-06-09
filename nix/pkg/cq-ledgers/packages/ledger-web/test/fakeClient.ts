@@ -4,6 +4,7 @@
  */
 
 import type {
+  AgentModelsResult,
   ArchiveContent,
   FetchedLedger,
   FieldValue,
@@ -371,6 +372,10 @@ export class FakeClient implements LedgerClient {
     if (patch.title !== undefined) it.fields["title"] = patch.title;
     if (patch.description !== undefined) it.fields["description"] = patch.description;
     return it;
+  }
+  async getAgentModels(): Promise<AgentModelsResult> {
+    // Minimal stub — full implementation deferred to T291.
+    return { configured: false, agents: [] };
   }
   async readLog(path: string): Promise<ReadLogResult> {
     const override = this.readLogResults.get(path);
