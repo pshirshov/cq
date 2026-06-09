@@ -44,6 +44,8 @@ export type {
 } from "./store/LedgerStore.js";
 export { FsLedgerStore } from "./store/FsLedgerStore.js";
 export type { FsLedgerStoreOpts, ResetSummary } from "./store/FsLedgerStore.js";
+export { cacheMirrorDir, mirrorMutation } from "./store/cacheMirror.js";
+export type { MirrorLayout } from "./store/cacheMirror.js";
 export { InMemoryLedgerStore } from "./store/InMemoryLedgerStore.js";
 export type { InMemoryLedgerStoreOpts } from "./store/InMemoryLedgerStore.js";
 export { validateSchema } from "./store/core.js";

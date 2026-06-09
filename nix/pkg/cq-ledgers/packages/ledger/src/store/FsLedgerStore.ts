@@ -99,6 +99,8 @@ import { MAX_READ_LOG_BYTES, type ReadLogResult } from "../mcp/readLog.js";
 import { LedgerSearchIndex } from "../search/LedgerSearchIndex.js";
 import { AsyncMutex } from "./mutex.js";
 import { Lockfile, type LockfileOpts } from "./lockfile.js";
+import { atomicWrite } from "./fsAtomic.js";
+import { mirrorMutation } from "./cacheMirror.js";
 import {
   CANONICAL_LEDGERS,
   DECISIONS_LEDGER,
@@ -175,6 +177,13 @@ export class FsLedgerStore implements LedgerStore {
   private readonly onMutation: OnMutation | null;
   private readonly onSchemaDivergence: "backup-reinit" | "abort";
   private readonly searchIndex = new LedgerSearchIndex();
+  /**
+   * In-flight cache-mirror writes. The mirror runs AFTER lockfile release (so
+   * it does not serialise other writers), but it is still part of the mutation
+   * the caller awaited; `dispose()` drains this set so an in-flight mirror is
+   * not abandoned (D-LED-06 drain contract).
+   */
+  private readonly pendingMirrors = new Set<Promise<void>>();
   private registry: LedgerRegistry = { ...EMPTY_REGISTRY, ledgers: [] };
   private initialised = false;
 
@@ -203,29 +212,74 @@ export class FsLedgerStore implements LedgerStore {
 
   /**
    * Invoke the user-supplied `onMutation` hook with the given
-   * (ledgerId, op) pair. Synchronous; never throws — if the user hook
-   * throws, the error is written to stderr so the write path completes
-   * uninterrupted. Called AFTER lockfile release.
+   * (ledgerId, op) pair, then schedule the `~/.cache` mirror. Synchronous;
+   * never throws. Called AFTER lockfile release (post-lock isolation).
+   *
+   * Three post-write side effects, each GUARDED so it can neither block nor
+   * unwind the write path:
+   *   1. FTS ACTIVE docs rebuild — synchronous, cheap.
+   *   2. The user `onMutation` hook — synchronous; a throw is logged to stderr.
+   *   3. The cache mirror — async I/O, fired-and-forgotten (not awaited) exactly
+   *      like the onMutation hook is non-blocking, and swallowed-on-failure, so
+   *      a mirror error never propagates and never delays the write path. The
+   *      in-flight mirror promise is registered with `pendingMirrors` so
+   *      `dispose()` can drain it (D-LED-06); a reader that needs the mirror
+   *      settled awaits `dispose()`.
+   *
+   * The ARCHIVED FTS docs (which only change on an `archive` op, and require
+   * file I/O) are refreshed by `archiveMilestone` itself — see its tail.
    */
   private fireMutation(
     ledgerId: string,
     op: "create" | "update" | "archive",
   ): void {
-    // Keep the derived FTS ACTIVE docs coherent with the local write FIRST
-    // (synchronous, cheap, guarded), then fire the user hook. The ARCHIVED
-    // docs (which only change on an `archive` op, and require file I/O) are
-    // refreshed by `archiveMilestone` itself, awaited so the index is coherent
-    // by the time that async mutation resolves — see its tail.
     this.rebuildLedgerIndexActive(ledgerId);
-    if (this.onMutation === null) return;
-    try {
-      this.onMutation(ledgerId, op);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(
-        `FsLedgerStore: onMutation hook threw for ${ledgerId} (${op}): ${msg}\n`,
-      );
+    if (this.onMutation !== null) {
+      try {
+        this.onMutation(ledgerId, op);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(
+          `FsLedgerStore: onMutation hook threw for ${ledgerId} (${op}): ${msg}\n`,
+        );
+      }
     }
+    this.scheduleMirror(ledgerId, op);
+  }
+
+  /**
+   * Schedule the cache mirror for the file(s) `op` touched (see cacheMirror.ts)
+   * as a fire-and-forget async task tracked in `pendingMirrors`. GUARDED: a
+   * mirror failure is swallowed and logged to stderr exactly like the
+   * onMutation hook — it MUST NOT unwind the write path. The store owns the
+   * docsDir/archiveDir/registryPath/rootDir, so it supplies the layout the
+   * mirror uses to map `ledgerId` -> source file(s).
+   */
+  private scheduleMirror(
+    ledgerId: string,
+    op: "create" | "update" | "archive",
+  ): void {
+    const work = (async (): Promise<void> => {
+      try {
+        await mirrorMutation(
+          {
+            rootDir: this.root,
+            docsDir: this.docsDir,
+            archiveDir: this.archiveDir,
+            registryPath: this.registryPath,
+          },
+          ledgerId,
+          op,
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(
+          `FsLedgerStore: cache mirror threw for ${ledgerId} (${op}): ${msg}\n`,
+        );
+      }
+    })();
+    this.pendingMirrors.add(work);
+    void work.finally(() => this.pendingMirrors.delete(work));
   }
 
   /**
@@ -466,6 +520,12 @@ export class FsLedgerStore implements LedgerStore {
       m.run(async () => undefined),
     );
     await Promise.all(drains);
+    // Drain in-flight cache mirrors too. The mirror is a fire-and-forget tail
+    // of fireMutation, scheduled SYNCHRONOUSLY (registered in pendingMirrors)
+    // after lockfile release — before the mutation method resolves and before
+    // this drain runs. Awaiting it prevents an in-flight mirror from outliving
+    // dispose() (extends the D-LED-06 drain contract to the mirror).
+    await Promise.all(Array.from(this.pendingMirrors));
     this.ledgers.clear();
     this.mutexes.clear();
     this.initialised = false;
@@ -1401,19 +1461,6 @@ export class FsLedgerStore implements LedgerStore {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-async function atomicWrite(filePath: string, text: string): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const fh = await fs.open(tmp, "w");
-  try {
-    await fh.writeFile(text, "utf8");
-    await fh.sync();
-  } finally {
-    await fh.close();
-  }
-  await fs.rename(tmp, filePath);
-}
 
 function freshLedger(name: string, schema: LedgerSchema): Ledger {
   return {
