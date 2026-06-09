@@ -69,6 +69,10 @@ The orchestrator passes you, in the prompt:
     `status: "fail"` with the reason in `blockedReason` (per the Output contract)
     RATHER THAN improvising cross-checkout git. You commit on your own worktree
     branch and report the `resultCommit` SHA; the orchestrator merges by that SHA.
+  - *Worktree lifetime.* The orchestrator removes your worktree (`git worktree
+    remove --force` + `git worktree prune`) after the per-task done write /
+    merge-back. You need not preserve it and must not improvise your own
+    cross-checkout cleanup. <!-- G38-1a-worker-ephemeral -->
 - **Scope = this task only.** Don't fix unrelated code or touch other tasks'
   files. Surgical changes; match surrounding style (see CLAUDE.md).
 
