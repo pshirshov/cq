@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 348
+  item: 350
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -848,6 +848,18 @@ archives:
 - ledgerRefs: ["tasks:T285","goals:G34"]
 - sessionLogs: ["docs/logs/20260608-230534-ace7c3cf65017fd97.md","docs/logs/20260608-232207-adfabb9f40e11648d.md","docs/logs/20260608-232207-T285-opus-review.md","docs/logs/20260608-232207-pi-minimax-T285-review.md"]
 
+### R349 — go-ahead
+
+- createdAt: 2026-06-09T00:15:41.363Z
+- updatedAt: 2026-06-09T00:15:41.363Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: go-ahead (opus + minimax both approve; grok+codex abstained — no key). T287 registers the get_agent_models MCP tool in both createLedgerMcpTools + registerLedgerStdioTools (mirroring get_config; ConfigNotImplementedError without a capability), exposed over stdio+HTTP via buildServer, tool-count bumped 21->22 w/ drift tests, 19-roster + not-implemented server tests. Cherry-picked to main d750167; integrated bun run check 1262/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T287","goals:G34"]
+- sessionLogs: ["docs/logs/20260609-001520-T287-review.md"]
+
 ## M117
 
 ### R346 — go-ahead
@@ -873,3 +885,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T286","goals:G36"]
 - sessionLogs: ["docs/logs/20260608-230534-ab4baeed6d61bcb18.md","docs/logs/20260608-232207-ac75086100dd23950.md","docs/logs/20260608-232207-T286-opus-review.md","docs/logs/20260608-232207-pi-minimax-T286-review.md"]
+
+### R350 — go-ahead
+
+- createdAt: 2026-06-09T00:15:45.051Z
+- updatedAt: 2026-06-09T00:15:45.051Z
+- author: "opus-4.8[1m]"
+- session: ae90ac43-977e-46cc-89a7-1814996d3f61
+- summary: "go-ahead (opus approve; minimax abstained [no verdict JSON]; grok+codex abstained — no key). T288 formatReviewerToken re-appends ':<effort>' on both claude + pi branches (parse∘format identity Q160), byte-identical when effort null; 6/6 round-trip tests; reviewerTokensEqual untouched (T290 boundary); formatReviewerToken exported. Cherry-picked to main 29ed08e; integrated bun run check 1262/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T288","goals:G36"]
+- sessionLogs: ["docs/logs/20260609-001520-T288-review.md"]

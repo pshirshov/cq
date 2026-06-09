@@ -477,10 +477,10 @@ archives:
 - completion: Real computeAgentModels over the shared 19-role roster (AGENT_ROLE_TIERS) w/ 4-state resolution + deriveModelMappings parity + anti-drift codegen guard; merged to main (integrated check 1253/0).
 - sessionLogs: ["docs/logs/20260608-230534-ace7c3cf65017fd97.md","docs/logs/20260608-232207-adfabb9f40e11648d.md","docs/logs/20260608-232207-T285-opus-review.md","docs/logs/20260608-232207-pi-minimax-T285-review.md"]
 
-### T287 — wip
+### T287 — done
 
 - createdAt: 2026-06-08T23:42:41.984Z
-- updatedAt: 2026-06-08T23:47:36.228Z
+- updatedAt: 2026-06-09T00:15:53.286Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Register the get_agent_models MCP tool wired to computeAgentModels
@@ -489,6 +489,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T285"]
 - ledgerRefs: ["goals:G34"]
+- resultCommit: d750167
+- completion: Registered the get_agent_models MCP tool (both SDK + stdio paths, HTTP-exposed via buildServer, count 21->22); cherry-picked to main (integrated check 1262/0).
+- sessionLogs: ["docs/logs/20260608-230534-ae3eb1e269eb0f4f8.md","docs/logs/20260609-001520-T287-review.md"]
 
 ## M117
 
@@ -523,10 +526,10 @@ archives:
 - completion: "parseReviewerToken parses an optional trailing :<effort> (last-colon + isEffort gate; ':' reserved on both model halves R342; fail-fast); merged to main (integrated check 1253/0)."
 - sessionLogs: ["docs/logs/20260608-230534-ab4baeed6d61bcb18.md","docs/logs/20260608-232207-ac75086100dd23950.md","docs/logs/20260608-232207-T286-opus-review.md","docs/logs/20260608-232207-pi-minimax-T286-review.md"]
 
-### T288 — wip
+### T288 — done
 
 - createdAt: 2026-06-08T23:42:51.603Z
-- updatedAt: 2026-06-08T23:47:37.409Z
+- updatedAt: 2026-06-09T00:15:55.189Z
 - author: "opus-4.8[1m]"
 - session: ae90ac43-977e-46cc-89a7-1814996d3f61
 - headline: Round-trip effort in formatReviewerToken
@@ -535,6 +538,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T286"]
 - ledgerRefs: ["goals:G36"]
+- resultCommit: 29ed08e
+- completion: "formatReviewerToken round-trips the optional :<effort> suffix on both harness branches; cherry-picked to main (integrated check 1262/0)."
+- sessionLogs: ["docs/logs/20260608-230534-af11cee7394e100ce.md","docs/logs/20260609-001520-T288-review.md"]
 
 ### T290 — planned
 
