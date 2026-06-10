@@ -40,6 +40,18 @@ export interface RawWebui {
   readonly port: unknown;
 }
 
+/**
+ * The raw `[ledger]` table as produced by the parser: all cells are left as
+ * smol-toml emitted them (unknown JS values) for the config layer to
+ * type-check at the boundary (`parseConfig` -> `CqConfigError`).
+ * Absent cells are `undefined`.
+ */
+export interface RawLedger {
+  readonly backend: unknown;
+  readonly branch: unknown;
+  readonly remote: unknown;
+}
+
 /** The shape a cq.toml document parses into before schema validation. */
 export interface RawToml {
   /** The `[aliases]` table: alias name -> raw token string. */
@@ -58,6 +70,8 @@ export interface RawToml {
   readonly tiers: Record<string, string> | null;
   /** The `[agent_tiers]` table: agent name -> tier name, or null if absent. */
   readonly agentTiers: Record<string, string> | null;
+  /** The `[ledger]` table, or null if absent. */
+  readonly ledger: RawLedger | null;
 }
 
 /** Thrown when cq.toml is not valid TOML, or violates the cq.toml schema. */
@@ -76,6 +90,7 @@ const ALLOWED_TOP_LEVEL = new Set([
   "webui",
   "tiers",
   "agent_tiers",
+  "ledger",
 ]);
 
 /** Narrow an unknown value to a record (TOML table). */
@@ -148,6 +163,24 @@ function parseWebui(value: unknown): RawWebui {
 }
 
 /**
+ * Structurally validate the `[ledger]` table: it must be a table whose only
+ * keys are `backend`, `branch`, and `remote`. The values are passed through
+ * untouched — `parseConfig` type-checks and validates them and raises a
+ * `CqConfigError` at the boundary.
+ */
+function parseLedgerRaw(value: unknown): RawLedger {
+  if (!isTable(value)) {
+    throw new TomlSyntaxError("[ledger] must be a table");
+  }
+  for (const key of Object.keys(value)) {
+    if (key !== "backend" && key !== "branch" && key !== "remote") {
+      throw new TomlSyntaxError(`unexpected key "${key}" in [ledger]`);
+    }
+  }
+  return { backend: value.backend, branch: value.branch, remote: value.remote };
+}
+
+/**
  * Parse a cq.toml document into its raw shape, or throw a precise
  * `TomlSyntaxError` on malformed input or a schema violation.
  */
@@ -180,6 +213,7 @@ export function parseToml(source: string): RawToml {
     "agent_tiers" in doc
       ? parseStringTable("agent_tiers", doc.agent_tiers)
       : null;
+  const ledger = "ledger" in doc ? parseLedgerRaw(doc.ledger) : null;
 
-  return { aliases, reviewers, planners, webui, tiers, agentTiers };
+  return { aliases, reviewers, planners, webui, tiers, agentTiers, ledger };
 }

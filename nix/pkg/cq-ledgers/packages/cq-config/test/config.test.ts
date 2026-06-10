@@ -1358,3 +1358,111 @@ opus   = "claude:opus-4.8[1m]"
     expect(config.agentTiers).toBeNull();
   });
 });
+
+// ── T349: [ledger] backend config key (git-object | fs, default fs) ──────────
+
+describe("parseConfig with [ledger] (T349)", () => {
+  it("defaults ledger to null when [ledger] is absent", () => {
+    const config = parseConfig(VALID_TOML);
+    expect(config.ledger).toBeNull();
+  });
+
+  it("[ledger] backend='git-object' resolves to git-object with default branch/remote", () => {
+    const config = parseConfig(`
+[ledger]
+backend = "git-object"
+`);
+    expect(config.ledger).not.toBeNull();
+    expect(config.ledger!.backend).toBe("git-object");
+    expect(config.ledger!.branch).toBe("cq-ledger");
+    expect(config.ledger!.remote).toBe("origin");
+  });
+
+  it("[ledger] backend='fs' resolves to fs with default branch/remote", () => {
+    const config = parseConfig(`
+[ledger]
+backend = "fs"
+`);
+    expect(config.ledger).not.toBeNull();
+    expect(config.ledger!.backend).toBe("fs");
+    expect(config.ledger!.branch).toBe("cq-ledger");
+    expect(config.ledger!.remote).toBe("origin");
+  });
+
+  it("[ledger] backend='git-object' with explicit branch/remote applies overrides", () => {
+    const config = parseConfig(`
+[ledger]
+backend = "git-object"
+branch  = "my-branch"
+remote  = "upstream"
+`);
+    expect(config.ledger!.backend).toBe("git-object");
+    expect(config.ledger!.branch).toBe("my-branch");
+    expect(config.ledger!.remote).toBe("upstream");
+  });
+
+  it("omitting [ledger] entirely means backend defaults to fs (null ledger)", () => {
+    // Absence of [ledger] => ledger is null; callers treat null as backend='fs'.
+    const config = parseConfig(VALID_TOML);
+    expect(config.ledger).toBeNull();
+  });
+
+  it("throws CqConfigError on an unknown backend value", () => {
+    expect(() =>
+      parseConfig(`
+[ledger]
+backend = "rocksdb"
+`),
+    ).toThrow(CqConfigError);
+    expect(() =>
+      parseConfig(`
+[ledger]
+backend = "rocksdb"
+`),
+    ).toThrow(/backend "rocksdb" is not a valid backend/);
+  });
+
+  it("throws CqConfigError on a non-string backend", () => {
+    expect(() =>
+      parseConfig(`
+[ledger]
+backend = 42
+`),
+    ).toThrow(CqConfigError);
+    expect(() =>
+      parseConfig(`
+[ledger]
+backend = 42
+`),
+    ).toThrow(/\[ledger\] backend must be a string/);
+  });
+
+  it("throws TomlSyntaxError on an unknown key inside [ledger]", () => {
+    expect(() =>
+      parseConfig(`
+[ledger]
+backend = "fs"
+bogus = "x"
+`),
+    ).toThrow(/unexpected key "bogus" in \[ledger\]/);
+  });
+
+  it("a commented-out [ledger] block is inert — ledger resolves to null (backend 'fs')", () => {
+    // Verifies that TOML comments strip the [ledger] block, leaving ledger=null.
+    // CQ_TOML_TEMPLATE carries this commented block; cq-cli/test/cqTomlTemplate.test.ts
+    // tests the template end-to-end. This test confirms the parse behaviour in isolation.
+    const tomlWithCommentedLedger = `
+reviewers = ["opus"]
+
+[aliases]
+opus = "claude:opus-4.8[1m]"
+
+# [ledger]
+#   backend = "git-object"
+#   branch  = "cq-ledger"
+#   remote  = "origin"
+`;
+    const config = parseConfig(tomlWithCommentedLedger);
+    expect(config.ledger).toBeNull();
+  });
+});

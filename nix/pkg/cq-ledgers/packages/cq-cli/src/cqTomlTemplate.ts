@@ -1,5 +1,5 @@
 /**
- * CQ_TOML_TEMPLATE — a fully-commented cq.toml starter template (T331).
+ * CQ_TOML_TEMPLATE — a fully-commented cq.toml starter template (T331, T349).
  *
  * This is a hand-authored TOML literal (cq-config has only a parser, no
  * serialiser) that, once re-parsed by @cq/config `parseConfig`, is
@@ -16,7 +16,13 @@
  *   pi:<provider>/<model>[:<effort>]  — e.g. pi:grok-build/grok-build
  * Bare pi tokens (no provider qualifier) are CONFIG ERRORs.
  *
- * Reference: Q184 (active set), D36 (pi provider routing), T286 (effort suffix).
+ * The `[ledger]` block is present but COMMENTED OUT (T349): absence of
+ * [ledger] OR of cq.toml entirely defaults to backend='fs' (FsLedgerStore).
+ * Uncomment and set backend='git-object' to opt in to the experimental
+ * git-object backend (Q189).
+ *
+ * Reference: Q184 (active set), D36 (pi provider routing), T286 (effort suffix),
+ *            T349 (ledger backend config), Q189 (git-object opt-in).
  */
 
 export const CQ_TOML_TEMPLATE: string = `\
@@ -115,4 +121,24 @@ planners = ["opus", "sonnet", "haiku"]
   implement-worker        = "standard"
   implement-reviewer      = "frontier"
   implement-conflict-resolver = "standard"
+
+# [ledger] — Ledger storage backend configuration (T349).
+# Absence of this block (or of cq.toml entirely) defaults to backend="fs"
+# (the standard filesystem-backed FsLedgerStore).  The "git-object" backend
+# is opt-in experimental (Q189): it stores ledger data in git object storage
+# instead of plain files.
+#
+# Keys:
+#   backend — storage backend: "fs" (default) | "git-object"
+#   branch  — git branch for the git-object backend (default: "cq-ledger")
+#   remote  — git remote for the git-object backend (default: "origin")
+#
+# To activate the git-object backend, uncomment the block below and set
+# backend = "git-object".  The branch/remote keys are optional; the shown
+# values are the defaults.
+#
+# [ledger]
+#   backend = "git-object"   # "fs" (default) | "git-object" (experimental)
+#   branch  = "cq-ledger"    # git branch to store ledger objects on
+#   remote  = "origin"       # git remote to push/fetch ledger objects from
 `;

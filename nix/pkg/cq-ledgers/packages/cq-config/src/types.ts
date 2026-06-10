@@ -179,8 +179,37 @@ export interface TiersConfig {
   readonly entries: ReadonlyArray<TierEntry>;
 }
 
+/** The two supported ledger storage backends (T349). */
+export const LEDGER_BACKENDS = ["fs", "git-object"] as const;
+
+/** A ledger backend identifier. */
+export type LedgerBackend = (typeof LEDGER_BACKENDS)[number];
+
+/** Type guard: is `value` a known ledger backend? */
+export function isLedgerBackend(value: string): value is LedgerBackend {
+  return (LEDGER_BACKENDS as readonly string[]).includes(value);
+}
+
 /**
- * The parsed cq.toml configuration (T170, T223).
+ * The `[ledger]` table: storage backend configuration (T349).
+ *
+ * - `backend`: the storage backend to use; 'fs' is the default (FsLedgerStore),
+ *   'git-object' is opt-in experimental (Q189).
+ * - `branch`: the git branch for the git-object backend (default 'cq-ledger').
+ * - `remote`: the git remote for the git-object backend (default 'origin').
+ *
+ * `branch` and `remote` are consumed by the git-object backend (W5/T355);
+ * they are parsed and stored for any backend, but only meaningful for
+ * 'git-object'.
+ */
+export interface LedgerConfig {
+  readonly backend: LedgerBackend;
+  readonly branch: string;
+  readonly remote: string;
+}
+
+/**
+ * The parsed cq.toml configuration (T170, T223, T349).
  *
  * - `aliases`: the `[aliases]` table, each value parsed into a ReviewerToken.
  * - `reviewers`: the top-level `reviewers = [...]` list of ALIAS names
@@ -195,6 +224,8 @@ export interface TiersConfig {
  * - `agentTiers`: the `[agent_tiers]` table mapping agent-name -> tier name,
  *   or null if `[agent_tiers]` is absent. An unlisted agent falls back to
  *   `DEFAULT_TIER`.
+ * - `ledger`: the `[ledger]` table (backend + branch + remote), or null if
+ *   absent. When null, `backend` defaults to 'fs'.
  */
 export interface CqConfig {
   readonly aliases: Record<string, ReviewerToken>;
@@ -205,4 +236,6 @@ export interface CqConfig {
   readonly tiers: TiersConfig | null;
   /** The `[agent_tiers]` table (agent-name -> tier name), or null if absent. */
   readonly agentTiers: Record<string, Tier> | null;
+  /** The `[ledger]` table (backend + branch + remote), or null if absent. */
+  readonly ledger: LedgerConfig | null;
 }

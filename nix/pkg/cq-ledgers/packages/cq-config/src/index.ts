@@ -17,6 +17,8 @@ export type {
   PiEffort,
   ClaudeEffort,
   Effort,
+  LedgerBackend,
+  LedgerConfig,
 } from "./types.js";
 export {
   HARNESSES,
@@ -27,6 +29,8 @@ export {
   PI_EFFORTS,
   CLAUDE_EFFORTS,
   isEffort,
+  LEDGER_BACKENDS,
+  isLedgerBackend,
 } from "./types.js";
 export {
   CQ_CONFIG_FILENAME,
@@ -43,7 +47,7 @@ export {
   resolveAgentModel,
   loadConfig,
 } from "./config.js";
-export type { RawToml, RawWebui } from "./toml.js";
+export type { RawToml, RawWebui, RawLedger } from "./toml.js";
 export { parseToml } from "./toml.js";
 export type { AgentRoleTier } from "./agentRoster.js";
 export { AGENT_ROLE_TIERS } from "./agentRoster.js";

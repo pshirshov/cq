@@ -10,6 +10,7 @@
 #   planners  = [...] — top-level array of alias names to activate as planners
 #   [tiers]          — CLASSIFIER: maps each <harness>:<model> token (or alias) -> tier class
 #   [agent_tiers]    — maps agent-name -> tier name (default: "standard")
+#   [ledger]         — ledger storage backend (backend, branch, remote; default: backend="fs")
 
 # reviewers — List of ALIAS NAMES (keys from [aliases] below) to activate as reviewers.
 # Each alias is resolved through [aliases] to its reviewer token at runtime.
@@ -111,3 +112,23 @@ planners = ["opus", "sonnet", "haiku"]
   implement-worker        = "standard"
   implement-reviewer      = "frontier"
   implement-conflict-resolver = "standard"
+
+# [ledger] — Ledger storage backend configuration (T349).
+# Absence of this block (or of cq.toml entirely) defaults to backend="fs"
+# (the standard filesystem-backed FsLedgerStore).  The "git-object" backend
+# is opt-in experimental (Q189): it stores ledger data in git object storage
+# instead of plain files.
+#
+# Keys:
+#   backend — storage backend: "fs" (default) | "git-object"
+#   branch  — git branch for the git-object backend (default: "cq-ledger")
+#   remote  — git remote for the git-object backend (default: "origin")
+#
+# To activate the git-object backend, uncomment the block below and set
+# backend = "git-object".  The branch/remote keys are optional; the shown
+# values are the defaults.
+#
+# [ledger]
+#   backend = "git-object"   # "fs" (default) | "git-object" (experimental)
+#   branch  = "cq-ledger"    # git branch to store ledger objects on
+#   remote  = "origin"       # git remote to push/fetch ledger objects from

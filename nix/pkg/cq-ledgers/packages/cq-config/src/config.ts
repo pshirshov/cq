@@ -25,11 +25,13 @@ import {
   isHarness,
   isEffort,
   isTier,
+  isLedgerBackend,
   DEFAULT_TIER,
   PI_EFFORTS,
   CLAUDE_EFFORTS,
   type CqConfig,
   type Effort,
+  type LedgerConfig,
   type ReviewerToken,
   type Tier,
   type TierEntry,
@@ -178,6 +180,53 @@ function legalEfforts(harness: ReviewerToken["harness"]): string {
   return (harness === "pi" ? PI_EFFORTS : CLAUDE_EFFORTS).join(" | ");
 }
 
+/** The default git branch for the git-object ledger backend. */
+const DEFAULT_LEDGER_BRANCH = "cq-ledger";
+
+/** The default git remote for the git-object ledger backend. */
+const DEFAULT_LEDGER_REMOTE = "origin";
+
+/**
+ * Type-check the raw `[ledger]` table at the boundary.
+ *
+ * `backend` (if present) must be a string equal to 'fs' or 'git-object';
+ * any other value is rejected as a `CqConfigError`. `branch` and `remote`
+ * (if present) must be non-empty strings. Absent `backend` defaults to 'fs';
+ * absent `branch` defaults to 'cq-ledger'; absent `remote` defaults to 'origin'.
+ */
+function parseLedger(raw: import("./toml.js").RawLedger): LedgerConfig {
+  let backend: LedgerConfig["backend"] = "fs";
+  if (raw.backend !== undefined) {
+    if (typeof raw.backend !== "string") {
+      throw new CqConfigError("[ledger] backend must be a string");
+    }
+    if (!isLedgerBackend(raw.backend)) {
+      throw new CqConfigError(
+        `[ledger] backend "${raw.backend}" is not a valid backend (expected fs or git-object)`,
+      );
+    }
+    backend = raw.backend;
+  }
+
+  let branch = DEFAULT_LEDGER_BRANCH;
+  if (raw.branch !== undefined) {
+    if (typeof raw.branch !== "string") {
+      throw new CqConfigError("[ledger] branch must be a string");
+    }
+    branch = raw.branch;
+  }
+
+  let remote = DEFAULT_LEDGER_REMOTE;
+  if (raw.remote !== undefined) {
+    if (typeof raw.remote !== "string") {
+      throw new CqConfigError("[ledger] remote must be a string");
+    }
+    remote = raw.remote;
+  }
+
+  return { backend, branch, remote };
+}
+
 /**
  * Parse a cq.toml document string into a typed CqConfig.
  *
@@ -198,7 +247,8 @@ export function parseConfig(source: string): CqConfig {
   const tiers = raw.tiers === null ? null : parseTiers(raw.tiers, aliases);
   const agentTiers =
     raw.agentTiers === null ? null : parseAgentTiers(raw.agentTiers);
-  return { aliases, reviewers, planners, webui, tiers, agentTiers };
+  const ledger = raw.ledger === null ? null : parseLedger(raw.ledger);
+  return { aliases, reviewers, planners, webui, tiers, agentTiers, ledger };
 }
 
 /**
