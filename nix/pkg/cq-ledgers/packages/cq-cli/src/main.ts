@@ -35,6 +35,7 @@ import {
 } from "./confirm.js";
 import { CQ_TOML_TEMPLATE } from "./cqTomlTemplate.js";
 import { runMoveLedger, type MoveDirection } from "./moveLedger.js";
+import { runAdvanceGate } from "./advanceGate.js";
 
 /**
  * The `cq.toml` config filename, resolved relative to the ledger root. Kept as
@@ -49,7 +50,7 @@ export { type ConfirmIo, type ConfirmOutcome, defaultConfirmIo, confirmDestructi
 export const EXIT_USAGE = 2;
 
 /** The subcommands the dispatcher routes to. */
-export const SUBCOMMANDS = ["init", "reset", "erase", "move-ledger"] as const;
+export const SUBCOMMANDS = ["init", "reset", "erase", "move-ledger", "advance-gate"] as const;
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
 function isSubcommand(s: string): s is Subcommand {
@@ -71,6 +72,12 @@ export interface SubcommandArgs {
    * `move-ledger` handler with a usage error.
    */
   to: MoveDirection | null;
+  /**
+   * `--session <id>`: the `advance-gate` session id whose advance marker is
+   * consulted. `null` when the flag is absent (the handler then falls back to
+   * `$CLAUDE_CODE_SESSION_ID`); other subcommands ignore it.
+   */
+  session: string | null;
 }
 
 export const USAGE = [
@@ -90,6 +97,9 @@ export const USAGE = [
   "                                                  refuses a non-empty target without --force.",
   "                                                  inspect the orphan ref as a checkout via:",
   "                                                    git worktree add <dir> cq-ledger",
+  "  advance-gate [--cwd <path>] [--session <id>]    emit the neutral /cq:advance stop-gate verdict",
+  "                                                  JSON (block + reason + predicates) to stdout;",
+  "                                                  exit 0 = allow, non-zero = block.",
   "",
   "ledger root: --cwd > $LEDGER_ROOT > current working directory",
 ].join("\n");
@@ -117,6 +127,7 @@ export function parseSubcommandArgs(argv: readonly string[]): SubcommandArgs {
   let yes = false;
   let force = false;
   let to: MoveDirection | null = null;
+  let session: string | null = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--yes" || a === "-y") {
@@ -141,9 +152,18 @@ export function parseSubcommandArgs(argv: readonly string[]): SubcommandArgs {
       to = parseMoveDirection(v);
     } else if (a !== undefined && a.startsWith("--to=")) {
       to = parseMoveDirection(a.slice("--to=".length));
+    } else if (a === "--session") {
+      i += 1;
+      const v = argv[i];
+      if (v === undefined) {
+        throw new Error("cq: --session requires a value");
+      }
+      session = v;
+    } else if (a !== undefined && a.startsWith("--session=")) {
+      session = a.slice("--session=".length);
     }
   }
-  return { cwd: resolveRoot(cwd), yes, force, to };
+  return { cwd: resolveRoot(cwd), yes, force, to, session };
 }
 
 /** Parse a `--to` value into a {@link MoveDirection}; fail fast on anything else. */
@@ -346,6 +366,23 @@ export async function runMoveLedgerCmd(
   );
 }
 
+/**
+ * `cq advance-gate` (T362): a NATIVE subcommand emitting the harness-agnostic
+ * `/cq:advance` stop-gate verdict JSON to stdout, with exit 0 = allow /
+ * non-zero = block. The verdict derivation lives in ./advanceGate.ts; this thin
+ * wrapper bridges {@link SubcommandArgs} to its {@link AdvanceGateArgs} and
+ * threads the dispatcher IO (out/err).
+ */
+export async function runAdvanceGateCmd(
+  args: SubcommandArgs,
+  io: DispatchIo,
+): Promise<DispatchOutcome> {
+  return runAdvanceGate(
+    { cwd: args.cwd, session: args.session },
+    { out: io.out, err: io.err },
+  );
+}
+
 /** A store exposing the FS-specific backup→reinit `reset()` (FsLedgerStore). */
 interface ResettableStore extends LedgerStore {
   reset(): Promise<ResetSummary>;
@@ -371,6 +408,7 @@ const HANDLERS: Record<Subcommand, (args: SubcommandArgs, io: DispatchIo) => Pro
   reset: runReset,
   erase: runErase,
   "move-ledger": runMoveLedgerCmd,
+  "advance-gate": runAdvanceGateCmd,
 };
 
 /**

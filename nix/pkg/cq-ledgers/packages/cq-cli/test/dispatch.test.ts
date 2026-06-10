@@ -101,12 +101,14 @@ describe("parseSubcommandArgs", () => {
     const prev = process.env["LEDGER_ROOT"];
     delete process.env["LEDGER_ROOT"];
     try {
-      expect(parseSubcommandArgs(["--cwd=/a", "--yes"])).toEqual({ cwd: "/a", yes: true, force: false, to: null });
-      expect(parseSubcommandArgs(["-y", "--cwd", "/b"])).toEqual({ cwd: "/b", yes: true, force: false, to: null });
-      expect(parseSubcommandArgs(["--force"])).toEqual({ cwd: process.cwd(), yes: false, force: true, to: null });
-      expect(parseSubcommandArgs([])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: null });
-      expect(parseSubcommandArgs(["--to", "git"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: "git" });
-      expect(parseSubcommandArgs(["--to=local"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: "local" });
+      expect(parseSubcommandArgs(["--cwd=/a", "--yes"])).toEqual({ cwd: "/a", yes: true, force: false, to: null, session: null });
+      expect(parseSubcommandArgs(["-y", "--cwd", "/b"])).toEqual({ cwd: "/b", yes: true, force: false, to: null, session: null });
+      expect(parseSubcommandArgs(["--force"])).toEqual({ cwd: process.cwd(), yes: false, force: true, to: null, session: null });
+      expect(parseSubcommandArgs([])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: null, session: null });
+      expect(parseSubcommandArgs(["--to", "git"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: "git", session: null });
+      expect(parseSubcommandArgs(["--to=local"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: "local", session: null });
+      expect(parseSubcommandArgs(["--session", "s1"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: null, session: "s1" });
+      expect(parseSubcommandArgs(["--session=s2"])).toEqual({ cwd: process.cwd(), yes: false, force: false, to: null, session: "s2" });
     } finally {
       if (prev !== undefined) process.env["LEDGER_ROOT"] = prev;
     }
