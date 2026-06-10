@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 445
+  item: 446
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -783,3 +783,12 @@ archives:
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - summary: "T364 implement-review — approve (opus, 0 findings). Thin Stop-hook wrapper (claudeStopGateHook in claude.nix) correct on all branches (no-session→allow; gate-exit≠0+verdict→{decision:block} jq-escaped; gate-exit 0→allow); exit-code capture correct; cq on PATH via ledgerTools; module evals; not wired into settings.hooks (T369 scope). Crash fails-open (safe default). Merged 0d6c7df."
 - ledgerRefs: ["tasks:T364","goals:G44"]
+
+### R446 — go-ahead
+
+- createdAt: 2026-06-10T17:15:51.497Z
+- updatedAt: 2026-06-10T17:15:51.497Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T369 + T370 implement-review — both approve (opus, 0 findings). T369: settings.hooks.Stop registered in claude.nix referencing claudeStopGateHook, mirrors SessionStart, module evals. T370: advance.md marker drop(§Bootstrap)/unlink(§The one write, coupled to terminal handoff)/external-signal+hook cross-ref(§Stop-condition), D41 prose retained; CRITICAL — marker path == advanceGate.ts BYTE-FOR-BYTE + external-signal format matches the gate parser; gen.ts zero-diff regen; check 1622/0. Merged 7b04682 + 2011ba0."
+- ledgerRefs: ["tasks:T369","tasks:T370","goals:G44"]

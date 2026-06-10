@@ -550,10 +550,10 @@ archives:
 - completion: "claudeStopGateHook (pkgs.writeShellScript) in nix/hm/claude.nix — thin Claude-Code Stop-hook translator: no-session→allow; `cq advance-gate` exit non-zero→emit {\"decision\":\"block\",\"reason\":.reason} via jq; exit 0→allow. cq on PATH via ledgerTools; jq via ${pkgs.jq}. Not yet wired into settings.hooks (T369). nix eval verified; opus review approve (0 findings)."
 - sessionLogs: ["docs/logs/20260610-170206-a582052be0f2e15a5.md"]
 
-### T369 — planned
+### T369 — done
 
 - createdAt: 2026-06-10T15:33:33.702Z
-- updatedAt: 2026-06-10T15:33:33.702Z
+- updatedAt: 2026-06-10T17:15:42.441Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Register the Stop hook in nix/hm/claude.nix settings.hooks
@@ -562,11 +562,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T364"]
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: 7b04682
+- completion: "settings.hooks.Stop entry in nix/hm/claude.nix referencing ${claudeStopGateHook} (T364), mirroring SessionStart structure — ships the Stop-hook gate via home-manager (Q198 install in-scope). nix eval ok. opus review approve."
+- sessionLogs: ["docs/logs/20260610-171519-T369-T370.md"]
 
-### T370 — planned
+### T370 — done
 
 - createdAt: 2026-06-10T15:33:41.309Z
-- updatedAt: 2026-06-10T15:33:41.309Z
+- updatedAt: 2026-06-10T17:15:46.630Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Wire the run-active marker + external-signal lifecycle into advance.md (§Bootstrap, §The one write, §Stop-condition gate)
@@ -575,11 +578,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T364"]
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: 2011ba0
+- completion: "advance.md run-active marker lifecycle (Q200/Q201/Q203): §Bootstrap touches `${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-$CLAUDE_CODE_SESSION_ID` first; §The one write rm -f's it atomically with the terminal handoff; §Stop-condition gate cross-refs the Stop hook + the `external-signal: \"...\"` escape; D41 prose retained + enforcement sentence; sub-commands untouched; gen.ts regen. opus review approve — marker path BYTE-FOR-BYTE == advanceGate.ts (T362); check 1622/0."
+- sessionLogs: ["docs/logs/20260610-171519-T369-T370.md"]
 
-### T372 — planned
+### T372 — wip
 
 - createdAt: 2026-06-10T15:34:00.134Z
-- updatedAt: 2026-06-10T15:34:00.134Z
+- updatedAt: 2026-06-10T17:15:51.808Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Integration test of the Stop-hook wrapper's stdout/exit contract against a stub gate
