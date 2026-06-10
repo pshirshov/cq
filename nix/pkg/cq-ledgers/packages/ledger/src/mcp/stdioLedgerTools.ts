@@ -32,6 +32,7 @@ import {
   PromptCatalogNotImplementedError,
   type PromptCatalogCapability,
 } from "./promptCatalogCapability.js";
+import { assertToolPrefix, prefixToolName } from "./ledgerTools.js";
 
 // ---------------------------------------------------------------------------
 // Shared Zod fragments (mirror ./ledgerTools.ts)
@@ -190,6 +191,13 @@ function jsonResult(value: unknown): {
  * omitted (no asset-capable catalog root),
  * `fetch_prompt`/`validate_input`/`validate_output` throw
  * `PromptCatalogNotImplementedError`.
+ *
+ * `toolPrefix` (T375 / G45) is a TRAILING optional tool-name prefix. It is a
+ * pure name transform applied via `prefixToolName(toolPrefix, name)` on every
+ * registration — config (description/inputSchema) and handlers are untouched.
+ * The default `''` registers byte-identically to the unprefixed surface
+ * (`LEDGER_TOOL_NAMES`); a non-empty prefix registers `prefixedToolNames(prefix)`.
+ * Validated once at the boundary via `assertToolPrefix`.
  */
 export function registerLedgerStdioTools(
   server: McpServer,
@@ -197,10 +205,19 @@ export function registerLedgerStdioTools(
   readLog?: ReadLogCapability,
   configCapability?: ConfigCapability,
   promptCatalog?: PromptCatalogCapability,
+  toolPrefix: string = "",
 ): void {
+  assertToolPrefix(toolPrefix);
+
+  // Register a tool under its prefixed name. The prefix is derived ONCE per
+  // name (via prefixToolName) so the stdio names never drift from the Claude
+  // factory (T374); config + handler pass through unchanged.
+  const reg: McpServer["registerTool"] = (name, config, handler) =>
+    server.registerTool(prefixToolName(toolPrefix, name), config, handler);
+
   // ---- Item / ledger surface (9) -----------------------------------------
 
-  server.registerTool(
+  reg(
     "enumerate_ledgers",
     {
       description:
@@ -239,7 +256,7 @@ export function registerLedgerStdioTools(
     },
   );
 
-  server.registerTool(
+  reg(
     "fetch_ledger",
     {
       description:
@@ -249,7 +266,7 @@ export function registerLedgerStdioTools(
     async (args) => jsonResult({ ledger: store.fetch(args.ledger_id) }),
   );
 
-  server.registerTool(
+  reg(
     "fetch_ledger_archive",
     {
       description:
@@ -263,7 +280,7 @@ export function registerLedgerStdioTools(
       jsonResult({ archive: await store.fetchArchive(args.ledger_id, args.archive_id) }),
   );
 
-  server.registerTool(
+  reg(
     "fetch_item",
     {
       description: "Fetch a single item by id from a specific ledger.",
@@ -275,7 +292,7 @@ export function registerLedgerStdioTools(
     async (args) => jsonResult({ item: store.fetchItem(args.ledger_id, args.item_id) }),
   );
 
-  server.registerTool(
+  reg(
     "update_item",
     {
       description:
@@ -300,7 +317,7 @@ export function registerLedgerStdioTools(
     },
   );
 
-  server.registerTool(
+  reg(
     "create_item",
     {
       description:
@@ -328,7 +345,7 @@ export function registerLedgerStdioTools(
     },
   );
 
-  server.registerTool(
+  reg(
     "create_ledger",
     {
       description:
@@ -344,7 +361,7 @@ export function registerLedgerStdioTools(
     },
   );
 
-  server.registerTool(
+  reg(
     "search_items",
     {
       description: "Substring search across status and field values within a single ledger.",
@@ -356,7 +373,7 @@ export function registerLedgerStdioTools(
     async (args) => jsonResult({ items: store.search(args.ledger_id, args.query) }),
   );
 
-  server.registerTool(
+  reg(
     "fts_search",
     {
       description: `Ranked full-text search across ledger items, with a filter query language. Cross-ledger by default (pass \`ledger\` to restrict to one). Results are ranked by relevance (descending); field boosts favour headline/title/question over description/rationale over status. Each result carries the full item, its score, and the fields that matched. Use this for discovery; use search_items for precise single-ledger substring matching.
@@ -418,7 +435,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Milestone surface (5) ---------------------------------------------
 
-  server.registerTool(
+  reg(
     "create_milestone",
     {
       description:
@@ -448,7 +465,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "update_milestone",
     {
       description:
@@ -480,7 +497,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "fetch_milestone",
     {
       description:
@@ -492,7 +509,7 @@ ${QUERY_LANGUAGE_HELP}`,
     async (args) => jsonResult(store.fetchMilestone(args.milestone_id)),
   );
 
-  server.registerTool(
+  reg(
     "archive_milestone",
     {
       description:
@@ -508,7 +525,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "list_milestone_items",
     {
       description:
@@ -522,7 +539,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Recovery tools (2) ------------------------------------------------
 
-  server.registerTool(
+  reg(
     "reopen_item",
     {
       description:
@@ -539,7 +556,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "unarchive_item",
     {
       description:
@@ -558,7 +575,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Cross-ledger overview (1) -----------------------------------------
 
-  server.registerTool(
+  reg(
     "snapshot",
     {
       description:
@@ -573,7 +590,7 @@ ${QUERY_LANGUAGE_HELP}`,
     async () => jsonResult({ ledger: store.snapshot() }),
   );
 
-  server.registerTool(
+  reg(
     "derive_predicates",
     {
       description:
@@ -585,7 +602,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Filesystem read (1) -----------------------------------------------
 
-  server.registerTool(
+  reg(
     "read_log",
     {
       description:
@@ -602,7 +619,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Config capability (3) ---------------------------------------------
 
-  server.registerTool(
+  reg(
     "get_reviewers",
     {
       description:
@@ -619,7 +636,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "get_planners",
     {
       description:
@@ -636,7 +653,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "get_config",
     {
       description:
@@ -653,7 +670,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "get_agent_models",
     {
       description:
@@ -676,7 +693,7 @@ ${QUERY_LANGUAGE_HELP}`,
 
   // ---- Prompt-catalog capability (3) -------------------------------------
 
-  server.registerTool(
+  reg(
     "fetch_prompt",
     {
       description:
@@ -694,7 +711,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "validate_input",
     {
       description:
@@ -715,7 +732,7 @@ ${QUERY_LANGUAGE_HELP}`,
     },
   );
 
-  server.registerTool(
+  reg(
     "validate_output",
     {
       description:
