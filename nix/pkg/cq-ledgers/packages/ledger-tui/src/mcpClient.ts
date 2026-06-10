@@ -14,7 +14,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { buildServer, createEmbeddedStore } from "@cq/ledger-mcp";
-import type { FsLedgerStore } from "@cq/ledger";
+import type { LedgerStore } from "@cq/ledger";
 import type {
   ArchiveContent,
   FetchedLedger,
@@ -45,7 +45,7 @@ interface CallToolResultLike {
 
 /** In-process context an embedded client owns and must tear down on close. */
 export interface EmbeddedContext {
-  readonly store: FsLedgerStore;
+  readonly store: LedgerStore;
   readonly cwd: string;
 }
 
@@ -109,7 +109,7 @@ export class McpLedgerClient implements LedgerClient {
    * Used when ledger-tui is launched with no `--mcp-url`.
    */
   static async embedded(cwd: string): Promise<McpLedgerClient> {
-    const store = await createEmbeddedStore(cwd);
+    const { store } = await createEmbeddedStore(cwd);
     const server = buildServer(store, path.basename(cwd));
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);

@@ -7,5 +7,6 @@
     "outDir": "./dist",
     "types": ["bun-types"]
   },
+  "references": [{ "path": "../cq-config" }],
   "include": ["src", "test"]
 }

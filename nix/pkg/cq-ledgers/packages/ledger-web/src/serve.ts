@@ -23,7 +23,7 @@ import {
   changedFrame,
   createEmbeddedStore,
   LEDGER_TOPIC,
-  startLedgerWatcher,
+  startLedgerCoherenceWatcher,
 } from "@cq/ledger-mcp";
 import type { WebuiConfig } from "@cq/config";
 import { loadConfig } from "@cq/config";
@@ -287,7 +287,8 @@ async function serveEmbedded(
   opts: ServeOpts,
   indexPath: string,
 ): Promise<ReturnType<typeof Bun.serve>> {
-  const store = await createEmbeddedStore(opts.cwd);
+  const resolved = await createEmbeddedStore(opts.cwd);
+  const store = resolved.store;
   const { handle, onWsOpen, onWsMessage } = attachMcpHttp(store, path.basename(opts.cwd));
 
   const server = scanForPort(opts.port, (p) =>
@@ -313,9 +314,11 @@ async function serveEmbedded(
     }),
   );
 
-  // Publish a `changed` frame to subscribed browser sockets on any file change
+  // Publish a `changed` frame to subscribed browser sockets on any change
   // (this server's own writes, the agent's stdio server, git, a hand-edit).
-  const watcher = startLedgerWatcher(store, opts.cwd, (ledger) => {
+  // Watcher is selected by backend (file watch for fs, orphan-ref-sha poll for
+  // git-object).
+  const watcher = startLedgerCoherenceWatcher(resolved, opts.cwd, (ledger) => {
     server.publish(LEDGER_TOPIC, changedFrame(ledger));
   });
 

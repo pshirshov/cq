@@ -49,11 +49,15 @@ import {
   type ReadLogCapability,
   type ConfigCapability,
   type PromptCatalogCapability,
+  type ResolvedLedgerStore,
+  createLedgerStore,
+  nodeGitRunner,
   registerLedgerStdioTools,
 } from "@cq/ledger";
 import { createConfigCapability } from "./configCapability.js";
 import { createPromptCatalogCapability } from "./promptCatalogCapability.js";
-import { startLedgerWatcher } from "./watcher.js";
+import { startLedgerWatcher, type LedgerWatcher } from "./watcher.js";
+import { startLedgerRefWatcher } from "./refWatcher.js";
 import { restoreFromCache } from "./restore.js";
 
 export { restoreFromCache, CacheMirrorMissingError } from "./restore.js";
@@ -291,6 +295,38 @@ export function projectInstructionLine(displayName: string): string {
  * `getServerVersion()`. It is also pinned as the leading `instructions` line as
  * a fallback for SDK runtimes that omit `title`. Stable across reconnects.
  */
+/**
+ * Duck-typed root-dir capability check (T357). Both FsLedgerStore and the
+ * git-object backend expose a `rootDir` accessor (the resolved ledger root the
+ * root-bound config / prompt-catalog capabilities attach to); the in-memory test
+ * store does not. Returns the root string when the store advertises one, else
+ * `undefined`. Backend-independent on purpose — config/promptCatalog are not
+ * FS-specific, so they must NOT be gated on `instanceof FsLedgerStore`.
+ */
+export function rootDirOf(store: LedgerStore): string | undefined {
+  const candidate = (store as { rootDir?: unknown }).rootDir;
+  return typeof candidate === "string" ? candidate : undefined;
+}
+
+/**
+ * Start the per-backend coherence watcher for a resolved store (T357 item 5):
+ * file-watch ({@link startLedgerWatcher}) for the fs backend, ref-sha-watch
+ * ({@link startLedgerRefWatcher}, T353) for git-object. Both return a handle
+ * with `.close()`, so the host wires shutdown identically regardless of backend.
+ * The git-object path binds a {@link nodeGitRunner} at the repo root so the
+ * watcher polls `refs/heads/<branch>` for ledger advances by another process.
+ */
+export function startLedgerCoherenceWatcher(
+  resolved: ResolvedLedgerStore,
+  root: string,
+  onChange?: (ledgerId: string | null) => void,
+): LedgerWatcher {
+  if (resolved.backend === "git-object") {
+    return startLedgerRefWatcher(resolved.store, resolved.branch, nodeGitRunner(root), onChange);
+  }
+  return startLedgerWatcher(resolved.store, root, onChange);
+}
+
 export function buildServer(store: LedgerStore, displayName: string): McpServer {
   const serverInfo = { ...SERVER_INFO, title: displayName };
   const instructions = `${projectInstructionLine(displayName)}\n\n${SERVER_INSTRUCTIONS}`;
@@ -298,44 +334,46 @@ export function buildServer(store: LedgerStore, displayName: string): McpServer 
     capabilities: { tools: {} },
     instructions,
   });
-  // read_log (Q87 / R137 #6) is bounded to the EXPLICIT FS-store root, not the
-  // generic LedgerStore interface; thread the capability only when the store is
-  // filesystem-backed. An in-memory store supplies no capability and read_log
-  // then throws the documented not-implemented error.
+  // read_log (Q87 / R137 #6) is the one GENUINELY FS-only capability — it tails
+  // the on-disk per-ledger log file under <root>/docs/logs, which the git-object
+  // backend (orphan ref, no on-disk projection) does not maintain. So it stays
+  // gated on the explicit `instanceof FsLedgerStore`; a non-FS store (git-object
+  // or the in-memory test store) supplies no capability and read_log throws the
+  // documented not-implemented error.
   const readLog: ReadLogCapability | undefined =
     store instanceof FsLedgerStore ? (p) => store.readLog(p) : undefined;
-  // cq.toml config capability (R193 / G18 / T2). The config root IS the ledger
-  // root (Q99): bind it to the SAME resolved store root buildServer's callers
-  // already resolved (--cwd > $LEDGER_ROOT > CWD), re-reading cq.toml on every
-  // call (createConfigCapability closes over the root with no caching). Wired
-  // here so it reaches the standalone stdio binary, the HTTP transport, AND the
-  // embedded TUI/web hosts — all funnel through buildServer. An in-memory store
-  // (tests) supplies no capability; get_reviewers/get_config then throw the
-  // documented not-implemented error.
+  // cq.toml config + prompt-catalog capabilities (R193 / G18 / T2 / T343) are
+  // ROOT-BOUND and BACKEND-INDEPENDENT: they read cq.toml / the role asset
+  // markdown under the store's resolved root, which both FsLedgerStore and the
+  // git-object backend expose via `rootDir`. So gate them on a duck-typed
+  // root-dir capability (T357) rather than `instanceof FsLedgerStore`, making
+  // config/promptCatalog available for BOTH backends. An in-memory store (tests)
+  // exposes no `rootDir` and supplies neither; get_config / fetch_prompt then
+  // throw the documented not-implemented error.
+  const rootDir = rootDirOf(store);
   const configCapability: ConfigCapability | undefined =
-    store instanceof FsLedgerStore ? createConfigCapability(store.rootDir) : undefined;
-  // Typed prompt-catalog capability (T343 / G41): like configCapability, it is
-  // bound to the SAME resolved store root and re-reads the role asset markdown
-  // per call (the schemas come from the imported @cq/config typed catalog). Wired
-  // only for an FS-backed store; an in-memory store supplies none and
-  // fetch_prompt/validate_input/validate_output then throw the documented
-  // not-implemented error.
+    rootDir !== undefined ? createConfigCapability(rootDir) : undefined;
   const promptCatalog: PromptCatalogCapability | undefined =
-    store instanceof FsLedgerStore ? createPromptCatalogCapability(store.rootDir) : undefined;
+    rootDir !== undefined ? createPromptCatalogCapability(rootDir) : undefined;
   registerLedgerStdioTools(server, store, readLog, configCapability, promptCatalog);
   return server;
 }
 
 /**
- * Construct and initialise a file-backed store rooted at `cwd`. The single
- * place that builds the embedded store, shared by the standalone binary and
- * the in-process UIs (ledger-tui in-memory transport, ledger-web co-hosted
- * HTTP) so root resolution + init stay identical everywhere.
+ * Construct and initialise the embedded store rooted at `cwd`, selecting the
+ * backend from cq.toml's `[ledger]` table via {@link createLedgerStore} (T357).
+ * The single place that builds the embedded store, shared by the standalone
+ * binary and the in-process UIs (ledger-tui in-memory transport, ledger-web
+ * co-hosted HTTP) so backend selection + init stay identical everywhere.
+ *
+ * Returns the full {@link ResolvedLedgerStore} (store + backend + branch) so the
+ * host can select the matching coherence watcher via
+ * {@link startLedgerCoherenceWatcher}. For `backend = 'fs'` (the default, and the
+ * no-cq.toml case) the returned store is an `FsLedgerStore`, byte-identical to
+ * the historical behaviour.
  */
-export async function createEmbeddedStore(cwd: string): Promise<FsLedgerStore> {
-  const store = new FsLedgerStore({ root: cwd });
-  await store.init();
-  return store;
+export async function createEmbeddedStore(cwd: string): Promise<ResolvedLedgerStore> {
+  return createLedgerStore(cwd);
 }
 
 /**
@@ -500,17 +538,21 @@ export async function main(argv: readonly string[]): Promise<void> {
   const { cwd, http } = parseArgs(argv);
   const displayName = path.basename(cwd);
 
-  // Construct the store, init it, then register tools. If init fails we
-  // surface the error to stderr and exit non-zero — the parent MCP client
-  // sees the channel close and treats the server as unhealthy.
-  const store = new FsLedgerStore({ root: cwd });
-  await store.init();
+  // Construct the store via the backend-selecting factory (T357), init it, then
+  // register tools. The factory honours cq.toml's `[ledger]` backend: fs (the
+  // default / no-cq.toml case) or git-object (after git-env fail-fast). If
+  // construction/init fails we surface the error to stderr and exit non-zero —
+  // the parent MCP client sees the channel close and treats the server as
+  // unhealthy.
+  const resolved = await createLedgerStore(cwd);
+  const store = resolved.store;
 
   if (http !== null) {
     const server = serveHttp(store, http, displayName);
-    // Watch the files; push a `changed` frame to subscribed UIs on any change
-    // (incl. writes by another process — the agent's own server, git, etc.).
-    const watcher = startLedgerWatcher(store, cwd, (ledger) => {
+    // Watch the ledger for out-of-process advances; push a `changed` frame to
+    // subscribed UIs on any change. The watcher is selected by backend (file
+    // watch for fs, orphan-ref-sha poll for git-object).
+    const watcher = startLedgerCoherenceWatcher(resolved, cwd, (ledger) => {
       server.publish(LEDGER_TOPIC, changedFrame(ledger));
     });
     const shutdown = (): void => {
@@ -527,9 +569,10 @@ export async function main(argv: readonly string[]): Promise<void> {
   }
 
   const server = buildServer(store, displayName);
-  // Even on stdio, watch the files so this server's cache stays fresh when
-  // another process writes the same ledgers.
-  const watcher = startLedgerWatcher(store, cwd);
+  // Even on stdio, watch the ledger so this server's cache stays fresh when
+  // another process writes the same ledgers (file watch for fs, ref-sha poll
+  // for git-object).
+  const watcher = startLedgerCoherenceWatcher(resolved, cwd);
 
   // Graceful shutdown on SIGTERM / SIGINT.
   const shutdown = (): void => {

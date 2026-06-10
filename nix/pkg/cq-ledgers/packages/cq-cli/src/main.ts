@@ -22,7 +22,12 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { FsLedgerStore, CANONICAL_LEDGERS } from "@cq/ledger";
+import {
+  createLedgerStore,
+  CANONICAL_LEDGERS,
+  type LedgerStore,
+  type ResetSummary,
+} from "@cq/ledger";
 import {
   type ConfirmIo,
   defaultConfirmIo,
@@ -137,8 +142,12 @@ function defaultDispatchIo(): DispatchIo {
 // --- Subcommand handlers -----------------------------------------------------
 
 export async function runInit(args: SubcommandArgs, io: DispatchIo): Promise<DispatchOutcome> {
-  const store = new FsLedgerStore({ root: args.cwd });
-  await store.init();
+  // Route through the backend-selecting factory (T357): for backend='git-object'
+  // this validates the git env (fail-fast) and installs the idempotent
+  // git-backend .gitignore block BEFORE seeding the orphan ref, so a fresh
+  // git-object ledger's docs/ is gitignored from the first write. backend='fs'
+  // (default / no cq.toml) is byte-identical to the historical FsLedgerStore.init().
+  const { store } = await createLedgerStore(args.cwd);
   await store.dispose();
   const ledgerNames = CANONICAL_LEDGERS.map((c) => c.name).join(", ");
   io.out(`initialised ledgers at ${args.cwd} (${ledgerNames})`);
@@ -186,9 +195,19 @@ export async function runReset(args: SubcommandArgs, io: DispatchIo): Promise<Di
     return { exitCode: decision.exitCode };
   }
 
-  const store = new FsLedgerStore({ root: args.cwd });
-  await store.init();
+  // Construct via the backend-selecting factory (T357). reset()'s backup→reinit
+  // semantics (docs/.backup/) are FS-specific; the git-object backend does not
+  // implement reset (out of scope per the backend caveats), so a git-object
+  // config here is rejected with a clear error rather than a silent no-op.
+  const { store, backend } = await createLedgerStore(args.cwd);
   try {
+    if (!isResettable(store)) {
+      io.err(
+        `cq reset: [ledger] backend='${backend}' does not support reset ` +
+          `(backup→reinit is filesystem-specific). Use backend='fs'.`,
+      );
+      return { exitCode: EXIT_USAGE };
+    }
     const summary = await store.reset();
     io.out(`cq reset: reset ledgers at ${args.cwd}`);
     io.out(`  backup: ${summary.backupDir}`);
@@ -272,6 +291,16 @@ export async function runErase(args: SubcommandArgs, io: DispatchIo): Promise<Di
     io.out(`  removed: ${p}`);
   }
   return { exitCode: 0 };
+}
+
+/** A store exposing the FS-specific backup→reinit `reset()` (FsLedgerStore). */
+interface ResettableStore extends LedgerStore {
+  reset(): Promise<ResetSummary>;
+}
+
+/** Duck-typed guard: does `store` expose the FS-only `reset()` method? */
+function isResettable(store: LedgerStore): store is ResettableStore {
+  return typeof (store as { reset?: unknown }).reset === "function";
 }
 
 /** True iff `p` exists on disk (any node type). */

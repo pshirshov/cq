@@ -58,6 +58,18 @@ export type { TreeEntry, GitResult, GitRunOpts, GitRunner } from "./store/git/Gi
 export { GitPersistence } from "./store/git/GitPersistence.js";
 export { GitObjectLedgerBackend } from "./store/git/GitObjectLedgerBackend.js";
 export type { GitObjectLedgerBackendOpts } from "./store/git/GitObjectLedgerBackend.js";
+export {
+  createLedgerStore,
+  resolveLedgerBackend,
+  assertGitWorkTree,
+  GitEnvironmentError,
+} from "./store/createLedgerStore.js";
+export type { ResolvedLedgerStore } from "./store/createLedgerStore.js";
+export {
+  ensureGitBackendGitignore,
+  GIT_BACKEND_GITIGNORE_MARKER,
+  GIT_BACKEND_GITIGNORE_BLOCK,
+} from "./store/gitBackendGitignore.js";
 export { InMemoryLedgerStore } from "./store/InMemoryLedgerStore.js";
 export type { InMemoryLedgerStoreOpts } from "./store/InMemoryLedgerStore.js";
 export { validateSchema } from "./store/core.js";
