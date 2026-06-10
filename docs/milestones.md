@@ -729,6 +729,16 @@ archives:
     summary: "G44-W1 complete: shared derivePredicates(store) engine in @cq/ledger (T361) — single source of truth for the /cq:advance detection predicates (pInvestigate/pPlan/pImplement/openQuestionGate), pure+sync, advance.md §Detection-predicates verbatim — plus a dual-adapter fixture suite (T366, 9×2=18 tests vs FsLedgerStore + InMemoryLedgerStore, teeth-verified). Panel approve (T361: opus+codex+minimax; T366: opus). check 1616/0."
     title: "G44-W1: shared derivePredicates engine in @cq/ledger"
     status: done
+  - id: M152
+    path: ./archive/milestones/M152.md
+    summary: "G44-W2 complete: `cq advance-gate` CLI subcommand (T362) — neutral verdict JSON {block,reason,predicates} + exit 0=allow/1=block, marker/external-signal/all-FALSE⇒allow, predicate-TRUE⇒block; in-process createLedgerStore + shared derivePredicates (no MCP server) — plus the full verdict+exit-code test matrix (T367, 5 teethed cases). Panel/opus approve; check 1622/0."
+    title: "G44-W2: cq advance-gate CLI subcommand"
+    status: done
+  - id: M153
+    path: ./archive/milestones/M153.md
+    summary: "G44-W3 complete: derive_predicates read-only MCP tool (T363) registered in both ledger tool factories (stdio/HTTP/embedded), delegating to the shared derivePredicates(store) (Q202 user extension) — plus advance.md §Bootstrap/§Detection-predicates rewired to call mcp__ledger__derive_predicates as the authoritative predicate source with an anti-drift note that the same logic backs cq advance-gate (T368, round-2 doc-shape fix). opus approve; check 1621/0."
+    title: "G44-W3: derive_predicates MCP tool + advance.md detection rewire"
+    status: done
 ---
 
 # milestones
@@ -766,20 +776,6 @@ archives:
 - createdAt: 2026-06-10T15:01:37.384Z
 - updatedAt: 2026-06-10T15:01:37.384Z
 - title: "Plan: cq:advance turn-pause Stop-hook gate (D50)"
-
-### M152 — open
-
-- createdAt: 2026-06-10T15:31:49.140Z
-- updatedAt: 2026-06-10T15:31:49.140Z
-- title: "G44-W2: cq advance-gate CLI subcommand"
-- dependsOn: ["M151"]
-
-### M153 — open
-
-- createdAt: 2026-06-10T15:31:49.898Z
-- updatedAt: 2026-06-10T15:31:49.898Z
-- title: "G44-W3: derive_predicates MCP tool + advance.md detection rewire"
-- dependsOn: ["M151"]
 
 ### M154 — open
 

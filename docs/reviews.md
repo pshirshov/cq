@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 442
+  item: 444
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -669,6 +669,16 @@ archives:
     summary: "G44-W1 complete: shared derivePredicates(store) engine in @cq/ledger (T361) — single source of truth for the /cq:advance detection predicates (pInvestigate/pPlan/pImplement/openQuestionGate), pure+sync, advance.md §Detection-predicates verbatim — plus a dual-adapter fixture suite (T366, 9×2=18 tests vs FsLedgerStore + InMemoryLedgerStore, teeth-verified). Panel approve (T361: opus+codex+minimax; T366: opus). check 1616/0."
     title: "G44-W1: shared derivePredicates engine in @cq/ledger"
     status: done
+  - id: M152
+    path: ./archive/reviews/M152.md
+    summary: "G44-W2 complete: `cq advance-gate` CLI subcommand (T362) — neutral verdict JSON {block,reason,predicates} + exit 0=allow/1=block, marker/external-signal/all-FALSE⇒allow, predicate-TRUE⇒block; in-process createLedgerStore + shared derivePredicates (no MCP server) — plus the full verdict+exit-code test matrix (T367, 5 teethed cases). Panel/opus approve; check 1622/0."
+    title: "G44-W2: cq advance-gate CLI subcommand"
+    status: done
+  - id: M153
+    path: ./archive/reviews/M153.md
+    summary: "G44-W3 complete: derive_predicates read-only MCP tool (T363) registered in both ledger tool factories (stdio/HTTP/embedded), delegating to the shared derivePredicates(store) (Q202 user extension) — plus advance.md §Bootstrap/§Detection-predicates rewired to call mcp__ledger__derive_predicates as the authoritative predicate source with an anti-drift note that the same logic backs cq advance-gate (T368, round-2 doc-shape fix). opus approve; check 1621/0."
+    title: "G44-W3: derive_predicates MCP tool + advance.md detection rewire"
+    status: done
 ---
 
 # reviews
@@ -762,25 +772,3 @@ archives:
 - summary: "G44 plan review (multi-reviewer, configured panel) — UNANIMOUS go-ahead (reconciled strictest-wins over 4 surviving reviewers [opus]+[codex]+[grok]+[minimax], 0 abstentions, 0 criticism / 0 new_questions / 0 defects). All four confirmed the 5-milestone/12-task DAG (M151-M155, T361-T372) is acyclic + correctly sequenced (engine→CLI+MCP-tool→wrapper+nix+wiring→hardening), honors ALL 7 locked decisions Q198-Q204, maps every component+decision to ≥1 task (marker drop/unlink=T370; derive_predicates built T363 + consumed T368; wrapper authored T364 + registered T369 + integration-tested T372; full Q204 bar across T365-T367/T371-T372), with verifiable acceptance, grounded against the real seams (createLedgerStore, sync LedgerStore reads, registerLedgerStdioTools, claudeSessionStartHook/settings.hooks). [minimax] noted two non-blocking implementer-resolvable nits (T362 exact reason text; T368/T370 both touch advance.md §Bootstrap) — not gaps. Plan LOCKED. Reviewer logs: docs/logs/20260610-154315-a71ad469deb41bf5f.md (opus) + 20260610-154315-pi-{codex,grok,minimax}-reviewer.md."
 - ledgerRefs: ["goals:G44"]
 - sessionLogs: ["docs/logs/20260610-154315-a71ad469deb41bf5f.md","docs/logs/20260610-154315-pi-codex-reviewer.md","docs/logs/20260610-154315-pi-grok-reviewer.md","docs/logs/20260610-154315-pi-minimax-reviewer.md"]
-
-## M152
-
-### R441 — go-ahead
-
-- createdAt: 2026-06-10T16:38:13.667Z
-- updatedAt: 2026-06-10T16:38:13.667Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T362 implement-review — approve (opus, 0 findings). cq advance-gate: all 4 state branches correct (marker-absent/external-signal/all-FALSE⇒allow exit0; predicate-TRUE⇒block exit1 w/ verbatim reason); neutral {block,reason,predicates} contract (no Claude-Code {decision} JSON); in-process createLedgerStore + shared derivePredicates (no MCP, no re-impl); surgical wiring; check 1620/0. Merged 18a32e0."
-- ledgerRefs: ["tasks:T362","goals:G44"]
-
-## M153
-
-### R442 — go-ahead
-
-- createdAt: 2026-06-10T16:38:16.496Z
-- updatedAt: 2026-06-10T16:38:16.496Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: T363 implement-review — approve (opus, 0 findings). derive_predicates MCP tool registered in BOTH factories (ledgerTools.ts + stdioLedgerTools.ts) — same name/read-only/empty-params, exposed on all transports; handler delegates to the shared derivePredicates(store) (no re-impl); drift-guard 25→26 + every count assertion updated; teethed in-memory test (pImplement-true seed); check 1617/0. Merged 0d56c67.
-- ledgerRefs: ["tasks:T363","goals:G44"]

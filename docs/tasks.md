@@ -519,69 +519,19 @@ archives:
     summary: "G44-W1 complete: shared derivePredicates(store) engine in @cq/ledger (T361) — single source of truth for the /cq:advance detection predicates (pInvestigate/pPlan/pImplement/openQuestionGate), pure+sync, advance.md §Detection-predicates verbatim — plus a dual-adapter fixture suite (T366, 9×2=18 tests vs FsLedgerStore + InMemoryLedgerStore, teeth-verified). Panel approve (T361: opus+codex+minimax; T366: opus). check 1616/0."
     title: "G44-W1: shared derivePredicates engine in @cq/ledger"
     status: done
+  - id: M152
+    path: ./archive/tasks/M152.md
+    summary: "G44-W2 complete: `cq advance-gate` CLI subcommand (T362) — neutral verdict JSON {block,reason,predicates} + exit 0=allow/1=block, marker/external-signal/all-FALSE⇒allow, predicate-TRUE⇒block; in-process createLedgerStore + shared derivePredicates (no MCP server) — plus the full verdict+exit-code test matrix (T367, 5 teethed cases). Panel/opus approve; check 1622/0."
+    title: "G44-W2: cq advance-gate CLI subcommand"
+    status: done
+  - id: M153
+    path: ./archive/tasks/M153.md
+    summary: "G44-W3 complete: derive_predicates read-only MCP tool (T363) registered in both ledger tool factories (stdio/HTTP/embedded), delegating to the shared derivePredicates(store) (Q202 user extension) — plus advance.md §Bootstrap/§Detection-predicates rewired to call mcp__ledger__derive_predicates as the authoritative predicate source with an anti-drift note that the same logic backs cq advance-gate (T368, round-2 doc-shape fix). opus approve; check 1621/0."
+    title: "G44-W3: derive_predicates MCP tool + advance.md detection rewire"
+    status: done
 ---
 
 # tasks
-
-## M152
-
-### T362 — done
-
-- createdAt: 2026-06-10T15:32:44.414Z
-- updatedAt: 2026-06-10T16:38:06.733Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Add the `cq advance-gate` subcommand emitting the neutral verdict JSON + allow/block exit code
-- description: "Extend packages/cq-cli/src/main.ts: add `advance-gate` to SUBCOMMANDS, USAGE, parser, and HANDLERS, implementing runAdvanceGate in a new ./advanceGate.ts. It constructs the fs-backed store IN-PROCESS via createLedgerStore(args.cwd) (exactly like runInit/runReset/move-ledger — NO MCP server), calls derivePredicates(store), disposes, and decides: compute the session-keyed marker path `${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-<session-id>` (session id from a --session flag or $CLAUDE_CODE_SESSION_ID). If the marker is ABSENT → allow (block=false). If present, grep its contents for a non-empty `external-signal: \"...\"` line → allow. Else if any predicate is TRUE-and-unblocked → block=true with reason `P-<which>=TRUE and unblocked; continue per D41 — turn-pause is not a stop condition`; else allow. Emit on stdout the NEUTRAL (harness-agnostic) JSON `{ block, reason, predicates: { pInvestigate, pPlan, pImplement, openQuestionGate } }`; exit 0 = allow, non-zero = block (Q199). The CLI itself emits NO Claude-Code {decision} JSON — that is the wrapper's job (T7)."
-- acceptance: "`cq advance-gate` listed in USAGE; against a temp ledger it prints the neutral verdict JSON and returns exit 0 (allow) / non-zero (block) per state; works in the nix-built `cq`; tsc -b + lint clean. (Verdict tests in the next task.)"
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G44","defects:D50"]
-- resultCommit: 18a32e0
-- completion: "`cq advance-gate` subcommand (cq-cli): neutral verdict JSON {block,reason,predicates} + exit 0=allow/1=block; marker-absent/external-signal/all-FALSE⇒allow, predicate-TRUE-and-unblocked⇒block w/ reason 'P-<which>=TRUE and unblocked; continue per D41 — turn-pause is not a stop condition'; in-process createLedgerStore + shared derivePredicates (no MCP server, no re-impl). opus review approve; check 1620/0."
-- sessionLogs: ["docs/logs/20260610-163734-T362-T363.md"]
-
-### T367 — planned
-
-- createdAt: 2026-06-10T15:33:22.353Z
-- updatedAt: 2026-06-10T15:33:22.353Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Unit-test the cq advance-gate verdict + exit-code contract (marker/external-signal cases)
-- description: "Add packages/cq-cli/test/advanceGate.test.ts driving runAdvanceGate (or dispatch(['advance-gate', ...])) with a captured DispatchIo + temp ledger roots + temp marker paths: (1) TRUE-and-unblocked predicate + marker present → block=true, non-zero exit, reason contains `continue per D41`; (2) all-FALSE ledger → block=false, exit 0; (3) marker ABSENT → allow even with a TRUE predicate; (4) marker present WITH `external-signal: \"<quote>\"` → allow. Assert the emitted NEUTRAL JSON shape + exit code in every case. Reuse temp-dir + createLedgerStore fixtures from the existing cq-cli subcommand tests."
-- acceptance: "`bun test advanceGate.test.ts` green covering all four cases (TRUE+marker→block; all-FALSE→allow; marker-absent→allow; external-signal→allow) with exit codes asserted; bun run check passes."
-- suggestedModel: frontier
-- dependsOn: ["T362"]
-- ledgerRefs: ["goals:G44","defects:D50"]
-
-## M153
-
-### T363 — done
-
-- createdAt: 2026-06-10T15:32:50.949Z
-- updatedAt: 2026-06-10T16:38:09.890Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Expose derivePredicates as a new ledger MCP tool (derive_predicates)
-- description: "Per Q202's user extension: register a NEW read-only MCP tool `derive_predicates` (no required params) in the @cq/ledger tool-registration path that registerLedgerStdioTools(server, store, …) (ledger-mcp/src/main.ts) invokes — alongside the existing `snapshot` tool. The handler calls the SHARED derivePredicates(store) (from T1) and returns { pInvestigate, pPlan, pImplement, openQuestionGate } (booleans + the naming item ids). Add it to the tool-name registry/LEDGER_TOOL_NAMES + the tool-count reconciliation/drift-guard, and update the server `instructions` overview list to mention it next to snapshot. Available on BOTH stdio + HTTP transports + embedded mode."
-- acceptance: The MCP server registers derive_predicates; a test invoking it through the in-memory MCP transport (as existing tool tests do) returns the predicate object matching derivePredicates(store); tool-count drift-guard updated; bun run check green.
-- suggestedModel: frontier
-- ledgerRefs: ["goals:G44","defects:D50"]
-- resultCommit: 0d56c67
-- completion: derive_predicates read-only MCP tool registered in BOTH ledger tool factories (ledgerTools.ts + stdioLedgerTools.ts) — exposed on stdio/HTTP/embedded; handler delegates to the shared derivePredicates(store) (Q202 user extension). Drift-guard 25→26 + all count assertions updated; instructions overview mentions it; teethed in-memory test. opus review approve; check 1617/0, combined main 1620/0.
-- sessionLogs: ["docs/logs/20260610-163734-T362-T363.md"]
-
-### T368 — planned
-
-- createdAt: 2026-06-10T15:33:28.554Z
-- updatedAt: 2026-06-10T15:33:28.554Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Rewire advance.md §Detection-predicates to read predicates from the derive_predicates MCP tool
-- description: "Per Q202: edit nix/pkg/cq-assets/commands/cq/advance.md §Detection predicates + §Bootstrap so the agent CALLS the new `mcp__ledger__derive_predicates` tool to OBTAIN P-investigate/P-plan/P-implement/open-Q-gate instead of hand-deriving from snapshot(). Keep the predicate DEFINITIONS in prose (they document what the tool computes) but make 'call derive_predicates' the operational source of truth; cross-reference that the same derivePredicates logic backs `cq advance-gate`. Surgical — do NOT alter the cycle/stop-condition semantics here (that is T10). Re-run gen-agents-catalogue if advance.md is catalogued (freshness guard)."
-- acceptance: advance.md §Detection-predicates/§Bootstrap instruct calling mcp__ledger__derive_predicates; predicate prose still matches the code; no other sections semantically altered (diff-confined); agentsCatalogue regen no drift; bun run check green.
-- suggestedModel: standard
-- dependsOn: ["T363"]
-- ledgerRefs: ["goals:G44","defects:D50"]
 
 ## M154
 
