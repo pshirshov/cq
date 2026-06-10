@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 143
+  item: 149
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -726,3 +726,50 @@ archives:
 - createdAt: 2026-06-09T23:29:39.687Z
 - updatedAt: 2026-06-09T23:29:39.687Z
 - title: "Plan: ledger-on-orphan-git-branch storage backend (GitObjectLedgerBackend)"
+
+### M144 — open
+
+- createdAt: 2026-06-10T09:01:05.573Z
+- updatedAt: 2026-06-10T09:01:05.573Z
+- title: "G43-W1: extract LedgerStore persistence seam + AbstractLedgerStore base (Q190)"
+- description: "Foundation refactor: extract a NARROW persistence seam + an AbstractLedgerStore base holding the shared map/parse/FTS/AsyncMutex/lockfile/schema-divergence logic; re-express FsLedgerStore as base+FsPersistence, proven behaviour-preserving against the existing suite."
+
+### M145 — open
+
+- createdAt: 2026-06-10T09:01:14.208Z
+- updatedAt: 2026-06-10T09:01:14.208Z
+- title: "G43-W2: GitObjectLedgerBackend plumbing + reads + coherence (Q191)"
+- description: A tested GitPlumbing wrapper (hash-object → scratch-index write-tree → commit-tree → CAS update-ref) + GitObjectLedgerBackend over an orphan ref (in-memory sync reads loaded via cat-file/ls-tree at init; writes inside the lock with CAS lost-update protection) + ref-sha coherence watcher driving invalidate().
+- dependsOn: ["M144"]
+
+### M146 — open
+
+- createdAt: 2026-06-10T09:01:18.968Z
+- updatedAt: 2026-06-10T09:01:18.968Z
+- title: "G43-W3: config selection + construction wiring + frontend confirm (Q189/Q192)"
+- description: "cq.toml [ledger] backend key (git-object|fs, default fs/opt-in) + a single backend factory routing every store construction site (incl. git-env validation when git-object) + the Q192 zero-frontend-change confirmation."
+- dependsOn: ["M145"]
+
+### M147 — open
+
+- createdAt: 2026-06-10T09:01:23.622Z
+- updatedAt: 2026-06-10T09:19:54.033Z
+- title: "G43-W4: cq move-ledger CLI — bidirectional git↔local migration (Q193)"
+- description: The user-requested `cq move-ledger` CLI subcommand for LOSSLESS bidirectional transplant of the live ledger between docs/ and the orphan ref (git rm --cached + gitignore flip when moving to git, and reversal back), leaving pre-migration tracked history frozen.
+- dependsOn: ["M145","M146"]
+
+### M148 — open
+
+- createdAt: 2026-06-10T09:01:30.301Z
+- updatedAt: 2026-06-10T09:01:30.301Z
+- title: "G43-W5: push/fetch sync wiring + drop per-merge ledger-commit steps (Q194/K66-4)"
+- description: "Auto-fetch-at-start / non-forced auto-push-at-end of refs/heads/cq-ledger into the /cq:* commands (configurable remote=origin) + a manual-recovery runbook + make the per-merge/per-archive `git add docs/ … chore(ledger)` command steps backend-conditional (skip under git-object; the backend commits continuously)."
+- dependsOn: ["M146"]
+
+### M149 — open
+
+- createdAt: 2026-06-10T09:01:36.136Z
+- updatedAt: 2026-06-10T09:19:54.472Z
+- title: "G43-W6: conformance + git-invariant test suites (Q196)"
+- description: Run the shared LedgerStore conformance suite against GitObjectLedgerBackend (throwaway repo per test; dual-tests over Fs+InMemory+Git) + explicit git-invariant tests (byte-identical working-tree/HEAD/index after writes, orphan-ref advance, CAS stale-old rejection, lockfiles-never-committed, backup-tag-on-reinit).
+- dependsOn: ["M145"]

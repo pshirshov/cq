@@ -284,10 +284,10 @@ archives:
 
 ## M143
 
-### G43 — clarifying
+### G43 — planned
 
 - createdAt: 2026-06-09T23:30:00.288Z
-- updatedAt: 2026-06-09T23:33:31.092Z
+- updatedAt: 2026-06-10T09:28:53.725Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: Ledger-on-orphan-git-branch storage backend (GitObjectLedgerBackend)
@@ -316,4 +316,6 @@ archives:
     - PoC nix/pkg/cq-ledgers/debug/20260609-221530-orphan-ledger-poc.sh
     - packages/ledger/src/store/{FsLedgerStore.ts, lockfile.ts}
     - the new G41/T343 catalog MCP tools (fetch_prompt/validate_input/validate_output) are now LIVE (the user redeployed), but are orthogonal to this backend.
-- sessionLogs: ["docs/logs/20260609-233314-a6759b079c538e025.md"]
+- sessionLogs: ["docs/logs/20260609-233314-a6759b079c538e025.md","docs/logs/20260610-090525-aa446d5d556d10ea3.md","docs/logs/20260610-090525-pi-grok.md","docs/logs/20260610-090525-pi-minimax.md","docs/logs/20260610-091837-af979f39285036dfd.md","docs/logs/20260610-092800-a320db9dedf477d3f.md"]
+- milestones: ["M144","M145","M146","M147","M148","M149"]
+- grounding: "Synthesized multi-planner plan (opus base + minimax git-env-validation fold-in; grok/minimax concurred on the spine). 6 work milestones, 14 tasks, honoring all 8 answers. W1/M144 (Q190 shared-base refactor): T347 LedgerPersistence seam interface → T350 AbstractLedgerStore base (map/parse/FTS/AsyncMutex/lockfile/schema-divergence shared) → T351 FsLedgerStore = base + FsPersistence (behaviour-preserving; ~/.cache mirror stays FS-only per Q195(2)). W2/M145 (Q191): T348 GitPlumbing (hash-object→scratch-index write-tree→commit-tree→CAS update-ref, StaleRefError) → T352 GitObjectLedgerBackend (in-memory sync reads via cat-file/ls-tree at init; writes-in-lock with CAS; orphan ref; backup-tag on reinit Q195(1)) → T353 ref-sha coherence watcher driving invalidate(). W3/M146 (Q189/Q192): T349 cq.toml [ledger] backend key (git-object|fs, default fs) → T357 backend factory at all construction sites + git-env fail-fast → T360 zero-frontend-change confirmation. W4/M147 (Q193 user request): T354 `cq move-ledger --to git|local` lossless bidirectional migration (git rm --cached + gitignore flip + cq.toml flip). W5/M148 (Q194/K66-4): T355 auto-fetch-start/non-forced-push-end refspec + runbook → T358 make the per-merge chore(ledger) command steps backend-conditional. W6/M149 (Q196): T356 shared conformance suite over Fs+InMemory+Git (throwaway repo per test) → T359 git-invariant tests (byte-identical tree/HEAD/index, orphan-ref advance, CAS reject, lock-not-committed, backup-tag). Milestone dependsOn encodes the build order (advisory). Key groundings: LedgerStore is already the abstraction (FsLedgerStore + InMemoryLedgerStore implement it); reads are SYNC from an in-memory map (so cat-file is init/coherence-only, not per-call); docs/*.md are currently TRACKED (migration needs git rm --cached); coherence + frontends key on file-watch/WS today (re-point coherence to ref-sha; confirm frontends need no change)."

@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 346
+  item: 360
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -487,3 +487,194 @@ archives:
 ---
 
 # tasks
+
+## M144
+
+### T347 — planned
+
+- createdAt: 2026-06-10T09:02:22.982Z
+- updatedAt: 2026-06-10T09:02:22.982Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Define the abstract LedgerPersistence seam interface
+- description: "In packages/ledger/src/store/, introduce a NARROW persistence-seam interface (e.g. LedgerPersistence) capturing ONLY the byte-level I/O FsLedgerStore performs today: (a) readLedgerSource(name)→string|null + readRegistrySource()→string|null (init); (b) writeLedgerSource(name,text) + writeRegistrySource(text); (c) archive I/O: readArchive(path)→string, writeArchive(path,text), removeArchive(path), readArchiveDir(name)→string[]; (d) the schema-divergence BACKUP action (backup current canonical state before reinit) as a seam method returning an operator-facing locator (path or tag); (e) currentSourceToken() (mtime/ref-sha) for coherence-change detection. Per Q190 the seam is the ONLY thing differing between backends; the in-memory map, parse/serialize, FTS, AsyncMutex, lockfile, schema-divergence DETECTION (schemasEqual) stay in the shared base. Derive the exact method set by auditing every fs.*/atomicWrite call in FsLedgerStore.ts (init, writeLedgerFile, writeRegistry, fetchArchive, unarchiveItem, backfillLegacyArchivePointers, performArchive, backupAndReinit, reset). Do NOT change the public LedgerStore.ts read/write surface — this is an internal collaborator."
+- acceptance: tsc -b passes; the interface enumerates every distinct byte-I/O operation FsLedgerStore performs, each with a doc comment naming its FsLedgerStore call-site; `bun run lint` clean. No behaviour change yet (no implementation moved).
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G43"]
+
+### T350 — planned
+
+- createdAt: 2026-06-10T09:03:04.100Z
+- updatedAt: 2026-06-10T09:03:04.100Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Extract AbstractLedgerStore base holding shared map/parse/FTS/lock/divergence logic over the seam
+- description: "Refactor FsLedgerStore so the shared, persistence-agnostic logic moves into an AbstractLedgerStore base class parameterised over the LedgerPersistence seam: the in-memory `ledgers` Map, init() load loop + bootstrap + ambient-milestone seeding + legacy-pointer backfill, all read methods (fetch/fetchItem/fetchMilestone/listMilestoneItems/snapshot/search/ftsSearch), all mutation methods (updateItem/createItem/createMilestone/createLedger/updateMilestone/reopenItem/unarchiveItem/archiveMilestone), the AsyncMutex + lockfile critical sections (withLock/withMilestonesLock/withRegistryLock), fireMutation/onMutation, the FTS index lifecycle, invalidate(), schema-divergence DETECTION + the reinit ORCHESTRATION (delegating the actual backup+rewrite bytes to the seam), and dispose(). Each byte-I/O call site that currently calls fs.*/atomicWrite is replaced by a seam call. lockfile.ts is NOT moved (stays shared); cacheMirror.ts is NOT moved (FS-only; stays an FsLedgerStore concern — per Q195(2) the mirror is NOT carried to the git backend). Persist a CHANGE INVENTORY decision item if any shared method's signature must change."
+- acceptance: All existing packages/ledger tests pass UNCHANGED (`bun test` green for the ledger package) proving the refactor is behaviour-preserving; tsc -b + lint clean; the shared logic now lives in AbstractLedgerStore (FsLedgerStore no longer contains it inline).
+- suggestedModel: frontier
+- dependsOn: ["T347"]
+- ledgerRefs: ["goals:G43"]
+
+### T351 — planned
+
+- createdAt: 2026-06-10T09:03:14.085Z
+- updatedAt: 2026-06-10T09:19:47.570Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Reimplement FsLedgerStore as AbstractLedgerStore + an FsPersistence seam impl
+- description: "Make FsLedgerStore extend AbstractLedgerStore, supplying an FsPersistence implementation of the seam that contains exactly today's FS behaviour: atomicWrite(docs/<name>.md) / atomicWrite(ledgers.yaml), fs.readFile for init/archive reads, fs.rm/fs.copyFile for archive removal + the docs/.backup/<ts>/ file-copy backup, fs.readdir for archive enumeration, and a docs/*.md-mtime currentSourceToken. The FsLedgerStore-specific surface NOT part of the LedgerStore interface (rootDir getter, readLog, reset()/ResetSummary, the ~/.cache mirror via scheduleMirror/mirrorMutation) STAYS on FsLedgerStore (Q195(2): the mirror is FS-only, NOT carried to the git backend). Keep onSchemaDivergence backup-reinit vs abort semantics identical."
+- acceptance: "`bun test` for the ledger package green (FsLedgerStore behaviour byte-identical: same docs/.backup layout, same atomic writes, ~/.cache mirror still fires); the committed canonical-ledgers.test.ts committed-vs-canon guard (which boots a store against the repo docs/ledgers.yaml) still passes; tsc -b + lint clean."
+- suggestedModel: frontier
+- dependsOn: ["T350"]
+- ledgerRefs: ["goals:G43"]
+
+## M145
+
+### T348 — planned
+
+- createdAt: 2026-06-10T09:02:30.973Z
+- updatedAt: 2026-06-10T09:02:30.973Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add a GitPlumbing helper wrapping hash-object/scratch-index/commit-tree/CAS update-ref
+- description: "Create packages/ledger/src/store/git/GitPlumbing.ts: a thin, INJECTABLE wrapper over the `git` invocations proven in the K66 PoC (nix/pkg/cq-ledgers/debug/20260609-221530-orphan-ledger-poc.sh). Methods: hashObject(content)→blobSha (git hash-object -w --stdin); writeTree(entries:{mode,sha,path}[])→treeSha building an ISOLATED scratch index via GIT_INDEX_FILE→throwaway path + `git update-index --add --cacheinfo` per entry then `git write-tree` (NEVER the real index); commitTree(tree,parent|null,message)→commitSha (orphan when parent null); updateRef(ref,newSha,expectedOldSha|null) using CAS form `git update-ref <ref> <new> <old>` that FAILS on stale old (surface a typed StaleRefError); readRef(ref)→sha|null; catFile(ref,path)→string (git cat-file -p <ref>:<path>); lsTree(ref)→path[] (git ls-tree -r --name-only); tagRef(tag,sha). All commands run with explicit cwd=repo root + a controlled env (scratch GIT_INDEX_FILE in a tmp dir, never the repo index). Inject the git runner (exec seam) so tests drive it against a throwaway repo."
+- acceptance: "A focused test against a throwaway /tmp git repo: writing two files advances an orphan ref two commits while `git status`/HEAD/working-tree/index stay byte-identical (mirrors the PoC proof); a CAS updateRef with a stale expectedOld throws StaleRefError; catFile/lsTree read back content with no checkout. tsc -b + lint clean."
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G43"]
+
+### T352 — planned
+
+- createdAt: 2026-06-10T09:03:42.377Z
+- updatedAt: 2026-06-10T09:03:42.377Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Implement GitObjectLedgerBackend via a GitPersistence seam impl over the orphan ref
+- description: "Add GitObjectLedgerBackend extending AbstractLedgerStore with a GitPersistence seam backed by GitPlumbing against refs/heads/cq-ledger (branch configurable, default cq-ledger). Per Q191/K66: init() reads every docs/<ledger>.md + docs/ledgers.yaml via catFile(ref,path)/lsTree(ref) into the SAME in-memory map (reads stay SYNC — no interface change); if the ref is absent, create the orphan ref from an empty tree (parentless first commit). A WRITE serialises the touched ledger to text, then INSIDE the existing per-ledger AsyncMutex+lockfile critical section: read the CURRENT ref sha (expected-old), hash-object the new blob, write a tree from a scratch index containing ALL current ledger files with the one path replaced, commit-tree (orphan on first, child thereafter), then CAS updateRef(ref,new,expectedOld) — a StaleRefError surfaces the lost-update race loudly (caveat 1). Every mutation advances the ref (continuous commit history). Archive files (docs/archive/...) live as paths in the SAME orphan tree. Advisory docs/.locks/*.lock STAY on the real FS (gitignored), NEVER in the tree (caveat 2). Schema-divergence reinit: tag refs/tags/cq-ledger-backup-<ts> at the current orphan head BEFORE reinitialising the ref (Q195(1)); detection (schemasEqual) is the shared base's, unchanged. NO ~/.cache mirror (Q195(2)). currentSourceToken()=ref sha. `git cat-file` is used ONLY at init + coherence-reload, never per read-call."
+- acceptance: A throwaway-repo test constructs GitObjectLedgerBackend, performs create/update/archive ops + reads them back; `git status` stays clean and HEAD/working-tree/index stay byte-identical after every write; the orphan ref advances one commit per mutation; lockfiles never appear in `git ls-tree -r cq-ledger`; a divergence triggers a refs/tags/cq-ledger-backup-<ts> tag before reinit. tsc -b + lint clean.
+- suggestedModel: frontier
+- dependsOn: ["T348","T351"]
+- ledgerRefs: ["goals:G43"]
+
+### T353 — planned
+
+- createdAt: 2026-06-10T09:03:53.111Z
+- updatedAt: 2026-06-10T09:20:13.446Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add a ref-sha coherence watcher that drives invalidate() for the git backend
+- description: "Add a ref-sha coherence trigger for the GIT backend (Q191). Add startLedgerRefWatcher(store, root, onChange?) that watches/polls the orphan ref refs/heads/cq-ledger for sha changes on a bounded interval (reuse the existing watcher's DEBOUNCE_MS cadence) and, on a change, calls store.invalidate(<ledgerId>) per ledger then fires onChange so the HTTP host still publishes the WS `ledger.changed` frame; invalidate() in the git backend re-reads the changed ledger(s) from the new ref via the seam. IMPORTANT (R418/opus): do NOT assume the ref lives at a literal `.git/refs/heads/cq-ledger` — that breaks under git-dir indirection (a linked worktree where `.git` is a FILE, a submodule, or a $GIT_DIR/core.worktree override; K66 keeps the linked-worktree approach as the documented fallback). RESOLVE the ref's real location via `git rev-parse --git-path refs/heads/<branch>` (+ `--git-path packed-refs`) at startup, or simply poll `git rev-parse --verify refs/heads/<branch>` (git resolves loose/packed/indirection itself) — never a hard-coded `.git/...` path. Per-backend selection is owned by the construction site (T357): the FS backend keeps the existing docs/*.md startLedgerWatcher; the git backend uses THIS ref-sha watcher INSTEAD (this is the Q191 'replace the file-watch trigger' applied per-backend, not in addition). The WS onMutation/`ledger.changed` broadcast itself is backend-agnostic and UNCHANGED."
+- acceptance: "A test: two GitObjectLedgerBackend instances on the same repo; a write through instance A advances the ref, and after the ref-watcher fires, instance B's reads reflect A's write (cross-process coherence) and onChange was invoked with the ledger id. The watcher resolves the ref via `git rev-parse --git-path`/`rev-parse --verify` (NOT a literal `.git/refs/...` path) — covered by a test that points the repo's git dir somewhere non-default (e.g. a linked worktree or GIT_DIR override) and confirms the watcher still detects the advance. tsc -b + lint clean."
+- suggestedModel: standard
+- dependsOn: ["T352"]
+- ledgerRefs: ["goals:G43"]
+
+## M146
+
+### T349 — planned
+
+- createdAt: 2026-06-10T09:02:36.432Z
+- updatedAt: 2026-06-10T09:02:36.432Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Add the [ledger] backend config key to @cq/config (git-object | fs, default fs)"
+- description: "Extend @cq/config: parse an optional top-level [ledger] table with `backend` ('fs' default | 'git-object'), optional `branch` (default 'cq-ledger') and `remote` (default 'origin', consumed by W5). Add the resolved ledger-backend settings to the parsed config; absence of [ledger] or of cq.toml → backend 'fs' (FsLedgerStore stays default, opt-in-experimental per Q189). Reject an unknown backend value with a CqConfig error. Add a documented, COMMENTED-OUT [ledger] block to CQ_TOML_TEMPLATE in cq-cli/src/cqTomlTemplate.ts (cq-config has no serializer; hand-authored literal) and keep cq.toml.example in sync. Scope is server/cwd-global."
+- acceptance: "parseConfig tests: cq.toml with [ledger] backend='git-object' resolves to git-object; omitting [ledger] resolves to fs; unknown backend throws; re-parsing CQ_TOML_TEMPLATE still resolves cleanly + yields backend fs (commented block inert); cq.toml.example consistent. tsc -b + lint clean."
+- suggestedModel: standard
+- ledgerRefs: ["goals:G43"]
+
+### T357 — planned
+
+- createdAt: 2026-06-10T09:04:31.102Z
+- updatedAt: 2026-06-10T09:20:55.438Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Select the backend at every store construction site by [ledger] backend (+ git-env validation)"
+- description: "Add a single createLedgerStore(root) factory (e.g. in ledger-mcp or a shared module) that loads cq.toml's [ledger] backend and returns FsLedgerStore (default) or GitObjectLedgerBackend, then init()s it. Route ALL construction sites through it: ledger-mcp/src/main.ts createEmbeddedStore() + main() (the `new FsLedgerStore({root})` site), and cq-cli/src/main.ts runInit()/runReset(). When backend='git-object', VALIDATE the git environment at startup (git available + the cwd is inside a git work tree) and FAIL-FAST with a clear error if not. FRESH-INIT GITIGNORE (R418/codex+grok): when `cq init` (or first backend startup) runs with backend='git-object' on a repo with NO pre-existing ledger to migrate, ensure docs/*.md + docs/ledgers.yaml are gitignored from the start (add the same clearly-marked git-backend .gitignore block that `cq move-ledger --to git` uses, idempotently — do not duplicate it if move-ledger already added it) so a fresh git-object ledger is never accidentally tracked on the working branch. Preserve buildServer's capability wiring: read_log/config/promptCatalog are gated on `store instanceof FsLedgerStore` today — generalise to a capability check so an FS-only capability (readLog, ~/.cache restore) is absent for the git backend while config/promptCatalog (root-bound, backend-independent) remain available. Select the coherence watcher (file-watch for fs vs ref-sha-watch for git-object, T353) by backend here too."
+- acceptance: "With cq.toml [ledger] backend='git-object', `ledger-mcp` (stdio) starts against a git repo, serves tools, and reads/writes land on the orphan ref (verified by `git log cq-ledger`); a non-git cwd fails fast with a clear error; `cq init` with backend='git-object' on a fresh repo leaves docs/*.md + docs/ledgers.yaml gitignored (not tracked); with backend fs (or no cq.toml) it behaves exactly as today; the per-backend coherence watcher is selected here. tsc -b + lint + `bun run check` clean."
+- suggestedModel: frontier
+- dependsOn: ["T349","T353"]
+- ledgerRefs: ["goals:G43"]
+
+### T360 — planned
+
+- createdAt: 2026-06-10T09:04:55.841Z
+- updatedAt: 2026-06-10T09:04:55.841Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Confirm zero frontend changes: frontends refresh solely via WS ledger.changed"
+- description: Per Q192, VERIFY (read-through of ledger-tui + ledger-web refresh paths) that the TUI and web frontends learn about changes ONLY via the internal WS `ledger.changed` channel (fired by onMutation, backend-agnostic) and NOT via any path that reads docs/*.md mtimes directly — which would break when docs/*.md no longer exist on the working branch under the git backend. Frontends are pure MCP clients (CLAUDE.md) even embedded; embedded-mode frontends co-host the store in-process, so they are covered by the backend's own onMutation + ref-sha coherence. If the verification holds, scope ZERO frontend code changes and record the confirmation as a `decisions` item citing the exact refresh code paths; if any path watches docs/ mtimes, file it as an out-of-scope `defects` item for the reviewer (do not fix here unless a trivial repoint).
+- acceptance: A `decisions` item records the confirmation, citing the exact frontend refresh code paths showing they key on WS `ledger.changed` only (no docs/*.md-mtime dependency for change detection). If a violation is found, a `defects` item exists. No frontend source changed unless a violation required a trivial repoint. tsc -b + lint clean.
+- suggestedModel: standard
+- dependsOn: ["T357"]
+- ledgerRefs: ["goals:G43"]
+
+## M147
+
+### T354 — planned
+
+- createdAt: 2026-06-10T09:04:02.581Z
+- updatedAt: 2026-06-10T09:20:24.790Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Implement `cq move-ledger` CLI for bidirectional git<->local migration
+- description: "Add a `move-ledger` subcommand to cq-cli/src/main.ts (extend SUBCOMMANDS, parser, HANDLERS, USAGE) — a NATIVE TypeScript subcommand analogous to runInit/runReset (NOT a prompt-driven command). Per Q193 (user request) it performs LOSSLESS BIDIRECTIONAL transplant of the live ledger between the docs/ working tree and the orphan ref refs/heads/cq-ledger, via an EXPLICIT `--to git | local` direction (refuse without it). **--to git:** snapshot the current docs/*.md + docs/archive + docs/ledgers.yaml tree into the orphan ref's commit via GitPlumbing; then `git rm --cached docs/*.md`(+archive+ledgers.yaml) on the working branch and add a clearly-marked, reversible git-backend block to .gitignore (docs/*.md + docs/ledgers.yaml) so the docs ledger files stop being TRACKED, leaving pre-migration tracked history FROZEN in place for audit; set [ledger] backend='git-object' in cq.toml. WORKING-TREE FILE DISPOSITION (R418/opus): the now-untracked docs/*.md files are LEFT IN PLACE on disk (do NOT delete them) — they become untracked-but-present and are simply ignored by git; print a note that they may be removed manually once the user is confident. **--to local:** the REVERSE — materialize the orphan ref's tree back to docs/*.md on disk, re-track them (remove the git-backend .gitignore block + re-add), set backend='fs'. Refuse if the target already holds a non-empty ledger unless `--force`; print a per-ledger moved-file summary; honour the [ledger] branch name. Document the linked-worktree fallback (`git worktree add <dir> cq-ledger`) in the command help. The .gitignore edit must be reversible by the opposite direction."
+- acceptance: "Round-trip test in a throwaway repo: seed docs/ ledgers, `cq move-ledger --to git` → orphan ref carries identical ledger bytes, docs ledger files UNTRACKED (`git ls-files docs/` shows none) but STILL PRESENT on disk (left-in-place), cq.toml backend=git-object; `cq move-ledger --to local` restores TRACKED docs/*.md byte-identical to the orphan-ref content + backend=fs; the round trip is provably lossless INCLUDING on-disk file state (the docs/*.md bytes before --to git equal the bytes after --to local) and tracked-state (tracked→untracked→tracked); refuses a non-empty target without --force. tsc -b + lint clean."
+- suggestedModel: frontier
+- dependsOn: ["T352","T349"]
+- ledgerRefs: ["goals:G43"]
+
+## M148
+
+### T355 — planned
+
+- createdAt: 2026-06-10T09:04:09.640Z
+- updatedAt: 2026-06-10T09:20:39.465Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Wire auto-fetch-at-start / non-forced auto-push-at-end of refs/heads/cq-ledger into the /cq:* commands"
+- description: "Per Q194: add to EACH /cq:* command prompt that touches the ledger — nix/pkg/cq-assets/commands/cq/{advance.md, plan/advance.md, implement/advance.md, AND investigate/advance.md (it DOES carry a standalone-stop `chore(ledger): /cq:investigate:advance` commit per its §Commit the ledger section, so it is in scope)} — a START step that auto-fetches the orphan ref from the configured remote (default origin) `git fetch <remote> refs/heads/cq-ledger:refs/heads/cq-ledger` and an END step that auto-pushes it `git push <remote> cq-ledger` with a PLAIN non-forced push so divergence FAILS LOUDLY (no --force; CAS update-ref already guards local lost-updates). These steps run ONLY when [ledger] backend='git-object' (guard the step on the backend). Write a CONCRETE manual-recovery runbook at docs/drafts/<ts>-orphan-ledger-runbook.md (or a committed docs/ note) covering: a rejected non-ff push (fetch → inspect `git log cq-ledger` → reconcile → retry), that single-branch/shallow clones must fetch the ref explicitly, AND the documented linked-worktree FALLBACK (`git worktree add <dir> cq-ledger` to materialize the ref in a separate work tree without touching the main checkout). NO per-write push. Re-run gen-agents-catalogue if these command files are catalogued so the generated copies match."
+- acceptance: All FOUR command prompts (advance, plan/advance, implement/advance, investigate/advance) contain backend-guarded fetch(start)/push(end) steps for refs/heads/cq-ledger against the configured remote with NO --force; a runbook note FILE exists at a named docs/ path covering rejected-push recovery + shallow-clone fetch + the linked-worktree fallback; gen-agents regen (if catalogued) leaves no drift; grep confirms the refspec + non-forced-push wording in each. `bun run check` green.
+- suggestedModel: standard
+- dependsOn: ["T349"]
+- ledgerRefs: ["goals:G43"]
+
+### T358 — planned
+
+- createdAt: 2026-06-10T09:04:37.026Z
+- updatedAt: 2026-06-10T09:20:46.044Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Make the per-merge/per-archive `git add docs/ … chore(ledger)` command steps backend-conditional
+- description: "Per K66 caveat 4: the git backend commits the ledger continuously per write on the orphan ref, so the COMMAND-LEVEL `git add docs/ && git commit -m \"chore(ledger): …\"` steps become redundant AND wrong (docs/*.md are untracked on the working branch after `cq move-ledger --to git`). Make these steps BACKEND-CONDITIONAL: skip them when [ledger] backend='git-object' (the orphan ref already carries the writes), keep them for backend='fs'. Cover EVERY command file that has such a step — commands/cq/{advance.md, implement/advance.md (the per-merge + per-archive checkpoints), plan/advance.md (the after-planning-lock + at-stop commits), AND investigate/advance.md (its standalone-stop `chore(ledger): /cq:investigate:advance` commit)}. Be surgical — only the ledger-commit blocks change; worktree-cleanup + other steps stay. Re-run gen-agents-catalogue (these command files are catalogued per K64/T322) so the generated agentsCatalogue.gen.ts matches."
+- acceptance: Each of the FOUR command prompts gates its `git add docs/ … chore(ledger)` block on the fs backend (skipped under git-object); agentsCatalogue.gen.ts regenerated (no drift); a grep-invariant or manual grep confirms no UNCONDITIONAL ledger-commit remains in any of the four; `bun run check` green.
+- suggestedModel: standard
+- dependsOn: ["T355"]
+- ledgerRefs: ["goals:G43"]
+
+## M149
+
+### T356 — planned
+
+- createdAt: 2026-06-10T09:04:14.875Z
+- updatedAt: 2026-06-10T09:04:14.875Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Run the shared LedgerStore conformance suite against GitObjectLedgerBackend (dual-tests)
+- description: "Per Q196: parameterise the existing abstract LedgerStore conformance test body (already run against FsLedgerStore + InMemoryLedgerStore per the dual-tests pattern; InMemoryLedgerStore at packages/ledger/src/store/InMemoryLedgerStore.ts is the canonical dummy) to ALSO run against GitObjectLedgerBackend. Each test constructs a THROWAWAY git repo (init a tmp repo, point the backend at it, dispose+rm after) exactly as the FS tests construct throwaway docs dirs — add a throwaway-git-repo helper alongside the existing throwaway-dir helper. The suite must exercise reads/writes/archive/unarchive/createLedger/concurrency + the CAS-conflict path so reads/writes/archive/concurrency parity is proven identical across all three backends."
+- acceptance: "`bun test` runs the full conformance body three times (Fs, InMemory, Git) all green; the Git run uses a fresh throwaway repo per test + leaves no residue; any parity gap surfaces as a failing conformance assertion (not a Git-only special-case). tsc -b + lint clean."
+- suggestedModel: frontier
+- dependsOn: ["T352"]
+- ledgerRefs: ["goals:G43"]
+
+### T359 — planned
+
+- createdAt: 2026-06-10T09:04:43.537Z
+- updatedAt: 2026-06-10T09:04:43.537Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add git-invariant tests (byte-identical tree/HEAD/index, ref-advance, CAS reject, lock-not-committed, backup-tag)
+- description: "Per Q196, add explicit tests for the git-specific invariants the K66 PoC validated — these invariants are the WHOLE POINT of the backend and must be regression-guarded: (1) after any GitObjectLedgerBackend write, the repo's working tree (sha256 of tracked files), HEAD ref, and index (`git ls-files -s` digest) are BYTE-IDENTICAL to before, and `git status --porcelain` is empty (no working-tree switch); (2) the orphan ref advances exactly one commit per mutation and the first commit is parentless (a true orphan); (3) a CAS update-ref with a STALE expected-old SHA is REJECTED (simulate a concurrent advance between read and update-ref) and surfaces StaleRefError rather than silent last-writer-wins; (4) advisory .lock files NEVER appear in `git ls-tree -r cq-ledger` (lockfiles stay on the real FS, gitignored); (5) the schema-divergence reinit tags refs/tags/cq-ledger-backup-<ts> at the prior orphan head before resetting the ref. Run against a throwaway repo per test."
+- acceptance: "`bun test` green for all five invariant groups; the byte-identical assertion runs after a real create+update+archive sequence; the CAS-stale test asserts the typed StaleRefError; the lock-not-committed test enumerates the orphan tree and asserts no .lock path; the backup-tag test asserts the tag exists at the prior head. tsc -b + lint + `bun run check` clean."
+- suggestedModel: frontier
+- dependsOn: ["T356"]
+- ledgerRefs: ["goals:G43"]
