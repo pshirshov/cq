@@ -545,10 +545,10 @@ archives:
 
 ## M157
 
-### T373 — planned
+### T373 — done
 
 - createdAt: 2026-06-10T18:38:44.789Z
-- updatedAt: 2026-06-10T18:38:44.789Z
+- updatedAt: 2026-06-10T19:16:43.753Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add prefix validation + prefixedToolNames(prefix) pure helper in @cq/ledger, exported from index.ts
@@ -557,6 +557,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: []
 - ledgerRefs: ["goals:G45"]
+- resultCommit: 110b0e5
+- completion: Added TOOL_PREFIX_RE + assertToolPrefix + prefixToolName + prefixedToolNames pure helpers in ledgerTools.ts, exported from @cq/ledger index.ts; tool-prefix.test.ts covers all cases. check 1645/0.
+- sessionLogs: ["docs/logs/20260610-190808-ad1b74ef59ce21727.md","docs/logs/20260610-190808-aa699936bf1be9c25.md","docs/logs/20260610-190808-pi-codex-T373.md","docs/logs/20260610-190808-pi-grok-T373.md","docs/logs/20260610-190808-pi-minimax-T373.md"]
 
 ### T374 — planned
 
