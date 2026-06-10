@@ -138,6 +138,12 @@ export function nodeGitRunner(cwd: string): GitRunner {
             GIT_AUTHOR_EMAIL: process.env.GIT_AUTHOR_EMAIL ?? "cq-ledger@localhost",
             GIT_COMMITTER_NAME: process.env.GIT_COMMITTER_NAME ?? "cq-ledger",
             GIT_COMMITTER_EMAIL: process.env.GIT_COMMITTER_EMAIL ?? "cq-ledger@localhost",
+            // Force the C locale so git's human-readable stderr is deterministic
+            // regardless of the inherited locale (D54). updateRef's CAS-vs-error
+            // discriminator (D49) matches on the "cannot lock ref" stderr phrase;
+            // a non-C LANG/LC_ALL could translate it and misroute the error.
+            LC_ALL: "C",
+            LANG: "C",
             ...(opts?.env ?? {}),
           },
           maxBuffer: 64 * 1024 * 1024,
