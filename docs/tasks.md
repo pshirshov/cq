@@ -586,10 +586,10 @@ archives:
 - completion: "Added @cq/ledger-{mcp,tui,web} as workspace:* deps of cq-cli (package.json + bun.lock + mirrored tsconfig paths/references). check 1674/0."
 - sessionLogs: ["docs/logs/20260610-233921-T386.md"]
 
-### T387 — planned
+### T387 — done
 
 - createdAt: 2026-06-10T22:23:15.092Z
-- updatedAt: 2026-06-10T22:38:04.135Z
+- updatedAt: 2026-06-10T23:59:21.629Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add mcp|tui|web mode routing to the cq dispatcher with verbatim argv pass-through
@@ -605,6 +605,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T386"]
 - ledgerRefs: ["goals:G48"]
+- resultCommit: baf1077
+- completion: "cq dispatcher routes mcp|tui|web BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam); ledger-tui refactored to export main(argv) (self-run via main(process.argv.slice(2))); jsx:react-jsx tsconfig fix for the cross-package .tsx import. dispatch.test.ts (11). check 1682/0."
+- sessionLogs: ["docs/logs/20260610-235859-T387.md"]
 
 ### T388 — planned
 

@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 469
+  item: 470
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -901,3 +901,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T386","goals:G48"]
 - sessionLogs: ["docs/logs/20260610-233921-T386.md"]
+
+### R470 — go-ahead
+
+- createdAt: 2026-06-10T23:59:25.413Z
+- updatedAt: 2026-06-10T23:59:25.413Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T387 — UNANIMOUS approve (4-reviewer panel: opus repo-grounded + codex/grok/minimax). The load-bearing cq dispatcher: mode-before-native-parse routing, verbatim argv.slice(1) delegation (test-proven), behavior-preserving ledger-tui main(argv) export, minimal+necessary jsx:react-jsx TS6305 fix, protocol-only mcp stdout, embedded mode (no --mcp-url) preserved; mcp/web bins untouched. check 1682/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T387","goals:G48"]
+- sessionLogs: ["docs/logs/20260610-235859-T387.md"]
