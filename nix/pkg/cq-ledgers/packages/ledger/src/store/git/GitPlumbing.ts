@@ -305,6 +305,36 @@ export class GitPlumbing {
   }
 
   /**
+   * Enumerate the FULL tree entries (mode + blob SHA + path) under `ref`
+   * recursively, WITHOUT any checkout. Unlike {@link lsTree} (name-only), this
+   * returns the mode + sha needed to RE-ASSEMBLE a tree with one path
+   * replaced/added/removed — the read-current-tree step of the orphan-ref
+   * read-modify-write the `GitObjectLedgerBackend` performs under its lock.
+   *
+   * Runs: `git ls-tree -r <ref>` and parses the porcelain lines
+   * `<mode> <type> <sha>\t<path>`, keeping only blob (`type === "blob"`)
+   * entries (the ledger tree is flat files; there are no submodule/commit
+   * gitlink entries to carry forward).
+   */
+  async lsTreeEntries(ref: string): Promise<TreeEntry[]> {
+    const res = await this.runOk(["ls-tree", "-r", ref]);
+    const out: TreeEntry[] = [];
+    for (const line of res.stdout.split("\n")) {
+      if (line.length === 0) continue;
+      // Format: "<mode> <type> <sha>\t<path>"
+      const tab = line.indexOf("\t");
+      if (tab < 0) continue;
+      const meta = line.slice(0, tab).split(/\s+/);
+      const path = line.slice(tab + 1);
+      const [mode, type, sha] = meta;
+      if (mode === undefined || type === undefined || sha === undefined) continue;
+      if (type !== "blob") continue;
+      out.push({ mode, sha, path });
+    }
+    return out;
+  }
+
+  /**
    * Create (or move) a lightweight tag `tag` pointing at `sha`.
    *
    * Runs: `git tag -f <tag> <sha>` (`-f` so a snapshot tag can be re-pointed,
