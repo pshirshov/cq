@@ -735,6 +735,54 @@ ${QUERY_LANGUAGE_HELP}`,
   ] as unknown as AnyTool[];
 }
 
+// ---------------------------------------------------------------------------
+// Tool-name prefix helpers (Q205 / T373)
+// ---------------------------------------------------------------------------
+
+/**
+ * Regex that a tool prefix must match (non-empty values only).
+ * Letters and digits only so that `<prefix>_<name>` stays within the
+ * safeId charset `^[a-zA-Z0-9_-]+$`.
+ */
+export const TOOL_PREFIX_RE = /^[a-zA-Z0-9]+$/;
+
+/**
+ * Validate a tool prefix at the system boundary.
+ * Accepts `''` (the cq default = unprefixed).
+ * Throws a descriptive Error for any non-empty value that does not match
+ * TOOL_PREFIX_RE (letters/digits only).
+ */
+export function assertToolPrefix(prefix: string): void {
+  if (prefix === "") return;
+  if (!TOOL_PREFIX_RE.test(prefix)) {
+    throw new Error(
+      `Invalid tool prefix ${JSON.stringify(prefix)}: must be empty or match /^[a-zA-Z0-9]+$/ (letters and digits only)`,
+    );
+  }
+}
+
+/**
+ * Apply a prefix to a single tool name.
+ * Returns the name unchanged when prefix is `''`; otherwise `${prefix}_${name}`.
+ * Calls assertToolPrefix first.
+ */
+export function prefixToolName(prefix: string, name: string): string {
+  assertToolPrefix(prefix);
+  return prefix === "" ? name : `${prefix}_${name}`;
+}
+
+/**
+ * Return the full list of ledger tool names, optionally prefixed.
+ * `prefixedToolNames('')` returns a copy of LEDGER_TOOL_NAMES.
+ * `prefixedToolNames('myproj')` returns `['myproj_enumerate_ledgers', ...]`.
+ * Calls assertToolPrefix first.
+ */
+export function prefixedToolNames(prefix: string): string[] {
+  assertToolPrefix(prefix);
+  if (prefix === "") return [...LEDGER_TOOL_NAMES];
+  return LEDGER_TOOL_NAMES.map((name) => `${prefix}_${name}`);
+}
+
 // Helpful for tests that want to enumerate the tool names without running them.
 export const LEDGER_TOOL_NAMES = [
   "enumerate_ledgers",
