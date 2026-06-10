@@ -34,6 +34,7 @@ import {
   confirmDestructive,
 } from "./confirm.js";
 import { CQ_TOML_TEMPLATE } from "./cqTomlTemplate.js";
+import { runMoveLedger, type MoveDirection } from "./moveLedger.js";
 
 /**
  * The `cq.toml` config filename, resolved relative to the ledger root. Kept as
@@ -47,8 +48,8 @@ export { type ConfirmIo, type ConfirmOutcome, defaultConfirmIo, confirmDestructi
 /** Exit code for an unknown/absent subcommand (usage error). */
 export const EXIT_USAGE = 2;
 
-/** The three subcommands the dispatcher routes to. */
-export const SUBCOMMANDS = ["init", "reset", "erase"] as const;
+/** The subcommands the dispatcher routes to. */
+export const SUBCOMMANDS = ["init", "reset", "erase", "move-ledger"] as const;
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
 function isSubcommand(s: string): s is Subcommand {
@@ -63,15 +64,32 @@ export interface SubcommandArgs {
   yes: boolean;
   /** `--force`: overwrite an existing cq.toml when running `cq init`. */
   force: boolean;
+  /**
+   * `--to <git|local>`: the `move-ledger` migration direction. `null` when the
+   * flag is absent (other subcommands ignore it; `move-ledger` refuses without
+   * it). An UNRECOGNISED value is captured verbatim here and rejected by the
+   * `move-ledger` handler with a usage error.
+   */
+  to: MoveDirection | null;
 }
 
 export const USAGE = [
   "usage: cq <command> [options]",
   "",
   "commands:",
-  "  init   [--cwd <path>] [--force]   initialise the canonical ledger set",
-  "  reset  [--cwd <path>] [--yes|-y]  backup + reinitialise the ledgers (destructive)",
-  "  erase  [--cwd <path>] [--yes|-y]  remove the ledger tree (destructive)",
+  "  init        [--cwd <path>] [--force]            initialise the canonical ledger set",
+  "  reset       [--cwd <path>] [--yes|-y]           backup + reinitialise the ledgers (destructive)",
+  "  erase       [--cwd <path>] [--yes|-y]           remove the ledger tree (destructive)",
+  "  move-ledger --to <git|local> [--cwd <path>] [--force]",
+  "                                                  migrate the ledger between docs/ and the orphan",
+  "                                                  ref refs/heads/<branch> (default cq-ledger):",
+  "                                                    --to git    snapshot docs/ → orphan ref, untrack",
+  "                                                                docs files (left on disk), backend=git-object",
+  "                                                    --to local  materialise orphan ref → docs/, re-track,",
+  "                                                                backend=fs",
+  "                                                  refuses a non-empty target without --force.",
+  "                                                  inspect the orphan ref as a checkout via:",
+  "                                                    git worktree add <dir> cq-ledger",
   "",
   "ledger root: --cwd > $LEDGER_ROOT > current working directory",
 ].join("\n");
@@ -98,6 +116,7 @@ export function parseSubcommandArgs(argv: readonly string[]): SubcommandArgs {
   let cwd: string | undefined;
   let yes = false;
   let force = false;
+  let to: MoveDirection | null = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--yes" || a === "-y") {
@@ -113,9 +132,26 @@ export function parseSubcommandArgs(argv: readonly string[]): SubcommandArgs {
       cwd = v;
     } else if (a !== undefined && a.startsWith("--cwd=")) {
       cwd = a.slice("--cwd=".length);
+    } else if (a === "--to") {
+      i += 1;
+      const v = argv[i];
+      if (v === undefined) {
+        throw new Error("cq: --to requires a value (git|local)");
+      }
+      to = parseMoveDirection(v);
+    } else if (a !== undefined && a.startsWith("--to=")) {
+      to = parseMoveDirection(a.slice("--to=".length));
     }
   }
-  return { cwd: resolveRoot(cwd), yes, force };
+  return { cwd: resolveRoot(cwd), yes, force, to };
+}
+
+/** Parse a `--to` value into a {@link MoveDirection}; fail fast on anything else. */
+function parseMoveDirection(v: string): MoveDirection {
+  if (v === "git" || v === "local") {
+    return v;
+  }
+  throw new Error(`cq: --to must be "git" or "local", got "${v}"`);
 }
 
 /** Outcome of a dispatch: the process exit code main() should propagate. */
@@ -293,6 +329,23 @@ export async function runErase(args: SubcommandArgs, io: DispatchIo): Promise<Di
   return { exitCode: 0 };
 }
 
+/**
+ * `cq move-ledger` (T354): a NATIVE subcommand performing a lossless
+ * bidirectional transplant of the live ledger between the `docs/` working tree
+ * and the orphan ref via an explicit `--to git|local`. The migration logic lives
+ * in ./moveLedger.ts; this thin wrapper bridges {@link SubcommandArgs} to its
+ * {@link MoveLedgerArgs} and threads the dispatcher IO.
+ */
+export async function runMoveLedgerCmd(
+  args: SubcommandArgs,
+  io: DispatchIo,
+): Promise<DispatchOutcome> {
+  return runMoveLedger(
+    { root: args.cwd, to: args.to, force: args.force },
+    { out: io.out, err: io.err },
+  );
+}
+
 /** A store exposing the FS-specific backup→reinit `reset()` (FsLedgerStore). */
 interface ResettableStore extends LedgerStore {
   reset(): Promise<ResetSummary>;
@@ -317,6 +370,7 @@ const HANDLERS: Record<Subcommand, (args: SubcommandArgs, io: DispatchIo) => Pro
   init: runInit,
   reset: runReset,
   erase: runErase,
+  "move-ledger": runMoveLedgerCmd,
 };
 
 /**

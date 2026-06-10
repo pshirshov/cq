@@ -66,3 +66,59 @@ export async function ensureGitBackendGitignore(root: string): Promise<boolean> 
   await fs.writeFile(gitignorePath, `${existing}${sep}${GIT_BACKEND_GITIGNORE_BLOCK}\n`, "utf8");
   return true;
 }
+
+/**
+ * The REMOVAL counterpart of {@link ensureGitBackendGitignore} (T354): strip the
+ * marker-guarded git-backend block from `<root>/.gitignore` so the docs ledger
+ * projection becomes trackable again under the fs backend (the `--to local`
+ * direction of `cq move-ledger`).
+ *
+ * The block is the exact {@link GIT_BACKEND_GITIGNORE_BLOCK} text that
+ * {@link ensureGitBackendGitignore} appends; this removes that span verbatim,
+ * along with the single blank-line separator that precedes it (if any) so the
+ * round trip (add → remove) restores the file byte-for-byte. Surrounding
+ * user-authored content is preserved.
+ *
+ * - Absent `.gitignore`, or one without the marker → no-op, returns `false`.
+ * - Present WITH the block → the block (and its leading separator) is excised;
+ *   if the file is left empty it is removed entirely. Returns `true`.
+ */
+export async function removeGitBackendGitignore(root: string): Promise<boolean> {
+  const gitignorePath = path.join(root, ".gitignore");
+  let existing: string;
+  try {
+    existing = await fs.readFile(gitignorePath, "utf8");
+  } catch {
+    return false; // no .gitignore — nothing to remove
+  }
+
+  if (!existing.includes(GIT_BACKEND_GITIGNORE_MARKER)) {
+    return false; // marker absent — idempotent no-op
+  }
+
+  // Excise the block plus the trailing newline ensureGitBackendGitignore wrote
+  // (`${BLOCK}\n`), then any leading blank-line separator, so the round trip is
+  // byte-exact.
+  const blockWithNl = `${GIT_BACKEND_GITIGNORE_BLOCK}\n`;
+  const idx = existing.indexOf(blockWithNl);
+  let next: string;
+  if (idx >= 0) {
+    const before = existing.slice(0, idx);
+    const after = existing.slice(idx + blockWithNl.length);
+    // ensureGitBackendGitignore joined prior content to the block with a single
+    // "\n" (when content already ended in "\n") — drop that separating newline.
+    const trimmedBefore = before.endsWith("\n") ? before.slice(0, -1) : before;
+    next = trimmedBefore + after;
+  } else {
+    // The block text without a trailing newline (it was written as the whole
+    // file: `${BLOCK}\n`, but a later manual edit may have changed the tail).
+    next = existing.replace(GIT_BACKEND_GITIGNORE_BLOCK, "");
+  }
+
+  if (next.trim().length === 0) {
+    await fs.rm(gitignorePath, { force: true });
+  } else {
+    await fs.writeFile(gitignorePath, next, "utf8");
+  }
+  return true;
+}

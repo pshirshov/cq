@@ -67,6 +67,7 @@ export {
 export type { ResolvedLedgerStore } from "./store/createLedgerStore.js";
 export {
   ensureGitBackendGitignore,
+  removeGitBackendGitignore,
   GIT_BACKEND_GITIGNORE_MARKER,
   GIT_BACKEND_GITIGNORE_BLOCK,
 } from "./store/gitBackendGitignore.js";
