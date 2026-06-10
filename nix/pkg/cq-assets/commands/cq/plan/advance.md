@@ -809,7 +809,9 @@ gitignored; NEVER code) — at TWO points:
   at-stop commit when chained (the wrapper owns the single run-stop commit). The
   after-planning-lock commit above still fires either way.
 
-Mechanism (run from the ledger root):
+Mechanism — **when `[ledger] backend` is `fs` (the default); SKIP under
+`git-object`, whose orphan ref already carries each write** (run from the ledger
+root):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
 git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:plan:advance — <planned: <G> | stop: <status>>

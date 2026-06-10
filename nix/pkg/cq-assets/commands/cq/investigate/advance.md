@@ -558,9 +558,11 @@ command in the SAME inline session, so you already KNOW which context you are in
   never a duplicate.
 
 ## Commit the ledger (standalone stop)
-After the standalone handoff write, persist the ledger to git — and ONLY the
-ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`,
-gitignored; NEVER code):
+After the standalone handoff write, persist the ledger to git — **when
+`[ledger] backend` is `fs` (the default); SKIP under `git-object`, whose orphan
+ref already carries each write** — and ONLY the ledger (`docs/*.md` +
+`docs/archive` + `docs/logs`; NEVER `docs/ledgers.yaml`, gitignored; NEVER
+code):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
 git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:investigate:advance — <stop: <status>>

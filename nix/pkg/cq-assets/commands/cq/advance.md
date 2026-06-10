@@ -545,7 +545,9 @@ always-fire checkpoints:
   record (§Provenance / §The one write): one final commit capturing the
   end-of-run ledger state.
 
-Mechanism (run from the ledger root — the MCP `--cwd`, the repo root here):
+Mechanism — **when `[ledger] backend` is `fs` (the default); SKIP under
+`git-object`, whose orphan ref already carries each write** (run from the ledger
+root — the MCP `--cwd`, the repo root here):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
 git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:advance — <Mxx archived | run stop: <status>>

@@ -428,7 +428,9 @@ after every task in its `dependsOn` has merged). For each:
    chained run does NOT accrue a large uncommitted ledger between archives. This
    checkpoint OVERRIDES the chained-suppression: it fires under `/cq:advance`
    too, exactly like the after-archive commit. Use the idempotent commit form
-   (ledger artifacts only — see §Commit the ledger):
+   (ledger artifacts only — see §Commit the ledger). **When `[ledger] backend`
+   is `fs` (the default); SKIP under `git-object`, whose orphan ref already
+   carries each write:**
    ```
    git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
    git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — merged <Txx>
@@ -528,8 +530,9 @@ which TWO ALWAYS fire (even chained) and ONE is suppressed when chained:
   (after every task merge-back + after every milestone archive) still fire
   either way.
 
-Mechanism (run from the ledger root — same idempotent form at every checkpoint,
-only the `-m` message differs):
+Mechanism — **when `[ledger] backend` is `fs` (the default); SKIP under
+`git-object`, whose orphan ref already carries each write** (run from the ledger
+root — same idempotent form at every checkpoint, only the `-m` message differs):
 ```
 git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
 git diff --cached --quiet -- docs/ || git commit -q -m "chore(ledger): /cq:implement:advance — <merged <Txx> | <Mxx> archived | stop: <status>>
