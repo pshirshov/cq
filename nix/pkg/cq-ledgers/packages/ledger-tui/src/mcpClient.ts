@@ -14,7 +14,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { buildServer, createEmbeddedStore } from "@cq/ledger-mcp";
-import type { LedgerStore } from "@cq/ledger";
+import type { LedgerStore, ResolvedLedgerStore } from "@cq/ledger";
 import type {
   ArchiveContent,
   FetchedLedger,
@@ -47,6 +47,13 @@ interface CallToolResultLike {
 export interface EmbeddedContext {
   readonly store: LedgerStore;
   readonly cwd: string;
+  /**
+   * The resolved backend descriptor (store + backend + branch) so the host can
+   * select the matching coherence watcher via `startLedgerCoherenceWatcher`
+   * (ref-sha-watch under git-object, file-watch under fs) — mirroring the web
+   * embedded path (ledger-web/src/serve.ts). Fixes D51.
+   */
+  readonly resolved: ResolvedLedgerStore;
 }
 
 export class McpLedgerClient implements LedgerClient {
@@ -109,7 +116,8 @@ export class McpLedgerClient implements LedgerClient {
    * Used when ledger-tui is launched with no `--mcp-url`.
    */
   static async embedded(cwd: string): Promise<McpLedgerClient> {
-    const { store } = await createEmbeddedStore(cwd);
+    const resolved = await createEmbeddedStore(cwd);
+    const store = resolved.store;
     const server = buildServer(store, path.basename(cwd));
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
@@ -118,7 +126,7 @@ export class McpLedgerClient implements LedgerClient {
       { capabilities: {} },
     );
     await client.connect(clientTransport);
-    return new McpLedgerClient(client, { store, cwd });
+    return new McpLedgerClient(client, { store, cwd, resolved });
   }
 
   /** The in-process context when running embedded, else null (HTTP mode). */

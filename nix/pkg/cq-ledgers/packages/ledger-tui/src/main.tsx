@@ -23,7 +23,7 @@ import * as path from "node:path";
 import React from "react";
 import { render } from "ink";
 import type { RenderOptions } from "ink";
-import { startLedgerWatcher } from "@cq/ledger-mcp";
+import { startLedgerCoherenceWatcher } from "@cq/ledger-mcp";
 import { App } from "./app.js";
 import { McpLedgerClient } from "./mcpClient.js";
 
@@ -118,14 +118,17 @@ async function run(): Promise<void> {
     }
     liveUrl = null;
   }
-  // Embedded mode has no WebSocket: wire live refresh to the in-process file
-  // watcher so external edits (the agent's stdio server, git, a second UI)
-  // refresh the view. Self-edits already refetch post-mutation.
+  // Embedded mode has no WebSocket: wire live refresh to the in-process
+  // backend-selecting coherence watcher so external edits (the agent's stdio
+  // server, git, a second UI) refresh the view. Self-edits already refetch
+  // post-mutation. startLedgerCoherenceWatcher selects the file-watch under the
+  // fs backend (behaviour unchanged) and the orphan-ref-sha poll under the
+  // git-object backend, mirroring ledger-web/src/serve.ts (D51).
   const ctx = client.embedded;
   const onSubscribe =
     ctx !== null
       ? (onChange: () => void): (() => void) => {
-          const watcher = startLedgerWatcher(ctx.store, ctx.cwd, () => onChange());
+          const watcher = startLedgerCoherenceWatcher(ctx.resolved, ctx.cwd, () => onChange());
           return () => watcher.close();
         }
       : null;

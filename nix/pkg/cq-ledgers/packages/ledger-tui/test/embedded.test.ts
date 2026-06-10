@@ -36,9 +36,13 @@ afterAll(async () => {
 });
 
 describe("McpLedgerClient.embedded (in-process, in-memory transport)", () => {
-  it("exposes the embedded context (store + resolved cwd)", () => {
+  it("exposes the embedded context (store + cwd + resolved backend descriptor)", () => {
     expect(client.embedded).not.toBeNull();
     expect(client.embedded?.cwd).toBe(tmpRoot);
+    // D51: the resolved backend descriptor is exposed so main.tsx can select the
+    // matching coherence watcher. A plain temp dir (no cq.toml) resolves to fs.
+    expect(client.embedded?.resolved.backend).toBe("fs");
+    expect(client.embedded?.resolved.store).toBe(client.embedded?.store);
   });
 
   it("enumerates ledgers", async () => {
