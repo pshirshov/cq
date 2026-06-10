@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 213
+  item: 218
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -647,3 +647,65 @@ archives:
 - question: "Root cause of D57 confirmed (ledger-web's shared Markdown component renders ```json fences via bare react-markdown — no pretty-print/highlight — into a non-wrapping `.lw-md pre`) and a defect-seeded goal G47 is ready in `planning`. Run `/cq:plan:advance G47` to produce the reviewed fix tasks. The plan should decide the SCOPE (global vs log-popup-only) since the Markdown component is shared by all markdown fields."
 - context: "Confirmed root cause (H36): App.tsx:3574-3582 LogModal → Markdown.tsx:14-22 bare ReactMarkdown (no components.code, no highlighter, no JSON pretty-print) + styles.css:962-968 `.lw-md pre` overflow:auto with no wrap. Suggested fix: a react-markdown components.code renderer that JSON.stringify(parse,null,2)-pretty-prints + (optionally) colorizes json fences, plus white-space:pre-wrap/overflow-wrap CSS; SAFE parse-failure fallback; preserve rehype-sanitize. ledger-web only (Q122: ledger-tui has no log view). Low severity."
 - ledgerRefs: ["defects:D57","goals:G47"]
+
+## M164
+
+### Q214 — open
+
+- createdAt: 2026-06-10T22:03:35.664Z
+- updatedAt: 2026-06-10T22:03:35.664Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: Unification mechanism — how should `cq mcp|tui|web` actually invoke the existing tools?
+- context: "The three product mains (`packages/ledger-{mcp,tui,web}/src/main.{ts,tsx}` / `serve.ts`) already EXPORT a `main(argv)` and are guarded by `import.meta.main` (so importing them does NOT auto-run). The cq dispatcher (`packages/cq-cli/src/main.ts`) is a flat first-positional router (`dispatch`/`HANDLERS`). So in-process delegation is low-friction: `cq mcp <args>` → `import('@cq/ledger-mcp').main(args)`. The alternative — cq shell-launching the standalone bins — adds a process hop and re-introduces the per-bin closures. A third option folds each tool's logic bodily into cq-cli (retiring the per-package mains). The mechanism drives the closure shape, the embedded-MCP wiring, and how much the dispatcher must change."
+- suggestions: ["in-process: cq adds @cq/ledger-{mcp,tui,web} as deps and calls their exported main(argv) — one merged Bun binary","launcher: cq exec/spawns the existing standalone bins on PATH","absorb: move each tool's logic under cq-cli and delete the per-package bins/mains"]
+- recommendation: "in-process delegation — cq-cli depends on the three packages and routes `cq <mode> …` to their exported `main(argv)`. Lowest-risk path to behavior-invariance: the mains are already exported and side-effect-guarded, so the four tools' behavior is reused verbatim with no process hop, and the per-package mains/tests stay intact for incremental landing."
+- ledgerRefs: ["goals:G48"]
+
+### Q215 — open
+
+- createdAt: 2026-06-10T22:03:44.134Z
+- updatedAt: 2026-06-10T22:03:44.134Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: Backward-compat of the old `ledger-mcp` / `ledger-tui` / `ledger-web` invocations — keep them as aliases or remove them?
+- context: "`.mcp.json` (repo root) currently launches the registered MCP server as `nix run .#ledger-mcp --`; the home-manager / dev-llm wiring (`nix/hm/dev-llm.nix`) and docs (CLAUDE.md, READMEs) also reference the three names. If the old names are removed outright, every one of those call sites must be migrated to `cq mcp|tui|web` in the SAME change. If they are retained as thin aliases (bins/symlinks that forward to `cq <mode>`), the migration can be deferred and external user muscle-memory keeps working. This is orthogonal to the in-process-vs-launcher mechanism (Q1)."
+- suggestions: ["keep all three old names as thin alias bins that forward to `cq mcp|tui|web` (and migrate .mcp.json + dev-llm at leisure)","remove the old names; migrate .mcp.json + dev-llm wiring + docs to `cq <mode>` in this same change","keep ONLY `ledger-mcp` as an alias (it's the .mcp.json + agent-spawned entrypoint) and drop the tui/web names"]
+- recommendation: Keep all three as thin alias bins forwarding to `cq <mode>` AND migrate `.mcp.json` to `cq mcp` in this change, but leave the dev-llm/doc references to follow incrementally. This keeps the registered MCP server and any external scripts working while moving the canonical front door to `cq`. Confirm whether you want the aliases to be permanent or a deprecation-only shim.
+- ledgerRefs: ["goals:G48"]
+
+### Q216 — open
+
+- createdAt: 2026-06-10T22:03:54.012Z
+- updatedAt: 2026-06-10T22:03:54.012Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: Subcommand surface + flag mapping — exact mode names and how each tool's existing flags pass through under `cq <mode> …`?
+- context: "The cq dispatcher consumes the FIRST positional then parses the REST as that subcommand's flags. Each tool has its own flag set: ledger-mcp (`--cwd`, `--http [host:]port`, `--tool-prefix`, the `restore --from-cache` nested subcommand, `--help`); ledger-tui (`--mcp-url`, `--cwd`); ledger-web (`--port`, `--host`, `--mcp-url`, `--cwd`). The cleanest mapping is pass-through: cq strips the mode token and hands the remaining argv straight to the delegated `main(argv)`, so `cq mcp --cwd X --http 7777` and `cq web --port 5180` keep IDENTICAL flag semantics with zero re-parsing. Need to confirm the mode names and whether `cq mcp restore --from-cache` (nested subcommand under a mode) is in scope, plus what `cq --help` lists."
+- suggestions: ["modes `cq mcp` / `cq tui` / `cq web`; cq passes the post-mode argv verbatim to each tool's existing main(argv) (no flag remapping)","also surface `cq mcp restore --from-cache` by passing through to ledger-mcp's restore subcommand","rename flags for cross-mode consistency (e.g. unify `--http`/`--port`) — a behavior change, larger blast radius"]
+- recommendation: Modes `cq mcp|tui|web` with verbatim argv pass-through to each tool's existing `main(argv)` (including `cq mcp restore --from-cache`), so no flag semantics change. `cq --help` (and `cq` with no/unknown subcommand) lists all modes plus the existing init/reset/erase/move-ledger/advance-gate commands. Defer any cross-mode flag-renaming as out of scope for a behavior-invariant refactor.
+- ledgerRefs: ["goals:G48"]
+
+### Q217 — open
+
+- createdAt: 2026-06-10T22:04:05.899Z
+- updatedAt: 2026-06-10T22:04:05.899Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: Nix packaging — collapse to one `.#cq` product exposing all modes, or keep per-product derivations pointing at the one binary?
+- context: "`flake.nix` today has five derivations (`ledgerMcp`, `ledgerTui`, `ledgerWeb`, `cqCli`, plus the shared `node-modules` FOD), each wrapping `bun run <main> --`. A single merged `cq` binary needs the UNION of all closures: ledger-web's built SPA (react/react-dom/react-markdown/elkjs, Bun.build at startup) + ledger-tui's Ink/react + the embedded @cq/ledger-mcp server closure. Collapsing to one `.#cq` product means one larger closure that every consumer pulls even to run just `cq mcp` (the agent/.mcp.json case, which today pulls only the lean ledgerMcp closure). Keeping per-product derivations that all stage the SAME merged source lets `.#ledger-mcp` stay a thin closure while `.#cq` exposes everything. Also: does `apps.{ledger-mcp,ledger-tui,ledger-web}` / `packages.*` stay exposed for compat (ties to Q2)?"
+- suggestions: ["one `.#cq` product exposing all modes; drop/alias the per-product derivations","keep per-product derivations (lean closures) AND add a `.#cq` umbrella that stages all four — `.mcp.json` keeps using the lean `.#ledger-mcp`-equivalent","one merged source staged five times, each wrapper pinning a different mode entrypoint (shared FOD, per-product closures stay scoped)"]
+- recommendation: Keep per-product Nix derivations (so `.#ledger-mcp` / `cq mcp` stays a LEAN closure for the agent/.mcp.json path — no SPA/Ink bloat) and add the `cq` binary as the multiplexing front door whose wrapper has the full closure only when built as `.#cq`. Confirm whether the closure-size cost of a single fat `.#cq` is acceptable, or whether the lean-mcp-path must be preserved.
+- ledgerRefs: ["goals:G48"]
+
+### Q218 — open
+
+- createdAt: 2026-06-10T22:04:16.696Z
+- updatedAt: 2026-06-10T22:04:16.696Z
+- author: "opus-4.8[1m]"
+- session: $CLAUDE_CODE_SESSION_ID
+- question: Scope, behavior-invariance, sequencing, and the acceptance bar — confirm this is a pure entrypoint/packaging refactor that can land incrementally?
+- context: "The goal states the four tools' BEHAVIOR must stay unchanged — this is a front-door/binary-surface refactor. Because the product mains are already exported, the change can land in two stages: (A) add `cq mcp|tui|web` that delegate to the existing mains (old bins untouched), then (B) optionally retire/alias the standalone bins and migrate `.mcp.json` + dev-llm + docs. I want to confirm (1) no behavior change to mcp/tui/web/cq is in scope, (2) incremental landing is acceptable, and (3) the operational acceptance criteria: `cq mcp` works as the `.mcp.json`-registered server (stdio + `--http`), `cq tui` / `cq web` launch (including EMBEDDED mode — TUI/web co-host an in-process MCP server over in-memory/`/mcp`+`/ws`), old invocations still work or are migrated, and `bun run check` (test+typecheck+lint) plus `nix build .#cq` (and any retained per-product builds) are green."
+- suggestions: ["pure refactor, no behavior change; land incrementally (A: add cq modes delegating to existing mains; B: retire/alias old bins + migrate call sites)","do it all in one atomic change (add modes, retire old bins, migrate .mcp.json/dev-llm/docs together)","stage A only for now (add cq modes), defer retiring the old bins to a follow-up goal"]
+- recommendation: "Treat it as a pure, behavior-invariant entrypoint/packaging refactor landing incrementally (stage A then B). Acceptance bar: `cq mcp` serves the .mcp.json registration (stdio + --http) identically to ledger-mcp, `cq tui`/`cq web` launch in BOTH embedded and remote modes with embedded MCP intact, old names still resolve (alias) or are migrated, and `bun run check` + the relevant `nix build` targets pass. Confirm the embedded-mode co-hosted MCP server (TUI in-memory transport, web `/mcp`+`/ws`) must remain byte-for-byte intact."
+- ledgerRefs: ["goals:G48"]

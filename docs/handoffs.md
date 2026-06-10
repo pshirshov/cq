@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 50
+  item: 51
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -404,3 +404,17 @@ archives:
 - ledgerRefs: ["defects:D57","goals:G47"]
 - blockingQuestions: ["Q213"]
 - sessionLogs: ["docs/logs/20260610-215726-ab96c0f29862c38fd.md"]
+
+## M164
+
+### HO51 — answers-required
+
+- createdAt: 2026-06-10T22:05:00.853Z
+- updatedAt: 2026-06-10T22:05:00.853Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "Bootstrapped plan-flow goal G48 (unify ledger-mcp/ledger-tui/ledger-web/cq into a single `cq` front door: cq mcp / cq tui / cq web / …). The plan-advance planner grounded against the real repo and filed the first clarifying batch Q214-Q218: (Q214) unification mechanism (in-process delegation to the existing exported main()s vs shell-launcher vs absorb into cq-cli); (Q215) backward-compat of the old `ledger-mcp`/`ledger-tui`/`ledger-web` names (alias/symlink vs remove) + impact on .mcp.json / dev-llm wiring / docs; (Q216) mode names + flag pass-through (cq mcp --cwd/--http/--tool-prefix, cq web --port/--host, cq mcp restore) + cq --help; (Q217) Nix packaging (one fat .#cq vs lean per-product derivations pointing at one binary) + closure/FOD impact (web SPA, Ink, embedded-MCP closure); (Q218) scope/behavior-invariance + incremental A-then-B sequencing + acceptance bar. Goal parked in clarifying/awaiting-answers. Key grounding: the three product mains export main(argv)/serve guarded by import.meta.main, so in-process delegation from cq-cli is low-friction + behavior-preserving; TUI+web already import @cq/ledger-mcp for embedded mode."
+- flow: plan
+- ledgerRefs: ["goals:G48"]
+- blockingQuestions: ["Q214","Q215","Q216","Q217","Q218"]
+- sessionLogs: ["docs/logs/20260610-220434-ada8c90131e25f938.md"]

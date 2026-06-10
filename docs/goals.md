@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 47
+  item: 48
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -397,3 +397,30 @@ archives:
     
     ## SCOPE DECISION for the planner
     The Markdown component is SHARED by all markdown field rendering (App.tsx renderVal/detail fields, e.g. L3179/L3326), so the plan must decide: apply the json-pretty-print + wrap GLOBALLY (every markdown code fence in ledger-web) or ONLY in the log popup (via a Markdown `prettyJson`/`wrap` prop or popup-scoped CSS + a popup-only code renderer). The pretty-print MUST be SAFE (parse-failure falls back to raw text unchanged, never throws) and preserve rehype-sanitize. Acceptance: a happy-dom test asserting a single-line ```json fence renders multi-line/pretty-printed (and, if colorized, with the expected token spans/classes) + wraps; existing Markdown tests unchanged; bun run check green. Linked defect: D57.
+
+## M164
+
+### G48 — clarifying
+
+- createdAt: 2026-06-10T22:02:36.737Z
+- updatedAt: 2026-06-10T22:04:48.341Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- title: Unify the CLI tools into a single `cq` binary (cq tui / cq web / cq mcp / …)
+- description: |
+    I think we should unify our CLI tools. Instead of having ledger-mcp, ledger-tui, ledger-web and cq we should have one tool - cq which we can call like `cq tui`, `cq web`, `cq mcp` and so on.
+    
+    ## Intent (greenfield refactor of the product surface)
+    Today the Bun workspace ships FOUR separately-packaged executables (Nix products: `.#ledger-mcp`, `.#ledger-tui`, `.#ledger-web`, plus the `cq` CLI that already has native subcommands like init/reset/erase/move-ledger/advance-gate). The ask: collapse them into ONE `cq` entrypoint that multiplexes the others as subcommands — e.g. `cq mcp [--cwd ... --http ... --tool-prefix ...]`, `cq tui`, `cq web [--port ... --host ...]`, while keeping the existing `cq` subcommands (init/reset/erase/move-ledger/advance-gate/restore?). So `cq` becomes the single front door.
+    
+    ## Surface the planner/clarifying phase should pin (NOT decided here)
+    - The current packages + their entrypoints: packages/cq-cli (the `cq` binary: SUBCOMMANDS/parser/HANDLERS/USAGE in src/main.ts), packages/ledger-mcp (`ledger-mcp` bin — stdio + --http; just gained --tool-prefix + --help/TOP_LEVEL_USAGE), packages/ledger-tui (`ledger-tui`, Ink), packages/ledger-web (`ledger-web`, the web server + SPA). The Nix flake builds each as a separate product (flake.nix `.#ledger-mcp|.#ledger-tui|.#ledger-web`, plus cqCli).
+    - HOW to unify: does `cq` dispatch to the existing per-package mains (import + call, one merged Bun binary), or shell out to the existing bins, or are the per-package bins retired and their logic moved under cq-cli? Single bundled binary vs cq-as-launcher.
+    - Backward compatibility: keep the old `ledger-mcp`/`ledger-tui`/`ledger-web` names as thin aliases/symlinks (e.g. `cq mcp`) or remove them outright? This affects .mcp.json (which spawns `ledger-mcp`), the home-manager/dev-llm wiring, and any docs.
+    - Packaging: collapse to ONE Nix product (`.#cq`) exposing all modes, or keep separate products that all point at the one binary? FOD/closure implications (ledger-web pulls a built SPA; ledger-tui pulls Ink; merging may bloat the single closure).
+    - The `.mcp.json` in this repo currently launches the ledger MCP server — unifying must keep `cq mcp` (or a compatible invocation) working as the registered MCP server, and keep embedded TUI/web modes intact.
+    - Naming/flag consistency across the merged subcommands; `cq --help` listing all modes; shell-completion considerations (if any).
+    - Scope/sequencing: is this a pure entrypoint/packaging refactor (no behavior change to the four tools), and can it be done incrementally (add `cq mcp|tui|web` that delegate to the existing mains, then optionally retire the standalone bins)?
+    
+    Greenfield change to the cq tooling's own packaging/entrypoint layer (packages/cq-cli, the three product packages, flake.nix, .mcp.json, the home-manager wiring). Keep the four tools' BEHAVIOR unchanged — this is about the front-door/binary surface. Grounding pointers for the planner: packages/cq-cli/src/main.ts (SUBCOMMANDS/parser/HANDLERS/USAGE — the native-subcommand pattern), packages/ledger-mcp/src/main.ts (its own main()/parseArgs, now with --help/TOP_LEVEL_USAGE + --tool-prefix), packages/ledger-tui + packages/ledger-web mains/bins, flake.nix (the per-product derivations + cqCli + node-modules FOD), and .mcp.json.
+- sessionLogs: ["docs/logs/20260610-220434-ada8c90131e25f938.md"]

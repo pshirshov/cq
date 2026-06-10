@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 163
+  item: 164
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -830,3 +830,9 @@ archives:
 - createdAt: 2026-06-10T21:58:40.719Z
 - updatedAt: 2026-06-10T21:58:40.719Z
 - title: "Plan: fix D57 — pretty-print + colorize JSON in session-log viewer"
+
+### M164 — open
+
+- createdAt: 2026-06-10T22:02:13.252Z
+- updatedAt: 2026-06-10T22:02:13.252Z
+- title: "Plan: unify CLI tools into a single cq binary"
