@@ -561,10 +561,10 @@ archives:
 - completion: Added TOOL_PREFIX_RE + assertToolPrefix + prefixToolName + prefixedToolNames pure helpers in ledgerTools.ts, exported from @cq/ledger index.ts; tool-prefix.test.ts covers all cases. check 1645/0.
 - sessionLogs: ["docs/logs/20260610-190808-ad1b74ef59ce21727.md","docs/logs/20260610-190808-aa699936bf1be9c25.md","docs/logs/20260610-190808-pi-codex-T373.md","docs/logs/20260610-190808-pi-grok-T373.md","docs/logs/20260610-190808-pi-minimax-T373.md"]
 
-### T374 — planned
+### T374 — done
 
 - createdAt: 2026-06-10T18:38:58.507Z
-- updatedAt: 2026-06-10T18:54:24.491Z
+- updatedAt: 2026-06-10T19:53:41.347Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Thread an optional trailing toolPrefix through createLedgerMcpTools (Claude tool() factory)
@@ -573,11 +573,14 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T373"]
 - ledgerRefs: ["goals:G45"]
+- resultCommit: 04a1f2c
+- completion: Trailing optional toolPrefix='' threaded through createLedgerMcpTools via post-map name transform (handlers/schemas intact, default byte-identical). check 1648/0.
+- sessionLogs: ["docs/logs/20260610-195218-a0e9ae2ec3c50a4b1.md","docs/logs/20260610-195218-a6f2904aa74c2f47b.md","docs/logs/20260610-195218-pi-codex-T374.md","docs/logs/20260610-195218-pi-grok-T374.md","docs/logs/20260610-195218-pi-minimax-T374.md"]
 
-### T375 — planned
+### T375 — done
 
 - createdAt: 2026-06-10T18:39:05.559Z
-- updatedAt: 2026-06-10T18:39:05.559Z
+- updatedAt: 2026-06-10T19:53:45.114Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Thread an optional trailing toolPrefix through registerLedgerStdioTools (raw registerTool factory)
@@ -586,6 +589,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T373"]
 - ledgerRefs: ["goals:G45"]
+- resultCommit: e944cf3
+- completion: Trailing optional toolPrefix='' threaded through registerLedgerStdioTools via a reg() wrapper over all 26 registrations (config/handlers intact, default byte-identical); round-trip test proves it. check 1649/0.
+- sessionLogs: ["docs/logs/20260610-195218-a62003829a8ea4acf.md","docs/logs/20260610-195218-a82ce11cdb7b5499d.md","docs/logs/20260610-195218-pi-codex-T375.md","docs/logs/20260610-195218-pi-grok-T375.md","docs/logs/20260610-195218-pi-minimax-T375.md"]
 
 ### T376 — planned
 
@@ -602,10 +608,10 @@ archives:
 
 ## M158
 
-### T377 — planned
+### T377 — done
 
 - createdAt: 2026-06-10T18:39:20.109Z
-- updatedAt: 2026-06-10T18:54:14.324Z
+- updatedAt: 2026-06-10T19:53:49.348Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Make SERVER_INSTRUCTIONS name prefixed tools when a prefix is set (buildServerInstructions)
@@ -614,6 +620,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T373"]
 - ledgerRefs: ["goals:G45"]
+- resultCommit: 3b7eb76
+- completion: SERVER_INSTRUCTIONS converted to pure buildServerInstructions(toolPrefix) reusing prefixToolName over live LEDGER_TOOL_NAMES (longest-first whole-word); empty prefix byte-identical. check 1649/0.
+- sessionLogs: ["docs/logs/20260610-195218-a8d83bd70f422f1c2.md","docs/logs/20260610-195218-a3cabcbc349ef2645.md","docs/logs/20260610-195218-pi-codex-T377.md","docs/logs/20260610-195218-pi-grok-T377.md","docs/logs/20260610-195218-pi-minimax-T377.md"]
 
 ### T378 — planned
 

@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 452
+  item: 455
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -822,3 +822,41 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T373","goals:G45"]
 - sessionLogs: ["docs/logs/20260610-190808-aa699936bf1be9c25.md","docs/logs/20260610-190808-pi-codex-T373.md","docs/logs/20260610-190808-pi-grok-T373.md","docs/logs/20260610-190808-pi-minimax-T373.md"]
+
+### R453 — go-ahead
+
+- createdAt: 2026-06-10T19:53:52.660Z
+- updatedAt: 2026-06-10T19:53:52.660Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: T374 — UNANIMOUS approve (4-reviewer panel). Trailing toolPrefix via post-map name transform; handlers/schemas intact; default byte-identical; check 1648/0; opus re-verified in-worktree.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T374","goals:G45"]
+- sessionLogs: ["docs/logs/20260610-195218-a6f2904aa74c2f47b.md","docs/logs/20260610-195218-pi-codex-T374.md","docs/logs/20260610-195218-pi-grok-T374.md","docs/logs/20260610-195218-pi-minimax-T374.md"]
+
+### R454 — go-ahead
+
+- createdAt: 2026-06-10T19:53:55.967Z
+- updatedAt: 2026-06-10T19:53:55.967Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: T375 — UNANIMOUS approve (4-reviewer panel). reg() wraps all 26 registrations; config/handlers intact; default byte-identical; real-server round-trip test; check 1649/0; opus re-verified in-worktree.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T375","goals:G45"]
+- sessionLogs: ["docs/logs/20260610-195218-a82ce11cdb7b5499d.md","docs/logs/20260610-195218-pi-codex-T375.md","docs/logs/20260610-195218-pi-grok-T375.md","docs/logs/20260610-195218-pi-minimax-T375.md"]
+
+## M158
+
+### R455 — go-ahead
+
+- createdAt: 2026-06-10T19:54:00.229Z
+- updatedAt: 2026-06-10T19:54:00.229Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T377 — reconciled approve (4-reviewer panel, all approve). buildServerInstructions(toolPrefix) reuses prefixToolName over live LEDGER_TOOL_NAMES; empty byte-identical; check 1649/0. minimax filed a low defect (derive_predicates-missing) ADJUDICATED FALSE by the repo-grounded opus reviewer (derive_predicates IS at ledgerTools.ts:803 and IS correctly prefixed) — not filed."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T377","goals:G45"]
+- sessionLogs: ["docs/logs/20260610-195218-a3cabcbc349ef2645.md","docs/logs/20260610-195218-pi-codex-T377.md","docs/logs/20260610-195218-pi-grok-T377.md","docs/logs/20260610-195218-pi-minimax-T377.md"]
