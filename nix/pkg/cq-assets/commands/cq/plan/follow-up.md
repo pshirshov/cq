@@ -204,7 +204,9 @@ the Codex equivalent; omit if unavailable).
 
 10. **Commit the ledger.** This command is the outermost wrapper, so it owns the
     single run-stop ledger commit. Immediately after the handoff write, persist
-    ONLY the ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER
+    the ledger to git — **when `[ledger] backend` is `fs` (the default); SKIP
+    under `git-object`, whose orphan ref already carries each write** — ONLY
+    the ledger (`docs/*.md` + `docs/archive` + `docs/logs`; NEVER
     `docs/ledgers.yaml`, gitignored; NEVER code):
     ```
     git add docs/ 2>/dev/null  # ledger dir; .gitignore excludes ledgers.yaml + lockfiles/backups
