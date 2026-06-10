@@ -8,9 +8,18 @@
     "types": ["bun-types"],
     "paths": {
       "@cq/config": ["../cq-config/src/index.ts"],
-      "@cq/ledger": ["../ledger/src/index.ts"]
+      "@cq/ledger": ["../ledger/src/index.ts"],
+      "@cq/ledger-mcp": ["../ledger-mcp/src/main.ts"],
+      "@cq/ledger-tui": ["../ledger-tui/src/main.tsx"],
+      "@cq/ledger-web": ["../ledger-web/src/serve.ts"]
     }
   },
-  "references": [{ "path": "../cq-config" }, { "path": "../ledger" }],
+  "references": [
+    { "path": "../cq-config" },
+    { "path": "../ledger" },
+    { "path": "../ledger-mcp" },
+    { "path": "../ledger-tui" },
+    { "path": "../ledger-web" }
+  ],
   "include": ["src", "test"]
 }
