@@ -403,10 +403,10 @@ archives:
 
 ## M164
 
-### G48 — clarifying
+### G48 — planned
 
 - createdAt: 2026-06-10T22:02:36.737Z
-- updatedAt: 2026-06-10T22:04:48.341Z
+- updatedAt: 2026-06-10T22:46:15.666Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: Unify the CLI tools into a single `cq` binary (cq tui / cq web / cq mcp / …)
@@ -426,4 +426,6 @@ archives:
     - Scope/sequencing: is this a pure entrypoint/packaging refactor (no behavior change to the four tools), and can it be done incrementally (add `cq mcp|tui|web` that delegate to the existing mains, then optionally retire the standalone bins)?
     
     Greenfield change to the cq tooling's own packaging/entrypoint layer (packages/cq-cli, the three product packages, flake.nix, .mcp.json, the home-manager wiring). Keep the four tools' BEHAVIOR unchanged — this is about the front-door/binary surface. Grounding pointers for the planner: packages/cq-cli/src/main.ts (SUBCOMMANDS/parser/HANDLERS/USAGE — the native-subcommand pattern), packages/ledger-mcp/src/main.ts (its own main()/parseArgs, now with --help/TOP_LEVEL_USAGE + --tool-prefix), packages/ledger-tui + packages/ledger-web mains/bins, flake.nix (the per-product derivations + cqCli + node-modules FOD), and .mcp.json.
-- sessionLogs: ["docs/logs/20260610-220434-ada8c90131e25f938.md"]
+- sessionLogs: ["docs/logs/20260610-220434-ada8c90131e25f938.md","docs/logs/20260610-222114-a2057ccd00c7186b4.md","docs/logs/20260610-222114-pi-grok-g48.md","docs/logs/20260610-222114-pi-minimax-g48.md"]
+- milestones: ["M166","M167","M168","M169"]
+- grounding: "Synthesized from a 3-planner panel (opus base, grok + minimax folded). In-process delegation: cq-cli depends on @cq/ledger-{mcp,tui,web} + routes `cq <mode> argv` to their exported main(argv) verbatim (Q214); old standalone bins DELETED + .mcp.json/tools.nix/docs migrated atomically (Q215); modes cq mcp|tui|web + cq --help (Q216); ONE fat .#cq Nix product, per-product derivations dropped (Q217); behavior-invariant, embedded MCP byte-for-byte intact, bun run check + nix build .#cq green (Q218). 4 work milestones M166(A: dispatch+delegation T386-T389) → M167(B: delete bins + collapse flake T390-T392) → M168(C: migrate .mcp.json/tools.nix/docs T393-T395) → M169(D: FOD-hash refresh + acceptance gate T396-T397). Key grounding: the 3 product mains export main(argv)/serve + import.meta.main-guarded; the dispatcher must short-circuit BEFORE native parseSubcommandArgs and pass argv.slice(1) verbatim; dev-llm refs live in nix/hm/tools.nix (servers.ledger command + ledgerTools list); the merged .#cq closure = union of embedServerClosure + tui ink/react + web SPA inputs; FOD-hash refresh after the cq-cli dep additions."

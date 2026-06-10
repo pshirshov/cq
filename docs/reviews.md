@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 465
+  item: 467
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -856,3 +856,29 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G47","defects:D57"]
 - sessionLogs: ["docs/logs/20260610-222114-ab68dbeae4d1a1cd8.md"]
+
+## M164
+
+### R466 — revise
+
+- createdAt: 2026-06-10T22:37:26.660Z
+- updatedAt: 2026-06-10T22:37:26.660Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: Reconciled 4-reviewer panel (opus repo-grounded + codex/grok/minimax pi) — strictest-wins REVISE. Plan well-sequenced + complete vs Q214-Q218, but 5 in-scope planner-fixable issues (3 opus-grounded).
+- new_questions: []
+- criticism: ["[opus] T387 rationale is FACTUALLY WRONG: embedded-vs-remote mode is gated by the ABSENCE of --mcp-url (ledger-web serve.ts:201, ledger-tui main.tsx:102), NOT by import.meta.main. Fix the wording so delegation correctness is explained by 'the delegated call omits --mcp-url → embedded stays active', not import.meta.main.","[opus+minimax+grok] ledger-tui exports NO argv-taking entry: run() is module-private and reads process.argv.slice(2); only parseArgs/normalizeUrl/liveUrlFor/TUI_RENDER_OPTIONS are exported. T387 must COMMIT to ADDING `export async function main(argv)` to packages/ledger-tui (refactor run() to take argv) so `cq tui --cwd X` reaches its parseArgs — not the either/or 'call exported main(argv) if present' (there is no present target). Pin the mechanism: add the export; do NOT mutate process.argv.","[opus+minimax] T391 references tui/web staging 'fragments' that DO NOT EXIST as named fragments — the tui/web stagings are INLINE in the ledgerTui (flake.nix:281-323) + ledgerWeb (flake.nix:348-395) derivations that T392 DELETES. T391 must EXTRACT those inline stagings into named shell fragments (like embedServerClosure) BEFORE T392 deletes the derivations (or replicate the staging into cqCli), AND carry an explicit closure-input checklist (embed server + tui ink/react + web SPA react/react-dom/react-markdown/remark-gfm/rehype-sanitize/elkjs + @cq workspace symlinks + LEDGER_WEB_OUTDIR) as local acceptance.","[codex+grok] Migrate-then-drop atomicity (Q215): the migrations T393/T394/T395 currently dependsOn T392 (the drop) — BACKWARDS. Re-dep the migrations to T391 (the .#cq build exists), and make T392 (drop the per-product derivations) depend on T393/T394/T395 so the old derivations are dropped only AFTER every call site is repointed to .#cq.","[codex] T396 (node-modules FOD refresh) deps T392 spuriously — the FOD hash is driven by package.json/bun.lock changes (T386 dep additions + T390 bin removals), NOT the flake derivation drop. Re-dep T396 to [T386, T390]."]
+- ledgerRefs: ["goals:G48"]
+- sessionLogs: ["docs/logs/20260610-223635-a033cf008daee12c9.md","docs/logs/20260610-223635-pi-codex-g48.md","docs/logs/20260610-223635-pi-grok-g48.md","docs/logs/20260610-223635-pi-minimax-g48.md"]
+
+### R467 — go-ahead
+
+- createdAt: 2026-06-10T22:45:59.373Z
+- updatedAt: 2026-06-10T22:45:59.373Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "Round 2 — UNANIMOUS go-ahead (4-reviewer panel: opus repo-grounded + codex/grok/minimax). All 5 R466 issues resolved + opus-verified vs source: T387 commits to adding ledger-tui export main(argv) + corrected embedded rationale (absence of --mcp-url) + argv.slice(1) convention; T391 extracts the inline tui/web flake stagings into named tuiClosure/webClosure before T392 deletes the derivations + closure-input checklist; migrations T393/T394/T395 dep T391; T396 dep [T386,T390]; T397 gates drop+migrations+FOD+tests. No forward deps / no deadlock; complete vs Q214-Q218 + the Q218 acceptance bar."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G48"]
+- sessionLogs: ["docs/logs/20260610-224531-a2a5b452e81bbba55.md","docs/logs/20260610-224531-pi-codex-g48.md","docs/logs/20260610-224531-pi-grok-g48.md","docs/logs/20260610-224531-pi-minimax-g48.md"]

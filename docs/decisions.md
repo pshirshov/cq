@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 73
+  item: 74
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -339,3 +339,15 @@ archives:
 - headline: G47 plan LOCKED — ledger-web JSON pretty-print + colorize + wrap (D57); single-task, go-ahead
 - rationale: "Defect-seeded goal G47 (fix D57, root cause confirmed via H36, clarification skipped). Orchestrator-authored plan (G42/K67 precedent) reviewed by a single opus plan-reviewer → go-ahead (R465; 0 criticisms; verified colorizer spans survive rehype-sanitize + react-markdown v10 code API + happy-dom acceptance). SCOPE decided GLOBAL (the shared ledger-web Markdown component). LOCKED plan: 1 work milestone M165, 1 task T385 (standard) — a react-markdown components.code renderer that SAFE-pretty-prints (JSON.stringify(parse,null,2), try/catch raw fallback) + theme-var colorizes json fences, plus white-space:pre-wrap CSS on .lw-md pre + .lw-json-* token colors; happy-dom test (pretty multi-line + token spans + invalid-json raw fallback + non-json untouched + pre-wrap CSS); bun run check + nix build .#ledger-web green. G47 → planned."
 - ledgerRefs: ["goals:G47","defects:D57","reviews:R465"]
+
+## M164
+
+### K74 — locked
+
+- createdAt: 2026-06-10T22:46:13.287Z
+- updatedAt: 2026-06-10T22:46:13.287Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: G48 plan LOCKED — unify CLI tools into one cq binary (unanimous go-ahead, R467)
+- rationale: "The G48 plan (4 work milestones M166-M169, 12 tasks T386-T397) is APPROVED + LOCKED after a UNANIMOUS round-2 multi-reviewer go-ahead (R467: opus[claude] + codex/grok/minimax[pi]), following one revise round (R466, 5 in-scope criticisms incl. 3 opus-grounded). Synthesized from a 3-planner round (opus base + grok/minimax fold-ins). Honors all 5 locked clarifying decisions (Q214-Q218): in-process delegation — cq-cli depends on @cq/ledger-{mcp,tui,web} + routes `cq <mode> argv` to their exported main(argv) verbatim (argv.slice(1) drops the mode token), with a NEW `export main(argv)` added to ledger-tui (T386/T387); cq --help + dispatch tests (T388/T389); old standalone bins DELETED (T390); ONE fat .#cq Nix product — cqCli stages the union closure via extracted-into-named-fragments tuiClosure/webClosure + embedServerClosure (T391), per-product derivations dropped (T392); .mcp.json/tools.nix/docs migrated atomically to cq mode (T393/T394/T395, dep the .#cq build not the drop); node-modules FOD-hash refresh after the package.json changes (T396); behavior-invariance acceptance gate — bun run check (incl. unchanged product suites exercising embedded MCP) + nix build .#cq + all-mode launch parity (mcp stdio+http, tui embedded+remote, web embedded+proxy, restore, products-removed) (T397). DAG acyclic, no forward deps/deadlock. G48 → planned."
+- ledgerRefs: ["goals:G48","reviews:R467"]

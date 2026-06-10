@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 165
+  item: 169
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -842,3 +842,30 @@ archives:
 - createdAt: 2026-06-10T22:12:36.201Z
 - updatedAt: 2026-06-10T22:12:36.201Z
 - title: "W: ledger-web JSON pretty-print + colorize + wrap (D57)"
+
+### M166 — open
+
+- createdAt: 2026-06-10T22:22:34.938Z
+- updatedAt: 2026-06-10T22:22:34.938Z
+- title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
+
+### M167 — open
+
+- createdAt: 2026-06-10T22:22:39.333Z
+- updatedAt: 2026-06-10T22:22:39.333Z
+- title: "G48-B: delete standalone tools + collapse flake to one .#cq"
+- dependsOn: ["M166"]
+
+### M168 — open
+
+- createdAt: 2026-06-10T22:22:43.413Z
+- updatedAt: 2026-06-10T22:22:43.413Z
+- title: "G48-C: migrate all call sites to cq mode (.mcp.json + tools.nix + docs)"
+- dependsOn: ["M167"]
+
+### M169 — open
+
+- createdAt: 2026-06-10T22:22:44.551Z
+- updatedAt: 2026-06-10T22:22:44.551Z
+- title: "G48-D: FOD-hash refresh + nix build .#cq acceptance gate"
+- dependsOn: ["M168"]
