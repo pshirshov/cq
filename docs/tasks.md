@@ -631,10 +631,10 @@ archives:
 - completion: "All four /cq:*:advance prompts gained backend-guarded START auto-fetch (refs/heads/cq-ledger:refs/heads/cq-ledger from [ledger] remote) + END PLAIN NON-FORCED push (git push <remote> cq-ledger, no --force — divergence fails loudly), guarded on [ledger] backend='git-object'. Chaining suppression: wrapper /cq:advance owns the single run-START fetch / run-END push; sub-flows suppress when chained → exactly one fetch+push per run. Existing per-merge chore(ledger) commit steps UNTOUCHED (T358 scope). Runbook at docs/drafts/20260610-1300-orphan-ledger-runbook.md (rejected-push reconcile + shallow/single-branch fetch + linked-worktree fallback). agentsCatalogue.gen.ts regenerated, freshness guard passes. check 1583/0 worktree, 1591/0 main."
 - sessionLogs: ["docs/logs/20260610-131612-a7334485bf0fcb1a1.md","docs/logs/20260610-131612-a3afb1ae067f6e0d5.md"]
 
-### T358 — planned
+### T358 — done
 
 - createdAt: 2026-06-10T09:04:37.026Z
-- updatedAt: 2026-06-10T09:20:46.044Z
+- updatedAt: 2026-06-10T13:33:12.839Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Make the per-merge/per-archive `git add docs/ … chore(ledger)` command steps backend-conditional
@@ -643,3 +643,6 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T355"]
 - ledgerRefs: ["goals:G43"]
+- resultCommit: 01c3157
+- completion: "All five `git add docs/ … chore(ledger)` commit blocks across the four advance command files (advance.md; implement/advance.md ×2 — per-merge + §Commit overview; plan/advance.md; investigate/advance.md) now gate on [ledger] backend='fs' (default), SKIPPED under git-object (orphan ref already carries each write). Surgical — T355 fetch/push + other steps untouched. agentsCatalogue.gen.ts regenerated, freshness guard passes. check 1592/0 worktree, 1591/0 main. Reviewer filed D53 (the three START/wrapper commands carry the same unguarded pattern — out of T358's four-advance-file scope)."
+- sessionLogs: ["docs/logs/20260610-132400-a4fa33e752f0686e9.md","docs/logs/20260610-132400-ac17805a7226ebf8b.md"]

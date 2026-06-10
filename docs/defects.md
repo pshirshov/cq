@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 52
+  item: 53
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -260,3 +260,16 @@ archives:
     
     NOT a trivial repoint (so deferred per T360): the fix must thread the RESOLVED backend descriptor (backend kind + branch) from createEmbeddedStore through EmbeddedContext (mcpClient.ts:46-50, currently {store, cwd}) to main.tsx so it can call startLedgerCoherenceWatcher (which needs a ResolvedLedgerStore). Suggested fix: have createEmbeddedStore return the ResolvedLedgerStore (it already computes it), expose it on EmbeddedContext, and replace main.tsx:128's startLedgerWatcher with startLedgerCoherenceWatcher(resolved, ctx.cwd, onChange). Then the embedded TUI gets ref-sha coherence under git-object, matching the web frontend.
 - ledgerRefs: ["tasks:T360","goals:G43"]
+
+## M148
+
+### D53 — open
+
+- createdAt: 2026-06-10T13:33:25.126Z
+- updatedAt: 2026-06-10T13:33:25.126Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Start/wrapper commands (/cq:plan, /cq:investigate, /cq:plan:follow-up) carry unguarded run-stop `git add docs/ … chore(ledger)` commits (not backend-gated)"
+- severity: low
+- description: "Surfaced by T358's review. T358 backend-gated the five chore(ledger) commit blocks in the four `*/advance.md` files, but the SAME unconditional `git add docs/ 2>/dev/null && git diff --cached --quiet -- docs/ || git commit … chore(ledger)` run-stop pattern survives UNGUARDED in three outermost-wrapper START commands: plan.md (§8, ~L199-200), investigate.md (~L135-136), plan/follow-up.md (~L210-211). Each is described as owning 'the single run-stop ledger commit'. Under [ledger] backend='git-object' these should SKIP (the orphan ref already carries each write). ACTUAL IMPACT (operational analysis): under git-object the docs/*.md are gitignored, so `git add docs/` stages NOTHING → `git diff --cached --quiet -- docs/` is TRUE → the `|| git commit` SHORT-CIRCUITS (no commit fires). So today it is a HARMLESS NO-OP, not a wrong commit — hence severity low (the reviewer rated it medium for scope-consistency). Still worth fixing for clarity + correctness-under-edge-cases (e.g. if docs/ is only partially gitignored, or a non-docs path sneaks in). FIX (small follow-up): apply the identical T358 backend guard ('when [ledger] backend is fs (the default); SKIP under git-object') to the run-stop ledger-commit blocks in plan.md, investigate.md, plan/follow-up.md; regenerate agentsCatalogue.gen.ts; bun run check."
+- ledgerRefs: ["goals:G43","tasks:T358"]

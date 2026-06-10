@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 433
+  item: 434
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -835,3 +835,12 @@ archives:
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - summary: "T355 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 0 defects. All four /cq:* advance prompts carry backend-guarded START fetch + END plain NON-FORCED push of refs/heads/cq-ledger against the configured [ledger] remote (NO --force/force-with-lease/+ anywhere); chaining suppression yields exactly one fetch + one push per run; runbook file present covering rejected-push recovery + shallow-clone fetch + linked-worktree fallback; existing per-merge commit steps untouched (T358 scope intact); gen-agents regen leaves no drift; check green 1583/0. Merged as 2d4d932."
 - ledgerRefs: ["tasks:T355","goals:G43"]
+
+### R434 — go-ahead
+
+- createdAt: 2026-06-10T13:33:16.613Z
+- updatedAt: 2026-06-10T13:33:16.613Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T358 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 1 out-of-scope defect (D53). All five chore(ledger) commit blocks in the four advance prompts backend-gated (fs keeps, git-object skips; no inversion); catalogue regenerated no drift; T355 steps untouched; check green 1592/0. D53 filed: the three start/wrapper commands (plan.md/investigate.md/plan/follow-up.md) carry the same unguarded run-stop chore(ledger) commit — out of T358's four-advance-file scope. Merged as 01c3157."
+- ledgerRefs: ["tasks:T358","goals:G43"]
