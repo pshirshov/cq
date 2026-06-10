@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 159
+  item: 161
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -809,3 +809,15 @@ archives:
 - updatedAt: 2026-06-10T18:38:23.636Z
 - title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
 - dependsOn: ["M157"]
+
+### M160 — open
+
+- createdAt: 2026-06-10T21:12:47.366Z
+- updatedAt: 2026-06-10T21:12:47.366Z
+- title: "Plan: fix D56 — ledger-mcp --help flag"
+
+### M161 — open
+
+- createdAt: 2026-06-10T21:14:51.978Z
+- updatedAt: 2026-06-10T21:14:51.978Z
+- title: "W: ledger-mcp --help/-h flag fix (D56)"

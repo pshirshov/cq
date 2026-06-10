@@ -2,7 +2,7 @@
 ledger: hypothesis
 counters:
   milestone: 0
-  item: 34
+  item: 35
 archives:
   - id: M14
     path: ./archive/hypothesis/M14.md
@@ -116,3 +116,17 @@ archives:
 - ledgerRefs: ["defects:D43"]
 - evidence: ["[correct] agents/implement-worker.md:47-55 — 'Boundaries (hard rules)': 'No merge, no push, no rebase. Stay on your task branch inside the worktree' + 'Scope = this task only' — forbids merge/push/rebase + scope but NO rule confining git ops to the worktree / forbidding git against the main checkout. Validated: excerpt matches source. [part a]","[correct] agents/implement-worker.md:25-29 — 'working entirely inside your own isolated git worktree' is a descriptive premise, not an enforceable prohibition with examples of forbidden cross-checkout git. [part a]","[correct] agents/implement-worker.md:38-43 — the base commit + worktree path are PASSED IN by the harness (Claude native isolation:worktree); the worker does NOT establish its own base, so a stale base is a harness-side fact the worker inherits with no sanctioned base-fixing procedure. [part a / stale-base trigger]","[correct] agents/implement-worker.md:71-73 — the ONLY sanctioned worker git mutation is `git add -A && git commit` on the task branch + report the SHA; no instruction restricting git invocation to the worktree dir. Validated: matches source. [part a]","[correct] commands/cq/implement/advance.md:293-302 — merge-back (rebase + ff merge) is the ORCHESTRATOR's job, confirming the worker's git role is solely commit-on-branch + report-SHA. [part a]","[correct] commands/cq/implement/advance.md:395-405 — 'Commit the ledger (after every milestone archive + at the standalone stop)': commits ONLY after archive_milestone + at the standalone at-stop (suppressed when chained). No commit-after-every-task-merge. Validated: matches source. [part b]","[correct] commands/cq/advance.md:506-518 — top-level wrapper commits after every archive + at the single run-stop, NOT after every task merge. [part b]","[correct] commands/cq/plan/advance.md:717+ — 'Commit the ledger (standalone stop)': only commit is at the standalone stop, suppressed when chained; no commit-after-planning-lock checkpoint. Validated: section present at L717. [part b]","[correct] commands/cq/implement/advance.md:542-549 — chained sub-flows SUPPRESS the at-stop commit; under /cq:advance only the wrapper's run-stop + per-archive commits fire, maximizing the uncommitted-ledger window between archives. [part b]"]
 - sessionLogs: ["docs/logs/20260609-093502-a4b0d0d4f781c94c2.md"]
+
+## M158
+
+### H35 — confirmed
+
+- createdAt: 2026-06-10T21:10:44.230Z
+- updatedAt: 2026-06-10T21:12:31.273Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: ledger-mcp main.ts parseArgs/main have no --help/-h branch, so `--help` is an unknown ignored arg that launches the stdio server
+- description: "If TRUE: in packages/ledger-mcp/src/main.ts, parseArgs's arg-loop handles --cwd/--http/--tool-prefix/restore but has no `--help`/`-h` case, and main() has no help-printing early-exit branch. So `ledger-mcp --help` falls through (the unknown flag is ignored) and the default no-subcommand path launches the stdio MCP server instead of printing the header usage to stdout. The fix: add an explicit --help/-h branch that prints the header usage (incl. --cwd, --http, --tool-prefix, restore) and exits 0."
+- ledgerRefs: ["defects:D56"]
+- evidence: ["[correct] main.ts:155-185 — parseArgs's for-loop else-if chain handles ONLY --cwd/--http/--tool-prefix (+ their = forms); NO --help/-h/help case and NO terminal else, so an unrecognized flag like --help is silently dropped (orchestrator re-read + verified).","[correct] main.ts:639-647 — main()'s only early-exit is `if (argv[0] === RESTORE_SUBCOMMAND)`; --help (argv[0] !== 'restore') falls through to parseArgs and the default server-launch path (orchestrator re-read + verified).","[correct] main.ts:680-698 — the default (non-HTTP) path constructs createLedgerMcpServer + new StdioServerTransport() + server.connect(transport): `ledger-mcp --help` launches the stdio MCP server rather than printing usage.","[correct] main.ts:16-31 — the only top-level usage documentation is the file-header JSDoc comment, never written to stdout at runtime (no top-level usage/help print).","[correct] main.ts:204-209 — RESTORE_USAGE is a runtime usage string scoped to the `restore` subcommand's error paths only; there is NO equivalent top-level --help usage surface, corroborating the gap."]
+- sessionLogs: ["docs/logs/20260610-211135-a7fba63841593ac83.md"]

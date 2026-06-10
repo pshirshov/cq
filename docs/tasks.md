@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 383
+  item: 384
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -602,3 +602,18 @@ archives:
 - resultCommit: "24e2647"
 - completion: --tool-prefix CLI flag (parseArgs + fail-fast assertToolPrefix) threaded through BOTH launch paths incl. the full HTTP chain main()→serveHttp→attachMcpHttp→createLedgerMcpServer (R450 fix); e2e HTTP registration test. check 1668/0.
 - sessionLogs: ["docs/logs/20260610-205105-ae77ec60bdea6d2a6.md","docs/logs/20260610-205105-a16acdb5a260854ef.md","docs/logs/20260610-205105-pi-codex-T379.md","docs/logs/20260610-205105-pi-grok-T379.md","docs/logs/20260610-205105-pi-minimax-T379.md"]
+
+## M161
+
+### T384 — planned
+
+- createdAt: 2026-06-10T21:15:05.482Z
+- updatedAt: 2026-06-10T21:15:05.482Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add a ledger-mcp --help/-h flag printing top-level usage (fix D56)
+- description: "Fix D56 (confirmed root cause H35). In packages/ledger-mcp/src/main.ts: (1) Extract the file-header CLI usage (currently only the JSDoc comment at L16-31) into a runtime `export const TOP_LEVEL_USAGE` string constant (mirror the existing RESTORE_USAGE pattern at L204-209), covering the default stdio mode, --cwd, --http, --tool-prefix, and the `restore` subcommand. (2) In main() (L639+), BEFORE the default launch path (and before/around the restore-subcommand dispatch), add an explicit branch: if argv includes `--help` or `-h`, `process.stdout.write(TOP_LEVEL_USAGE + \"\\n\")` and `return` (exit 0) WITHOUT constructing a server. Keep it a pure name/help transform — do not alter parseArgs's existing flag handling or any server behavior. (3) Keep the file-header JSDoc comment in sync with TOP_LEVEL_USAGE (or note it derives from the same text). suggestedModel standard."
+- acceptance: "New unit test in packages/ledger-mcp/test/ (e.g. extend parseArgs.test.ts / main.test.ts): `main(['--help'])` (and `main(['-h'])`) resolves WITHOUT constructing/connecting a server (no StdioServerTransport) and writes usage text to stdout that CONTAINS '--tool-prefix', '--cwd', '--http', and 'restore'; capture stdout (e.g. spy on process.stdout.write) and assert. TOP_LEVEL_USAGE is exported and non-empty. Existing parseArgs/main tests pass unchanged. `bun run check` (from nix/pkg/cq-ledgers/) green."
+- suggestedModel: standard
+- dependsOn: []
+- ledgerRefs: ["goals:G46","defects:D56"]

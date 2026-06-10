@@ -2,7 +2,7 @@
 ledger: questions
 counters:
   milestone: 0
-  item: 211
+  item: 212
 archives:
   - id: M2
     path: ./archive/questions/M2.md
@@ -630,3 +630,15 @@ archives:
 - recommendation: Adopt criteria 1–4 as written; the two-prefixed-servers-in-one-process test (zero collision + both functional) is the core acceptance gate, the unchanged cq drift-guard proves no regression, and `bun run check` is the standing repo gate. Include the doc/example only if Q207 keeps the public builder in scope; add the instructions-naming assertion (suggestion 3) since the prefix touches the instructions text per Q208.
 - ledgerRefs: ["goals:G45"]
 - answer: as recommended
+
+## M158
+
+### Q212 — open
+
+- createdAt: 2026-06-10T21:13:29.975Z
+- updatedAt: 2026-06-10T21:13:29.975Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- question: "Root cause of D56 confirmed (ledger-mcp has no top-level --help handler) and a defect-seeded goal G46 is ready in `planning`. This investigation was AUTO-LAUNCHED inside the /cq:advance run, so the wrapping run auto-resumes G46's plan stage — no manual /cq:plan:advance is needed."
+- context: "Root cause (H35, confirmed): main.ts parseArgs (L155-185) has no --help/-h case + no terminal else, and main() (L639-647) only dispatches the `restore` subcommand, so --help falls through to the default stdio-launch path (L680-698). Suggested fix: add a --help/-h branch in main() printing a runtime TOP_LEVEL_USAGE constant (covering --cwd/--http/--tool-prefix/restore) to stdout + exit 0, with a unit test. Low severity, single-file + test."
+- ledgerRefs: ["defects:D56","goals:G46"]

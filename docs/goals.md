@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 45
+  item: 46
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -355,3 +355,24 @@ archives:
 - sessionLogs: ["docs/logs/20260610-183746-af1adff17be3c82df.md","docs/logs/20260610-183746-pi-grok.md","docs/logs/20260610-183746-pi-minimax.md"]
 - milestones: ["M157","M158","M159"]
 - grounding: "Pure tool-name PREFIX transform threaded through 4 surfaces (Q208): both tool factories (createLedgerMcpTools, registerLedgerStdioTools), the LEDGER_TOOL_NAMES drift-guard, and SERVER_INSTRUCTIONS — driven by ONE pure helper prefixedToolNames(prefix) (validated ^[a-zA-Z0-9]+$, '' = cq default unprefixed) so nothing drifts. Plus a thin public builder createLedgerMcpServer({store,displayName,toolPrefix}) extracted/exported from @cq/ledger-mcp (buildServer refactored through it, kept as a thin wrapper for both stdio + attachMcpHttp callers) + a ledger-mcp --tool-prefix CLI flag (Q206/Q207). Storage out of scope (Q210). Acceptance (Q211): two-prefixed-servers-in-one-process zero-collision + both-functional test, cq drift-guard unchanged, prefixed-instructions test, README build-your-own example, bun run check. 3 work milestones (M157 core → M158 builder/CLI/instructions → M159 acceptance), 11 tasks T373-T383. Synthesized from a 3-planner panel (opus base; grok + minimax folded)."
+
+## M160
+
+### G46 — planned
+
+- createdAt: 2026-06-10T21:13:14.958Z
+- updatedAt: 2026-06-10T21:16:54.497Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- title: Fix D56 — add a ledger-mcp --help/-h flag
+- description: |
+    DEFECT-SEEDED goal (clarify-skipped per K8 pt4; confirmed root cause embedded). Fix D56 (low): the ledger-mcp CLI has no top-level --help flag, so `ledger-mcp --help` silently launches the stdio MCP server instead of printing usage.
+    
+    ## CONFIRMED ROOT CAUSE (D56 / H35)
+    packages/ledger-mcp/src/main.ts has no top-level --help handling. parseArgs's argument loop (main.ts:155-185) handles only --cwd/--http/--tool-prefix (+ their = forms) and has NO --help/-h/help case and NO terminal else, so an unrecognized flag is silently dropped. main() (main.ts:639-647) has no help-printing early-exit — its only positional dispatch is the `restore` subcommand; anything else (incl. --help) falls through to parseArgs and the default path (main.ts:680-698) which constructs createLedgerMcpServer + a StdioServerTransport and connects (launches the stdio server). The only top-level usage text is the file-header JSDoc comment (main.ts:16-31), never printed to stdout (RESTORE_USAGE at L204-209 is scoped to the `restore` subcommand only).
+    
+    ## SUGGESTED FIX
+    In main(), before the default launch path, add an explicit `--help`/`-h` branch: `if (argv.includes('--help') || argv.includes('-h')) { process.stdout.write(TOP_LEVEL_USAGE); return; }`. Extract the file-header usage into a runtime TOP_LEVEL_USAGE string constant (mirroring RESTORE_USAGE) covering the default stdio mode, --cwd, --http, --tool-prefix, and the `restore` subcommand; print it to stdout + exit 0. Add a unit test asserting `main(['--help'])` prints usage (incl. '--tool-prefix') and does NOT start a server. Scope: small, single-file (main.ts) + one test. Linked defect: D56. bun run check green.
+- milestones: ["M161"]
+- grounding: "Defect-seeded fix of D56 (confirmed root cause H35). Single-file fix: extract TOP_LEVEL_USAGE runtime constant + add a --help/-h branch in main() that prints usage to stdout + returns (no server launch). 1 work milestone M161, 1 task T384. Orchestrator-authored (G42/K67 precedent: confirmed cause + exact single-file fix locus leave nothing for parallel candidate planners to diverge on) + single opus reviewer."
+- sessionLogs: ["docs/logs/20260610-211627-a96067fca8e7b2d86.md"]

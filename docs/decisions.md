@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 71
+  item: 72
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -315,3 +315,15 @@ archives:
 - headline: G45 plan LOCKED — reusable ledger-MCP + tool-name prefix (unanimous go-ahead, R451)
 - rationale: "The G45 plan (3 work milestones M157-M159, 11 tasks T373-T383) is APPROVED + LOCKED after a UNANIMOUS round-2 multi-reviewer go-ahead (R451: opus[claude] + codex/grok/minimax[pi], 0 abstentions, 0 findings), following one revise round (R450: 6 in-scope criticisms, 2 opus-grounded against the real code). Synthesized from a 3-planner round (opus base + grok/minimax fold-ins; orchestrator-synthesized + persisted). The plan honors all 7 locked clarifying decisions (Q205-Q211): a PURE tool-name PREFIX transform (cq default EMPTY, `_` separator, ^[a-zA-Z0-9]+$) threaded through both factories (createLedgerMcpTools T374, registerLedgerStdioTools T375) + the LEDGER_TOOL_NAMES drift-guard (T376) + SERVER_INSTRUCTIONS (T377) — all driven by ONE reused prefixedToolNames/prefixToolName helper (T373) so nothing drifts (Q208); a thin documented PUBLIC builder createLedgerMcpServer({store,displayName,toolPrefix}) extracted from @cq/ledger-mcp with buildServer kept as a byte-identical thin wrapper (T378, Q207); a `ledger-mcp --tool-prefix` CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + the stdio path with optional default-'' params (T379, Q206/Q209); storage out of scope (Q210). Acceptance = Q211 1-5: two-prefixed-servers-in-one-process zero-collision + both-functional (T380), cq drift-guard unchanged (T376), README build-your-own example (T382), prefixed-instructions test (T381), bun run check + Q211 confirmation (T383). DAG acyclic: T373→{T374,T375,T377}; T376→{T374,T375}; T378→{T377,T375}; T379→T378; T380→T378; T381→T377; T382→{T378,T379}; T383→{T380,T381,T382}. G45 → planned."
 - ledgerRefs: ["goals:G45","reviews:R451"]
+
+## M160
+
+### K72 — locked
+
+- createdAt: 2026-06-10T21:16:47.038Z
+- updatedAt: 2026-06-10T21:16:47.038Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: G46 plan LOCKED — ledger-mcp --help/-h flag fix (D56); single-task, go-ahead
+- rationale: "Defect-seeded goal G46 (fix D56, root cause confirmed via H35, clarification skipped per K8 pt4). Orchestrator-authored plan (G42/K67 precedent: the confirmed root cause + exact single-file fix locus leave nothing for parallel candidate planners to diverge on) reviewed by a single opus plan-reviewer → go-ahead (R463; 0 criticisms; all cited main.ts loci verified against source). LOCKED plan: 1 work milestone M161, 1 task T384 (standard). T384: extract the file-header CLI usage into a runtime TOP_LEVEL_USAGE constant (mirroring RESTORE_USAGE) covering default stdio mode + --cwd/--http/--tool-prefix/restore, and add a --help/-h branch in main() that prints it to stdout + returns BEFORE the default launch path (no server construction); unit test asserts main(['--help'])/main(['-h']) prints usage (incl. --tool-prefix) without starting a server. G46 → planned."
+- ledgerRefs: ["goals:G46","defects:D56","reviews:R463"]
