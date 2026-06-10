@@ -965,7 +965,15 @@ button:hover {
   border-radius: 4px;
   padding: 6px 8px;
   overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
+/* JSON syntax-highlight token colors (D57). Background is #0c0e12 (code bg). */
+.lw-json-key    { color: var(--accent); }
+.lw-json-string { color: var(--ok); }
+.lw-json-number { color: var(--warn); }
+.lw-json-bool   { color: var(--err); }
+.lw-json-null   { color: var(--dim); }
 .lw-md pre code {
   border: 0;
   padding: 0;
