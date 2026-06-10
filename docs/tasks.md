@@ -535,10 +535,10 @@ archives:
 
 ## M154
 
-### T364 — planned
+### T364 — done
 
 - createdAt: 2026-06-10T15:32:57.665Z
-- updatedAt: 2026-06-10T15:32:57.665Z
+- updatedAt: 2026-06-10T17:02:29.435Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Author the thin Claude-Code Stop-hook wrapper script (gate verdict → {decision:block})"
@@ -546,6 +546,9 @@ archives:
 - acceptance: "The wrapper script exists in claude.nix and the home-manager/dev-llm build (or `nix flake check`) evaluates without error; the script invokes `cq advance-gate` and emits {decision:block,reason} ONLY on a non-zero gate exit, allow otherwise. (Registration + integration test in later tasks.)"
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: 0d6c7df
+- completion: "claudeStopGateHook (pkgs.writeShellScript) in nix/hm/claude.nix — thin Claude-Code Stop-hook translator: no-session→allow; `cq advance-gate` exit non-zero→emit {\"decision\":\"block\",\"reason\":.reason} via jq; exit 0→allow. cq on PATH via ledgerTools; jq via ${pkgs.jq}. Not yet wired into settings.hooks (T369). nix eval verified; opus review approve (0 findings)."
+- sessionLogs: ["docs/logs/20260610-170206-a582052be0f2e15a5.md"]
 
 ### T369 — planned
 

@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 444
+  item: 445
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -772,3 +772,14 @@ archives:
 - summary: "G44 plan review (multi-reviewer, configured panel) — UNANIMOUS go-ahead (reconciled strictest-wins over 4 surviving reviewers [opus]+[codex]+[grok]+[minimax], 0 abstentions, 0 criticism / 0 new_questions / 0 defects). All four confirmed the 5-milestone/12-task DAG (M151-M155, T361-T372) is acyclic + correctly sequenced (engine→CLI+MCP-tool→wrapper+nix+wiring→hardening), honors ALL 7 locked decisions Q198-Q204, maps every component+decision to ≥1 task (marker drop/unlink=T370; derive_predicates built T363 + consumed T368; wrapper authored T364 + registered T369 + integration-tested T372; full Q204 bar across T365-T367/T371-T372), with verifiable acceptance, grounded against the real seams (createLedgerStore, sync LedgerStore reads, registerLedgerStdioTools, claudeSessionStartHook/settings.hooks). [minimax] noted two non-blocking implementer-resolvable nits (T362 exact reason text; T368/T370 both touch advance.md §Bootstrap) — not gaps. Plan LOCKED. Reviewer logs: docs/logs/20260610-154315-a71ad469deb41bf5f.md (opus) + 20260610-154315-pi-{codex,grok,minimax}-reviewer.md."
 - ledgerRefs: ["goals:G44"]
 - sessionLogs: ["docs/logs/20260610-154315-a71ad469deb41bf5f.md","docs/logs/20260610-154315-pi-codex-reviewer.md","docs/logs/20260610-154315-pi-grok-reviewer.md","docs/logs/20260610-154315-pi-minimax-reviewer.md"]
+
+## M154
+
+### R445 — go-ahead
+
+- createdAt: 2026-06-10T17:02:32.758Z
+- updatedAt: 2026-06-10T17:02:32.758Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T364 implement-review — approve (opus, 0 findings). Thin Stop-hook wrapper (claudeStopGateHook in claude.nix) correct on all branches (no-session→allow; gate-exit≠0+verdict→{decision:block} jq-escaped; gate-exit 0→allow); exit-code capture correct; cq on PATH via ledgerTools; module evals; not wired into settings.hooks (T369 scope). Crash fails-open (safe default). Merged 0d6c7df."
+- ledgerRefs: ["tasks:T364","goals:G44"]
