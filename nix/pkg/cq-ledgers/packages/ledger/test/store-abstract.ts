@@ -42,6 +42,12 @@ export interface AbstractStoreFactory {
   /** Optional teardown hook (e.g. remove tmp dir). */
   teardown?(store: LedgerStore): Promise<void>;
   name: string;
+  /**
+   * Per-test timeout in ms. Slow backends (e.g. GitObjectLedgerBackend, which
+   * shells out to git on every op) should set this to avoid flaking under
+   * full-suite parallel load. Fs/InMemory leave it undefined → 5000ms default.
+   */
+  timeoutMs?: number;
 }
 
 // Custom (non-canonical) ledgers, named so their default idPrefix (W, N)
@@ -70,6 +76,10 @@ const notesSchema: LedgerSchema = {
 };
 
 export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
+  // Use a factory-supplied timeout for every test so slow backends (git)
+  // don't flake under full-suite parallel load while Fs/InMemory keep 5000ms.
+  const TIMEOUT = factory.timeoutMs ?? 5_000;
+
   describe(`LedgerStore (abstract suite, ${factory.name})`, () => {
     it("enumerate() lists seeded ledgers + every bootstrapped canonical ledger, sorted", async () => {
       const store = await factory.build([
@@ -82,7 +92,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("createMilestone allocates M<n> from milestones-ledger item counter", async () => {
       const store = await factory.build([]);
@@ -98,7 +108,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("createItem auto-creates the depth-2 group in a non-milestones ledger on first reference", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -127,7 +137,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("create_item refuses an absent / archived / terminal milestone id (strict existence)", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -151,7 +161,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("caller-supplied milestone id is honoured; duplicate is refused", async () => {
       const store = await factory.build([]);
@@ -168,7 +178,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("updateItem mutates status + fields and bumps updatedAt", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -193,7 +203,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("invalid status / unknown field / missing required field are rejected", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -225,7 +235,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("search returns items matching status, string field, or array field", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -254,7 +264,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("archiveMilestone (global) refuses non-terminal items in ANY ledger, succeeds when all terminal", async () => {
       const store = await factory.build([
@@ -327,7 +337,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     // D10 — Phase-1b path: no partial mutation after rejection.
     //
@@ -375,7 +385,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("archiveMilestone refuses the bootstrap group M0", async () => {
       const store = await factory.build([]);
@@ -386,7 +396,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     // -----------------------------------------------------------------------
     // §8b — M-AMBIENT immortal bootstrap milestone
@@ -403,7 +413,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("archive is refused (immortal)", async () => {
         const store = await factory.build([]);
@@ -414,7 +424,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("moving it to a terminal status is refused (immortal)", async () => {
         const store = await factory.build([]);
@@ -430,7 +440,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("items in other ledgers can be filed under M-AMBIENT", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -445,7 +455,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     it("createLedger adds a ledger and refuses the reserved name 'milestones'", async () => {
@@ -471,7 +481,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("fetch / fetchItem throw typed errors when missing", async () => {
       const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -481,7 +491,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("fetchMilestone returns the resolved view + per-ledger reference counts", async () => {
       const store = await factory.build([
@@ -514,7 +524,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("listMilestoneItems groups items by ledger", async () => {
       const store = await factory.build([
@@ -538,7 +548,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     it("createItem refuses the milestones ledger directly (must use createMilestone)", async () => {
       const store = await factory.build([]);
@@ -552,7 +562,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       } finally {
         await factory.teardown?.(store);
       }
-    });
+    }, TIMEOUT);
 
     // D-LED-02: every adapter must reject the same set of bad schemas at
     // createLedger boundary, so a future adapter cannot drift.
@@ -570,7 +580,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("status values containing em-dash are rejected", async () => {
         const store = await factory.build([]);
@@ -585,7 +595,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("reserved field names (createdAt/updatedAt) are rejected", async () => {
         const store = await factory.build([]);
@@ -607,7 +617,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("field names violating the identifier regex are rejected", async () => {
         const store = await factory.build([]);
@@ -629,7 +639,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     // -----------------------------------------------------------------------
@@ -685,7 +695,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("a throwing onMutation does not unwind the write", async () => {
         const store = await factory.buildWithHook(
@@ -708,7 +718,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("invalidate is a no-op for unknown ledger ids (no throw)", async () => {
         const store = await factory.build([]);
@@ -719,7 +729,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     // -----------------------------------------------------------------------
@@ -754,7 +764,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("a headline-field match outranks a body-only match (boosts)", async () => {
         // The widgets schema has no 'headline' field, so use the canonical
@@ -779,7 +789,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("fuzzy + prefix + status options behave", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -805,7 +815,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("local coherence: create then update is reflected in ftsSearch", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -823,7 +833,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("includeArchived: an archived item is found ONLY when include_archived=true", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -846,7 +856,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     // -----------------------------------------------------------------------
@@ -877,7 +887,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("rejects terminal → terminal, an unknown status, and reopening a non-terminal item", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -907,7 +917,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     describe("Q78 — unarchiveItem (group-keyed)", () => {
@@ -970,7 +980,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
 
       it("errors when the archived group is absent, or the item is not in the group", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -997,7 +1007,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
     // -----------------------------------------------------------------------
     // T143 / Q75 — snapshot(): cross-ledger {id,status,summary} grouped by
@@ -1109,7 +1119,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      });
+      }, TIMEOUT);
     });
 
     // -----------------------------------------------------------------------
@@ -1143,8 +1153,6 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
       // running concurrently) that can exceed bun's 5s default per-test budget.
       // A generous explicit timeout keeps these deterministic without inflating
       // N. The FS/InMemory runs finish in milliseconds and are unaffected.
-      const GIT_AWARE_TIMEOUT_MS = 30_000;
-
       it("N parallel updateItem calls all complete, lose no write, and the last-submitted write is the final state", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
         try {
@@ -1198,7 +1206,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      }, GIT_AWARE_TIMEOUT_MS);
+      }, TIMEOUT);
 
       it("N parallel createItem calls allocate unique monotonic ids with no gaps", async () => {
         const store = await factory.build([{ name: WIDGETS, schema: widgetsSchema }]);
@@ -1227,7 +1235,7 @@ export function runStoreAbstractSuite(factory: AbstractStoreFactory): void {
         } finally {
           await factory.teardown?.(store);
         }
-      }, GIT_AWARE_TIMEOUT_MS);
+      }, TIMEOUT);
     });
   });
 }

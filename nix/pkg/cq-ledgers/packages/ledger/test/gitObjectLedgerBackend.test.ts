@@ -111,6 +111,9 @@ afterAll(async () => {
 
 runStoreAbstractSuite({
   name: "GitObjectLedgerBackend",
+  // Each store op shells out to git; under full-suite parallel load individual
+  // tests can exceed bun's 5s default. 30s keeps them deterministic.
+  timeoutMs: 30_000,
   async build(seed): Promise<LedgerStore> {
     const dir = await seedRepo();
     if (seed.length > 0) await seedRegistry(dir, seed);
