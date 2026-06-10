@@ -15,8 +15,8 @@ import * as path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { FsLedgerStore, LEDGER_TOOL_NAMES } from "@cq/ledger";
-import { serveHttp, MCP_HTTP_PATH } from "../src/main.js";
+import { FsLedgerStore, LEDGER_TOOL_NAMES, prefixedToolNames } from "@cq/ledger";
+import { serveHttp, attachMcpHttp, MCP_HTTP_PATH } from "../src/main.js";
 
 let tmpRoot: string;
 let store: FsLedgerStore;
@@ -149,5 +149,85 @@ describe("ledger-mcp Streamable HTTP", () => {
     const item = verify.fetchItem("xenos", itemId);
     expect(item.status).toBe("done");
     await verify.dispose();
+  });
+});
+
+/**
+ * T379: --tool-prefix end-to-end HTTP path.
+ *
+ * A server stood up via serveHttp/attachMcpHttp with toolPrefix='myproj'
+ * must register prefixedToolNames('myproj') — NOT the unprefixed names.
+ */
+describe("ledger-mcp HTTP --tool-prefix end-to-end (T379)", () => {
+  const PREFIX = "myproj";
+  let prefixedRoot: string;
+  let prefixedStore: FsLedgerStore;
+  let prefixedServer: ReturnType<typeof Bun.serve>;
+  let prefixedBaseUrl: URL;
+
+  beforeAll(async () => {
+    prefixedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-http-prefix-"));
+    prefixedStore = new FsLedgerStore({ root: prefixedRoot });
+    await prefixedStore.init();
+    prefixedServer = serveHttp(prefixedStore, { host: "127.0.0.1", port: 0 }, "prefix-test", PREFIX);
+    prefixedBaseUrl = new URL(`http://127.0.0.1:${prefixedServer.port}${MCP_HTTP_PATH}`);
+  });
+
+  afterAll(async () => {
+    prefixedServer.stop(true);
+    await prefixedStore.dispose();
+    await fs.rm(prefixedRoot, { recursive: true, force: true });
+  });
+
+  async function withPrefixedClient(fn: (client: Client) => Promise<void>): Promise<void> {
+    const transport = new StreamableHTTPClientTransport(prefixedBaseUrl);
+    const client = new Client({ name: "http-prefix-test", version: "0.0.1" }, { capabilities: {} });
+    await client.connect(transport as unknown as Transport);
+    try {
+      await fn(client);
+    } finally {
+      await client.close();
+    }
+  }
+
+  it("registers prefixedToolNames('myproj') — NOT the unprefixed names", async () => {
+    await withPrefixedClient(async (client) => {
+      const names = (await client.listTools()).tools.map((t) => t.name).sort();
+      const expected = prefixedToolNames(PREFIX).sort();
+      expect(names).toEqual(expected);
+      // Spot-check: unprefixed names must not appear.
+      expect(names).not.toContain("enumerate_ledgers");
+      expect(names).toContain(`${PREFIX}_enumerate_ledgers`);
+    });
+  });
+
+  it("attachMcpHttp with toolPrefix also registers prefixed names", async () => {
+    const root2 = await fs.mkdtemp(path.join(os.tmpdir(), "ledger-mcp-attach-prefix-"));
+    const store2 = new FsLedgerStore({ root: root2 });
+    await store2.init();
+    const handlers = attachMcpHttp(store2, "attach-prefix-test", PREFIX);
+    const attachServer = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      idleTimeout: 0,
+      async fetch(req): Promise<Response> {
+        return handlers.handle(req);
+      },
+      websocket: { open: handlers.onWsOpen, message: handlers.onWsMessage },
+    });
+    const url = new URL(`http://127.0.0.1:${attachServer.port}/`);
+    const transport2 = new StreamableHTTPClientTransport(url);
+    const client2 = new Client({ name: "attach-prefix-test", version: "0.0.1" }, { capabilities: {} });
+    await client2.connect(transport2 as unknown as Transport);
+    try {
+      const names = (await client2.listTools()).tools.map((t) => t.name).sort();
+      expect(names).toEqual(prefixedToolNames(PREFIX).sort());
+      expect(names).not.toContain("enumerate_ledgers");
+    } finally {
+      await client2.close();
+      attachServer.stop(true);
+      await store2.dispose();
+      await fs.rm(root2, { recursive: true, force: true });
+    }
   });
 });

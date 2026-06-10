@@ -15,10 +15,12 @@
  *     all sharing the one `FsLedgerStore`.
  *
  * CLI:
- *   ledger-mcp                            # stdio; ledger root = $LEDGER_ROOT or CWD
- *   ledger-mcp --cwd <path>               # stdio; explicit root (rel→resolved vs CWD)
- *   ledger-mcp --cwd <path> --http 7777   # HTTP on 127.0.0.1:7777
- *   ledger-mcp --http 0.0.0.0:7777        # HTTP, root = CWD
+ *   ledger-mcp                                      # stdio; ledger root = $LEDGER_ROOT or CWD
+ *   ledger-mcp --cwd <path>                         # stdio; explicit root (rel→resolved vs CWD)
+ *   ledger-mcp --cwd <path> --http 7777             # HTTP on 127.0.0.1:7777
+ *   ledger-mcp --http 0.0.0.0:7777                  # HTTP, root = CWD
+ *   ledger-mcp --tool-prefix myproj                 # prefix all tool names with "myproj_"
+ *   ledger-mcp --tool-prefix myproj --http 7777     # prefix + HTTP
  *   ledger-mcp restore --from-cache [--cwd <path>]  # restore docs/ from the cache mirror
  *
  * Subcommands: the DEFAULT (no positional subcommand) launches the server as
@@ -109,6 +111,8 @@ export interface HttpOpts {
 export interface ParsedArgs {
   cwd: string;
   http: HttpOpts | null;
+  /** Optional ledger-tool name prefix (default `''` = unprefixed). */
+  toolPrefix: string;
 }
 
 /**
@@ -147,6 +151,7 @@ function resolveRoot(cwdArg: string | undefined): string {
 export function parseArgs(argv: readonly string[]): ParsedArgs {
   let cwd: string | undefined;
   let http: HttpOpts | null = null;
+  let toolPrefix = "";
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--cwd") {
@@ -167,11 +172,23 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
       http = parseHttp(v);
     } else if (a !== undefined && a.startsWith("--http=")) {
       http = parseHttp(a.slice("--http=".length));
+    } else if (a === "--tool-prefix") {
+      i += 1;
+      const v = argv[i];
+      if (v === undefined) {
+        throw new Error("ledger-mcp: --tool-prefix requires a value");
+      }
+      toolPrefix = v;
+    } else if (a !== undefined && a.startsWith("--tool-prefix=")) {
+      toolPrefix = a.slice("--tool-prefix=".length);
     }
   }
+  // Validate the prefix at parse time so a malformed value fails before the
+  // server starts (fast-fail, per T379).
+  assertToolPrefix(toolPrefix);
   // Ledger root precedence: --cwd > $LEDGER_ROOT > process CWD; a relative
   // value resolves against the CWD. (See file header for the rationale.)
-  return { cwd: resolveRoot(cwd), http };
+  return { cwd: resolveRoot(cwd), http, toolPrefix };
 }
 
 /** The single recognised positional subcommand. */
@@ -481,7 +498,11 @@ export interface McpHttpHandlers {
   onWsMessage(ws: ServerWebSocket<undefined>, raw: string | Buffer): void;
 }
 
-export function attachMcpHttp(store: LedgerStore, displayName: string): McpHttpHandlers {
+export function attachMcpHttp(
+  store: LedgerStore,
+  displayName: string,
+  toolPrefix = "",
+): McpHttpHandlers {
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
 
   async function handle(req: Request): Promise<Response> {
@@ -517,7 +538,7 @@ export function attachMcpHttp(store: LedgerStore, displayName: string): McpHttpH
         transports.delete(sid);
       },
     });
-    const server = buildServer(store, displayName);
+    const server = createLedgerMcpServer({ store, displayName, toolPrefix });
     await server.connect(transport);
     // Body already consumed above; hand it back so the transport doesn't
     // re-read the (now-empty) request stream.
@@ -562,8 +583,9 @@ export function serveHttp(
   store: LedgerStore,
   opts: HttpOpts,
   displayName: string,
+  toolPrefix = "",
 ): ReturnType<typeof Bun.serve> {
-  const { handle, onWsOpen, onWsMessage } = attachMcpHttp(store, displayName);
+  const { handle, onWsOpen, onWsMessage } = attachMcpHttp(store, displayName, toolPrefix);
 
   return Bun.serve({
     hostname: opts.host,
@@ -622,7 +644,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     return;
   }
 
-  const { cwd, http } = parseArgs(argv);
+  const { cwd, http, toolPrefix } = parseArgs(argv);
   const displayName = path.basename(cwd);
 
   // Construct the store via the backend-selecting factory (T357), init it, then
@@ -635,7 +657,7 @@ export async function main(argv: readonly string[]): Promise<void> {
   const store = resolved.store;
 
   if (http !== null) {
-    const server = serveHttp(store, http, displayName);
+    const server = serveHttp(store, http, displayName, toolPrefix);
     // Watch the ledger for out-of-process advances; push a `changed` frame to
     // subscribed UIs on any change. The watcher is selected by backend (file
     // watch for fs, orphan-ref-sha poll for git-object).
@@ -655,7 +677,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     return;
   }
 
-  const server = buildServer(store, displayName);
+  const server = createLedgerMcpServer({ store, displayName, toolPrefix });
   // Even on stdio, watch the ledger so this server's cache stays fresh when
   // another process writes the same ledgers (file watch for fs, ref-sha poll
   // for git-object).

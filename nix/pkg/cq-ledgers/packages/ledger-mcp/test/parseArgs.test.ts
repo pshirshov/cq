@@ -2,6 +2,8 @@
  * parseArgs ledger-root resolution: --cwd > $LEDGER_ROOT > process CWD, with
  * relative values resolved against the CWD. The CWD default is what lets one
  * global install serve per-repo ledgers.
+ *
+ * Also covers --tool-prefix parsing and validation (T379).
  */
 
 import { describe, it, expect, afterEach } from "bun:test";
@@ -51,5 +53,39 @@ describe("parseArgs ledger-root resolution", () => {
     expect(a).not.toHaveProperty("yes");
     expect(a.cwd).toBe(path.resolve("sub/dir"));
     expect(parseArgs(["--reset", "-y"])).not.toHaveProperty("yes");
+  });
+});
+
+describe("parseArgs --tool-prefix (T379)", () => {
+  it("defaults toolPrefix to '' when flag is absent", () => {
+    expect(parseArgs([]).toolPrefix).toBe("");
+  });
+
+  it("parses --tool-prefix <value> (space form)", () => {
+    expect(parseArgs(["--tool-prefix", "myproj"]).toolPrefix).toBe("myproj");
+  });
+
+  it("parses --tool-prefix=<value> (equals form)", () => {
+    expect(parseArgs(["--tool-prefix=myproj"]).toolPrefix).toBe("myproj");
+  });
+
+  it("throws when --tool-prefix is given without a value", () => {
+    expect(() => parseArgs(["--tool-prefix"])).toThrow("--tool-prefix requires a value");
+  });
+
+  it("throws when the prefix contains an underscore (bad_prefix)", () => {
+    expect(() => parseArgs(["--tool-prefix", "bad_prefix"])).toThrow();
+  });
+
+  it("throws when the prefix contains a hyphen", () => {
+    expect(() => parseArgs(["--tool-prefix", "bad-prefix"])).toThrow();
+  });
+
+  it("accepts an alphanumeric prefix alongside --cwd and --http", () => {
+    delete process.env["LEDGER_ROOT"];
+    const a = parseArgs(["--tool-prefix", "proj1", "--cwd", "/my/root", "--http", "8888"]);
+    expect(a.toolPrefix).toBe("proj1");
+    expect(a.cwd).toBe("/my/root");
+    expect(a.http).toEqual({ host: "127.0.0.1", port: 8888 });
   });
 });
