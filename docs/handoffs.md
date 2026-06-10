@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 45
+  item: 46
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -340,3 +340,17 @@ archives:
 - blockingQuestions: ["Q176","Q177","Q178","Q179","Q180","Q181","Q182"]
 - sessionLogs: ["docs/logs/20260609-145017-a0c176e7567c5e292.md"]
 - tags: ["G38","follow-up","ledger-web","answers-required"]
+
+## M150
+
+### HO46 — answers-required
+
+- createdAt: 2026-06-10T15:08:23.022Z
+- updatedAt: 2026-06-10T15:08:23.022Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "Per the answered Q197 (“start D50 now”), bootstrapped G44 — the cq:advance turn-pause Stop-hook gate, the mechanical fix for defect D50 (root-caused). Created coordination milestone M150 + goal G44 (clarifying), linked D50→G44. The plan-advance planner filed the first batch of 7 clarifying questions (Q198-Q204) covering the genuine requirements ambiguities. PREDICATE GATE: P-investigate=FALSE (D50 root-caused, excluded) / P-plan=FALSE (G44 clarifying but BLOCKED on its open questions) / P-implement=FALSE (no tasks). Stop = answers-required: G44 cannot advance to planning until Q198-Q204 are answered. NOT an effort stop — every predicate is FALSE-or-blocked and the block is genuine open requirements questions. Next: answer Q198-Q204 in the TUI/web, then re-run /cq:advance (or /cq:plan:advance G44) to drive G44 plan→implement."
+- flow: advance
+- ledgerRefs: ["goals:G44","defects:D50"]
+- blockingQuestions: ["Q198","Q199","Q200","Q201","Q202","Q203","Q204"]
+- sessionLogs: ["docs/logs/20260610-150737-a47043f0c34303e03.md"]

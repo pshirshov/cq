@@ -2,7 +2,7 @@
 ledger: goals
 counters:
   milestone: 0
-  item: 43
+  item: 44
 archives:
   - id: M15
     path: ./archive/goals/M15.md
@@ -286,3 +286,42 @@ archives:
 - milestones: ["M142"]
 - grounding: "Defect-seeded fix for D47 (confirmed H34). Single test-only task T346 under M142: switch the committed-vs-canon guard test to onSchemaDivergence:'abort' + add a byte-equality assertion (committed docs/ledgers.yaml === serializeRegistry(CANONICAL_LEDGERS)) running under bun run check; exclude the intentionally-frozen examples/sample-ledger fixture; reproduce-first against a deliberately-staled fixture copy. Fix locus: packages/ledger/test/canonical-ledgers.test.ts."
 - sessionLogs: ["docs/logs/20260609-223826-af9cdea865a37cb53.md"]
+
+## M150
+
+### G44 — clarifying
+
+- createdAt: 2026-06-10T15:02:27.174Z
+- updatedAt: 2026-06-10T15:07:55.633Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- title: "cq:advance turn-pause Stop-hook gate (fix D50)"
+- description: |
+    Implement the cq:advance turn-pause Stop-hook gate — the mechanical fix for defect D50 (root-caused).
+    
+    ## Root cause (D50)
+    The /cq:advance HANDOFF exit is write-time-enforced (D39 — a mixed/answers-required handoff with empty blockingQuestions/handoffReasons THROWS in @cq/ledger create_item), but the TURN-PAUSE exit is pure honor-system: a model can simply end its turn with no artifact and no enforcement, so models exit through the undefended channel and stop PREMATURELY while P-investigate/P-plan/P-implement are TRUE-and-unblocked (observed 3× in a sister session, using D41's blocklisted euphemisms; acknowledgement didn't bind behaviour). KEY CONSTRAINT: no prompt can force the next token, so the turn-pause channel CANNOT be enforced from inside advance.md — enforcement must live in the HARNESS.
+    
+    ## Proposed fix (mirrors D39's make-the-illegal-exit-unwritable move, on the turn-pause channel via a Claude Code Stop hook)
+    1. /cq:advance drops a SESSION-SCOPED run-active marker at run start, removed ONLY when it writes the terminal handoffs item — so the hook engages ONLY during an active /cq:advance run and NEVER blocks ordinary chat turns.
+    2. A NEW cheap `cq advance-gate` CLI subcommand (cq-cli) re-derives the three predicates (P-investigate/P-plan/P-implement) + the open-question gate by reading the markdown ledger DIRECTLY (docs/*.md), with NO dependency on a running MCP server at hook time.
+    3. A Claude Code `Stop` hook that: if the run-active marker is present AND `cq advance-gate` reports any predicate TRUE-and-unblocked AND no terminal handoff was written this turn AND no verbatim external-signal was recorded → returns {decision:'block', reason:'P-…=TRUE; continue per D41'} to FORCE continuation; else allows the stop.
+    4. ESCAPE PRESERVED: a run ends legitimately via EITHER the predicate-gated handoff (already enforced by D39) OR a recorded verbatim harness signal (genuine context/compaction exhaustion) — honouring real exhaustion while making the UNLABELED effort-stop impossible.
+    
+    ## Components to build
+    - the `cq advance-gate` CLI subcommand (reads the ledger, emits the predicate verdict);
+    - the Stop hook script + how it is installed/registered (DECIDE in clarifying: repo-level .claude/settings.json hooks vs user-level ~/.claude — a genuine requirements question);
+    - the run-active-marker lifecycle wired into commands/cq/advance.md (drop at start, remove at terminal-handoff);
+    - the external-signal recording mechanism + format.
+    
+    ## Honor D50's documented LIMITS
+    The hook refuses a PREMATURE stop but cannot make a genuinely context-exhausted model productive (the external-signal escape covers the real case; a degraded forced-continuation still beats a silent premature stop); it closes the loophole for Claude Code runs only (other harnesses — Codex etc. — need their own stop-hook equivalent, with the existing prose as the fallback).
+    
+    ## Grounding
+    - defect D50 (its rootCause + proposed-fix fields);
+    - the D39 write-time-enforcement precedent (resolved — assertHandoffInvariants in @cq/ledger store/core.ts);
+    - commands/cq/advance.md (the §Stop-condition gate + the D41 TURN-vs-RUN / turn-pause-is-not-a-free-escape rules + the euphemism blocklist + the self-check invariant);
+    - the cq-cli surface (packages/cq-cli/src/main.ts SUBCOMMANDS/parser/HANDLERS/USAGE — the native-subcommand pattern G43's `cq move-ledger` just used).
+    
+    This goal FIXES defect D50 (link carried on D50.ledgerRefs → goals:G44).
+- sessionLogs: ["docs/logs/20260610-150737-a47043f0c34303e03.md"]

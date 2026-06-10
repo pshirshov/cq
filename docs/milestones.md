@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 149
+  item: 150
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -755,3 +755,9 @@ archives:
 - updatedAt: 2026-06-09T22:33:45.520Z
 - title: "Plan: fix D47 — ledgers.yaml bootstrap-drift guard"
 - description: "Coordination milestone for the defect-seeded fix of D47 (low): the committed docs/ledgers.yaml fixture can silently drift from constants.ts because the existing guard test (canonical-ledgers.test.ts:504) boots in default backup-reinit mode (self-heals) instead of abort mode, and there is no byte/canonical committed-vs-regen assertion in `bun run check`."
+
+### M150 — open
+
+- createdAt: 2026-06-10T15:01:37.384Z
+- updatedAt: 2026-06-10T15:01:37.384Z
+- title: "Plan: cq:advance turn-pause Stop-hook gate (D50)"

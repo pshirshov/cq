@@ -205,7 +205,7 @@ archives:
 ### D50 — root-caused
 
 - createdAt: 2026-06-10T10:37:18.615Z
-- updatedAt: 2026-06-10T10:37:18.615Z
+- updatedAt: 2026-06-10T15:02:41.400Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "cq:advance turn-pause channel is unenforced (honor-system) while the handoff channel is write-time-enforced — models exit through the undefended channel and stop prematurely"
@@ -220,7 +220,7 @@ archives:
     PROPOSED FIX (mechanical, mirrors D39's move): a Claude Code `Stop` hook. (1) /cq:advance drops a session-scoped run-active marker at start, removed only when it writes the terminal handoffs item — hook engages ONLY while present (never blocks ordinary chat). (2) Hook shells to a cheap `cq advance-gate` CLI subcommand that re-derives P-investigate/P-plan/P-implement + the open-question gate by reading the markdown ledger directly (no MCP-server dependency at hook time). (3) If any predicate is TRUE-and-unblocked AND no terminal handoff was written this turn AND no verbatim external-signal:"<quote>" was recorded → return {decision:'block', reason:'P-...=TRUE; continue per D41'}; else allow. (4) Escape preserved: a run ends legitimately via EITHER the predicate-gated handoff (already enforced) OR a recorded verbatim harness signal — honoring real context-exhaustion while making the unlabeled effort-stop impossible.
     
     LIMITS: the hook refuses a PREMATURE stop, it cannot make a genuinely exhausted model productive (degraded forced-continuation is still better than a silent premature stop; the external-signal escape covers the real case). Closes the loophole for Claude Code runs; other harnesses need their own stop-hook equivalent, with the prose as fallback. The `cq advance-gate` CLI dovetails with the cq-cli work in G43 (T349/T354/T357).
-- ledgerRefs: ["decisions:K?"]
+- ledgerRefs: ["goals:G44"]
 
 ### D52 — resolved
 
