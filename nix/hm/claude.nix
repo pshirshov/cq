@@ -84,10 +84,8 @@ let
   # response. The reusable gate logic lives in the `cq advance-gate` CLI (on
   # PATH via tools.nix's ledgerTools); this wrapper only adapts its exit code +
   # stdout to Claude Code's `{decision:block,reason}` protocol, so other
-  # harnesses can reuse the same neutral CLI (D50 LIMITS). Authored here as a
-  # sibling let-binding; registration into settings.hooks is a separate task
-  # (T369) and the integration test is T372 — this binding is intentionally
-  # NOT yet wired into settings.hooks below.
+  # harnesses can reuse the same neutral CLI (D50 LIMITS). Registered into
+  # settings.hooks.Stop below (T369); integration test is T372.
   #
   # Protocol: emit `{"decision":"block","reason":"…"}` on stdout to FORCE the
   # model to continue (reason fed back); emit nothing / exit 0 to ALLOW the
@@ -184,6 +182,20 @@ in
                 {
                   type = "command";
                   command = "${claudeSessionStartHook}";
+                }
+              ];
+            }
+          ];
+          # Stop hook: advance-gate check (G44, fixes D50). Translates the
+          # neutral `cq advance-gate` verdict into Claude Code's block/allow
+          # protocol. See claudeStopGateHook above for implementation notes.
+          Stop = [
+            {
+              matcher = "*";
+              hooks = [
+                {
+                  type = "command";
+                  command = "${claudeStopGateHook}";
                 }
               ];
             }
