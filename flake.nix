@@ -117,6 +117,25 @@
           outputHash = "sha256-kG79B/z1rHAXOhb2dYvBvUkzjJVoyv8xLwu6RrCyk5U=";
         };
 
+        # Shell fragment: wire @cq/config as a RUNTIME dep of @cq/ledger. Since
+        # T357, createLedgerStore() (in @cq/ledger) calls loadConfig() at startup
+        # to pick the [ledger] backend, so @cq/config must resolve from inside
+        # @cq/ledger AND its own deps (ajv + smol-toml) must be staged. Expects
+        # $WORKSPACE/packages/cq-config already staged (node_modules removed) and
+        # $WORKSPACE/packages/ledger/node_modules already created.
+        cqConfigForLedger = ''
+          mkdir -p "$WORKSPACE/packages/cq-config/node_modules"
+          for dep in ajv smol-toml; do
+            if [ -e "${bunNodeModules}/packages/cq-config/node_modules/$dep" ]; then
+              ln -s "${bunNodeModules}/packages/cq-config/node_modules/$dep" \
+                "$WORKSPACE/packages/cq-config/node_modules/$dep"
+            fi
+          done
+          mkdir -p "$WORKSPACE/packages/ledger/node_modules/@cq"
+          ln -s "$WORKSPACE/packages/cq-config" \
+            "$WORKSPACE/packages/ledger/node_modules/@cq/config"
+        '';
+
         # Shell fragment: stage the @cq/ledger + @cq/ledger-mcp source and
         # their node_modules into $WORKSPACE so a FRONTEND can run the ledger
         # MCP server EMBEDDED in-process (ledger-tui/-web with no --mcp-url).
@@ -158,6 +177,9 @@
             "$WORKSPACE/packages/ledger-mcp/node_modules/@cq/ledger"
           ln -s "$WORKSPACE/packages/cq-config" \
             "$WORKSPACE/packages/ledger-mcp/node_modules/@cq/config"
+
+          # @cq/ledger itself now imports @cq/config (createLedgerStore).
+          ${cqConfigForLedger}
         '';
 
         # ledger-mcp — the standalone ledger MCP server. Serves the 18-tool
@@ -220,11 +242,13 @@
             ln -s "$WORKSPACE/packages/ledger" \
               "$WORKSPACE/packages/ledger-mcp/node_modules/@cq/ledger"
 
-            # @cq/config — config-capability parser dep of @cq/ledger-mcp.
+            # @cq/config — config-capability parser dep of @cq/ledger-mcp AND
+            # (since T357) a startup dep of @cq/ledger via createLedgerStore.
             cp -r packages/cq-config "$WORKSPACE/packages/cq-config"
             rm -rf "$WORKSPACE/packages/cq-config/node_modules"
             ln -s "$WORKSPACE/packages/cq-config" \
               "$WORKSPACE/packages/ledger-mcp/node_modules/@cq/config"
+            ${cqConfigForLedger}
 
             # ── 4. Wrapper ──────────────────────────────────────────────── #
             makeWrapper ${pkgs.bun}/bin/bun $out/bin/ledger-mcp \
@@ -425,12 +449,13 @@
             ln -s "$WORKSPACE/packages/ledger" \
               "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger"
 
-            # @cq/config — kept in the closure for parity with the other
-            # products; cq-cli resolves it from here should it ever import it.
+            # @cq/config — cq-cli's runInit/runReset route through @cq/ledger's
+            # createLedgerStore (T357), which imports @cq/config at startup.
             cp -r packages/cq-config "$WORKSPACE/packages/cq-config"
             rm -rf "$WORKSPACE/packages/cq-config/node_modules"
             ln -s "$WORKSPACE/packages/cq-config" \
               "$WORKSPACE/packages/cq-cli/node_modules/@cq/config"
+            ${cqConfigForLedger}
 
             # ── 4. Wrapper ──────────────────────────────────────────────── #
             makeWrapper ${pkgs.bun}/bin/bun $out/bin/cq \
