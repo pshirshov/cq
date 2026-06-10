@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 464
+  item: 465
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -842,3 +842,17 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G46","defects:D56"]
 - sessionLogs: ["docs/logs/20260610-211627-a96067fca8e7b2d86.md"]
+
+## M163
+
+### R465 — go-ahead
+
+- createdAt: 2026-06-10T22:21:30.242Z
+- updatedAt: 2026-06-10T22:21:30.242Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: G47 plan go-ahead (single opus reviewer, G42/K67 precedent). M165/T385 fine-grained + grounded; opus verified the two risk points (colorizer spans survive rehype-sanitize via the components-map-runs-after-sanitize pipeline; react-markdown v10 `code` API correct) + the happy-dom acceptance feasibility. SCOPE chosen GLOBAL. 0 criticisms.
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G47","defects:D57"]
+- sessionLogs: ["docs/logs/20260610-222114-ab68dbeae4d1a1cd8.md"]

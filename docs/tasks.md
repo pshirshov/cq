@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 384
+  item: 385
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -562,3 +562,22 @@ archives:
 ---
 
 # tasks
+
+## M165
+
+### T385 — planned
+
+- createdAt: 2026-06-10T22:12:52.701Z
+- updatedAt: 2026-06-10T22:12:52.701Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Pretty-print + colorize JSON code fences + wrap long lines in the ledger-web Markdown renderer (fix D57)
+- description: |
+    Fix D57 (confirmed root cause H36). SCOPE DECISION (orchestrator, per the goal's open scope question): apply GLOBALLY in the shared Markdown component — pretty-printing + wrapping a json code fence is universally desirable for any markdown field in ledger-web (json fences appear chiefly in the session-log popup but pretty-print helps anywhere), and a global components.code renderer is simpler + lower-risk than a popup-scoped variant/prop. Implement in packages/ledger-web/src/:
+    (1) Markdown.tsx — pass a `components` map to <ReactMarkdown> with a `code` renderer. For a fenced block whose language is `json` (className `language-json`) OR whose raw text JSON.parse-es successfully: re-serialize via JSON.stringify(parsed, null, 2) and render a colorized <pre><code> — a SMALL hand-rolled, theme-var-keyed JSON tokenizer emitting <span> classes (e.g. lw-json-key / lw-json-string / lw-json-number / lw-json-bool / lw-json-null / lw-json-punct) is preferred over adding a heavy highlighter dependency. CRITICAL: the pretty-print MUST be SAFE — wrap JSON.parse in try/catch and on ANY failure (or non-json fence) fall back to rendering the raw code UNCHANGED (never throw, never lose content). Inline code (no language / not a fenced block) renders as today. Preserve rehype-sanitize (the colorizer spans are produced by the React `code` component AFTER sanitize, so they are safe — confirm sanitize doesn't strip them; if it does, scope the span classNames via the allowed attributes or render via the component, not raw HTML).
+    (2) styles.css — add `white-space: pre-wrap; overflow-wrap: anywhere;` to `.lw-md pre` (and confirm `.lw-md pre code`) so any long line wraps instead of horizontally overflowing; add the `.lw-json-*` token colors keyed to the existing theme CSS vars (e.g. --fg, accent vars used elsewhere), readable on the dark `#0c0e12` code background.
+    Keep it surgical — do not change other markdown rendering behavior. Linked defect: D57.
+- acceptance: "happy-dom test (packages/ledger-web/test/, e.g. Markdown.test.tsx or extend an existing one): (a) a single-line ```json fence (e.g. {\"a\":1,\"b\":[2,3]}) renders MULTI-LINE pretty-printed output (the rendered text contains newlines / the 2-space-indented form) AND carries the colorizer token spans (e.g. a .lw-json-key element); (b) an INVALID-json ```json fence (e.g. `not json`) falls back to the raw text UNCHANGED (no throw, content preserved); (c) a non-json fenced block (e.g. ```sh) is unaffected; (d) the `.lw-md pre` rule includes white-space:pre-wrap (assert via the stylesheet or a computed check if feasible, else assert the CSS source contains it). Existing ledger-web Markdown/LogModal tests pass unchanged. `bun run check` (from nix/pkg/cq-ledgers/) green; `nix build .#ledger-web` green."
+- suggestedModel: standard
+- dependsOn: []
+- ledgerRefs: ["goals:G47","defects:D57"]

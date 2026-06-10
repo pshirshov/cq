@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 164
+  item: 165
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -836,3 +836,9 @@ archives:
 - createdAt: 2026-06-10T22:02:13.252Z
 - updatedAt: 2026-06-10T22:02:13.252Z
 - title: "Plan: unify CLI tools into a single cq binary"
+
+### M165 — open
+
+- createdAt: 2026-06-10T22:12:36.201Z
+- updatedAt: 2026-06-10T22:12:36.201Z
+- title: "W: ledger-web JSON pretty-print + colorize + wrap (D57)"

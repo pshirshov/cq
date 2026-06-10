@@ -379,10 +379,10 @@ archives:
 
 ## M163
 
-### G47 — planning
+### G47 — planned
 
 - createdAt: 2026-06-10T21:58:57.627Z
-- updatedAt: 2026-06-10T21:58:57.627Z
+- updatedAt: 2026-06-10T22:22:02.509Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: Fix D57 — pretty-print + colorize JSON in the ledger-web session-log viewer
@@ -397,6 +397,9 @@ archives:
     
     ## SCOPE DECISION for the planner
     The Markdown component is SHARED by all markdown field rendering (App.tsx renderVal/detail fields, e.g. L3179/L3326), so the plan must decide: apply the json-pretty-print + wrap GLOBALLY (every markdown code fence in ledger-web) or ONLY in the log popup (via a Markdown `prettyJson`/`wrap` prop or popup-scoped CSS + a popup-only code renderer). The pretty-print MUST be SAFE (parse-failure falls back to raw text unchanged, never throws) and preserve rehype-sanitize. Acceptance: a happy-dom test asserting a single-line ```json fence renders multi-line/pretty-printed (and, if colorized, with the expected token spans/classes) + wraps; existing Markdown tests unchanged; bun run check green. Linked defect: D57.
+- milestones: ["M165"]
+- grounding: "Defect-seeded fix of D57 (H36 confirmed). SCOPE chosen GLOBAL (the shared ledger-web Markdown component) — pretty-print + wrap apply to all json code fences, simpler + universally beneficial. 1 work milestone M165, 1 task T385: a react-markdown components.code renderer that SAFE-pretty-prints (JSON.stringify(parse,null,2) with try/catch raw fallback) + theme-var colorizes json fences, plus white-space:pre-wrap CSS on .lw-md pre + .lw-json-* token colors; happy-dom test (pretty multi-line + token spans + invalid-json raw fallback + non-json untouched + pre-wrap CSS). Orchestrator-authored (G42/K67 precedent: confirmed cause + exact fix locus) + single opus reviewer."
+- sessionLogs: ["docs/logs/20260610-222114-ab68dbeae4d1a1cd8.md"]
 
 ## M164
 

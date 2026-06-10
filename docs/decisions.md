@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 72
+  item: 73
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -327,3 +327,15 @@ archives:
 - headline: G46 plan LOCKED — ledger-mcp --help/-h flag fix (D56); single-task, go-ahead
 - rationale: "Defect-seeded goal G46 (fix D56, root cause confirmed via H35, clarification skipped per K8 pt4). Orchestrator-authored plan (G42/K67 precedent: the confirmed root cause + exact single-file fix locus leave nothing for parallel candidate planners to diverge on) reviewed by a single opus plan-reviewer → go-ahead (R463; 0 criticisms; all cited main.ts loci verified against source). LOCKED plan: 1 work milestone M161, 1 task T384 (standard). T384: extract the file-header CLI usage into a runtime TOP_LEVEL_USAGE constant (mirroring RESTORE_USAGE) covering default stdio mode + --cwd/--http/--tool-prefix/restore, and add a --help/-h branch in main() that prints it to stdout + returns BEFORE the default launch path (no server construction); unit test asserts main(['--help'])/main(['-h']) prints usage (incl. --tool-prefix) without starting a server. G46 → planned."
 - ledgerRefs: ["goals:G46","defects:D56","reviews:R463"]
+
+## M163
+
+### K73 — locked
+
+- createdAt: 2026-06-10T22:21:36.051Z
+- updatedAt: 2026-06-10T22:21:36.051Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: G47 plan LOCKED — ledger-web JSON pretty-print + colorize + wrap (D57); single-task, go-ahead
+- rationale: "Defect-seeded goal G47 (fix D57, root cause confirmed via H36, clarification skipped). Orchestrator-authored plan (G42/K67 precedent) reviewed by a single opus plan-reviewer → go-ahead (R465; 0 criticisms; verified colorizer spans survive rehype-sanitize + react-markdown v10 code API + happy-dom acceptance). SCOPE decided GLOBAL (the shared ledger-web Markdown component). LOCKED plan: 1 work milestone M165, 1 task T385 (standard) — a react-markdown components.code renderer that SAFE-pretty-prints (JSON.stringify(parse,null,2), try/catch raw fallback) + theme-var colorizes json fences, plus white-space:pre-wrap CSS on .lw-md pre + .lw-json-* token colors; happy-dom test (pretty multi-line + token spans + invalid-json raw fallback + non-json untouched + pre-wrap CSS); bun run check + nix build .#ledger-web green. G47 → planned."
+- ledgerRefs: ["goals:G47","defects:D57","reviews:R465"]
