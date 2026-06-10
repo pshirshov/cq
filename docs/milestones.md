@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 150
+  item: 155
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -761,3 +761,37 @@ archives:
 - createdAt: 2026-06-10T15:01:37.384Z
 - updatedAt: 2026-06-10T15:01:37.384Z
 - title: "Plan: cq:advance turn-pause Stop-hook gate (D50)"
+
+### M151 — open
+
+- createdAt: 2026-06-10T15:31:42.848Z
+- updatedAt: 2026-06-10T15:31:42.848Z
+- title: "G44-W1: shared derivePredicates engine in @cq/ledger"
+
+### M152 — open
+
+- createdAt: 2026-06-10T15:31:49.140Z
+- updatedAt: 2026-06-10T15:31:49.140Z
+- title: "G44-W2: cq advance-gate CLI subcommand"
+- dependsOn: ["M151"]
+
+### M153 — open
+
+- createdAt: 2026-06-10T15:31:49.898Z
+- updatedAt: 2026-06-10T15:31:49.898Z
+- title: "G44-W3: derive_predicates MCP tool + advance.md detection rewire"
+- dependsOn: ["M151"]
+
+### M154 — open
+
+- createdAt: 2026-06-10T15:32:01.565Z
+- updatedAt: 2026-06-10T15:32:01.565Z
+- title: "G44-W4: Stop-hook wrapper + nix registration + marker/escape lifecycle wiring"
+- dependsOn: ["M152"]
+
+### M155 — open
+
+- createdAt: 2026-06-10T15:32:05.871Z
+- updatedAt: 2026-06-10T15:32:05.871Z
+- title: "G44-W5: acceptance hardening — grep-invariant, manual repro, live-session evidence"
+- dependsOn: ["M153","M154"]

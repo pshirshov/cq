@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 69
+  item: 70
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -291,3 +291,15 @@ archives:
 - headline: "G42 plan review: approved (go-ahead) — D47 fix plan LOCKED (single test-only task T346)"
 - rationale: "Defect-seeded goal G42 (fix D47, root cause confirmed via H34, clarification skipped). Orchestrator-authored plan (the confirmed root cause + exact fix locus leave nothing for parallel candidate planners to diverge on) reviewed by a single opus plan-reviewer → go-ahead (0 criticisms; all cited symbols verified against source). LOCKED plan: 1 work milestone M142, 1 task T346 (standard). T346 (test-only, packages/ledger/test/canonical-ledgers.test.ts): (1) flip the existing committed-vs-canon guard test to `new FsLedgerStore({root, onSchemaDivergence:'abort'})` so structural drift THROWS instead of silently self-healing (default backup-reinit); (2) add a byte-equality assertion (committed docs/ledgers.yaml === serializeRegistry(CANONICAL_LEDGERS)) running under bun run check so serialization-order drift fails too; (3) exclude the intentionally-frozen examples/sample-ledger fixture; reproduce-first against a deliberately-staled fixture copy. G42 → planned."
 - ledgerRefs: ["goals:G42","defects:D47"]
+
+## M150
+
+### K70 — locked
+
+- createdAt: 2026-06-10T15:44:13.812Z
+- updatedAt: 2026-06-10T15:44:13.812Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "G44 plan LOCKED — cq:advance turn-pause Stop-hook gate (unanimous go-ahead, R438)"
+- rationale: "The G44 plan (5 work milestones M151-M155, 12 tasks T361-T372) is APPROVED + LOCKED after a unanimous multi-reviewer go-ahead (R438: opus + codex + grok + minimax, 0 abstentions, 0 findings). Synthesized from a multi-planner round (opus base + grok concurrence; minimax abstained). The plan honors all 7 locked clarifying decisions (Q198-Q204): shared dual-tested derivePredicates in @cq/ledger as single source of truth (T361/T366); `cq advance-gate` CLI emitting a neutral verdict + exit code (T362/T367); a NEW derive_predicates MCP tool + advance.md detection rewire so prompts read predicates from MCP (T363/T368, the user's Q202 extension); a thin Claude-Code Stop-hook wrapper registered via nix/hm/claude.nix settings.hooks (T364/T369), integration-tested (T372); the session-keyed run-active marker + external-signal escape lifecycle wired into advance.md (T370); and the full Q204 acceptance bar — dual-adapter + verdict + wrapper-integration tests, grep-invariant pinning advance.md, documented manual repro, and a recorded live /cq:advance session demonstrating the hook firing (T365/T371). DAG acyclic: W1→{W2,W3}→W4→W5. This fixes defect D50."
+- ledgerRefs: ["goals:G44","defects:D50","reviews:R438"]

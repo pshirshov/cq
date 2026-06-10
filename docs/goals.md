@@ -289,10 +289,10 @@ archives:
 
 ## M150
 
-### G44 — clarifying
+### G44 — planned
 
 - createdAt: 2026-06-10T15:02:27.174Z
-- updatedAt: 2026-06-10T15:07:55.633Z
+- updatedAt: 2026-06-10T15:44:15.620Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: "cq:advance turn-pause Stop-hook gate (fix D50)"
@@ -324,4 +324,6 @@ archives:
     - the cq-cli surface (packages/cq-cli/src/main.ts SUBCOMMANDS/parser/HANDLERS/USAGE — the native-subcommand pattern G43's `cq move-ledger` just used).
     
     This goal FIXES defect D50 (link carried on D50.ledgerRefs → goals:G44).
-- sessionLogs: ["docs/logs/20260610-150737-a47043f0c34303e03.md"]
+- sessionLogs: ["docs/logs/20260610-150737-a47043f0c34303e03.md","docs/logs/20260610-153429-a2540a8630b7ab96a.md","docs/logs/20260610-153429-pi-grok-planner.md","docs/logs/20260610-153429-pi-minimax-planner.md"]
+- milestones: ["M151","M152","M153","M154","M155"]
+- grounding: "Synthesized multi-planner plan (opus base + grok concurrence; minimax abstained — empty/timeout). 5 work milestones M151-M155, 12 tasks T361-T372, honoring all 7 answered clarifying decisions (Q198 nix/hm/claude.nix Stop-hook registration in-scope; Q199 neutral-verdict CLI + thin Claude-Code wrapper; Q200 session-keyed /tmp marker; Q201 external-signal escape; Q202 SHARED dual-tested derivePredicates in @cq/ledger + NEW derive_predicates MCP tool + advance.md detection rewire; Q203 advance.md-only scope; Q204 dual-adapter+verdict+wrapper-integration tests + grep-invariant + manual repro + live-session evidence). W1 (derivePredicates engine + tests) → W2 (cq advance-gate CLI + tests) + W3 (derive_predicates MCP tool + advance.md detection rewire), both dep W1 → W4 (Stop-hook wrapper + claude.nix registration + advance.md marker/escape wiring + integration test) dep W2 → W5 (grep-invariant + manual repro + live evidence) dep W3,W4. Key grounding (opus read): Claude Code settings.hooks live in nix/hm/claude.nix beside the existing SessionStart hook; createLedgerStore(cwd) is the in-process fs-store seam the CLI reuses; registerLedgerStdioTools is the MCP-tool registration site; assertHandoffInvariants (store/core.ts) is the D39 shared-pure-function precedent derivePredicates mirrors."

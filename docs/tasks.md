@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 360
+  item: 372
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -517,3 +517,164 @@ archives:
 ---
 
 # tasks
+
+## M151
+
+### T361 — planned
+
+- createdAt: 2026-06-10T15:32:37.607Z
+- updatedAt: 2026-06-10T15:32:37.607Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add shared derivePredicates(store) to @cq/ledger
+- description: "Create the shared predicate-derivation function (single source of truth for the flow's three predicates), e.g. packages/ledger/src/store/predicates.ts (or in store/core.ts beside assertHandoffInvariants) exporting `derivePredicates(store: LedgerStore): { pInvestigate, pPlan, pImplement, openQuestionGate }`, each as `{ value: boolean, items: string[] }` so a verdict can NAME the TRUE-and-unblocked item ids. Implement EXACTLY advance.md §Detection-predicates semantics by reading the store SYNCHRONOUSLY (store.fetch('defects'|'goals'|'tasks'|'questions'|'milestones'), cross-referencing fields.ledgerRefs for the open-question gate): P-investigate = a defect in {open,wip,inconclusive} NOT solely blocked on an open linked question AND NOT owned by a clarifying/planning goal; P-plan = a goal in {clarifying-with-no-open-linked-question, planning}; P-implement = a planned/building goal with a DAG-ready non-terminal non-blocked task whose dependsOn tasks are all done, milestone dependsOn satisfied, no linked open question. Pure function over store reads (mirror the assertHandoffInvariants/assertGoalPhasePreconditions style). Export from the package barrel (src/index.ts) so @cq/cli and @cq/ledger-mcp both import it. NO MCP dependency."
+- acceptance: derivePredicates exported from @cq/ledger; tsc -b + lint clean; compiles against the LedgerStore interface with no MCP dependency. (Tests in the next task.)
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T366 — planned
+
+- createdAt: 2026-06-10T15:33:16.703Z
+- updatedAt: 2026-06-10T15:33:16.703Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Dual-adapter unit tests for derivePredicates against synthetic ledger states
+- description: "Add packages/ledger/test/predicates.test.ts running ONE abstract suite against BOTH the production FsLedgerStore (temp docs/) AND the InMemoryLedgerStore dummy (the repo's dual-tests pattern). Fixtures: (a) actionable open defect not goal-owned → pInvestigate TRUE; (b) defect owned by a planning/clarifying goal → pInvestigate FALSE; (c) clarifying goal with an open linked question → pPlan FALSE, without → TRUE; a planning goal → pPlan TRUE; (d) a planned goal with a DAG-ready task → pImplement TRUE; the same task blocked by an open linked question or an unfinished dependsOn → FALSE; (e) all-terminal ledger → all three FALSE. Assert the returned items[] name the exact expected ids."
+- acceptance: "`bun test predicates.test.ts` green; the suite executes against BOTH FsLedgerStore and InMemoryLedgerStore (each fixture asserted twice); bun run check passes."
+- suggestedModel: frontier
+- dependsOn: ["T361"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+## M152
+
+### T362 — planned
+
+- createdAt: 2026-06-10T15:32:44.414Z
+- updatedAt: 2026-06-10T15:32:44.414Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add the `cq advance-gate` subcommand emitting the neutral verdict JSON + allow/block exit code
+- description: "Extend packages/cq-cli/src/main.ts: add `advance-gate` to SUBCOMMANDS, USAGE, parser, and HANDLERS, implementing runAdvanceGate in a new ./advanceGate.ts. It constructs the fs-backed store IN-PROCESS via createLedgerStore(args.cwd) (exactly like runInit/runReset/move-ledger — NO MCP server), calls derivePredicates(store), disposes, and decides: compute the session-keyed marker path `${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-<session-id>` (session id from a --session flag or $CLAUDE_CODE_SESSION_ID). If the marker is ABSENT → allow (block=false). If present, grep its contents for a non-empty `external-signal: \"...\"` line → allow. Else if any predicate is TRUE-and-unblocked → block=true with reason `P-<which>=TRUE and unblocked; continue per D41 — turn-pause is not a stop condition`; else allow. Emit on stdout the NEUTRAL (harness-agnostic) JSON `{ block, reason, predicates: { pInvestigate, pPlan, pImplement, openQuestionGate } }`; exit 0 = allow, non-zero = block (Q199). The CLI itself emits NO Claude-Code {decision} JSON — that is the wrapper's job (T7)."
+- acceptance: "`cq advance-gate` listed in USAGE; against a temp ledger it prints the neutral verdict JSON and returns exit 0 (allow) / non-zero (block) per state; works in the nix-built `cq`; tsc -b + lint clean. (Verdict tests in the next task.)"
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T367 — planned
+
+- createdAt: 2026-06-10T15:33:22.353Z
+- updatedAt: 2026-06-10T15:33:22.353Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Unit-test the cq advance-gate verdict + exit-code contract (marker/external-signal cases)
+- description: "Add packages/cq-cli/test/advanceGate.test.ts driving runAdvanceGate (or dispatch(['advance-gate', ...])) with a captured DispatchIo + temp ledger roots + temp marker paths: (1) TRUE-and-unblocked predicate + marker present → block=true, non-zero exit, reason contains `continue per D41`; (2) all-FALSE ledger → block=false, exit 0; (3) marker ABSENT → allow even with a TRUE predicate; (4) marker present WITH `external-signal: \"<quote>\"` → allow. Assert the emitted NEUTRAL JSON shape + exit code in every case. Reuse temp-dir + createLedgerStore fixtures from the existing cq-cli subcommand tests."
+- acceptance: "`bun test advanceGate.test.ts` green covering all four cases (TRUE+marker→block; all-FALSE→allow; marker-absent→allow; external-signal→allow) with exit codes asserted; bun run check passes."
+- suggestedModel: frontier
+- dependsOn: ["T362"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+## M153
+
+### T363 — planned
+
+- createdAt: 2026-06-10T15:32:50.949Z
+- updatedAt: 2026-06-10T15:32:50.949Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Expose derivePredicates as a new ledger MCP tool (derive_predicates)
+- description: "Per Q202's user extension: register a NEW read-only MCP tool `derive_predicates` (no required params) in the @cq/ledger tool-registration path that registerLedgerStdioTools(server, store, …) (ledger-mcp/src/main.ts) invokes — alongside the existing `snapshot` tool. The handler calls the SHARED derivePredicates(store) (from T1) and returns { pInvestigate, pPlan, pImplement, openQuestionGate } (booleans + the naming item ids). Add it to the tool-name registry/LEDGER_TOOL_NAMES + the tool-count reconciliation/drift-guard, and update the server `instructions` overview list to mention it next to snapshot. Available on BOTH stdio + HTTP transports + embedded mode."
+- acceptance: The MCP server registers derive_predicates; a test invoking it through the in-memory MCP transport (as existing tool tests do) returns the predicate object matching derivePredicates(store); tool-count drift-guard updated; bun run check green.
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T368 — planned
+
+- createdAt: 2026-06-10T15:33:28.554Z
+- updatedAt: 2026-06-10T15:33:28.554Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Rewire advance.md §Detection-predicates to read predicates from the derive_predicates MCP tool
+- description: "Per Q202: edit nix/pkg/cq-assets/commands/cq/advance.md §Detection predicates + §Bootstrap so the agent CALLS the new `mcp__ledger__derive_predicates` tool to OBTAIN P-investigate/P-plan/P-implement/open-Q-gate instead of hand-deriving from snapshot(). Keep the predicate DEFINITIONS in prose (they document what the tool computes) but make 'call derive_predicates' the operational source of truth; cross-reference that the same derivePredicates logic backs `cq advance-gate`. Surgical — do NOT alter the cycle/stop-condition semantics here (that is T10). Re-run gen-agents-catalogue if advance.md is catalogued (freshness guard)."
+- acceptance: advance.md §Detection-predicates/§Bootstrap instruct calling mcp__ledger__derive_predicates; predicate prose still matches the code; no other sections semantically altered (diff-confined); agentsCatalogue regen no drift; bun run check green.
+- suggestedModel: standard
+- dependsOn: ["T363"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+## M154
+
+### T364 — planned
+
+- createdAt: 2026-06-10T15:32:57.665Z
+- updatedAt: 2026-06-10T15:32:57.665Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Author the thin Claude-Code Stop-hook wrapper script (gate verdict → {decision:block})"
+- description: "Create the wrapper as a `pkgs.writeShellScript` in nix/hm/claude.nix (sibling to the existing claudeSessionStartHook — the actual locus of Claude Code settings.hooks; nix/hm/dev-llm.nix composes claude.nix). The Stop hook receives the session id on stdin/env; the wrapper reads $CLAUDE_CODE_SESSION_ID, invokes `cq advance-gate --session <id> --cwd <ledger-root>` capturing stdout+exit, and: if exit is NON-ZERO (block) prints to stdout the Claude-Code hook JSON `{\"decision\":\"block\",\"reason\":<the gate's reason>}`; otherwise prints nothing / `{}` (allow the stop). Marker-absent / external-signal / all-FALSE all flow through as allow because the CLI already returned exit 0. Keep the wrapper minimal + harness-specific (the neutral CLI stays reusable by other harnesses per D50's LIMITS); no $CLAUDE_CODE_SESSION_ID → allow (exit 0)."
+- acceptance: "The wrapper script exists in claude.nix and the home-manager/dev-llm build (or `nix flake check`) evaluates without error; the script invokes `cq advance-gate` and emits {decision:block,reason} ONLY on a non-zero gate exit, allow otherwise. (Registration + integration test in later tasks.)"
+- suggestedModel: frontier
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T369 — planned
+
+- createdAt: 2026-06-10T15:33:33.702Z
+- updatedAt: 2026-06-10T15:33:33.702Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Register the Stop hook in nix/hm/claude.nix settings.hooks
+- description: "Per Q198: add a `Stop` entry to the settings.hooks block in nix/hm/claude.nix (currently only SessionStart), matcher `*`, `{ type = \"command\"; command = \"${claudeStopGateHook}\"; }` pointing at the wrapper from T364. This ships the gate via the SAME Nix home-manager mechanism that already provisions advance.md + the `cq` CLI (installation in-scope per Q198). Ensure `cq` is on PATH for the hook process (it already is via the dev-llm provisioning)."
+- acceptance: claude.nix settings.hooks.Stop present + references the wrapper; the home-manager/dev-llm build (or `nix flake check`) evaluates; rendered settings.json (inspected from the built profile) contains the Stop hook.
+- suggestedModel: standard
+- dependsOn: ["T364"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T370 — planned
+
+- createdAt: 2026-06-10T15:33:41.309Z
+- updatedAt: 2026-06-10T15:33:41.309Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Wire the run-active marker + external-signal lifecycle into advance.md (§Bootstrap, §The one write, §Stop-condition gate)
+- description: "Per Q203 (scope = /cq:advance ONLY): edit nix/pkg/cq-assets/commands/cq/advance.md. §Bootstrap recipe: after the git-object run-START fetch, DROP the session-keyed marker `${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-$CLAUDE_CODE_SESSION_ID` as the first run-start action. §End-of-run / §The one write: UNLINK the marker ATOMICALLY in the SAME step that writes the terminal handoffs create_item (so they cannot diverge). §Stop-condition gate: cross-reference the new Stop hook + the external-signal escape (to legitimately end on genuine harness-evidenced exhaustion, append `external-signal: \"<verbatim harness quote>\"` to the marker before stopping). KEEP the existing D41 turn-pause prose / euphemism blocklist / self-check intact as the documented fallback for non-Claude harnesses, ADDING one sentence that the Stop hook now mechanically enforces it for Claude Code. Do NOT touch the sub-commands. Re-run gen-agents-catalogue (freshness guard)."
+- acceptance: advance.md contains the marker-drop step in §Bootstrap, the atomic marker-unlink in §The one write/§End-of-run, and the hook + external-signal cross-reference in §Stop-condition gate; D41 prose retained + the enforcement sentence added; diff confined to those sections; sub-commands untouched; agentsCatalogue regen no drift; bun run check green.
+- suggestedModel: standard
+- dependsOn: ["T364"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T372 — planned
+
+- createdAt: 2026-06-10T15:34:00.134Z
+- updatedAt: 2026-06-10T15:34:00.134Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Integration test of the Stop-hook wrapper's stdout/exit contract against a stub gate
+- description: "Per Q204 item (2): add a test (subprocess-based; under cq-cli/test or a dedicated hook test) that invokes the wrapper script with the `cq` binary STUBBED/shimmed (via PATH) to return: (a) exit non-zero + neutral verdict JSON with a reason → assert the wrapper's stdout is exactly `{\"decision\":\"block\",\"reason\":\"P-… continue per D41 …\"}`; (b) exit 0 → assert the wrapper ALLOWS (empty/`{}` stdout, no block). Drive the session id + marker path via env so the test is hermetic. Covers the hook-wrapper stdout/exit contract independent of the live harness."
+- acceptance: "The integration test runs the wrapper against a stubbed gate and asserts {decision:block} on non-zero exit + allow on exit 0; green in bun run check (or the documented hook-test command)."
+- suggestedModel: frontier
+- dependsOn: ["T369"]
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+## M155
+
+### T365 — planned
+
+- createdAt: 2026-06-10T15:33:03.019Z
+- updatedAt: 2026-06-10T15:33:03.019Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add a grep-invariant test pinning the new advance.md marker + external-signal steps (mirror D39's guard)
+- description: "Per Q204: add a test (mirror D39's advance.md prose grep-invariant — locate the existing advance.md/agentsCatalogue guard test and extend or add beside it) asserting advance.md still contains the load-bearing enforcement steps: the marker-drop in §Bootstrap, the marker-unlink coupled with the terminal-handoff write, the external-signal escape format `external-signal:`, the Stop-hook cross-reference in §Stop-condition gate, and the `mcp__ledger__derive_predicates` detection instruction. Prevents silent prose regression of the enforcement steps exactly as D39 guarded its handoff prose."
+- acceptance: A grep-invariant test FAILS if any of the marker-drop / marker-unlink / external-signal / hook-cross-ref / derive_predicates strings are removed from advance.md, and PASSES on the edited file; bun run check green.
+- suggestedModel: standard
+- ledgerRefs: ["goals:G44","defects:D50"]
+
+### T371 — planned
+
+- createdAt: 2026-06-10T15:33:47.191Z
+- updatedAt: 2026-06-10T15:33:47.191Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Document the manual repro + capture the live /cq:advance Stop-hook firing evidence"
+- description: "Per Q204 (strongest bar): (1) write a documented manual repro under docs/drafts/ — drop the marker, leave a TRUE-and-unblocked predicate in the ledger, attempt to end a turn, observe the Stop hook return {decision:block} + force continuation; include exact commands + observed-vs-expected output. (2) Record a LIVE /cq:advance session demonstrating the hook firing end-to-end (the hook blocking a premature turn-pause while a predicate is TRUE), captured as a transcript/log committed under docs/logs or docs/drafts — manual evidence, explicitly NOT a CI gate. Note the accepted irreducible behavioural limit (the hook forces continuation; it cannot make a genuinely exhausted model productive — the external-signal escape covers the real case). This task is the live-evidence capstone; it depends on the whole gate being wired + registered."
+- acceptance: A docs/ artifact contains the reproducible manual-repro commands+output AND a recorded live-session transcript showing the Stop hook firing (block decision) on a TRUE-and-unblocked predicate; the doc states the accepted behavioural limit.
+- suggestedModel: standard
+- dependsOn: ["T365"]
+- ledgerRefs: ["goals:G44","defects:D50"]
