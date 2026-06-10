@@ -699,6 +699,16 @@ archives:
     summary: "G45 W3 (acceptance) COMPLETE: T380 two-prefixed-servers-in-one-process collision test (Q211-1 core: disjoint name sets + both functional end-to-end via real tool calls, deterministic 3 reruns); T381 prefixed-SERVER_INSTRUCTIONS test strengthened (Q211-5, bijection + count pins); T382 @cq/ledger-mcp README build-your-own-prefixed-ledger-MCP example (every API verified against source); T383 final gate — bun run check 1668/0 on integrated main, all five Q211 criteria confirmed by passing tests/artifacts. All 4 tasks done + reviewed (R460/R458/R461/R462 go-ahead). Merged d4634aa/01a2ecc/e5a5a17 + orchestrator-verified gate. check green."
     title: "W3: acceptance — two-prefixed-servers collision test, instructions-naming test, README example, bun run check"
     status: done
+  - id: M161
+    path: ./archive/reviews/M161.md
+    summary: "G46 fix (ledger-mcp --help flag) COMPLETE: T384 added a runtime TOP_LEVEL_USAGE constant + a --help/-h early-return branch in ledger-mcp/main.ts that prints usage to stdout before any server construction (covers default stdio + --cwd/--http/--tool-prefix/restore); help.test.ts asserts both flags print usage + start no server + argv-position precedence. Reviewed round-2 unanimous go-ahead (R464; round-1 grok disapprove drove a test-only criticism-loop fix — accurate header comment + -h no-server assertion). Merged 5998681. RESOLVES D56. check 1675/0."
+    title: "W: ledger-mcp --help/-h flag fix (D56)"
+    status: done
+  - id: M158
+    path: ./archive/reviews/M158.md
+    summary: "G45 W2 (public builder + CLI + instructions) COMPLETE: T377 buildServerInstructions(toolPrefix) reusing prefixToolName over live LEDGER_TOOL_NAMES (empty byte-identical); T378 public createLedgerMcpServer({store,displayName,toolPrefix?}) + CreateLedgerMcpServerOptions extracted from @cq/ledger-mcp, buildServer kept as a byte-identical thin wrapper; T379 --tool-prefix CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + STDIO with optional default-'' params (R450 fix) + e2e HTTP registration test. All 3 tasks done + reviewed (R455/R457/R459 go-ahead; T379 minimax-dissent adjudicated invalid). ALSO carried defect D56 (filed file-and-defer during T379 review): root-caused via investigate (H35 confirmed), seeded defect-goal G46, fixed by T384 → D56 RESOLVED; traceability Q212 answered. Merged 3b7eb76/2b63911/24e2647. check green."
+    title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
+    status: done
 ---
 
 # reviews
@@ -819,44 +829,6 @@ archives:
 - ledgerRefs: ["goals:G45"]
 - sessionLogs: ["docs/logs/20260610-185929-a9150c4642dba4d0c.md","docs/logs/20260610-185929-pi-codex.md","docs/logs/20260610-185929-pi-grok.md","docs/logs/20260610-185929-pi-minimax.md"]
 
-## M158
-
-### R455 — go-ahead
-
-- createdAt: 2026-06-10T19:54:00.229Z
-- updatedAt: 2026-06-10T19:54:00.229Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T377 — reconciled approve (4-reviewer panel, all approve). buildServerInstructions(toolPrefix) reuses prefixToolName over live LEDGER_TOOL_NAMES; empty byte-identical; check 1649/0. minimax filed a low defect (derive_predicates-missing) ADJUDICATED FALSE by the repo-grounded opus reviewer (derive_predicates IS at ledgerTools.ts:803 and IS correctly prefixed) — not filed."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T377","goals:G45"]
-- sessionLogs: ["docs/logs/20260610-195218-a3cabcbc349ef2645.md","docs/logs/20260610-195218-pi-codex-T377.md","docs/logs/20260610-195218-pi-grok-T377.md","docs/logs/20260610-195218-pi-minimax-T377.md"]
-
-### R457 — go-ahead
-
-- createdAt: 2026-06-10T20:25:49.999Z
-- updatedAt: 2026-06-10T20:25:49.999Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T378 — reconciled approve (3 of 4 reviewers approve; minimax disapprove ADJUDICATED INVALID). createLedgerMcpServer extracted, buildServer byte-identical thin wrapper, round-trip test pins prefixed/default; check 1658/0. minimax's lone criticism (test should import from @cq/ledger-mcp not ../src/main.js) is INVALID for this repo: ALL ledger-mcp tests import from ../src (package exports resolve to un-built dist — the D55 fragility); buildServer itself is tested via ../src by identical convention; export is verified by tsc. The 3 repo-grounded reviewers (opus+codex+grok) approved."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T378","goals:G45"]
-- sessionLogs: ["docs/logs/20260610-202419-a50d50fa0e663b051.md","docs/logs/20260610-202419-pi-codex-T378.md","docs/logs/20260610-202419-pi-grok-T378.md","docs/logs/20260610-202419-pi-minimax-T378.md"]
-
-### R459 — go-ahead
-
-- createdAt: 2026-06-10T20:52:22.834Z
-- updatedAt: 2026-06-10T20:52:22.834Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T379 — reconciled approve (3 of 4 reviewers approve; the grok-instance disapprove ADJUDICATED INVALID — all 3 criticisms refuted against the diff/repo). --tool-prefix threaded through the FULL HTTP chain (R450 fix) + STDIO; e2e HTTP registration test genuine; check 1668/0. The grok-instance's criticisms: (1) 'buildServer dead code' — false, still called by capabilityGating.test.ts:55 + main.test.ts:166, public API; (2) 'incomplete --help' — false, no --help handler exists (filed pre-existing low defect D56), header usage surface correctly updated; (3) '--tool-prefix= no throw' — false, '' is the valid default prefix. opus filed pre-existing low defect D56 (no --help flag)."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T379","goals:G45","defects:D56"]
-- sessionLogs: ["docs/logs/20260610-205105-a16acdb5a260854ef.md","docs/logs/20260610-205105-pi-codex-T379.md","docs/logs/20260610-205105-pi-grok-T379.md","docs/logs/20260610-205105-pi-minimax-T379.md"]
-
 ## M160
 
 ### R463 — go-ahead
@@ -870,17 +842,3 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G46","defects:D56"]
 - sessionLogs: ["docs/logs/20260610-211627-a96067fca8e7b2d86.md"]
-
-## M161
-
-### R464 — go-ahead
-
-- createdAt: 2026-06-10T21:47:53.153Z
-- updatedAt: 2026-06-10T21:47:53.153Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T384 — UNANIMOUS approve at round 2 (4-reviewer panel). Round 1: grok disapprove (4 criticisms; #3 'doesn't mirror RESTORE_USAGE' adjudicated INVALID, but #1 stale-test-comment + #2 -h-coverage VALID → criticism-loop). Round 2 (test-only): accurate header comment + -h no-'serving' assertion added; source unchanged; all 4 reviewers approve. --help/-h early-returns before server launch; check 1675/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T384","goals:G46","defects:D56"]
-- sessionLogs: ["docs/logs/20260610-214656-a053096a9302dd4b9.md","docs/logs/20260610-214656-a5e1f722c1122af41.md","docs/logs/20260610-214656-pi-codex-T384.md","docs/logs/20260610-214656-pi-grok-T384.md","docs/logs/20260610-214656-pi-minimax-T384.md"]

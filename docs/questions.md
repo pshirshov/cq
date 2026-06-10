@@ -149,6 +149,11 @@ archives:
     summary: "G43 (GitObjectLedgerBackend) planned + DELIVERED. The orphan-git-ref ledger backend is implemented end-to-end (15 tasks across W1-W6/M144-M149, all adversarially reviewed + merged; 5 hardening defects D49/D51/D52/D53/D54 resolved; check green 1597/0) and sits behind the same LedgerStore surface as FsLedgerStore, opt-in via cq.toml [ledger] backend='git-object'. Planning Q189-Q196 answered; multi-planner synthesis + revise→go-ahead review loop (R418/R419). One follow-up pending user sequencing: D50 (turn-pause-loophole Stop-hook gate, Q197)."
     title: "Plan: ledger-on-orphan-git-branch storage backend (GitObjectLedgerBackend)"
     status: done
+  - id: M158
+    path: ./archive/questions/M158.md
+    summary: "G45 W2 (public builder + CLI + instructions) COMPLETE: T377 buildServerInstructions(toolPrefix) reusing prefixToolName over live LEDGER_TOOL_NAMES (empty byte-identical); T378 public createLedgerMcpServer({store,displayName,toolPrefix?}) + CreateLedgerMcpServerOptions extracted from @cq/ledger-mcp, buildServer kept as a byte-identical thin wrapper; T379 --tool-prefix CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + STDIO with optional default-'' params (R450 fix) + e2e HTTP registration test. All 3 tasks done + reviewed (R455/R457/R459 go-ahead; T379 minimax-dissent adjudicated invalid). ALSO carried defect D56 (filed file-and-defer during T379 review): root-caused via investigate (H35 confirmed), seeded defect-goal G46, fixed by T384 → D56 RESOLVED; traceability Q212 answered. Merged 3b7eb76/2b63911/24e2647. check green."
+    title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
+    status: done
 ---
 
 # questions
@@ -630,16 +635,3 @@ archives:
 - recommendation: Adopt criteria 1–4 as written; the two-prefixed-servers-in-one-process test (zero collision + both functional) is the core acceptance gate, the unchanged cq drift-guard proves no regression, and `bun run check` is the standing repo gate. Include the doc/example only if Q207 keeps the public builder in scope; add the instructions-naming assertion (suggestion 3) since the prefix touches the instructions text per Q208.
 - ledgerRefs: ["goals:G45"]
 - answer: as recommended
-
-## M158
-
-### Q212 — answered
-
-- createdAt: 2026-06-10T21:13:29.975Z
-- updatedAt: 2026-06-10T21:47:59.888Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- question: "Root cause of D56 confirmed (ledger-mcp has no top-level --help handler) and a defect-seeded goal G46 is ready in `planning`. This investigation was AUTO-LAUNCHED inside the /cq:advance run, so the wrapping run auto-resumes G46's plan stage — no manual /cq:plan:advance is needed."
-- context: "Root cause (H35, confirmed): main.ts parseArgs (L155-185) has no --help/-h case + no terminal else, and main() (L639-647) only dispatches the `restore` subcommand, so --help falls through to the default stdio-launch path (L680-698). Suggested fix: add a --help/-h branch in main() printing a runtime TOP_LEVEL_USAGE constant (covering --cwd/--http/--tool-prefix/restore) to stdout + exit 0, with a unit test. Low severity, single-file + test."
-- ledgerRefs: ["defects:D56","goals:G46"]
-- answer: "Auto-resumed within the same /cq:advance run (no manual /cq:plan:advance needed, as noted): G46 planned (K72, single opus reviewer R463 go-ahead), task T384 implemented + adversarially reviewed (round-2 unanimous, R464) + merged (5998681), and D56 RESOLVED. This was a traceability marker whose auto-resume premise is now fulfilled; closed by the orchestrator (no user action was required)."

@@ -759,6 +759,16 @@ archives:
     summary: "G45 W3 (acceptance) COMPLETE: T380 two-prefixed-servers-in-one-process collision test (Q211-1 core: disjoint name sets + both functional end-to-end via real tool calls, deterministic 3 reruns); T381 prefixed-SERVER_INSTRUCTIONS test strengthened (Q211-5, bijection + count pins); T382 @cq/ledger-mcp README build-your-own-prefixed-ledger-MCP example (every API verified against source); T383 final gate — bun run check 1668/0 on integrated main, all five Q211 criteria confirmed by passing tests/artifacts. All 4 tasks done + reviewed (R460/R458/R461/R462 go-ahead). Merged d4634aa/01a2ecc/e5a5a17 + orchestrator-verified gate. check green."
     title: "W3: acceptance — two-prefixed-servers collision test, instructions-naming test, README example, bun run check"
     status: done
+  - id: M161
+    path: ./archive/milestones/M161.md
+    summary: "G46 fix (ledger-mcp --help flag) COMPLETE: T384 added a runtime TOP_LEVEL_USAGE constant + a --help/-h early-return branch in ledger-mcp/main.ts that prints usage to stdout before any server construction (covers default stdio + --cwd/--http/--tool-prefix/restore); help.test.ts asserts both flags print usage + start no server + argv-position precedence. Reviewed round-2 unanimous go-ahead (R464; round-1 grok disapprove drove a test-only criticism-loop fix — accurate header comment + -h no-server assertion). Merged 5998681. RESOLVES D56. check 1675/0."
+    title: "W: ledger-mcp --help/-h flag fix (D56)"
+    status: done
+  - id: M158
+    path: ./archive/milestones/M158.md
+    summary: "G45 W2 (public builder + CLI + instructions) COMPLETE: T377 buildServerInstructions(toolPrefix) reusing prefixToolName over live LEDGER_TOOL_NAMES (empty byte-identical); T378 public createLedgerMcpServer({store,displayName,toolPrefix?}) + CreateLedgerMcpServerOptions extracted from @cq/ledger-mcp, buildServer kept as a byte-identical thin wrapper; T379 --tool-prefix CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + STDIO with optional default-'' params (R450 fix) + e2e HTTP registration test. All 3 tasks done + reviewed (R455/R457/R459 go-ahead; T379 minimax-dissent adjudicated invalid). ALSO carried defect D56 (filed file-and-defer during T379 review): root-caused via investigate (H35 confirmed), seeded defect-goal G46, fixed by T384 → D56 RESOLVED; traceability Q212 answered. Merged 3b7eb76/2b63911/24e2647. check green."
+    title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
+    status: done
 ---
 
 # milestones
@@ -803,21 +813,8 @@ archives:
 - updatedAt: 2026-06-10T18:15:31.706Z
 - title: "Plan: reusable ledger-MCP library + tool-name namespacing"
 
-### M158 — open
-
-- createdAt: 2026-06-10T18:38:23.636Z
-- updatedAt: 2026-06-10T18:38:23.636Z
-- title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
-- dependsOn: ["M157"]
-
 ### M160 — open
 
 - createdAt: 2026-06-10T21:12:47.366Z
 - updatedAt: 2026-06-10T21:12:47.366Z
 - title: "Plan: fix D56 — ledger-mcp --help flag"
-
-### M161 — open
-
-- createdAt: 2026-06-10T21:14:51.978Z
-- updatedAt: 2026-06-10T21:14:51.978Z
-- title: "W: ledger-mcp --help/-h flag fix (D56)"

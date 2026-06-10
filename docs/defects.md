@@ -159,6 +159,11 @@ archives:
     summary: "G43-W5 complete: backend-guarded auto-fetch(start)/non-forced-push(end) of refs/heads/cq-ledger in all four /cq:* advance prompts + recovery runbook (T355), and the per-merge/run-stop `chore(ledger)` command commits made backend-conditional — skipped under git-object (T358 for the four advance files; D53 for the three start/wrapper commands). Exactly one fetch+push per run via chaining suppression."
     title: "G43-W5: push/fetch sync wiring + drop per-merge ledger-commit steps (Q194/K66-4)"
     status: done
+  - id: M158
+    path: ./archive/defects/M158.md
+    summary: "G45 W2 (public builder + CLI + instructions) COMPLETE: T377 buildServerInstructions(toolPrefix) reusing prefixToolName over live LEDGER_TOOL_NAMES (empty byte-identical); T378 public createLedgerMcpServer({store,displayName,toolPrefix?}) + CreateLedgerMcpServerOptions extracted from @cq/ledger-mcp, buildServer kept as a byte-identical thin wrapper; T379 --tool-prefix CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + STDIO with optional default-'' params (R450 fix) + e2e HTTP registration test. All 3 tasks done + reviewed (R455/R457/R459 go-ahead; T379 minimax-dissent adjudicated invalid). ALSO carried defect D56 (filed file-and-defer during T379 review): root-caused via investigate (H35 confirmed), seeded defect-goal G46, fixed by T384 → D56 RESOLVED; traceability Q212 answered. Merged 3b7eb76/2b63911/24e2647. check green."
+    title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
+    status: done
 ---
 
 # defects
@@ -259,20 +264,3 @@ archives:
 - rootCause: "User-reported (G41 item-4 follow-up). DiagramSvg edge labels rendered with `fill={LABEL_FILL}` where LABEL_FILL='#171a21' — EXACTLY equal to the help-panel background var(--panel)='#171a21' (styles.css :root). Node labels share LABEL_FILL but sit on a filled <rect> (DEFAULT_FILL grey / roleKind colour) so they contrast; EDGE labels render directly on the panel background, so the dark fill is identical to the background and the labels are invisible in the (default dark) theme."
 - fix: "DiagramSvg.tsx: edge labels now use a new EDGE_LABEL_FILL='var(--fg)' (themed foreground #e6e9ef) instead of LABEL_FILL; node labels keep LABEL_FILL='#171a21' (still contrasts on their filled rects). Theme-aware (tracks the palette if a light theme is added). Regression test in diagramSvgActivate.test.tsx asserts the edge-label fill is var(--fg) (not #171a21) while node-label fill stays #171a21. bun run check green (1488/0)."
 - ledgerRefs: ["goals:G41"]
-
-## M158
-
-### D56 — resolved
-
-- createdAt: 2026-06-10T20:51:11.650Z
-- updatedAt: 2026-06-10T21:47:56.435Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: ledger-mcp CLI has no --help flag; `ledger-mcp --help` silently launches the stdio server
-- severity: low
-- description: "Pre-existing UX gap surfaced by the opus reviewer during T379 review (file-and-defer, NOT caused by T379 — present at base 0ebbf42). packages/ledger-mcp/src/main.ts has no `--help`/`-h` handler in parseArgs/main(): running `ledger-mcp --help` treats `--help` as an unknown ignored arg and starts the stdio MCP server instead of printing usage. The CLI's only usage surface is the file-header doc-comment block (which T379 correctly updated to document --tool-prefix). Out of scope for G45's tool-name-prefix work; tracked for a future cleanup task."
-- suggestedFix: "In main(), before the default launch path, add an explicit `--help`/`-h` branch (e.g. `if (argv.includes('--help') || argv.includes('-h')) { process.stdout.write(TOP_LEVEL_USAGE); return; }`). Extract the file-header usage into a runtime TOP_LEVEL_USAGE string constant (mirroring RESTORE_USAGE) covering the default stdio mode, --cwd, --http, --tool-prefix, and the `restore` subcommand, and print it to stdout + exit 0. Add a unit test asserting `main(['--help'])` prints usage (incl. '--tool-prefix') and does NOT start a server."
-- ledgerRefs: ["tasks:T379","goals:G45","goals:G46"]
-- rootCause: "CONFIRMED (H35): packages/ledger-mcp/src/main.ts has no top-level --help handling. parseArgs's argument loop (main.ts:155-185) handles only --cwd/--http/--tool-prefix (+ their = forms) and has NO --help/-h/help case and NO terminal else, so an unrecognized flag is silently dropped. main() (main.ts:639-647) has no help-printing early-exit — its only positional dispatch is the `restore` subcommand; for anything else (including `--help`) it falls through to parseArgs and the default path (main.ts:680-698) which constructs createLedgerMcpServer + a StdioServerTransport and connects, i.e. launches the stdio MCP server. The only top-level usage text is the file-header JSDoc comment (main.ts:16-31), never printed to stdout (RESTORE_USAGE at L204-209 is scoped to the `restore` subcommand only)."
-- sessionLogs: ["docs/logs/20260610-211135-a7fba63841593ac83.md"]
-- fix: "Resolved by T384 (merged 5998681): added a runtime TOP_LEVEL_USAGE constant + a --help/-h branch at the top of main() in packages/ledger-mcp/src/main.ts that prints usage to stdout and returns before any server construction. help.test.ts asserts both flags print the usage (incl. --tool-prefix/--cwd/--http/restore) and start no server. Fix task set {T384} all done → D56 resolved."
