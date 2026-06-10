@@ -1,7 +1,7 @@
 /**
  * Stdio MCP tool registration for the ledger surface.
  *
- * Registers the 25-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
+ * Registers the 26-tool ledger surface (`LEDGER_TOOL_NAMES`) on a raw
  * `@modelcontextprotocol/sdk` `McpServer` via `registerTool`, backed by a
  * `LedgerStore`. Stdio counterpart to `createLedgerMcpTools` (the in-process
  * Claude-SDK `tool()` factory in `./ledgerTools.ts`): identical operational
@@ -19,6 +19,7 @@ import type { LedgerStore, CreateItemInit, UpdateItemPatch } from "../store/Ledg
 import { QUERY_LANGUAGE_HELP } from "../search/query.js";
 import type { FieldValue, LedgerSchema } from "../types.js";
 import { QUESTIONS_LEDGER } from "../constants.js";
+import { derivePredicates } from "../store/predicates.js";
 import {
   ReadLogNotImplementedError,
   type ReadLogCapability,
@@ -172,7 +173,7 @@ function jsonResult(value: unknown): {
 }
 
 /**
- * Register the 25 ledger tools on the given MCP server. Identical
+ * Register the 26 ledger tools on the given MCP server. Identical
  * semantics to the Claude-side factory in `./ledgerTools.ts`.
  *
  * `readLog` is the explicit, FS-store-backed `read_log` capability (Q87 /
@@ -570,6 +571,16 @@ ${QUERY_LANGUAGE_HELP}`,
       },
     },
     async () => jsonResult({ ledger: store.snapshot() }),
+  );
+
+  server.registerTool(
+    "derive_predicates",
+    {
+      description:
+        "Derive the /cq:advance flow-detection predicates from the current ledger state in one call (the SINGLE SOURCE OF TRUTH shared with @cq/cli — read these instead of hand-deriving them). Returns { pInvestigate, pPlan, pImplement, openQuestionGate }, each a verdict { value: boolean, items: string[] } where items names the ids that make the predicate TRUE-and-unblocked (openQuestionGate.items lists the open questions gating the others). Pure over active-ledger reads; no params.",
+      inputSchema: {},
+    },
+    async () => jsonResult(derivePredicates(store)),
   );
 
   // ---- Filesystem read (1) -----------------------------------------------

@@ -13,6 +13,8 @@ import {
   LEDGER_TOOL_NAMES,
   CANONICAL_LEDGERS,
   createLedgerMcpTools,
+  derivePredicates,
+  type DerivedPredicates,
   type LedgerSchema,
   type PromptCatalogCapability,
 } from "../src/index.js";
@@ -54,13 +56,14 @@ function decode<T>(result: { content: Array<{ type: string; text: string }> }): 
 }
 
 describe("ledger MCP tools", () => {
-  it("exports the expected tool names (25 tools)", async () => {
+  it("exports the expected tool names (26 tools)", async () => {
     const store = await buildStore();
     const tools = createLedgerMcpTools(store);
     expect(tools.map((t) => t.name).sort()).toEqual([...LEDGER_TOOL_NAMES].sort());
-    expect(LEDGER_TOOL_NAMES.length).toBe(25);
+    expect(LEDGER_TOOL_NAMES.length).toBe(26);
     expect(LEDGER_TOOL_NAMES).toContain("fts_search");
     expect(LEDGER_TOOL_NAMES).toContain("snapshot");
+    expect(LEDGER_TOOL_NAMES).toContain("derive_predicates");
     expect(LEDGER_TOOL_NAMES).toContain("reopen_item");
     expect(LEDGER_TOOL_NAMES).toContain("unarchive_item");
     expect(LEDGER_TOOL_NAMES).toContain("read_log");
@@ -632,6 +635,40 @@ describe("ledger MCP tools", () => {
       await callTool(tools, "snapshot", { include_archived: true }),
     );
     expect(typeof out2.ledger).toBe("object");
+  });
+
+  it("derive_predicates returns derivePredicates(store) for a seeded store", async () => {
+    const store = await buildStore();
+    const tools = createLedgerMcpTools(store);
+
+    // Seed a goal in `building` plus a DAG-ready `planned` task linked to it,
+    // so pImplement is TRUE-and-unblocked (a non-trivial verdict to compare).
+    await callTool(tools, "create_milestone", { title: "pred-test" });
+    const goal = decode<{ item: { id: string } }>(
+      await callTool(tools, "create_item", {
+        ledger_id: "goals",
+        milestone_id: "M1",
+        status: "building",
+        fields: { title: "ship it", description: "the goal" },
+      }),
+    );
+    await callTool(tools, "create_item", {
+      ledger_id: "tasks",
+      milestone_id: "M1",
+      status: "planned",
+      fields: { headline: "do the work", ledgerRefs: [`goals:${goal.item.id}`] },
+    });
+
+    // The tool's output must equal the shared derivePredicates(store) directly.
+    const expected = derivePredicates(store);
+    const actual = decode<DerivedPredicates>(
+      await callTool(tools, "derive_predicates", {}),
+    );
+    expect(actual).toEqual(expected);
+
+    // And the seeded task makes pImplement TRUE, naming that task id.
+    expect(actual.pImplement.value).toBe(true);
+    expect(actual.pImplement.items.length).toBe(1);
   });
 
   it("reopen_item moves a terminal item to a non-terminal status", async () => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S bun run
 /**
- * ledger-mcp — standalone MCP server exposing the 25 ledger tools.
+ * ledger-mcp — standalone MCP server exposing the 26 ledger tools.
  *
  * This is the cq-free ledger MCP server: it serves the tool surface backed
  * by a file-backed `FsLedgerStore` rooted at the supplied `--cwd` directory,
@@ -269,6 +269,9 @@ const SERVER_INSTRUCTIONS = [
   "",
   "Quick overview tools:",
   "- snapshot() — compact {id,status,summary} cross-ledger state in one call.",
+  "- derive_predicates() — the /cq:advance flow-detection predicates",
+  "  { pInvestigate, pPlan, pImplement, openQuestionGate } in one call; read",
+  "  these instead of hand-deriving actionability from snapshot.",
   "- fetch_ledger with compact:true — strips long narrative fields to avoid",
   "  token-overflow on large ledgers. Combine with offset/limit for pagination.",
 ].join("\n");
@@ -285,7 +288,7 @@ export function projectInstructionLine(displayName: string): string {
 }
 
 /**
- * Build a fresh McpServer with the 25 ledger tools (LEDGER_TOOL_NAMES) bound to
+ * Build a fresh McpServer with the 26 ledger tools (LEDGER_TOOL_NAMES) bound to
  * `store`. read_log is wired only when `store` is filesystem-backed.
  *
  * `displayName` is the basename of the resolved `--cwd` (the project directory

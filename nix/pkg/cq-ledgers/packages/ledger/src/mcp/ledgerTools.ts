@@ -3,7 +3,7 @@
  *
  * Returns an array of `tool()` instances for
  * `createSdkMcpServer({ name: 'cq', tools: [...askTools, ...ledgerTools] })`.
- * The 25-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
+ * The 26-tool surface is `LEDGER_TOOL_NAMES` (see the section dividers below);
  * the stdio counterpart is `registerLedgerStdioTools` (./stdioLedgerTools.ts).
  *
  * Capability-gated tools:
@@ -27,6 +27,7 @@ import { QUERY_LANGUAGE_HELP } from "../search/query.js";
 import type { FieldValue, LedgerSchema } from "../types.js";
 import { QUESTIONS_LEDGER } from "../constants.js";
 import { projectCompact, paginate } from "../projection.js";
+import { derivePredicates } from "../store/predicates.js";
 import {
   ReadLogNotImplementedError,
   type ReadLogCapability,
@@ -574,6 +575,13 @@ ${QUERY_LANGUAGE_HELP}`,
     async () => jsonResult({ ledger: store.snapshot() }),
   );
 
+  const derivePredicatesTool = tool(
+    "derive_predicates",
+    "Derive the /cq:advance flow-detection predicates from the current ledger state in one call (the SINGLE SOURCE OF TRUTH shared with @cq/cli — read these instead of hand-deriving them). Returns { pInvestigate, pPlan, pImplement, openQuestionGate }, each a verdict { value: boolean, items: string[] } where items names the ids that make the predicate TRUE-and-unblocked (openQuestionGate.items lists the open questions gating the others). Pure over active-ledger reads; no params.",
+    {} as Record<string, never>,
+    async () => jsonResult(derivePredicates(store)),
+  );
+
   // ---- Filesystem read (1) -----------------------------------------------
 
   const readLogTool = tool(
@@ -713,6 +721,7 @@ ${QUERY_LANGUAGE_HELP}`,
     archiveMilestone,
     listMilestoneItems,
     snapshotTool,
+    derivePredicatesTool,
     reopenItem,
     unarchiveItem,
     readLogTool,
@@ -743,6 +752,7 @@ export const LEDGER_TOOL_NAMES = [
   "archive_milestone",
   "list_milestone_items",
   "snapshot",
+  "derive_predicates",
   "reopen_item",
   "unarchive_item",
   "read_log",
