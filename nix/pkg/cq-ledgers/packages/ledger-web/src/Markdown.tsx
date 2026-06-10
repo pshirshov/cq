@@ -116,9 +116,8 @@ function renderJson(raw: string): React.ReactElement | null {
   }
   const pretty = JSON.stringify(parsed, null, 2);
   const tokens = tokenizeJson(pretty);
-  return React.createElement("pre", { className: "lw-json-pre" },
-    React.createElement("code", null, ...renderTokens(tokens))
-  );
+  // Return just <code> — react-markdown supplies the outer <pre>
+  return React.createElement("code", { className: "lw-json-code" }, ...renderTokens(tokens));
 }
 
 // ---------------------------------------------------------------------------
@@ -151,10 +150,9 @@ function CodeBlock({ className, children, ...rest }: CodeProps): React.ReactElem
       // Fallback: invalid JSON — render raw unchanged
     }
 
-    // Non-json fence OR invalid-json fallback: raw pre/code block
-    return React.createElement("pre", null,
-      React.createElement("code", { className, ...rest }, children)
-    );
+    // Non-json fence OR invalid-json fallback: return bare <code> so
+    // react-markdown's own <pre> is the sole block wrapper (no nesting).
+    return React.createElement("code", { className, ...rest }, children);
   }
 
   // Inline code — render as-is

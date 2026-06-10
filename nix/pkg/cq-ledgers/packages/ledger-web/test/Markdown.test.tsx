@@ -5,8 +5,10 @@
  * (a) A ```json fence with compact JSON renders multi-line (pretty-printed)
  *     AND carries a .lw-json-key span.
  * (b) An invalid-JSON ```json fence falls back to raw text unchanged (no throw).
- * (c) A non-json fence (```sh) is rendered as-is (no colorization).
+ * (c) A non-json fence (```sh) is rendered as-is (no colorization), with
+ *     structure exactly `pre > code` (one pre, one code, no nesting).
  * (d) The styles.css source contains `white-space:pre-wrap` for `.lw-md pre`.
+ * (e) No fenced block (json or non-json) produces a nested <pre> inside <pre>.
  */
 
 import { registerDom } from "./helpers/dom";
@@ -57,6 +59,10 @@ describe("Markdown JSON pretty-print + colorize (D57)", () => {
     // Must have at least one .lw-json-key span
     const keySpan = container.querySelector(".lw-json-key");
     expect(keySpan).not.toBeNull();
+
+    // Exactly ONE <pre> — no nesting
+    expect(container.querySelectorAll("pre").length).toBe(1);
+    expect(container.querySelectorAll("pre pre").length).toBe(0);
   });
 
   it("(b) invalid-JSON ```json fence falls back to raw text unchanged (no throw)", async () => {
@@ -71,9 +77,11 @@ describe("Markdown JSON pretty-print + colorize (D57)", () => {
     expect(pre!.textContent).toContain(invalid);
     // No colorizer spans — it fell back to the raw rendering
     expect(container.querySelector(".lw-json-key")).toBeNull();
+    // No nested <pre>
+    expect(container.querySelectorAll("pre pre").length).toBe(0);
   });
 
-  it("(c) a non-json fence (```sh) is rendered as-is without colorization", async () => {
+  it("(c) a non-json fence (```sh) is rendered as-is without colorization, structure is pre>code", async () => {
     const md = "```sh\necho hello\n```";
     await render(md);
 
@@ -82,6 +90,13 @@ describe("Markdown JSON pretty-print + colorize (D57)", () => {
     expect(pre!.textContent).toContain("echo hello");
     expect(container.querySelector(".lw-json-key")).toBeNull();
     expect(container.querySelector(".lw-json-string")).toBeNull();
+
+    // Exactly one <pre>, one <code>, and no nesting
+    expect(container.querySelectorAll("pre").length).toBe(1);
+    expect(container.querySelectorAll("code").length).toBe(1);
+    expect(container.querySelectorAll("pre pre").length).toBe(0);
+    // The <code> must be a direct child of <pre>
+    expect(pre!.querySelector("code")).not.toBeNull();
   });
 
   it("(d) styles.css contains white-space:pre-wrap for .lw-md pre", () => {
