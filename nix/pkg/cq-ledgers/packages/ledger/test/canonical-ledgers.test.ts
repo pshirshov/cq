@@ -1486,3 +1486,58 @@ describe("T345: dispatched roles wired through the typed prompt catalog — grep
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// T365 — G44 advance.md grep-invariant: the top-level advance.md must contain
+// the five load-bearing G44 enforcement strings so they cannot silently regress.
+//
+// Pinned strings (read from the current advance.md; mirrors D39's T264 guard):
+//   (1) §Bootstrap marker-drop: the `touch` command that drops the run-active
+//       sentinel file at run start.
+//   (2) §The one write marker-unlink: the `rm -f` command that removes the
+//       sentinel after the terminal handoff is written.
+//   (3) §Stop-condition gate external-signal escape format: `external-signal:`
+//       (the prefix the gate greps for to allow a genuine context-exhaustion stop).
+//   (4) §Stop-condition gate Stop-hook cross-reference: `claudeStopGateHook`
+//       (the hook name that mechanically enforces the gate for Claude Code runs).
+//   (5) §Bootstrap derive_predicates detection instruction:
+//       `mcp__ledger__derive_predicates` (the authoritative predicate-source tool).
+//
+// 5 tokens × 1 file = 5 cells; all must be present.
+// Path resolution mirrors T255/T264/D43/T340/T345: cq-assets is four levels up.
+// ---------------------------------------------------------------------------
+
+describe("T365: G44 advance.md grep-invariant — marker-lifecycle + external-signal + derive_predicates", () => {
+  const cqCommandsRoot = path.resolve(import.meta.dir, "../../../../cq-assets/commands/cq");
+  const advanceMd = path.join(cqCommandsRoot, "advance.md");
+
+  const markers: Array<{ token: string; description: string }> = [
+    {
+      token: 'touch "${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-$CLAUDE_CODE_SESSION_ID"',
+      description: "§Bootstrap marker-drop (touch sentinel at run start)",
+    },
+    {
+      token: 'rm -f "${XDG_RUNTIME_DIR:-/tmp}/cq-advance-active-$CLAUDE_CODE_SESSION_ID"',
+      description: "§The one write marker-unlink (rm -f sentinel after terminal handoff)",
+    },
+    {
+      token: "external-signal:",
+      description: "§Stop-condition gate external-signal escape format",
+    },
+    {
+      token: "claudeStopGateHook",
+      description: "§Stop-condition gate Stop-hook cross-reference",
+    },
+    {
+      token: "mcp__ledger__derive_predicates",
+      description: "§Bootstrap derive_predicates detection instruction",
+    },
+  ];
+
+  for (const { token, description } of markers) {
+    it(`cq/advance.md contains ${description}: "${token}"`, async () => {
+      const text = await readFile(advanceMd, "utf8");
+      expect(text).toContain(token);
+    });
+  }
+});
