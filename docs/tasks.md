@@ -510,10 +510,10 @@ archives:
 - completion: "GitPlumbing.ts: injectable GitRunner-seam wrapper (default nodeGitRunner via child_process.execFile) over hashObject/writeTree(isolated GIT_INDEX_FILE)/commitTree(orphan when parent null)/CAS updateRef(StaleRefError)/readRef/catFile/lsTree/tagRef — the exact K66-PoC invocations. 7-test suite proves orphan-ref byte-identical isolation (HEAD/status/index unchanged), stale-CAS StaleRefError, no-checkout reads. check green 1496/0 on main (gitPlumbing suite 7/0). Reviewer filed 1 low future-hardening defect D49 (over-broad updateRef error mapping)."
 - sessionLogs: ["docs/logs/20260610-101400-aaabcbef451ca7e95.md","docs/logs/20260610-101400-a347b100deadd738d.md"]
 
-### T352 — planned
+### T352 — done
 
 - createdAt: 2026-06-10T09:03:42.377Z
-- updatedAt: 2026-06-10T09:03:42.377Z
+- updatedAt: 2026-06-10T10:35:34.815Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Implement GitObjectLedgerBackend via a GitPersistence seam impl over the orphan ref
@@ -522,6 +522,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T348","T351"]
 - ledgerRefs: ["goals:G43"]
+- resultCommit: 316764988e31f040f946232db9e8f464d947d69e
+- completion: GitObjectLedgerBackend extends AbstractLedgerStore<GitPersistence>; GitPersistence implements LedgerPersistence over an orphan ref (refs/heads/cq-ledger) via GitPlumbing. Docs-relative tree paths; each mutation = one atomic read-old→rebuild-tree→commit-tree→CAS-updateRef advance (StaleRefError propagates); init seeds ref from empty tree; reads SYNC from in-memory map; locksRoot on real FS (no lockfiles in tree); backupCanonicalState tags cq-ledger-backup-<ts> before reinit; no ~/.cache mirror. Added GitPlumbing.lsTreeEntries. check green 1537/0 on main (git-backend+plumbing 48/0); shared abstract suite runs against the git backend (FS-parity); host-checkout byte-invariance + one-commit-per-mutation + no-lockfiles-in-tree + divergence-backup-tag all proven.
+- sessionLogs: ["docs/logs/20260610-103508-aa171958d829a3bfe.md","docs/logs/20260610-103508-a411862b5a47dd1c0.md"]
 
 ### T353 — planned
 
