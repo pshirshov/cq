@@ -525,10 +525,10 @@ archives:
 
 ## M152
 
-### T362 — planned
+### T362 — done
 
 - createdAt: 2026-06-10T15:32:44.414Z
-- updatedAt: 2026-06-10T15:32:44.414Z
+- updatedAt: 2026-06-10T16:38:06.733Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add the `cq advance-gate` subcommand emitting the neutral verdict JSON + allow/block exit code
@@ -536,6 +536,9 @@ archives:
 - acceptance: "`cq advance-gate` listed in USAGE; against a temp ledger it prints the neutral verdict JSON and returns exit 0 (allow) / non-zero (block) per state; works in the nix-built `cq`; tsc -b + lint clean. (Verdict tests in the next task.)"
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: 18a32e0
+- completion: "`cq advance-gate` subcommand (cq-cli): neutral verdict JSON {block,reason,predicates} + exit 0=allow/1=block; marker-absent/external-signal/all-FALSE⇒allow, predicate-TRUE-and-unblocked⇒block w/ reason 'P-<which>=TRUE and unblocked; continue per D41 — turn-pause is not a stop condition'; in-process createLedgerStore + shared derivePredicates (no MCP server, no re-impl). opus review approve; check 1620/0."
+- sessionLogs: ["docs/logs/20260610-163734-T362-T363.md"]
 
 ### T367 — planned
 
@@ -552,10 +555,10 @@ archives:
 
 ## M153
 
-### T363 — planned
+### T363 — done
 
 - createdAt: 2026-06-10T15:32:50.949Z
-- updatedAt: 2026-06-10T15:32:50.949Z
+- updatedAt: 2026-06-10T16:38:09.890Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Expose derivePredicates as a new ledger MCP tool (derive_predicates)
@@ -563,6 +566,9 @@ archives:
 - acceptance: The MCP server registers derive_predicates; a test invoking it through the in-memory MCP transport (as existing tool tests do) returns the predicate object matching derivePredicates(store); tool-count drift-guard updated; bun run check green.
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: 0d56c67
+- completion: derive_predicates read-only MCP tool registered in BOTH ledger tool factories (ledgerTools.ts + stdioLedgerTools.ts) — exposed on stdio/HTTP/embedded; handler delegates to the shared derivePredicates(store) (Q202 user extension). Drift-guard 25→26 + all count assertions updated; instructions overview mentions it; teethed in-memory test. opus review approve; check 1617/0, combined main 1620/0.
+- sessionLogs: ["docs/logs/20260610-163734-T362-T363.md"]
 
 ### T368 — planned
 
