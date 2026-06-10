@@ -2,7 +2,7 @@
 ledger: handoffs
 counters:
   milestone: 0
-  item: 44
+  item: 45
 archives:
   - id: M79
     path: ./archive/handoffs/M79.md
@@ -289,6 +289,19 @@ archives:
 - blockingQuestions: ["Q189","Q190","Q191","Q192","Q193","Q194","Q195","Q196"]
 - sessionLogs: ["docs/logs/20260609-233314-a6759b079c538e025.md"]
 - tags: ["G43","plan","answers-required","orphan-ledger"]
+
+### HO45 — mixed
+
+- createdAt: 2026-06-10T14:04:03.285Z
+- updatedAt: 2026-06-10T14:04:03.285Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "G43 (GitObjectLedgerBackend) DELIVERED end-to-end this /cq:advance run. All 15 tasks T347-T360 implemented, adversarially reviewed (one round-2 each for T353/T349/T356), and merged to main; goal G43 done; M143-M149 all archived; full `bun run check` green 1597 pass / 1 skip / 0 fail. The orphan-git-ref ledger backend stores docs/*.md on refs/heads/cq-ledger via pure plumbing (hash-object→scratch-index write-tree→commit-tree→CAS update-ref) that NEVER touches the host working tree/HEAD/index (proven byte-identical by the gitInvariants suite), sits behind the SAME LedgerStore surface as FsLedgerStore (AbstractLedgerStore + LedgerPersistence seam), and is selected by cq.toml [ledger] backend='git-object' (default fs, opt-in). All K66 caveats honored (CAS-in-lock StaleRefError; lockfiles never committed; cat-file/ls-tree reads no-checkout; per-merge command commits gated off under git-object; non-forced fetch/push wiring in all four /cq:* commands + recovery runbook; backup-tag on divergence). `cq move-ledger --to git|local` gives lossless bidirectional migration. Conformance parity proven across Fs/InMemory/Git. FIVE reviewer-surfaced hardening defects fixed in-run (D49 updateRef CAS-vs-error discriminator; D51 embedded-TUI ref-watch; D52 git-suite test timeout; D53 start-command commit guards; D54 LC_ALL=C locale determinism). PREDICATE GATE at stop: P-investigate=FALSE (only D50 root-caused, excluded) / P-plan=FALSE / P-implement=FALSE (zero non-terminal tasks). MIXED stop: drained of all actionable work + one OPEN question (Q197) gating the single optional follow-up D50 (the cq:advance turn-pause-loophole Stop-hook gate, which the user raised this session and I recommend doing as its own goal). external-signal=NONE (no context/compaction signal fired; this is a predicate-legal drained+answers stop, NOT an effort pause)."
+- flow: advance
+- ledgerRefs: ["goals:G43","defects:D50","questions:Q197"]
+- blockingQuestions: ["Q197"]
+- handoffReasons: ["drained","answers-required"]
+- sessionLogs: ["docs/logs/20260610-095829-aa213efc31f0f323e.md","docs/logs/20260610-101400-aaabcbef451ca7e95.md","docs/logs/20260610-103508-aa171958d829a3bfe.md","docs/logs/20260610-111626-orchestrator-fix.md","docs/logs/20260610-124136-ad77a03bd66226ac7.md","docs/logs/20260610-131612-ab4f9efb3dc5ce719.md","docs/logs/20260610-132400-a4fa33e752f0686e9.md","docs/logs/20260610-135814-D49-fix.md","docs/logs/20260610-135814-D51-fix.md","docs/logs/20260610-135814-D52-D53-fix.md"]
 
 ## M126
 
