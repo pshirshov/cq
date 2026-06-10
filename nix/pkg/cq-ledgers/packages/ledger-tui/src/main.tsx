@@ -95,8 +95,17 @@ export function liveUrlFor(mcpUrl: string): string {
   return `${proto}//${u.host}/ws`;
 }
 
-async function run(): Promise<void> {
-  const { mcpUrl, cwd } = parseArgs(process.argv.slice(2));
+/**
+ * The ledger-tui entry point. Parses `argv` (the args after the program name),
+ * connects to a remote MCP server (`--mcp-url`) or co-locates an embedded one
+ * (its absence selects embedded mode), and renders the Ink app until exit.
+ *
+ * Exported so in-process hosts (the unified `cq tui …` dispatcher) can delegate
+ * with a verbatim post-mode argv slice WITHOUT mutating `process.argv`. The
+ * standalone bin self-runs via `main(process.argv.slice(2))` below.
+ */
+export async function main(argv: readonly string[]): Promise<void> {
+  const { mcpUrl, cwd } = parseArgs(argv);
   let client: McpLedgerClient;
   let liveUrl: string | null;
   if (mcpUrl !== null) {
@@ -142,5 +151,5 @@ async function run(): Promise<void> {
 
 const meta = import.meta as unknown as { main?: boolean };
 if (meta.main === true) {
-  void run();
+  void main(process.argv.slice(2));
 }

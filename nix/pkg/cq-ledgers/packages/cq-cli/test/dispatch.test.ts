@@ -19,6 +19,7 @@ import {
   USAGE,
   type ConfirmIo,
   type DispatchIo,
+  type ModeDelegates,
 } from "../src/main.js";
 
 const silentConfirm: ConfirmIo = {
@@ -54,6 +55,48 @@ describe("dispatch", () => {
     const outcome = await dispatch(["erase", "--cwd", root, "--yes"], io);
     expect(outcome.exitCode).toBe(EXIT_USAGE);
     expect(io.errs.join("\n")).toContain("nothing to erase");
+  });
+});
+
+/**
+ * MODE routing (T387) — smoke check that mcp|tui|web delegate to the matching
+ * product's `main` with the post-mode argv VERBATIM, before any native parsing.
+ * The full routing matrix is T389; here we only assert the seam wiring with
+ * mocked delegates so no real server / Ink render launches.
+ */
+describe("dispatch MODE routing (mcp|tui|web)", () => {
+  function recordingModes(): ModeDelegates & { calls: Record<string, readonly string[][]> } {
+    const calls: Record<string, readonly string[][]> = { mcp: [], tui: [], web: [] };
+    const record = (k: string) => async (argv: readonly string[]) => {
+      (calls[k] as string[][]).push([...argv]);
+    };
+    return { calls, mcp: record("mcp"), tui: record("tui"), web: record("web") };
+  }
+
+  it("delegates each mode with argv.slice(1) verbatim, exit 0, no usage printed", async () => {
+    for (const mode of ["mcp", "tui", "web"] as const) {
+      const io = recordingDispatchIo();
+      const modes = recordingModes();
+      const outcome = await dispatch([mode, "--cwd", "X", "extra"], io, modes);
+      expect(outcome.exitCode).toBe(0);
+      expect(modes.calls[mode]).toEqual([["--cwd", "X", "extra"]]);
+      // mode path performs no native parsing and prints nothing of its own.
+      expect(io.errs).toEqual([]);
+    }
+  });
+
+  it("passes a nested subcommand (cq mcp restore --from-cache) verbatim", async () => {
+    const io = recordingDispatchIo();
+    const modes = recordingModes();
+    await dispatch(["mcp", "restore", "--from-cache"], io, modes);
+    expect(modes.calls["mcp"]).toEqual([["restore", "--from-cache"]]);
+  });
+
+  it("forwards a bare mode (cq tui) as an empty argv", async () => {
+    const io = recordingDispatchIo();
+    const modes = recordingModes();
+    await dispatch(["tui"], io, modes);
+    expect(modes.calls["tui"]).toEqual([[]]);
   });
 });
 

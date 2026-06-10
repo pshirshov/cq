@@ -5,6 +5,12 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
+    // `cq tui …` dynamically imports @cq/ledger-tui, whose path-mapped source is
+    // a `.tsx`. Pulling that referenced source into cq-cli's program requires a
+    // jsx setting consistent with ledger-tui's own (react-jsx), else tsc reports
+    // TS6305 (output `.d.ts` "not built from" the `.tsx`). cq-cli emits no JSX
+    // itself; this only governs how the redirected source is checked.
+    "jsx": "react-jsx",
     "types": ["bun-types"],
     "paths": {
       "@cq/config": ["../cq-config/src/index.ts"],

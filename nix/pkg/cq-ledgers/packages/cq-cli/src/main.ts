@@ -57,6 +57,48 @@ function isSubcommand(s: string): s is Subcommand {
   return (SUBCOMMANDS as readonly string[]).includes(s);
 }
 
+/**
+ * The product MODES the dispatcher delegates to BEFORE native subcommand
+ * parsing. When `argv[0]` is one of these, the dispatcher dynamically imports
+ * the matching workspace product and calls its exported `main(argv.slice(1))`
+ * with the post-mode args VERBATIM — no flag re-parse, no native parsing. The
+ * delegated `main` owns its own argv contract (`--help`, nested subcommands like
+ * `cq mcp restore`, embedded-vs-remote selection by `--mcp-url` absence, etc.).
+ *
+ * `tui`/`web` delegate to long-running entries (Ink render / web server); their
+ * awaited `main` resolves only when the process exits, mirroring the standalone
+ * bins. `mcp` keeps stdout PROTOCOL-ONLY — the dispatcher prints nothing on it.
+ */
+export const MODES = ["mcp", "tui", "web"] as const;
+export type Mode = (typeof MODES)[number];
+
+function isMode(s: string): s is Mode {
+  return (MODES as readonly string[]).includes(s);
+}
+
+/**
+ * Delegate a MODE to its product's exported argv-taking `main`, called with the
+ * post-mode args verbatim. Imports are dynamic so the heavy product trees (Ink,
+ * the web server, the MCP SDK) load only when their mode is actually invoked.
+ *
+ * Exposed as a seam so the dispatch-routing unit test (T389) can substitute the
+ * delegated mains and assert the verbatim `argv.slice(1)` pass-through without
+ * launching a real server / Ink render. The default loads the real products.
+ */
+export interface ModeDelegates {
+  mcp(argv: readonly string[]): Promise<void>;
+  tui(argv: readonly string[]): Promise<void>;
+  web(argv: readonly string[]): Promise<void>;
+}
+
+function defaultModeDelegates(): ModeDelegates {
+  return {
+    mcp: async (argv) => (await import("@cq/ledger-mcp")).main(argv),
+    tui: async (argv) => (await import("@cq/ledger-tui")).main(argv),
+    web: async (argv) => (await import("@cq/ledger-web")).main(argv),
+  };
+}
+
 /** Flags common to all subcommands plus the destructive-op confirmation flag. */
 export interface SubcommandArgs {
   /** Resolved ledger root (--cwd > $LEDGER_ROOT > CWD, absolute). */
@@ -412,16 +454,28 @@ const HANDLERS: Record<Subcommand, (args: SubcommandArgs, io: DispatchIo) => Pro
 };
 
 /**
- * Route `argv` (the args after the program name) to a subcommand. The FIRST
- * positional arg selects the subcommand; the rest are its flags. An unknown or
- * absent subcommand prints {@link USAGE} to stderr and resolves exit
- * {@link EXIT_USAGE} WITHOUT invoking a handler.
+ * Route `argv` (the args after the program name) to a MODE or a subcommand.
+ *
+ * MODE routing runs FIRST: if `argv[0]` is a {@link Mode} (mcp|tui|web), the
+ * dispatcher delegates to that product's exported `main(argv.slice(1))` with the
+ * post-mode args VERBATIM — no native flag parsing — and returns exit 0 once the
+ * delegated main resolves (long-running for tui/web). The `mcp` path emits
+ * nothing of its own so stdout stays protocol-only.
+ *
+ * Otherwise the FIRST positional arg selects a native subcommand; the rest are
+ * its flags. An unknown or absent first token prints {@link USAGE} to stderr and
+ * resolves exit {@link EXIT_USAGE} WITHOUT invoking a handler.
  */
 export async function dispatch(
   argv: readonly string[],
   io: DispatchIo = defaultDispatchIo(),
+  modes: ModeDelegates = defaultModeDelegates(),
 ): Promise<DispatchOutcome> {
   const first = argv[0];
+  if (first !== undefined && isMode(first)) {
+    await modes[first](argv.slice(1));
+    return { exitCode: 0 };
+  }
   if (first === undefined || !isSubcommand(first)) {
     io.err(USAGE);
     return { exitCode: EXIT_USAGE };
