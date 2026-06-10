@@ -369,9 +369,44 @@ export function startLedgerCoherenceWatcher(
   return startLedgerWatcher(resolved.store, root, onChange);
 }
 
-export function buildServer(store: LedgerStore, displayName: string): McpServer {
+/**
+ * Options for {@link createLedgerMcpServer}, the public builder for an
+ * `McpServer` bound to one `store` (G45 / Q209).
+ *
+ * `toolPrefix` is OPTIONAL and defaults to `''` (the unprefixed 26-tool
+ * surface). A non-empty prefix renames every registered tool to its
+ * `prefixToolName(prefix, name)` form and rewrites the matching tool names in
+ * the server-level `instructions`. The prefix is validated by
+ * {@link assertToolPrefix} (via `buildServerInstructions` + the threaded
+ * `registerLedgerStdioTools` argument).
+ */
+export interface CreateLedgerMcpServerOptions {
+  /** The ledger store the tools are bound to. */
+  store: LedgerStore;
+  /** Project display name carried on `serverInfo.title` + the instructions line. */
+  displayName: string;
+  /** Optional ledger-tool name prefix (default `''` = unprefixed). */
+  toolPrefix?: string;
+}
+
+/**
+ * Public builder: construct an `McpServer` exposing the ledger tool surface for
+ * `store`, optionally renamed under `toolPrefix` (G45 / Q209). This is the
+ * single factory both the standalone stdio host and `attachMcpHttp` route
+ * through; {@link buildServer} is a thin unprefixed wrapper over it.
+ *
+ * With `toolPrefix` omitted or `''` the behaviour is BYTE-IDENTICAL to the
+ * historical `buildServer` (serverInfo, instructions, capability gating, and the
+ * registered 26-tool names are all unchanged). A non-empty prefix renames the
+ * tools and the instruction references via the shared
+ * {@link buildServerInstructions} / {@link registerLedgerStdioTools} prefix path.
+ */
+export function createLedgerMcpServer(opts: CreateLedgerMcpServerOptions): McpServer {
+  const { store, displayName } = opts;
+  const toolPrefix = opts.toolPrefix ?? "";
+  assertToolPrefix(toolPrefix);
   const serverInfo = { ...SERVER_INFO, title: displayName };
-  const instructions = `${projectInstructionLine(displayName)}\n\n${buildServerInstructions("")}`;
+  const instructions = `${projectInstructionLine(displayName)}\n\n${buildServerInstructions(toolPrefix)}`;
   const server = new McpServer(serverInfo, {
     capabilities: { tools: {} },
     instructions,
@@ -397,8 +432,18 @@ export function buildServer(store: LedgerStore, displayName: string): McpServer 
     rootDir !== undefined ? createConfigCapability(rootDir) : undefined;
   const promptCatalog: PromptCatalogCapability | undefined =
     rootDir !== undefined ? createPromptCatalogCapability(rootDir) : undefined;
-  registerLedgerStdioTools(server, store, readLog, configCapability, promptCatalog);
+  registerLedgerStdioTools(server, store, readLog, configCapability, promptCatalog, toolPrefix);
   return server;
+}
+
+/**
+ * Thin unprefixed wrapper over {@link createLedgerMcpServer} (G45 / Q209). Kept
+ * BYTE-IDENTICAL in behaviour to its historical form for both call sites — the
+ * stdio `main()` path and `attachMcpHttp` — so cq frontends/commands that rely
+ * on the unprefixed 26-tool surface are unaffected.
+ */
+export function buildServer(store: LedgerStore, displayName: string): McpServer {
+  return createLedgerMcpServer({ store, displayName });
 }
 
 /**
