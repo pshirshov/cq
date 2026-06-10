@@ -534,36 +534,11 @@ archives:
     summary: "G44-W4 complete: the thin Claude-Code Stop-hook wrapper claudeStopGateHook (T364, translates the neutral cq advance-gate verdict → {decision:block}), REGISTERED in nix/hm/claude.nix settings.hooks (T369, Q198 install in-scope), the run-active-marker + external-signal lifecycle wired into advance.md §Bootstrap/§The one write/§Stop-condition (T370 — marker path byte-identical to advanceGate.ts), and a hermetic wrapper integration test (T372 — extracts the live body, mutation-proven teeth). All opus-reviewed; check 1625/0."
     title: "G44-W4: Stop-hook wrapper + nix registration + marker/escape lifecycle wiring"
     status: done
+  - id: M155
+    path: ./archive/tasks/M155.md
+    summary: "G44-W5 complete: grep-invariant guard pinning the 5 G44 advance.md enforcement strings (T365, mirror D39/T264, teeth-proven) + the live-evidence capstone doc (T371) with REAL byte-for-byte-reproduced cq advance-gate output (BLOCK on TRUE predicate exit 1; ALLOW on external-signal/marker-absent; wrapper→{decision:block}), the full post-home-manager-switch live-harness repro, and the accepted irreducible limit. opus-reviewed; check 1630/0. G44 implement complete (12/12 tasks); D50 resolved."
+    title: "G44-W5: acceptance hardening — grep-invariant, manual repro, live-session evidence"
+    status: done
 ---
 
 # tasks
-
-## M155
-
-### T365 — done
-
-- createdAt: 2026-06-10T15:33:03.019Z
-- updatedAt: 2026-06-10T17:38:37.663Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Add a grep-invariant test pinning the new advance.md marker + external-signal steps (mirror D39's guard)
-- description: "Per Q204: add a test (mirror D39's advance.md prose grep-invariant — locate the existing advance.md/agentsCatalogue guard test and extend or add beside it) asserting advance.md still contains the load-bearing enforcement steps: the marker-drop in §Bootstrap, the marker-unlink coupled with the terminal-handoff write, the external-signal escape format `external-signal:`, the Stop-hook cross-reference in §Stop-condition gate, and the `mcp__ledger__derive_predicates` detection instruction. Prevents silent prose regression of the enforcement steps exactly as D39 guarded its handoff prose."
-- acceptance: A grep-invariant test FAILS if any of the marker-drop / marker-unlink / external-signal / hook-cross-ref / derive_predicates strings are removed from advance.md, and PASSES on the edited file; bun run check green.
-- suggestedModel: standard
-- ledgerRefs: ["goals:G44","defects:D50"]
-- resultCommit: 81fcc1e
-- completion: "Grep-invariant guard (canonical-ledgers.test.ts, beside D39's T264) pinning the 5 G44 load-bearing advance.md enforcement strings (marker-drop touch / marker-unlink rm-f / external-signal: / claudeStopGateHook / mcp__ledger__derive_predicates) — reads the real advance.md + toContain per token; teeth proven (token-removal fails). opus review approve; check 1630/0."
-- sessionLogs: ["docs/logs/20260610-173815-a89c7f25f5bd2db78.md"]
-
-### T371 — planned
-
-- createdAt: 2026-06-10T15:33:47.191Z
-- updatedAt: 2026-06-10T15:33:47.191Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: "Document the manual repro + capture the live /cq:advance Stop-hook firing evidence"
-- description: "Per Q204 (strongest bar): (1) write a documented manual repro under docs/drafts/ — drop the marker, leave a TRUE-and-unblocked predicate in the ledger, attempt to end a turn, observe the Stop hook return {decision:block} + force continuation; include exact commands + observed-vs-expected output. (2) Record a LIVE /cq:advance session demonstrating the hook firing end-to-end (the hook blocking a premature turn-pause while a predicate is TRUE), captured as a transcript/log committed under docs/logs or docs/drafts — manual evidence, explicitly NOT a CI gate. Note the accepted irreducible behavioural limit (the hook forces continuation; it cannot make a genuinely exhausted model productive — the external-signal escape covers the real case). This task is the live-evidence capstone; it depends on the whole gate being wired + registered."
-- acceptance: A docs/ artifact contains the reproducible manual-repro commands+output AND a recorded live-session transcript showing the Stop hook firing (block decision) on a TRUE-and-unblocked predicate; the doc states the accepted behavioural limit.
-- suggestedModel: standard
-- dependsOn: ["T365"]
-- ledgerRefs: ["goals:G44","defects:D50"]

@@ -744,6 +744,11 @@ archives:
     summary: "G44-W4 complete: the thin Claude-Code Stop-hook wrapper claudeStopGateHook (T364, translates the neutral cq advance-gate verdict → {decision:block}), REGISTERED in nix/hm/claude.nix settings.hooks (T369, Q198 install in-scope), the run-active-marker + external-signal lifecycle wired into advance.md §Bootstrap/§The one write/§Stop-condition (T370 — marker path byte-identical to advanceGate.ts), and a hermetic wrapper integration test (T372 — extracts the live body, mutation-proven teeth). All opus-reviewed; check 1625/0."
     title: "G44-W4: Stop-hook wrapper + nix registration + marker/escape lifecycle wiring"
     status: done
+  - id: M155
+    path: ./archive/milestones/M155.md
+    summary: "G44-W5 complete: grep-invariant guard pinning the 5 G44 advance.md enforcement strings (T365, mirror D39/T264, teeth-proven) + the live-evidence capstone doc (T371) with REAL byte-for-byte-reproduced cq advance-gate output (BLOCK on TRUE predicate exit 1; ALLOW on external-signal/marker-absent; wrapper→{decision:block}), the full post-home-manager-switch live-harness repro, and the accepted irreducible limit. opus-reviewed; check 1630/0. G44 implement complete (12/12 tasks); D50 resolved."
+    title: "G44-W5: acceptance hardening — grep-invariant, manual repro, live-session evidence"
+    status: done
 ---
 
 # milestones
@@ -781,10 +786,3 @@ archives:
 - createdAt: 2026-06-10T15:01:37.384Z
 - updatedAt: 2026-06-10T15:01:37.384Z
 - title: "Plan: cq:advance turn-pause Stop-hook gate (D50)"
-
-### M155 — open
-
-- createdAt: 2026-06-10T15:32:05.871Z
-- updatedAt: 2026-06-10T15:32:05.871Z
-- title: "G44-W5: acceptance hardening — grep-invariant, manual repro, live-session evidence"
-- dependsOn: ["M153","M154"]

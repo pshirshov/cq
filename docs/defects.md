@@ -202,10 +202,10 @@ archives:
 - sessionLogs: ["docs/logs/20260609-093502-a4b0d0d4f781c94c2.md"]
 - dependsOn: ["tasks:T301","tasks:T302","tasks:T303","tasks:T304","tasks:T305","tasks:T306","tasks:T307"]
 
-### D50 — root-caused
+### D50 — resolved
 
 - createdAt: 2026-06-10T10:37:18.615Z
-- updatedAt: 2026-06-10T15:02:41.400Z
+- updatedAt: 2026-06-10T17:53:10.045Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "cq:advance turn-pause channel is unenforced (honor-system) while the handoff channel is write-time-enforced — models exit through the undefended channel and stop prematurely"
@@ -221,6 +221,7 @@ archives:
     
     LIMITS: the hook refuses a PREMATURE stop, it cannot make a genuinely exhausted model productive (degraded forced-continuation is still better than a silent premature stop; the external-signal escape covers the real case). Closes the loophole for Claude Code runs; other harnesses need their own stop-hook equivalent, with the prose as fallback. The `cq advance-gate` CLI dovetails with the cq-cli work in G43 (T349/T354/T357).
 - ledgerRefs: ["goals:G44"]
+- fix: "Fixed by G44 (12 fix tasks T361-T372, all merged + adversarially reviewed; check 1630/0). The cq:advance turn-pause channel is now mechanically enforced by a Claude Code Stop hook: a shared dual-tested derivePredicates(store) in @cq/ledger (single source of truth, T361/T366) is consumed by a `cq advance-gate` CLI (T362/T367, neutral verdict + exit code) AND exposed via a derive_predicates MCP tool (T363) that advance.md now reads (T368); a thin Claude-Code Stop-hook wrapper (T364) registered via nix/hm/claude.nix settings.hooks (T369) translates the gate verdict to {decision:block} (integration-tested T372); the session-keyed run-active marker + external-signal escape lifecycle is wired into advance.md (T370, marker path byte-identical to the CLI), grep-invariant-guarded (T365); live-evidence + accepted-limit doc (T371, gate outputs reproduced byte-for-byte). While the marker is present, a premature turn-pause is BLOCKED unless a predicate-gated handoff was written or a verbatim external-signal recorded — closing the honor-system loophole. ACTIVATION: the Stop hook goes LIVE after the user runs `home-manager switch` (the registration ships via dev-llm.nix/claude.nix per Q198). Closes the channel asymmetry D50 identified, mirroring D39's write-time-enforcement move on the turn-pause channel."
 
 ### D52 — resolved
 

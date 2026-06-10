@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 448
+  item: 449
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -684,6 +684,11 @@ archives:
     summary: "G44-W4 complete: the thin Claude-Code Stop-hook wrapper claudeStopGateHook (T364, translates the neutral cq advance-gate verdict → {decision:block}), REGISTERED in nix/hm/claude.nix settings.hooks (T369, Q198 install in-scope), the run-active-marker + external-signal lifecycle wired into advance.md §Bootstrap/§The one write/§Stop-condition (T370 — marker path byte-identical to advanceGate.ts), and a hermetic wrapper integration test (T372 — extracts the live body, mutation-proven teeth). All opus-reviewed; check 1625/0."
     title: "G44-W4: Stop-hook wrapper + nix registration + marker/escape lifecycle wiring"
     status: done
+  - id: M155
+    path: ./archive/reviews/M155.md
+    summary: "G44-W5 complete: grep-invariant guard pinning the 5 G44 advance.md enforcement strings (T365, mirror D39/T264, teeth-proven) + the live-evidence capstone doc (T371) with REAL byte-for-byte-reproduced cq advance-gate output (BLOCK on TRUE predicate exit 1; ALLOW on external-signal/marker-absent; wrapper→{decision:block}), the full post-home-manager-switch live-harness repro, and the accepted irreducible limit. opus-reviewed; check 1630/0. G44 implement complete (12/12 tasks); D50 resolved."
+    title: "G44-W5: acceptance hardening — grep-invariant, manual repro, live-session evidence"
+    status: done
 ---
 
 # reviews
@@ -777,14 +782,3 @@ archives:
 - summary: "G44 plan review (multi-reviewer, configured panel) — UNANIMOUS go-ahead (reconciled strictest-wins over 4 surviving reviewers [opus]+[codex]+[grok]+[minimax], 0 abstentions, 0 criticism / 0 new_questions / 0 defects). All four confirmed the 5-milestone/12-task DAG (M151-M155, T361-T372) is acyclic + correctly sequenced (engine→CLI+MCP-tool→wrapper+nix+wiring→hardening), honors ALL 7 locked decisions Q198-Q204, maps every component+decision to ≥1 task (marker drop/unlink=T370; derive_predicates built T363 + consumed T368; wrapper authored T364 + registered T369 + integration-tested T372; full Q204 bar across T365-T367/T371-T372), with verifiable acceptance, grounded against the real seams (createLedgerStore, sync LedgerStore reads, registerLedgerStdioTools, claudeSessionStartHook/settings.hooks). [minimax] noted two non-blocking implementer-resolvable nits (T362 exact reason text; T368/T370 both touch advance.md §Bootstrap) — not gaps. Plan LOCKED. Reviewer logs: docs/logs/20260610-154315-a71ad469deb41bf5f.md (opus) + 20260610-154315-pi-{codex,grok,minimax}-reviewer.md."
 - ledgerRefs: ["goals:G44"]
 - sessionLogs: ["docs/logs/20260610-154315-a71ad469deb41bf5f.md","docs/logs/20260610-154315-pi-codex-reviewer.md","docs/logs/20260610-154315-pi-grok-reviewer.md","docs/logs/20260610-154315-pi-minimax-reviewer.md"]
-
-## M155
-
-### R448 — go-ahead
-
-- createdAt: 2026-06-10T17:38:40.967Z
-- updatedAt: 2026-06-10T17:38:40.967Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T365 implement-review — approve (opus, 0 findings). Grep-invariant pins all 5 G44 enforcement strings (marker drop/unlink, external-signal:, claudeStopGateHook, mcp__ledger__derive_predicates) present VERBATIM in advance.md; real teeth (token-removal fails the matching it(), verified empirically); reads the real file; mirrors T264/D39 guard; check 1630/0. Merged 81fcc1e."
-- ledgerRefs: ["tasks:T365","goals:G44"]
