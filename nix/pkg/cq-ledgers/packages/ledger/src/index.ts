@@ -53,6 +53,8 @@ export type { FsLedgerStoreOpts, ResetSummary } from "./store/FsLedgerStore.js";
 export { cacheMirrorDir, mirrorMutation } from "./store/cacheMirror.js";
 export type { MirrorLayout } from "./store/cacheMirror.js";
 export { atomicWrite } from "./store/fsAtomic.js";
+export { GitPlumbing, StaleRefError, GitCommandError, nodeGitRunner } from "./store/git/GitPlumbing.js";
+export type { TreeEntry, GitResult, GitRunOpts, GitRunner } from "./store/git/GitPlumbing.js";
 export { InMemoryLedgerStore } from "./store/InMemoryLedgerStore.js";
 export type { InMemoryLedgerStoreOpts } from "./store/InMemoryLedgerStore.js";
 export { validateSchema } from "./store/core.js";
