@@ -694,6 +694,11 @@ archives:
     summary: "G43-W1 complete: extracted the LedgerPersistence byte-I/O seam (T347), the AbstractLedgerStore base holding all persistence-agnostic logic over that seam (T350), and FsLedgerStore reimplemented as base + FsPersistence (T351, co-delivered in b7c64ce). Behaviour-preserving — full ledger suite green unchanged (1488/0/1skip); both merges adversarially reviewed (R420, R421). Seam is ready for the GitPersistence impl in M145."
     title: "G43-W1: extract LedgerStore persistence seam + AbstractLedgerStore base (Q190)"
     status: done
+  - id: M149
+    path: ./archive/milestones/M149.md
+    summary: "G43-W6 complete: the shared LedgerStore conformance suite now runs against all three backends (Fs/InMemory/Git) with concurrency parity (T356), plus a dedicated git-invariant regression-guard suite (T359) covering host-checkout byte-identity, orphan-ref one-commit-per-mutation + parentless root, CAS stale-reject (StaleRefError — new coverage), lockfiles-never-committed, and backup-tag-before-reinit. All mutation-verified; check green 1582/0."
+    title: "G43-W6: conformance + git-invariant test suites (Q196)"
+    status: done
 ---
 
 # milestones
@@ -763,11 +768,3 @@ archives:
 - title: "G43-W5: push/fetch sync wiring + drop per-merge ledger-commit steps (Q194/K66-4)"
 - description: "Auto-fetch-at-start / non-forced auto-push-at-end of refs/heads/cq-ledger into the /cq:* commands (configurable remote=origin) + a manual-recovery runbook + make the per-merge/per-archive `git add docs/ … chore(ledger)` command steps backend-conditional (skip under git-object; the backend commits continuously)."
 - dependsOn: ["M146"]
-
-### M149 — open
-
-- createdAt: 2026-06-10T09:01:36.136Z
-- updatedAt: 2026-06-10T09:19:54.472Z
-- title: "G43-W6: conformance + git-invariant test suites (Q196)"
-- description: Run the shared LedgerStore conformance suite against GitObjectLedgerBackend (throwaway repo per test; dual-tests over Fs+InMemory+Git) + explicit git-invariant tests (byte-identical working-tree/HEAD/index after writes, orphan-ref advance, CAS stale-old rejection, lockfiles-never-committed, backup-tag-on-reinit).
-- dependsOn: ["M145"]

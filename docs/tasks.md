@@ -489,6 +489,11 @@ archives:
     summary: "G43-W1 complete: extracted the LedgerPersistence byte-I/O seam (T347), the AbstractLedgerStore base holding all persistence-agnostic logic over that seam (T350), and FsLedgerStore reimplemented as base + FsPersistence (T351, co-delivered in b7c64ce). Behaviour-preserving — full ledger suite green unchanged (1488/0/1skip); both merges adversarially reviewed (R420, R421). Seam is ready for the GitPersistence impl in M145."
     title: "G43-W1: extract LedgerStore persistence seam + AbstractLedgerStore base (Q190)"
     status: done
+  - id: M149
+    path: ./archive/tasks/M149.md
+    summary: "G43-W6 complete: the shared LedgerStore conformance suite now runs against all three backends (Fs/InMemory/Git) with concurrency parity (T356), plus a dedicated git-invariant regression-guard suite (T359) covering host-checkout byte-identity, orphan-ref one-commit-per-mutation + parentless root, CAS stale-reject (StaleRefError — new coverage), lockfiles-never-committed, and backup-tag-before-reinit. All mutation-verified; check green 1582/0."
+    title: "G43-W6: conformance + git-invariant test suites (Q196)"
+    status: done
 ---
 
 # tasks
@@ -559,10 +564,10 @@ archives:
 - completion: "@cq/config [ledger] table: LedgerBackend='fs'(default)|'git-object' union + guard + LedgerConfig type; RawLedger structural validation; parseLedger() applies branch 'cq-ledger'/remote 'origin' defaults + fail-fast unknown-backend (CqConfigError); CqConfig.ledger null when absent (fs default, git-object opt-in per Q189). Documented COMMENTED-OUT [ledger] block in CQ_TOML_TEMPLATE + cq.toml.example. Round 1 DISAPPROVED: acceptance only tested template-inertness against a synthetic copy. Round-2 orchestrator fix: assert parseConfig(CQ_TOML_TEMPLATE).ledger===null + equivalent for cq.toml.example against the REAL constants. check green 1552/0 worktree, 1557/0 combined on main."
 - sessionLogs: ["docs/logs/20260610-115916-a95a3a31d367091f3.md","docs/logs/20260610-115916-aeeafe355067c65a5.md"]
 
-### T357 — planned
+### T357 — done
 
 - createdAt: 2026-06-10T09:04:31.102Z
-- updatedAt: 2026-06-10T09:20:55.438Z
+- updatedAt: 2026-06-10T12:42:44.565Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Select the backend at every store construction site by [ledger] backend (+ git-env validation)"
@@ -571,6 +576,9 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T349","T353"]
 - ledgerRefs: ["goals:G43"]
+- resultCommit: 16903fc
+- completion: "createLedgerStore(root) factory in @cq/ledger selects FsLedgerStore('fs'/default)|GitObjectLedgerBackend('git-object') from cq.toml [ledger] backend, init()s it; ALL construction sites routed through it (ledger-mcp createEmbeddedStore/main, cq-cli runInit/runReset, embedded TUI+web). git-env fail-fast (GitEnvironmentError); shared idempotent ensureGitBackendGitignore(root) (R418, T354 reuses); generalised capability gating (read_log FS-only via instanceof; config/promptCatalog backend-independent via duck-typed rootDirOf); per-backend watcher selection; runReset rejects git-object (EXIT_USAGE). New @cq/ledger→@cq/config dep (no cycle). fs/no-cq.toml byte-identical. 20 new tests; check green 1577/0 worktree, 1582/0 combined main. Nix FOD hash verified empirically still valid (internal edge, external closure unchanged — no flake.nix refresh needed)."
+- sessionLogs: ["docs/logs/20260610-124136-ad77a03bd66226ac7.md","docs/logs/20260610-124136-a3f6dd2b489c5b781.md"]
 
 ### T360 — planned
 
@@ -626,35 +634,4 @@ archives:
 - acceptance: Each of the FOUR command prompts gates its `git add docs/ … chore(ledger)` block on the fs backend (skipped under git-object); agentsCatalogue.gen.ts regenerated (no drift); a grep-invariant or manual grep confirms no UNCONDITIONAL ledger-commit remains in any of the four; `bun run check` green.
 - suggestedModel: standard
 - dependsOn: ["T355"]
-- ledgerRefs: ["goals:G43"]
-
-## M149
-
-### T356 — done
-
-- createdAt: 2026-06-10T09:04:14.875Z
-- updatedAt: 2026-06-10T12:00:14.160Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Run the shared LedgerStore conformance suite against GitObjectLedgerBackend (dual-tests)
-- description: "Per Q196: parameterise the existing abstract LedgerStore conformance test body (already run against FsLedgerStore + InMemoryLedgerStore per the dual-tests pattern; InMemoryLedgerStore at packages/ledger/src/store/InMemoryLedgerStore.ts is the canonical dummy) to ALSO run against GitObjectLedgerBackend. Each test constructs a THROWAWAY git repo (init a tmp repo, point the backend at it, dispose+rm after) exactly as the FS tests construct throwaway docs dirs — add a throwaway-git-repo helper alongside the existing throwaway-dir helper. The suite must exercise reads/writes/archive/unarchive/createLedger/concurrency + the CAS-conflict path so reads/writes/archive/concurrency parity is proven identical across all three backends."
-- acceptance: "`bun test` runs the full conformance body three times (Fs, InMemory, Git) all green; the Git run uses a fresh throwaway repo per test + leaves no residue; any parity gap surfaces as a failing conformance assertion (not a Git-only special-case). tsc -b + lint clean."
-- suggestedModel: frontier
-- dependsOn: ["T352"]
-- ledgerRefs: ["goals:G43"]
-- resultCommit: c369b20
-- completion: "Conformance parity across all three backends (Fs/InMemory/Git). T352 already ran the FULL runStoreAbstractSuite against Git; T356 lifted the FS-only N-parallel-mutation facet into the shared store-abstract.ts as portable concurrency-parity assertions (no-lost-write, monotonic updatedAt, last-write-wins, unique monotonic ids) through the LedgerStore surface. No parity gap (Git CAS-conflict is a deliberately-different cross-process surface, fronted by the in-process mutex/lockfile in single-process operation — correctly excluded, not papered over). N=12 + git-aware timeout; no tmp residue. Round 1 DISAPPROVED: the monotonic-updatedAt assertion sorted-then-asserted-ascending (tautology). Round-2 orchestrator fix: assert in submission order (==lock order), no sort — real teeth. check green 1547/0 worktree, 1557/0 combined on main."
-- sessionLogs: ["docs/logs/20260610-115916-a8643d3d3758b5e0b.md","docs/logs/20260610-115916-a202dc00fead52aa3.md"]
-
-### T359 — planned
-
-- createdAt: 2026-06-10T09:04:43.537Z
-- updatedAt: 2026-06-10T09:04:43.537Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Add git-invariant tests (byte-identical tree/HEAD/index, ref-advance, CAS reject, lock-not-committed, backup-tag)
-- description: "Per Q196, add explicit tests for the git-specific invariants the K66 PoC validated — these invariants are the WHOLE POINT of the backend and must be regression-guarded: (1) after any GitObjectLedgerBackend write, the repo's working tree (sha256 of tracked files), HEAD ref, and index (`git ls-files -s` digest) are BYTE-IDENTICAL to before, and `git status --porcelain` is empty (no working-tree switch); (2) the orphan ref advances exactly one commit per mutation and the first commit is parentless (a true orphan); (3) a CAS update-ref with a STALE expected-old SHA is REJECTED (simulate a concurrent advance between read and update-ref) and surfaces StaleRefError rather than silent last-writer-wins; (4) advisory .lock files NEVER appear in `git ls-tree -r cq-ledger` (lockfiles stay on the real FS, gitignored); (5) the schema-divergence reinit tags refs/tags/cq-ledger-backup-<ts> at the prior orphan head before resetting the ref. Run against a throwaway repo per test."
-- acceptance: "`bun test` green for all five invariant groups; the byte-identical assertion runs after a real create+update+archive sequence; the CAS-stale test asserts the typed StaleRefError; the lock-not-committed test enumerates the orphan tree and asserts no .lock path; the backup-tag test asserts the tag exists at the prior head. tsc -b + lint + `bun run check` clean."
-- suggestedModel: frontier
-- dependsOn: ["T356"]
 - ledgerRefs: ["goals:G43"]

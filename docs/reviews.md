@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 429
+  item: 431
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -634,6 +634,11 @@ archives:
     summary: "G43-W1 complete: extracted the LedgerPersistence byte-I/O seam (T347), the AbstractLedgerStore base holding all persistence-agnostic logic over that seam (T350), and FsLedgerStore reimplemented as base + FsPersistence (T351, co-delivered in b7c64ce). Behaviour-preserving — full ledger suite green unchanged (1488/0/1skip); both merges adversarially reviewed (R420, R421). Seam is ready for the GitPersistence impl in M145."
     title: "G43-W1: extract LedgerStore persistence seam + AbstractLedgerStore base (Q190)"
     status: done
+  - id: M149
+    path: ./archive/reviews/M149.md
+    summary: "G43-W6 complete: the shared LedgerStore conformance suite now runs against all three backends (Fs/InMemory/Git) with concurrency parity (T356), plus a dedicated git-invariant regression-guard suite (T359) covering host-checkout byte-identity, orphan-ref one-commit-per-mutation + parentless root, CAS stale-reject (StaleRefError — new coverage), lockfiles-never-committed, and backup-tag-before-reinit. All mutation-verified; check green 1582/0."
+    title: "G43-W6: conformance + git-invariant test suites (Q196)"
+    status: done
 ---
 
 # reviews
@@ -800,22 +805,11 @@ archives:
 - summary: "T349 implement-review ROUND 2 — approve. Round-1 acceptance gap closed: orchestrator added `expect(parseConfig(CQ_TOML_TEMPLATE).ledger).toBeNull()` + the cq.toml.example equivalent to the existing T331 describe blocks (the assertions pass, confirming the .ledger-null shape). Test-only delta; full check green 1552/0 in-worktree, 1557/0 combined on main. Merged as 054a64c."
 - ledgerRefs: ["tasks:T349","goals:G43"]
 
-## M149
+### R430 — go-ahead
 
-### R428 — revise
-
-- createdAt: 2026-06-10T12:00:29.908Z
-- updatedAt: 2026-06-10T12:00:29.908Z
+- createdAt: 2026-06-10T12:42:54.944Z
+- updatedAt: 2026-06-10T12:42:54.944Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T356 implement-review ROUND 1 — disapprove. Opus reviewer: triple-backend coverage REAL + check green 1547/0, but the 'monotonic non-decreasing updatedAt' assertion sorted results ascending THEN asserted cur>=prev — a tautology with no teeth. Round 2 (R429) approves after the orchestrator reworked it to assert in submission order."
-- ledgerRefs: ["tasks:T356","goals:G43"]
-
-### R429 — go-ahead
-
-- createdAt: 2026-06-10T12:00:33.191Z
-- updatedAt: 2026-06-10T12:00:33.191Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T356 implement-review ROUND 2 — approve. Round-1 tautology fixed: orchestrator asserts updatedAt monotonicity over `results` in SUBMISSION order (==lock order), dropping the sort — real teeth against a non-monotonic clock / out-of-order serialisation. Verified concurrency-parity 6 pass (2×3 backends); full check green 1547/0 in-worktree, 1557/0 combined on main. Merged as c369b20."
-- ledgerRefs: ["tasks:T356","goals:G43"]
+- summary: "T357 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 0 defects. All acceptance verified: fs/no-cq.toml byte-identical (same FsLedgerStore options, all 6 sites via factory); git-object activation + orphan-ref + gitignore proven by createLedgerStore.test + init-git-object.test; no @cq/config↔@cq/ledger cycle; capability gating (read_log FS-only, config/promptCatalog backend-independent); git-env fail-fast; idempotent gitignore; runReset rejects git-object. The worker's 'configured:false' quirk scrutinised = test-fixture artifact, not masked fs-fallback. check green 1577/0. Merged as 16903fc."
+- ledgerRefs: ["tasks:T357","goals:G43"]
