@@ -693,10 +693,10 @@ archives:
 - completion: Q211-5 prefixed-instructions acceptance strengthened (T377 test already covered the 4 clauses; added bijection + count pins). check 1656/0.
 - sessionLogs: ["docs/logs/20260610-202419-a3b324b7db4fff5e0.md","docs/logs/20260610-202419-a54fbffbbf0f0c60d.md","docs/logs/20260610-202419-pi-codex-T381.md","docs/logs/20260610-202419-pi-grok-T381.md","docs/logs/20260610-202419-pi-minimax-T381.md"]
 
-### T382 — planned
+### T382 — done
 
 - createdAt: 2026-06-10T18:40:10.841Z
-- updatedAt: 2026-06-10T18:40:10.841Z
+- updatedAt: 2026-06-10T21:04:04.115Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Document the public builder in @cq/ledger-mcp README with a build-your-own-prefixed-ledger-MCP example
@@ -705,6 +705,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T378","T379"]
 - ledgerRefs: ["goals:G45"]
+- resultCommit: e5a5a17
+- completion: packages/ledger-mcp/README.md created with a build-your-own-prefixed-ledger-MCP example (createLedgerMcpServer + toolPrefix + consumer createLedgerStore/FsLedgerStore + --tool-prefix CLI); every API verified against source. check 1669/0.
+- sessionLogs: ["docs/logs/20260610-210335-a98145dbbc6d5a03d.md","docs/logs/20260610-210335-aba4e160965c69540.md","docs/logs/20260610-210335-pi-codex-T382.md","docs/logs/20260610-210335-pi-grok-T382.md","docs/logs/20260610-210335-pi-minimax-T382.md"]
 
 ### T383 — planned
 

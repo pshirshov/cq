@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 460
+  item: 461
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -922,3 +922,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T380","goals:G45"]
 - sessionLogs: ["docs/logs/20260610-205105-afe55dfdee9480c17.md","docs/logs/20260610-205105-pi-codex-T380.md","docs/logs/20260610-205105-pi-grok-T380.md","docs/logs/20260610-205105-pi-minimax-T380.md"]
+
+### R461 — go-ahead
+
+- createdAt: 2026-06-10T21:04:07.767Z
+- updatedAt: 2026-06-10T21:04:07.767Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T382 — reconciled approve (3 survivors approve; minimax ABSTAINED — garbled tool-call output, dropped). README build-your-own example; opus verified every API reference (createLedgerMcpServer signature, createLedgerStore {store} destructure, FsLedgerStore({root}), prefixedToolNames, --tool-prefix) against source; docs-only; check 1669/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T382","goals:G45"]
+- sessionLogs: ["docs/logs/20260610-210335-aba4e160965c69540.md","docs/logs/20260610-210335-pi-codex-T382.md","docs/logs/20260610-210335-pi-grok-T382.md","docs/logs/20260610-210335-pi-minimax-T382.md"]
