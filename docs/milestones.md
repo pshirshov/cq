@@ -2,7 +2,7 @@
 ledger: milestones
 counters:
   milestone: 0
-  item: 156
+  item: 159
 archives:
   - id: M5
     path: ./archive/milestones/M5.md
@@ -792,3 +792,23 @@ archives:
 - createdAt: 2026-06-10T18:15:31.706Z
 - updatedAt: 2026-06-10T18:15:31.706Z
 - title: "Plan: reusable ledger-MCP library + tool-name namespacing"
+
+### M157 — open
+
+- createdAt: 2026-06-10T18:38:20.553Z
+- updatedAt: 2026-06-10T18:38:20.553Z
+- title: "W1: prefix core — pure name transform threaded through both tool factories + drift-guard helper"
+
+### M158 — open
+
+- createdAt: 2026-06-10T18:38:23.636Z
+- updatedAt: 2026-06-10T18:38:23.636Z
+- title: "W2: public builder + CLI flag + prefixed SERVER_INSTRUCTIONS"
+- dependsOn: ["M157"]
+
+### M159 — open
+
+- createdAt: 2026-06-10T18:38:28.581Z
+- updatedAt: 2026-06-10T18:38:28.581Z
+- title: "W3: acceptance — two-prefixed-servers collision test, instructions-naming test, README example, bun run check"
+- dependsOn: ["M158"]

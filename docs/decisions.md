@@ -2,7 +2,7 @@
 ledger: decisions
 counters:
   milestone: 0
-  item: 70
+  item: 71
 archives:
   - id: M2
     path: ./archive/decisions/M2.md
@@ -303,3 +303,15 @@ archives:
 - headline: "G44 plan LOCKED — cq:advance turn-pause Stop-hook gate (unanimous go-ahead, R438)"
 - rationale: "The G44 plan (5 work milestones M151-M155, 12 tasks T361-T372) is APPROVED + LOCKED after a unanimous multi-reviewer go-ahead (R438: opus + codex + grok + minimax, 0 abstentions, 0 findings). Synthesized from a multi-planner round (opus base + grok concurrence; minimax abstained). The plan honors all 7 locked clarifying decisions (Q198-Q204): shared dual-tested derivePredicates in @cq/ledger as single source of truth (T361/T366); `cq advance-gate` CLI emitting a neutral verdict + exit code (T362/T367); a NEW derive_predicates MCP tool + advance.md detection rewire so prompts read predicates from MCP (T363/T368, the user's Q202 extension); a thin Claude-Code Stop-hook wrapper registered via nix/hm/claude.nix settings.hooks (T364/T369), integration-tested (T372); the session-keyed run-active marker + external-signal escape lifecycle wired into advance.md (T370); and the full Q204 acceptance bar — dual-adapter + verdict + wrapper-integration tests, grep-invariant pinning advance.md, documented manual repro, and a recorded live /cq:advance session demonstrating the hook firing (T365/T371). DAG acyclic: W1→{W2,W3}→W4→W5. This fixes defect D50."
 - ledgerRefs: ["goals:G44","defects:D50","reviews:R438"]
+
+## M156
+
+### K71 — locked
+
+- createdAt: 2026-06-10T19:00:52.366Z
+- updatedAt: 2026-06-10T19:00:52.366Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: G45 plan LOCKED — reusable ledger-MCP + tool-name prefix (unanimous go-ahead, R451)
+- rationale: "The G45 plan (3 work milestones M157-M159, 11 tasks T373-T383) is APPROVED + LOCKED after a UNANIMOUS round-2 multi-reviewer go-ahead (R451: opus[claude] + codex/grok/minimax[pi], 0 abstentions, 0 findings), following one revise round (R450: 6 in-scope criticisms, 2 opus-grounded against the real code). Synthesized from a 3-planner round (opus base + grok/minimax fold-ins; orchestrator-synthesized + persisted). The plan honors all 7 locked clarifying decisions (Q205-Q211): a PURE tool-name PREFIX transform (cq default EMPTY, `_` separator, ^[a-zA-Z0-9]+$) threaded through both factories (createLedgerMcpTools T374, registerLedgerStdioTools T375) + the LEDGER_TOOL_NAMES drift-guard (T376) + SERVER_INSTRUCTIONS (T377) — all driven by ONE reused prefixedToolNames/prefixToolName helper (T373) so nothing drifts (Q208); a thin documented PUBLIC builder createLedgerMcpServer({store,displayName,toolPrefix}) extracted from @cq/ledger-mcp with buildServer kept as a byte-identical thin wrapper (T378, Q207); a `ledger-mcp --tool-prefix` CLI flag threaded through the FULL main()→serveHttp→attachMcpHttp HTTP chain + the stdio path with optional default-'' params (T379, Q206/Q209); storage out of scope (Q210). Acceptance = Q211 1-5: two-prefixed-servers-in-one-process zero-collision + both-functional (T380), cq drift-guard unchanged (T376), README build-your-own example (T382), prefixed-instructions test (T381), bun run check + Q211 confirmation (T383). DAG acyclic: T373→{T374,T375,T377}; T376→{T374,T375}; T378→{T377,T375}; T379→T378; T380→T378; T381→T377; T382→{T378,T379}; T383→{T380,T381,T382}. G45 → planned."
+- ledgerRefs: ["goals:G45","reviews:R451"]

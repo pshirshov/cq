@@ -2,7 +2,7 @@
 ledger: tasks
 counters:
   milestone: 0
-  item: 372
+  item: 383
 archives:
   - id: M5
     path: ./archive/tasks/M5.md
@@ -542,3 +542,152 @@ archives:
 ---
 
 # tasks
+
+## M157
+
+### T373 — planned
+
+- createdAt: 2026-06-10T18:38:44.789Z
+- updatedAt: 2026-06-10T18:38:44.789Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add prefix validation + prefixedToolNames(prefix) pure helper in @cq/ledger, exported from index.ts
+- description: "In packages/ledger/src/mcp/ledgerTools.ts (or a small new sibling module imported by both factories), add: (1) a TOOL_PREFIX_RE = /^[a-zA-Z0-9]+$/ constant and an assertToolPrefix(prefix: string): void that ACCEPTS the empty string '' (the cq default = unprefixed) and THROWS a descriptive Error for any non-empty value NOT matching TOOL_PREFIX_RE (fail-fast at the boundary, per Q205 — letters/digits only so `<prefix>_<name>` stays within the safeId charset ^[a-zA-Z0-9_-]+$); (2) a pure helper `export function prefixedToolNames(prefix: string): string[]` returning LEDGER_TOOL_NAMES unchanged when prefix==='' and `${prefix}_${name}` for each name otherwise (it calls assertToolPrefix first); optionally a single-name `prefixToolName(prefix, name)` to keep the factories DRY. Export prefixedToolNames + the validator from packages/ledger/src/index.ts alongside LEDGER_TOOL_NAMES. NO factory wiring in this task. PURE name transform — no handler/schema changes."
+- acceptance: "New unit test (e.g. packages/ledger/test/tool-prefix.test.ts): prefixedToolNames('') deep-equals [...LEDGER_TOOL_NAMES]; prefixedToolNames('myproj') equals LEDGER_TOOL_NAMES.map(n=>`myproj_${n}`) and every element matches /^[a-zA-Z0-9_-]+$/; assertToolPrefix throws for 'a_b','a-b','a b','a.b' and does NOT throw for '' and 'myproj2'; `import { prefixedToolNames } from '@cq/ledger'` resolves. bun run check green."
+- suggestedModel: standard
+- dependsOn: []
+- ledgerRefs: ["goals:G45"]
+
+### T374 — planned
+
+- createdAt: 2026-06-10T18:38:58.507Z
+- updatedAt: 2026-06-10T18:54:24.491Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Thread an optional trailing toolPrefix through createLedgerMcpTools (Claude tool() factory)
+- description: "In packages/ledger/src/mcp/ledgerTools.ts, add a TRAILING optional `toolPrefix: string = ''` parameter to createLedgerMcpTools (after the existing params — store, readLog?, configCapability?, promptCatalog?; toolPrefix is LAST so existing call sites are unchanged — do NOT make it positional-first). Call assertToolPrefix(toolPrefix) once at the top (fail-fast). Apply the prefix as a PURE name transform: each `tool(name, ...)` registration registers under prefixToolName(toolPrefix, name) — derive the name ONCE via a small local wrapper rather than hand-editing all 26 literals (e.g. a `mk(name, ...)` helper that prepends the prefix, or post-map the returned array's `.name`). Handler bodies + Zod input schemas UNTOUCHED (Q208). Default '' keeps every registered name byte-identical. ALSO verify every OTHER call site of createLedgerMcpTools (tests, embedded TUI/web factories, any other consumer) inherits the new optional `toolPrefix=''` transparently — confirm no caller breaks (mirroring the same call-site-verification clause T375 has for registerLedgerStdioTools; R450 consistency criticism)."
+- acceptance: "Extend the prefix test: createLedgerMcpTools(store).map(t=>t.name).sort() still equals [...LEDGER_TOOL_NAMES].sort() (empty default unchanged); createLedgerMcpTools(store, undefined, undefined, undefined, 'myproj').map(t=>t.name).sort() equals prefixedToolNames('myproj').sort(); a create_item handler on the prefixed factory still round-trips. Existing test/mcp-tools.test.ts passes unchanged; no other createLedgerMcpTools call site broke. bun run check green."
+- suggestedModel: frontier
+- dependsOn: ["T373"]
+- ledgerRefs: ["goals:G45"]
+
+### T375 — planned
+
+- createdAt: 2026-06-10T18:39:05.559Z
+- updatedAt: 2026-06-10T18:39:05.559Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Thread an optional trailing toolPrefix through registerLedgerStdioTools (raw registerTool factory)
+- description: "In packages/ledger/src/mcp/stdioLedgerTools.ts, add a TRAILING optional `toolPrefix: string = ''` to registerLedgerStdioTools (after server, store, readLog?, configCapability?, promptCatalog?; LAST param so existing call sites are unchanged). Call assertToolPrefix(toolPrefix) once. Apply the prefix as a pure name transform on every server.registerTool(name, ...) call: introduce a local `reg(name, config, handler)` wrapper registering under prefixToolName(toolPrefix, name), used for all 26 registrations so the prefix is derived ONCE per name and the call sites do not drift from the Claude factory. Config (description/inputSchema) + handlers UNTOUCHED. Default '' = byte-identical registration. ALSO: verify every other call site of registerLedgerStdioTools (the opus candidate flagged a possible second consumer @cq/cq-mcp) inherits the new optional `toolPrefix=''` transparently — confirm no other call site needs touching."
+- acceptance: New stdio-prefix test constructs a real @modelcontextprotocol McpServer, calls registerLedgerStdioTools(server, store, undefined, undefined, undefined, 'myproj'), and asserts (via the registered-tool registry / a tools/list round-trip) the registered names equal prefixedToolNames('myproj'); a second server with prefix '' registers exactly LEDGER_TOOL_NAMES. No other call site broke. bun run check green.
+- suggestedModel: frontier
+- dependsOn: ["T373"]
+- ledgerRefs: ["goals:G45"]
+
+### T376 — planned
+
+- createdAt: 2026-06-10T18:39:14.181Z
+- updatedAt: 2026-06-10T18:39:14.181Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Parameterize the LEDGER_TOOL_NAMES drift-guard test over prefixedToolNames
+- description: "In packages/ledger/test/mcp-tools.test.ts (the drift-guard), KEEP the existing empty-prefix assertion exactly as-is (createLedgerMcpTools(store).map(t=>t.name).sort() === [...LEDGER_TOOL_NAMES].sort(), length 26) to prove cq is unaffected, and ADD a parameterized assertion proving the prefixed factory's names equal prefixedToolNames(prefix).sort() for a sample non-empty prefix — reusing the SAME prefixedToolNames helper the factory uses so the drift-guard stays the single source of truth across both surfaces. Do NOT introduce a second hardcoded name list; do NOT alter the 26 unprefixed expectations."
+- acceptance: "test/mcp-tools.test.ts: the original 'exports the expected tool names (26 tools)' assertion passes unchanged; the new prefixed-drift assertion passes; the same helper drives both factory and test (no second hardcoded list). bun test green."
+- suggestedModel: standard
+- dependsOn: ["T374","T375"]
+- ledgerRefs: ["goals:G45"]
+
+## M158
+
+### T377 — planned
+
+- createdAt: 2026-06-10T18:39:20.109Z
+- updatedAt: 2026-06-10T18:54:14.324Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Make SERVER_INSTRUCTIONS name prefixed tools when a prefix is set (buildServerInstructions)
+- description: "In packages/ledger-mcp/src/main.ts, SERVER_INSTRUCTIONS is a static string naming bare tools (create_item, snapshot(), derive_predicates(), fetch_ledger, archive_milestone, …). Convert it to a pure function `buildServerInstructions(toolPrefix: string): string` that, when toolPrefix !== '', REUSES the prefixedToolNames/prefixToolName helper from T373 (Q208: 'derive prefixed names ONCE + reuse') to compute each tool name — do NOT hand-roll an independent whole-word replace driven separately from LEDGER_TOOL_NAMES (R450 criticism: that is brittle and risks drift). Iterate the LEDGER_TOOL_NAMES tokens and substitute each occurrence with prefixToolName(toolPrefix, name) (the SAME single source the factories use), so the instructions text cannot drift from the registered names. Empty prefix returns the current text byte-identically. assertToolPrefix called once. PURE name transform — no other prose change."
+- acceptance: "Unit test: buildServerInstructions('') === the current SERVER_INSTRUCTIONS text (byte-identical, asserts cq unchanged); buildServerInstructions('myproj') contains 'myproj_create_item' and 'myproj_snapshot' and contains NO bare whole-word 'create_item'/'snapshot' token for any name in LEDGER_TOOL_NAMES; the prefixed names it emits equal prefixedToolNames('myproj') (proving helper reuse, not an ad-hoc transform). bun run check green."
+- suggestedModel: frontier
+- dependsOn: ["T373"]
+- ledgerRefs: ["goals:G45"]
+
+### T378 — planned
+
+- createdAt: 2026-06-10T18:39:32.271Z
+- updatedAt: 2026-06-10T18:54:00.198Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Extract + export the public builder createLedgerMcpServer({ store, displayName, toolPrefix }) and refactor buildServer through it"
+- description: "In packages/ledger-mcp/src/main.ts (the package's main entrypoint — no separate index.ts), define and `export function createLedgerMcpServer(opts: { store: LedgerStore; displayName: string; toolPrefix?: string }): McpServer`, plus `export interface CreateLedgerMcpServerOptions`. Move the existing buildServer body into it: build serverInfo, compute instructions via buildServerInstructions(toolPrefix ?? ''), construct McpServer, derive readLog/config/promptCatalog capabilities exactly as today, then call registerLedgerStdioTools(server, store, readLog, configCapability, promptCatalog, toolPrefix ?? '') — NOTE this 6th positional arg only exists after T375, hence dependsOn now includes T375 (R450 criticism). The new toolPrefix is OPTIONAL (default ''); re-implement the existing buildServer(store, displayName) as a THIN wrapper createLedgerMcpServer({ store, displayName }) (empty prefix) that stays BYTE-IDENTICAL in behaviour for its existing callers — both the stdio main() path AND attachMcpHttp — so cq frontends/commands are unaffected (Q209). assertToolPrefix runs via the instructions/factory path."
+- acceptance: "buildServer still produces a working unprefixed server (existing main/http tests pass, byte-identical default behaviour). A new test calls createLedgerMcpServer({ store, displayName: 'demo', toolPrefix: 'myproj' }) and asserts its tools/list names equal prefixedToolNames('myproj'); createLedgerMcpServer({ store, displayName: 'demo' }) yields the unprefixed 26. createLedgerMcpServer + CreateLedgerMcpServerOptions importable from @cq/ledger-mcp. bun run check green."
+- suggestedModel: frontier
+- dependsOn: ["T377","T375"]
+- ledgerRefs: ["goals:G45"]
+
+### T379 — planned
+
+- createdAt: 2026-06-10T18:39:43.616Z
+- updatedAt: 2026-06-10T18:54:08.667Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Add a ledger-mcp --tool-prefix <p> CLI flag wired into the standalone server launch
+- description: "In packages/ledger-mcp/src/main.ts parseArgs: add `toolPrefix: string` to ParsedArgs (default ''), parse both `--tool-prefix <p>` and `--tool-prefix=<p>` forms (mirror the existing --cwd/--http handling, including the missing-value throw). Call assertToolPrefix on the parsed value at parse time so a malformed prefix fails fast before the server starts. In main(), thread the parsed toolPrefix through BOTH launch paths COMPLETELY: (a) STDIO path — replace buildServer(store, displayName) with createLedgerMcpServer({ store, displayName, toolPrefix }); (b) FULL HTTP call chain — main()→serveHttp(store, http, displayName)→attachMcpHttp(store, displayName): serveHttp AND attachMcpHttp EACH gain an OPTIONAL toolPrefix param (default '', so existing callers + cq frontends are unaffected per Q209), serveHttp FORWARDS it to attachMcpHttp, which forwards it to createLedgerMcpServer/buildServer. Do NOT stop at attachMcpHttp's signature — main()'s HTTP branch invokes serveHttp, the intermediate, so the prefix must flow through serveHttp or `--tool-prefix --http` is SILENTLY INEFFECTIVE over HTTP (R450 criticism, opus-grounded). No cq.toml key (Q206). Update the file-header CLI usage comment AND any --help/usage text to document --tool-prefix."
+- acceptance: "parseArgs(['--tool-prefix','myproj']).toolPrefix === 'myproj'; parseArgs([]).toolPrefix === ''; parseArgs(['--tool-prefix','bad_prefix']) throws; serveHttp AND attachMcpHttp each have an optional toolPrefix param defaulting to ''; --help/usage names --tool-prefix. END-TO-END HTTP assertion: a server stood up via the HTTP path (serveHttp/attachMcpHttp) with toolPrefix='myproj' actually registers prefixedToolNames('myproj') — NOT merely that attachMcpHttp has the param. New parseArgs + HTTP-path unit assertions added. bun run check green."
+- suggestedModel: standard
+- dependsOn: ["T378"]
+- ledgerRefs: ["goals:G45"]
+
+## M159
+
+### T380 — planned
+
+- createdAt: 2026-06-10T18:39:54.875Z
+- updatedAt: 2026-06-10T18:54:25.558Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Acceptance test: two prefixed ledger-MCP servers in one process — zero tool-name collision, both functional"
+- description: "Add a test (packages/ledger-mcp/test/ or packages/ledger/test/) that constructs TWO McpServers in ONE process via createLedgerMcpServer — e.g. { displayName:'cqlike', toolPrefix:'' } (cq's unprefixed server) and { displayName:'thirdparty', toolPrefix:'myproj' } — each over its OWN InMemoryLedgerStore (Q210: a 3rd party picks a non-conflicting store). Connect each over an in-memory/linked transport pair and list tools. Assert: (1) the two name sets are DISJOINT (intersection empty) — zero collision; (2) the first set === LEDGER_TOOL_NAMES (26), the second === prefixedToolNames('myproj'); (3) BOTH are functional — invoke a representative tool on each (e.g. create_milestone then create_item, or a fetch) and assert a correct result, proving the prefixed server's handlers still work. This is the core Q211(1) motivating use case (host runs cq ledger MCP + a 3rd-party ledger MCP together)."
+- acceptance: "Test passes: the two servers' tool-name sets have empty intersection; both answer a tools/list and a real tool call correctly; no registration throws. bun test green; bun run check green. No flakes across reruns."
+- suggestedModel: frontier
+- dependsOn: ["T378"]
+- ledgerRefs: ["goals:G45"]
+
+### T381 — planned
+
+- createdAt: 2026-06-10T18:39:59.440Z
+- updatedAt: 2026-06-10T18:39:59.440Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Acceptance test: prefixed SERVER_INSTRUCTIONS names the prefixed tools (Q211-5)"
+- description: "Add a focused test asserting the Q211(5) criterion: build a server via createLedgerMcpServer({ store, displayName:'demo', toolPrefix:'myproj' }) and read its instructions (via getInstructions()/the connected client, or test buildServerInstructions('myproj') directly), asserting the instructions text names 'myproj_'-prefixed tools and contains no bare whole-word LEDGER_TOOL_NAME tokens; and that the empty-prefix builder's instructions are byte-identical to the current SERVER_INSTRUCTIONS text."
+- acceptance: "Test passes: prefixed instructions contain 'myproj_create_item'/'myproj_snapshot' and no bare 'create_item'; empty-prefix instructions equal the original SERVER_INSTRUCTIONS string. bun test green."
+- suggestedModel: standard
+- dependsOn: ["T377"]
+- ledgerRefs: ["goals:G45"]
+
+### T382 — planned
+
+- createdAt: 2026-06-10T18:40:10.841Z
+- updatedAt: 2026-06-10T18:40:10.841Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Document the public builder in @cq/ledger-mcp README with a build-your-own-prefixed-ledger-MCP example
+- description: "Add/extend packages/ledger-mcp/README.md with a short 'Building your own prefixed ledger MCP' section showing a 3rd-party consumer: (1) importing createLedgerMcpServer from @cq/ledger-mcp; (2) constructing their OWN store — DEMONSTRATE passing a consumer-built store, e.g. createLedgerStore(cwd) or FsLedgerStore from @cq/ledger pointed at their own dir/branch (doc-only, no new storage code per Q210, and note storage customization is already solved via createLedgerStore + [ledger] backend/branch); (3) choosing a distinct toolPrefix; (4) wiring a transport. Note the cq default prefix is empty (names unchanged), a non-empty prefix must match ^[a-zA-Z0-9]+$, the `ledger-mcp --tool-prefix <p>` CLI for a no-code standalone server, and that consumers discover prefixed names at runtime via MCP tools/list (with prefixedToolNames(prefix) available for compile-time assertions). The snippet must match the actual exported createLedgerMcpServer signature."
+- acceptance: packages/ledger-mcp/README.md contains a self-contained example referencing createLedgerMcpServer + toolPrefix + a consumer-supplied createLedgerStore + the --tool-prefix flag; the code snippet matches the exported signature. bun run check green (lint/typecheck unaffected by docs).
+- suggestedModel: standard
+- dependsOn: ["T378","T379"]
+- ledgerRefs: ["goals:G45"]
+
+### T383 — planned
+
+- createdAt: 2026-06-10T18:40:19.527Z
+- updatedAt: 2026-06-10T18:40:19.527Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: "Final gate: run bun run check and confirm the full G45 acceptance bar (Q211 1-5) is green"
+- description: "From nix/pkg/cq-ledgers/, run `bun run check` (bun test + tsc -b typecheck + eslint). Confirm all five Q211 criteria hold: (1) two-prefixed-servers collision test green (T380); (2) the cq drift-guard (26 unprefixed names) unchanged/green (T376); (3) builder README example present (T382); (4) bun run check green; (5) prefixed-instructions-naming test green (T381). Fix any lint/type fallout from the new exports (index.ts barrel, builder option interface). No behavioral change in this task beyond making the suite green."
+- acceptance: "`bun run check` exits 0 from nix/pkg/cq-ledgers/ with no test failures, no tsc errors, no eslint errors; all five Q211 criteria demonstrably covered by passing tests/artifacts."
+- suggestedModel: standard
+- dependsOn: ["T380","T381","T382"]
+- ledgerRefs: ["goals:G45"]

@@ -330,10 +330,10 @@ archives:
 
 ## M156
 
-### G45 — clarifying
+### G45 — planned
 
 - createdAt: 2026-06-10T18:15:50.401Z
-- updatedAt: 2026-06-10T18:19:16.267Z
+- updatedAt: 2026-06-10T19:01:00.828Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - title: Reusable ledger-MCP library + tool-name namespacing (prefix)
@@ -352,4 +352,6 @@ archives:
     - 'Reusable component' may mean: a documented public construction API (build-your-own-ledger-MCP), and possibly a packaging/export decision (what @cq/ledger exposes vs an internal detail) — the clarifying phase should pin scope (just the prefix knob, or also a documented public builder + examples).
     
     This is a MINOR feature per the user. Keep scope tight: the core deliverable is the tool-name namespacing/prefix mechanism + whatever minimal public-API/packaging surface makes the ledger MCP genuinely reusable by a 3rd party. Grounding: packages/ledger/src/mcp/{ledgerTools.ts, stdioLedgerTools.ts}, packages/ledger-mcp/src/main.ts (registerLedgerStdioTools + buildServer + the tool-count drift-guard), the LEDGER_TOOL_NAMES registry, and the existing mcp tool tests.
-- sessionLogs: ["docs/logs/20260610-181859-a32e582a6958bd074.md"]
+- sessionLogs: ["docs/logs/20260610-183746-af1adff17be3c82df.md","docs/logs/20260610-183746-pi-grok.md","docs/logs/20260610-183746-pi-minimax.md"]
+- milestones: ["M157","M158","M159"]
+- grounding: "Pure tool-name PREFIX transform threaded through 4 surfaces (Q208): both tool factories (createLedgerMcpTools, registerLedgerStdioTools), the LEDGER_TOOL_NAMES drift-guard, and SERVER_INSTRUCTIONS — driven by ONE pure helper prefixedToolNames(prefix) (validated ^[a-zA-Z0-9]+$, '' = cq default unprefixed) so nothing drifts. Plus a thin public builder createLedgerMcpServer({store,displayName,toolPrefix}) extracted/exported from @cq/ledger-mcp (buildServer refactored through it, kept as a thin wrapper for both stdio + attachMcpHttp callers) + a ledger-mcp --tool-prefix CLI flag (Q206/Q207). Storage out of scope (Q210). Acceptance (Q211): two-prefixed-servers-in-one-process zero-collision + both-functional test, cq drift-guard unchanged, prefixed-instructions test, README build-your-own example, bun run check. 3 work milestones (M157 core → M158 builder/CLI/instructions → M159 acceptance), 11 tasks T373-T383. Synthesized from a 3-planner panel (opus base; grok + minimax folded)."

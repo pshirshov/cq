@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 449
+  item: 451
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -782,3 +782,29 @@ archives:
 - summary: "G44 plan review (multi-reviewer, configured panel) — UNANIMOUS go-ahead (reconciled strictest-wins over 4 surviving reviewers [opus]+[codex]+[grok]+[minimax], 0 abstentions, 0 criticism / 0 new_questions / 0 defects). All four confirmed the 5-milestone/12-task DAG (M151-M155, T361-T372) is acyclic + correctly sequenced (engine→CLI+MCP-tool→wrapper+nix+wiring→hardening), honors ALL 7 locked decisions Q198-Q204, maps every component+decision to ≥1 task (marker drop/unlink=T370; derive_predicates built T363 + consumed T368; wrapper authored T364 + registered T369 + integration-tested T372; full Q204 bar across T365-T367/T371-T372), with verifiable acceptance, grounded against the real seams (createLedgerStore, sync LedgerStore reads, registerLedgerStdioTools, claudeSessionStartHook/settings.hooks). [minimax] noted two non-blocking implementer-resolvable nits (T362 exact reason text; T368/T370 both touch advance.md §Bootstrap) — not gaps. Plan LOCKED. Reviewer logs: docs/logs/20260610-154315-a71ad469deb41bf5f.md (opus) + 20260610-154315-pi-{codex,grok,minimax}-reviewer.md."
 - ledgerRefs: ["goals:G44"]
 - sessionLogs: ["docs/logs/20260610-154315-a71ad469deb41bf5f.md","docs/logs/20260610-154315-pi-codex-reviewer.md","docs/logs/20260610-154315-pi-grok-reviewer.md","docs/logs/20260610-154315-pi-minimax-reviewer.md"]
+
+## M156
+
+### R450 — revise
+
+- createdAt: 2026-06-10T18:53:27.352Z
+- updatedAt: 2026-06-10T18:53:27.352Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: Reconciled 4-reviewer panel (opus repo-grounded + codex/grok/minimax pi) — strictest-wins REVISE. Plan is grounded + complete vs Q211 1-5, but 5 in-scope planner-fixable defects (2 grounded by opus against real code).
+- new_questions: []
+- criticism: ["[opus] Missing DAG edge T378→T375: T378's body calls registerLedgerStdioTools(server,store,readLog,configCapability,promptCatalog, toolPrefix??'') with a 6th positional arg that ONLY exists after T375 adds the trailing toolPrefix param. T378.dependsOn is [T377] only — add T375 so the implement DAG cannot run T378 before T375 (else createLedgerMcpServer won't typecheck).","[opus; echoed by minimax+grok as the T378/T379 wrapper-vs-builder ambiguity] T379 HTTP threading omits serveHttp: main()'s HTTP path is main()→serveHttp(store,http,displayName)→attachMcpHttp(store,displayName). T379 threads attachMcpHttp but NOT the serveHttp intermediate that main() actually calls, and its acceptance only checks attachMcpHttp's signature — so `ledger-mcp --tool-prefix <p> --http` would be SILENTLY INEFFECTIVE over HTTP. Thread toolPrefix through serveHttp too, and add an end-to-end HTTP acceptance asserting the HTTP transport actually registers prefixed names (not just the attachMcpHttp param exists).","[minimax] The new HTTP-path toolPrefix param (on serveHttp/attachMcpHttp) MUST be optional with default '' (Q209 — cq frontends/commands unaffected), not required; the thin buildServer(store,displayName) wrapper must stay byte-identical for existing callers. Pin this explicitly in T378/T379.","[codex+grok+minimax] T377 must REUSE the prefixedToolNames/prefixToolName helper from T373 (Q208: 'derive prefixed names ONCE + reuse') rather than an independent ad-hoc whole-word replace driven separately from LEDGER_TOOL_NAMES — the whole-word approach is brittle and risks drift; derive from the single source.","[codex+minimax] T374 should carry the SAME 'verify every other call site inherits the default \\'\\' param' clause that T375 has, for consistency — so any other createLedgerMcpTools consumer is confirmed unbroken.","[codex+grok, minor] T380's dependsOn T379 (CLI flag) is likely unnecessary: the two-prefixed-servers collision test exercises createLedgerMcpServer PROGRAMMATICALLY, not the --tool-prefix CLI; drop the T379 edge (keep T378) to avoid over-sequencing."]
+- ledgerRefs: ["goals:G45"]
+- sessionLogs: ["docs/logs/20260610-185209-a9fbc992f335a9d5f.md","docs/logs/20260610-185209-pi-codex.md","docs/logs/20260610-185209-pi-grok.md","docs/logs/20260610-185209-pi-minimax.md"]
+
+### R451 — go-ahead
+
+- createdAt: 2026-06-10T19:00:06.336Z
+- updatedAt: 2026-06-10T19:00:06.336Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "Round 2 — UNANIMOUS go-ahead from the 4-reviewer panel (opus repo-grounded + codex/grok/minimax pi). All 6 R450 criticisms verified resolved: T378.dependsOn=[T377,T375]; T379 threads the full main()→serveHttp→attachMcpHttp chain with an end-to-end HTTP prefixedToolNames assertion; optional default-'' param pinned (Q209); T377 reuses the prefixedToolNames helper; T374 verify-call-sites clause; T380.dependsOn dropped T379. Plan fine-grained, correctly sequenced (no cycles/forward deps), testable, grounded, complete vs Q211 1-5."
+- new_questions: []
+- criticism: []
+- ledgerRefs: ["goals:G45"]
+- sessionLogs: ["docs/logs/20260610-185929-a9150c4642dba4d0c.md","docs/logs/20260610-185929-pi-codex.md","docs/logs/20260610-185929-pi-grok.md","docs/logs/20260610-185929-pi-minimax.md"]
