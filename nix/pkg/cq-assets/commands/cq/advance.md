@@ -179,17 +179,18 @@ required params). It returns:
 
 ```json
 {
-  "pInvestigate":      { "value": boolean, "items": [{ "id", "status", "summary" }] },
-  "pPlan":             { "value": boolean, "items": [{ "id", "status", "summary" }] },
-  "pImplement":        { "value": boolean, "items": [{ "id", "status", "summary" }] },
-  "openQuestionGate":  { "value": boolean, "items": [{ "id", "status", "summary" }] }
+  "pInvestigate":      { "value": boolean, "items": ["<itemId>", ...] },
+  "pPlan":             { "value": boolean, "items": ["<itemId>", ...] },
+  "pImplement":        { "value": boolean, "items": ["<itemId>", ...] },
+  "openQuestionGate":  { "value": boolean, "items": ["<itemId>", ...] }
 }
 ```
 
-Each `.value` is the authoritative boolean for that predicate; `.items[]`
-lists the specific ledger items that drove the result (actionable items, or
-open-question gate items). **These values ARE the predicates** — do not
-re-derive them by hand from raw ledger state.
+Each `.value` is the authoritative boolean for that predicate; `.items[]` is a
+plain array of ledger-item **id strings** (e.g. `["D50", "T361"]`) naming the
+items that drove the result (the actionable items, or the open-question gate
+ids). **These values ARE the predicates** — do not re-derive them by hand from
+raw ledger state.
 
 `derive_predicates` applies the SAME shared `derivePredicates()` logic that
 backs the `cq advance-gate` Stop-hook CLI — so the prose definitions below,
