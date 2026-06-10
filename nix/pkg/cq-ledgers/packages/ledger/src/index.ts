@@ -45,6 +45,9 @@ export type {
   UpdateMilestoneItemPatch,
 } from "./store/LedgerStore.js";
 export type { LedgerPersistence } from "./store/LedgerPersistence.js";
+export { AbstractLedgerStore } from "./store/AbstractLedgerStore.js";
+export { FsPersistence } from "./store/FsPersistence.js";
+export type { FsPersistenceLayout } from "./store/FsPersistence.js";
 export { FsLedgerStore } from "./store/FsLedgerStore.js";
 export type { FsLedgerStoreOpts, ResetSummary } from "./store/FsLedgerStore.js";
 export { cacheMirrorDir, mirrorMutation } from "./store/cacheMirror.js";
