@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 431
+  item: 433
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -813,3 +813,25 @@ archives:
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - summary: "T357 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 0 defects. All acceptance verified: fs/no-cq.toml byte-identical (same FsLedgerStore options, all 6 sites via factory); git-object activation + orphan-ref + gitignore proven by createLedgerStore.test + init-git-object.test; no @cq/config↔@cq/ledger cycle; capability gating (read_log FS-only, config/promptCatalog backend-independent); git-env fail-fast; idempotent gitignore; runReset rejects git-object. The worker's 'configured:false' quirk scrutinised = test-fixture artifact, not masked fs-fallback. check green 1577/0. Merged as 16903fc."
 - ledgerRefs: ["tasks:T357","goals:G43"]
+
+## M147
+
+### R432 — go-ahead
+
+- createdAt: 2026-06-10T13:17:06.221Z
+- updatedAt: 2026-06-10T13:17:06.221Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T354 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 1 out-of-scope low defect (D52). Critical invariant holds: GitPlumbing.add/rmCached/lsFiles called ONLY from moveLedger.ts, never the backend (gitInvariants byte-identity 6/6) — host index untouched by normal writes. Lossless round-trip proven (byte-identity + tracked→untracked→tracked + R418 left-in-place, real archive seeded). --to/--force guards tested both directions; .gitignore add/remove byte-inverse; docs-relative tree matches GitPersistence. check green 1592/0. Merged as 590c203."
+- ledgerRefs: ["tasks:T354","goals:G43"]
+
+## M148
+
+### R433 — go-ahead
+
+- createdAt: 2026-06-10T13:17:09.979Z
+- updatedAt: 2026-06-10T13:17:09.979Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T355 implement-review — approve. Opus reviewer round 1, 0 criticism / 0 questions / 0 defects. All four /cq:* advance prompts carry backend-guarded START fetch + END plain NON-FORCED push of refs/heads/cq-ledger against the configured [ledger] remote (NO --force/force-with-lease/+ anywhere); chaining suppression yields exactly one fetch + one push per run; runbook file present covering rejected-push recovery + shallow-clone fetch + linked-worktree fallback; existing per-merge commit steps untouched (T358 scope intact); gen-agents regen leaves no drift; check green 1583/0. Merged as 2d4d932."
+- ledgerRefs: ["tasks:T355","goals:G43"]

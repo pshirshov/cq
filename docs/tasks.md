@@ -597,10 +597,10 @@ archives:
 
 ## M147
 
-### T354 — planned
+### T354 — done
 
 - createdAt: 2026-06-10T09:04:02.581Z
-- updatedAt: 2026-06-10T09:20:24.790Z
+- updatedAt: 2026-06-10T13:16:59.078Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Implement `cq move-ledger` CLI for bidirectional git<->local migration
@@ -609,13 +609,16 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T352","T349"]
 - ledgerRefs: ["goals:G43"]
+- resultCommit: 590c203
+- completion: "Native `cq move-ledger --to git|local` subcommand: lossless bidirectional ledger transplant. --to git snapshots docs/ into the orphan ref (GitPlumbing, docs-relative), git-rm--cached's the docs files (LEFT IN PLACE per R418), adds the shared git-backend .gitignore block, sets backend='git-object'. --to local reverses (materialize ref→docs, remove .gitignore block via new removeGitBackendGitignore, re-track, backend='fs'). Refuses without --to / non-empty target without --force; honours [ledger].branch; linked-worktree fallback in USAGE. New GitPlumbing.lsFiles/add/rmCached touch the real index ONLY from moveLedger (reviewer confirmed backend never calls them — host-byte-identity invariant intact, gitInvariants 6/6). Round-trip test proves byte-losslessness + tracked→untracked→tracked. check 1592/0 worktree, 1591/0 main. Reviewer filed low flaky-timeout defect D52."
+- sessionLogs: ["docs/logs/20260610-131612-ab4f9efb3dc5ce719.md","docs/logs/20260610-131612-a2177c35f6ce17f60.md"]
 
 ## M148
 
-### T355 — planned
+### T355 — done
 
 - createdAt: 2026-06-10T09:04:09.640Z
-- updatedAt: 2026-06-10T09:20:39.465Z
+- updatedAt: 2026-06-10T13:17:01.921Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Wire auto-fetch-at-start / non-forced auto-push-at-end of refs/heads/cq-ledger into the /cq:* commands"
@@ -624,6 +627,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T349"]
 - ledgerRefs: ["goals:G43"]
+- resultCommit: 2d4d932
+- completion: "All four /cq:*:advance prompts gained backend-guarded START auto-fetch (refs/heads/cq-ledger:refs/heads/cq-ledger from [ledger] remote) + END PLAIN NON-FORCED push (git push <remote> cq-ledger, no --force — divergence fails loudly), guarded on [ledger] backend='git-object'. Chaining suppression: wrapper /cq:advance owns the single run-START fetch / run-END push; sub-flows suppress when chained → exactly one fetch+push per run. Existing per-merge chore(ledger) commit steps UNTOUCHED (T358 scope). Runbook at docs/drafts/20260610-1300-orphan-ledger-runbook.md (rejected-push reconcile + shallow/single-branch fetch + linked-worktree fallback). agentsCatalogue.gen.ts regenerated, freshness guard passes. check 1583/0 worktree, 1591/0 main."
+- sessionLogs: ["docs/logs/20260610-131612-a7334485bf0fcb1a1.md","docs/logs/20260610-131612-a3afb1ae067f6e0d5.md"]
 
 ### T358 — planned
 

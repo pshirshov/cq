@@ -2,7 +2,7 @@
 ledger: defects
 counters:
   milestone: 0
-  item: 51
+  item: 52
 archives:
   - id: M2
     path: ./archive/defects/M2.md
@@ -206,6 +206,17 @@ archives:
     
     LIMITS: the hook refuses a PREMATURE stop, it cannot make a genuinely exhausted model productive (degraded forced-continuation is still better than a silent premature stop; the external-signal escape covers the real case). Closes the loophole for Claude Code runs; other harnesses need their own stop-hook equivalent, with the prose as fallback. The `cq advance-gate` CLI dovetails with the cq-cli work in G43 (T349/T354/T357).
 - ledgerRefs: ["decisions:K?"]
+
+### D52 — open
+
+- createdAt: 2026-06-10T13:16:18.219Z
+- updatedAt: 2026-06-10T13:16:18.219Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- headline: Git-object abstract-suite tests can exceed bun's 5000ms default timeout under full-suite parallel load (flaky check)
+- severity: low
+- description: "Surfaced by T354's review. The shared LedgerStore abstract suite (packages/ledger/test/store-abstract.ts, runStoreAbstractSuite) runs against GitObjectLedgerBackend, where EACH store op shells out to git (hash-object/ls-tree/write-tree/commit-tree/update-ref). Under the full `bun run check` parallel load, individual abstract-suite tests bound to the git backend can exceed bun's 5000ms DEFAULT per-test timeout — observed once on 'T143 — snapshot ... groups active items by ledger × status' (gitObjectLedgerBackend.test.ts), which passes deterministically in isolation (43/43); subsequent full-check runs were green (intermittent). EFFECT: `bun run check` can intermittently redden on a timeout (not a logic failure), undermining the green-check gate's determinism. Only the git-object binding is affected (Fs/InMemory finish in ms). FIX (small, separate task): give the git-object-bound abstract suite a git-aware per-test timeout (the suite already defines GIT_AWARE_TIMEOUT_MS=30_000 for its concurrency tests — generalise it: thread an optional timeoutMs through AbstractStoreFactory and apply it to the heavier tests, OR raise the global bun test timeout). Mirrors T356's concurrency-test timeout precedent."
+- ledgerRefs: ["goals:G43","tasks:T354","tasks:T356"]
 
 ## M135
 
