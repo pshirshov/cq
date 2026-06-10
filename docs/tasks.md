@@ -520,10 +520,10 @@ archives:
 
 ## M151
 
-### T361 — planned
+### T361 — done
 
 - createdAt: 2026-06-10T15:32:37.607Z
-- updatedAt: 2026-06-10T15:32:37.607Z
+- updatedAt: 2026-06-10T16:09:49.389Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add shared derivePredicates(store) to @cq/ledger
@@ -531,6 +531,9 @@ archives:
 - acceptance: derivePredicates exported from @cq/ledger; tsc -b + lint clean; compiles against the LedgerStore interface with no MCP dependency. (Tests in the next task.)
 - suggestedModel: frontier
 - ledgerRefs: ["goals:G44","defects:D50"]
+- resultCommit: c2faf669d75967452459877e57229d4eb5e05e89
+- completion: "Shared derivePredicates(store) in @cq/ledger (packages/ledger/src/store/predicates.ts) — single source of truth for the /cq:advance detection predicates (pInvestigate/pPlan/pImplement/openQuestionGate, each {value,items[]}), pure+sync over store reads, advance.md §Detection-predicates verbatim, no MCP dep, exported from the barrel. Panel approve (opus+codex+minimax, 0 findings); check 1602/0; smoke test 4/0 on main."
+- sessionLogs: ["docs/logs/20260610-160922-ab2a5b5513cf25dc4.md","docs/logs/20260610-160922-T361-review-panel.md"]
 
 ### T366 — planned
 
