@@ -53,6 +53,9 @@ import {
   createLedgerStore,
   nodeGitRunner,
   registerLedgerStdioTools,
+  LEDGER_TOOL_NAMES,
+  assertToolPrefix,
+  prefixToolName,
 } from "@cq/ledger";
 import { createConfigCapability } from "./configCapability.js";
 import { createPromptCatalogCapability } from "./promptCatalogCapability.js";
@@ -226,7 +229,7 @@ export function parseRestoreArgs(argv: readonly string[]): RestoreArgs {
  * per-project setup. Keep it short; per-repo policy belongs in the project's own
  * instructions (e.g. CLAUDE.md).
  */
-const SERVER_INSTRUCTIONS = [
+const SERVER_INSTRUCTIONS_TEMPLATE = [
   "This server is a markdown-backed planning ledger. Use it to track work as",
   "structured items instead of scratch notes or ad-hoc TODO files.",
   "",
@@ -275,6 +278,42 @@ const SERVER_INSTRUCTIONS = [
   "- fetch_ledger with compact:true — strips long narrative fields to avoid",
   "  token-overflow on large ledgers. Combine with offset/limit for pagination.",
 ].join("\n");
+
+/** Escape a string for safe use as a literal inside a RegExp. */
+function escapeRegExp(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Build the server-level usage guidance, optionally renaming each referenced
+ * ledger tool to its prefixed form (T377 / G45).
+ *
+ * `buildServerInstructions('')` returns {@link SERVER_INSTRUCTIONS_TEMPLATE}
+ * BYTE-IDENTICALLY (prefixToolName('', name) === name, so every substitution is
+ * a no-op). For a non-empty prefix, every WHOLE-WORD occurrence of a registered
+ * tool name is rewritten to `prefixToolName(prefix, name)`.
+ *
+ * Drift-free by construction: the set of names rewritten is the live
+ * {@link LEDGER_TOOL_NAMES}, and the prefixed form is derived via the shared
+ * {@link prefixToolName} helper (Q208 — derive once + reuse), never a separate
+ * hardcoded list. Names are replaced longest-first so a name that is a prefix
+ * of another (e.g. `fetch_ledger` vs `fetch_ledger_archive`) cannot be
+ * partially rewritten; `\b` boundaries (underscore is a word char) keep each
+ * substitution to a whole token.
+ */
+export function buildServerInstructions(toolPrefix: string): string {
+  assertToolPrefix(toolPrefix);
+  if (toolPrefix === "") return SERVER_INSTRUCTIONS_TEMPLATE;
+  // Longest names first so a shorter name that is a leading substring of a
+  // longer one does not consume the longer name's token.
+  const names = [...LEDGER_TOOL_NAMES].sort((a, b) => b.length - a.length);
+  let text = SERVER_INSTRUCTIONS_TEMPLATE;
+  for (const name of names) {
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, "g");
+    text = text.replace(pattern, prefixToolName(toolPrefix, name));
+  }
+  return text;
+}
 
 /**
  * Stable leading line carrying the project display name on `instructions`,
@@ -332,7 +371,7 @@ export function startLedgerCoherenceWatcher(
 
 export function buildServer(store: LedgerStore, displayName: string): McpServer {
   const serverInfo = { ...SERVER_INFO, title: displayName };
-  const instructions = `${projectInstructionLine(displayName)}\n\n${SERVER_INSTRUCTIONS}`;
+  const instructions = `${projectInstructionLine(displayName)}\n\n${buildServerInstructions("")}`;
   const server = new McpServer(serverInfo, {
     capabilities: { tools: {} },
     instructions,
