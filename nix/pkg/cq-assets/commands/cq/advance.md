@@ -164,42 +164,46 @@ an orphan branch outside the normal fetch refspec (see the runbook,
 failure here means the local ref diverged from the remote — STOP and follow the
 runbook's rejected-push / divergence recovery rather than forcing the ref.
 
-## Bootstrap recipe (T156 / Q79 — snapshot-first start)
+## Bootstrap recipe (T156 / Q79 — derive_predicates-first start)
 
 At the very start of each `/cq:advance` run (and at the start of each cycle),
-derive **all three detection predicates** from **ONE tool call**:
+obtain **all four detection values** (P-investigate, P-plan, P-implement, and
+the open-question gate) from **ONE tool call**:
+
+```
+mcp__ledger__derive_predicates()
+```
+
+`derive_predicates` is the `mcp__ledger__derive_predicates` MCP tool (no
+required params). It returns:
+
+```json
+{
+  "pInvestigate":      { "value": boolean, "items": [{ "id", "status", "summary" }] },
+  "pPlan":             { "value": boolean, "items": [{ "id", "status", "summary" }] },
+  "pImplement":        { "value": boolean, "items": [{ "id", "status", "summary" }] },
+  "openQuestionGate":  { "value": boolean, "items": [{ "id", "status", "summary" }] }
+}
+```
+
+Each `.value` is the authoritative boolean for that predicate; `.items[]`
+lists the specific ledger items that drove the result (actionable items, or
+open-question gate items). **These values ARE the predicates** — do not
+re-derive them by hand from raw ledger state.
+
+`derive_predicates` applies the SAME shared `derivePredicates()` logic that
+backs the `cq advance-gate` Stop-hook CLI — so the prose definitions below,
+this MCP tool, and the stop-hook can never drift from one another.
+
+**Fallback for edge cases.** `derive_predicates` is the sole authoritative
+predicate source. If you need the full item view (long narrative fields,
+`dependsOn` chain detail) for a specific item, call **`snapshot()`** or
+**`fetch_ledger`** with `compact: true` as supplementary read-only queries —
+but the predicate VALUES still come from `derive_predicates`, not from a
+hand-derivation over those supplementary results:
 
 ```
 snapshot()
-```
-
-`snapshot` is the `mcp__ledger__snapshot` MCP tool (no required params).
-It returns `{ ledger: { [ledgerId]: { [status]: { count, items: [{id,status,summary}] } } } }` —
-a compact `{id, status, summary}` view of every active item across every
-active ledger, grouped by `ledgerId` × `status`. No long narrative fields;
-stays well under token-overflow thresholds even on large repos.
-
-**Deriving the predicates from the snapshot — all three at once:**
-
-From the single `snapshot()` result:
-- **P-investigate**: check `defects` bucket — any item whose `status` ∈
-  `{open, wip, inconclusive}` AND (after cross-referencing `questions` bucket)
-  not solely blocked by an `open` question AND not linked as
-  goal-owned (see §P-investigate below for the exact exclusion rules).
-- **P-plan**: check `goals` bucket — any item whose `status` ∈
-  `{clarifying, planning}` where `clarifying` items are only movable if no
-  linked `open` question blocks them (see §P-plan below).
-- **P-implement**: check `tasks` bucket — any item whose `status` is
-  non-terminal and non-`blocked`, then cross-check `milestones` bucket to
-  confirm milestone-level `dependsOn` are satisfied (see §P-implement below).
-- **Open-questions gate**: check `questions` bucket — `open` items gate the
-  predicates above; their owning items are identified by `ledgerRefs`.
-
-If the snapshot result is insufficient to resolve an edge case (e.g. you
-need to confirm a specific `dependsOn` chain or read a full item's fields),
-fall back to **`fetch_ledger`** with `compact: true` for the specific ledger:
-
-```
 fetch_ledger({ ledger_id: "tasks",    compact: true })
 fetch_ledger({ ledger_id: "defects",  compact: true })
 fetch_ledger({ ledger_id: "goals",    compact: true })
@@ -211,18 +215,26 @@ for pagination on large ledgers. Use `fetch_item` for a single item's full
 fields only when the compact view is not enough.
 
 **Rule:** this bootstrap MUST NOT exceed ~2 tool calls for the common case
-(snapshot + at most one targeted follow-up). The ~13-call per-ledger sweep
-(evidence #1) is replaced by this recipe; the per-flow DAG/phase semantics
-stay in the detection predicates below (per Q75 — snapshot is generic/
-flow-agnostic; the three predicates are the flow-specific logic).
+(`derive_predicates` + at most one targeted follow-up). The ~13-call
+per-ledger sweep (evidence #1) is replaced by this recipe; the per-flow
+DAG/phase semantics are documented in the detection predicates below (per Q75
+— `derive_predicates` is the authoritative source; the definitions below
+document what it computes).
 
 ---
 
 ## Detection predicates (the three ledger queries — Q55)
 
-Before each stage you run a LEDGER QUERY to decide whether that stage has work.
-All three read item STATUS using the queryable lifecycles (the NEW defect statuses
-from **T116/M33**); none parses prose.
+**Operational source of truth: `mcp__ledger__derive_predicates`.** Before each
+stage, call `mcp__ledger__derive_predicates` (§Bootstrap recipe) and read the
+`.value` fields. The prose definitions below document exactly what
+`derive_predicates` computes — they are the specification, not the derivation
+procedure. The same shared `derivePredicates()` logic that backs this MCP tool
+also backs the `cq advance-gate` Stop-hook CLI, so the prose definitions, the
+MCP tool, and the stop-hook always agree.
+
+All three predicates read item STATUS using the queryable lifecycles (the NEW
+defect statuses from **T116/M33**); none parses prose.
 
 ### P-investigate — is there a defect actionable by /cq:investigate:advance?
 TRUE iff there exists a **defect** D such that ALL hold:
@@ -316,12 +328,12 @@ anywhere) **OR every actionable item is BLOCKED on an unanswered user question**
 A stop is legitimate ONLY when the predicates say so — never because the run has
 cost effort. Before you may end a run you MUST do BOTH, in order:
 
-1. **Re-derive and STATE the gate.** Emit the three predicates + the open-question
-   gate from the ledger, explicitly: `P-investigate=… / P-plan=… / P-implement=…
-   / open-Q-gate=…`. You may end ONLY if that line shows all three FALSE (DRAINED)
-   or every still-TRUE predicate is gated solely by an unanswered `open` question
-   (BLOCKED / MIXED). If any predicate is TRUE and nothing blocks it, you have NOT
-   reached a legal stop — **CONTINUE**.
+1. **Re-derive and STATE the gate.** Call `mcp__ledger__derive_predicates` and
+   emit the four values explicitly: `P-investigate=… / P-plan=… / P-implement=…
+   / open-Q-gate=…`. You may end ONLY if that line shows all three P-predicates
+   FALSE (DRAINED) or every still-TRUE predicate is gated solely by an unanswered
+   `open` question (BLOCKED / MIXED). If any predicate is TRUE and nothing blocks
+   it, you have NOT reached a legal stop — **CONTINUE**.
 2. **Write the run-level `handoffs` record** (§Provenance / §End-of-run). This is
    the GATE: its only legal statuses are `drained` / `answers-required` /
    `user-action-required` / `mixed` / `illness-detected`, and each REQUIRES a
@@ -629,8 +641,8 @@ report it. Mirror `/cq:implement:advance`'s end-of-pass report style
   user-action-required]`; Q139). Next action: answer the listed questions and/or
   perform the named action, then re-run `/cq:advance`.
 
-To build the report, re-derive the three predicates one final time from the
-ledger: if all three are FALSE and no `open` question gates any actionable item →
+To build the report, call `mcp__ledger__derive_predicates` one final time: if all
+three P-predicates are FALSE and no `open` question gates any actionable item →
 **DRAINED**; if the only thing standing between an item and progress is an
 unanswered question → **BLOCKED-ON-QUESTIONS**; if the only thing standing between
 a SPECIFIC NAMED item and progress is a user manual/environment action (no `open`
