@@ -267,10 +267,10 @@ archives:
 
 ## M162
 
-### D57 — root-caused
+### D57 — resolved
 
 - createdAt: 2026-06-10T21:54:54.962Z
-- updatedAt: 2026-06-10T21:59:28.597Z
+- updatedAt: 2026-06-10T23:40:13.906Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Session-log markdown viewer renders JSON code fences (e.g. 'Captured stdout (verbatim)') as one unwrapped ultra-long line — should pretty-print + colorize JSON
@@ -283,3 +283,4 @@ archives:
 - suggestedFix: "ledger-web. (1) Add a `components.code` renderer to react-markdown (in Markdown.tsx, or a popup-scoped Markdown variant) that, for a `language-json` fence OR content that JSON.parse-es successfully, re-serializes via JSON.stringify(parsed, null, 2) before rendering, and optionally syntax-colorizes (a tiny token-regex colorizer keyed to the existing theme CSS vars, or add a lightweight highlighter dep — e.g. rehype-highlight/highlight.js or prismjs). (2) Add line-wrapping CSS to the code block (`.lw-md pre`/`.lw-md pre code` or a popup-scoped `.lw-log-content pre`): `white-space: pre-wrap; overflow-wrap: anywhere;` so any long line wraps. SCOPE DECISION (planner): the Markdown component is shared by all markdown fields (renderVal/detail fields), so decide whether the json-pretty-print + wrap applies globally (all markdown code fences) or only the log popup (a Markdown `prettyJson`/`wrap` prop, or popup-scoped CSS + a popup-only code renderer). The pretty-print must be SAFE: parse-failure falls back to the raw text unchanged (never throw); preserve rehype-sanitize."
 - sessionLogs: ["docs/logs/20260610-215726-ab96c0f29862c38fd.md"]
 - ledgerRefs: ["goals:G47"]
+- fix: "Resolved by T385 (merged c3fdbe4): the ledger-web shared Markdown component now renders json code fences via a components.code renderer that JSON.stringify(parse,null,2)-pretty-prints + theme-var-colorizes (lw-json-* spans) with a SAFE try/catch raw fallback, and .lw-md pre now sets white-space:pre-wrap/overflow-wrap so long lines wrap. The pi-log 'Captured stdout (verbatim)' json blocks now render multi-line, colorized, and wrapped. Fix task set {T385} done → D57 resolved. check 1678/0 + nix build .#ledger-web green."

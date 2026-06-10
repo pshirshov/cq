@@ -565,10 +565,10 @@ archives:
 
 ## M165
 
-### T385 — planned
+### T385 — done
 
 - createdAt: 2026-06-10T22:12:52.701Z
-- updatedAt: 2026-06-10T22:12:52.701Z
+- updatedAt: 2026-06-10T23:39:59.857Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Pretty-print + colorize JSON code fences + wrap long lines in the ledger-web Markdown renderer (fix D57)
@@ -581,13 +581,16 @@ archives:
 - suggestedModel: standard
 - dependsOn: []
 - ledgerRefs: ["goals:G47","defects:D57"]
+- resultCommit: c3fdbe4
+- completion: "ledger-web Markdown renderer: components.code pretty-prints + theme-var-colorizes json fences (SAFE try/catch raw fallback) + .lw-md pre white-space:pre-wrap; round-2 fixed a nested-<pre> defect (bare <code>, react-markdown owns the <pre>). Fixes D57. check 1678/0 + nix build .#ledger-web green."
+- sessionLogs: ["docs/logs/20260610-233921-T385-worker.md","docs/logs/20260610-233921-T385-reviews.md"]
 
 ## M166
 
-### T386 — planned
+### T386 — done
 
 - createdAt: 2026-06-10T22:23:00.362Z
-- updatedAt: 2026-06-10T22:23:00.362Z
+- updatedAt: 2026-06-10T23:40:02.684Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Add @cq/ledger-{mcp,tui,web} as workspace deps of @cq/cli"
@@ -596,6 +599,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: []
 - ledgerRefs: ["goals:G48"]
+- resultCommit: bbb301b
+- completion: "Added @cq/ledger-{mcp,tui,web} as workspace:* deps of cq-cli (package.json + bun.lock + mirrored tsconfig paths/references). check 1674/0."
+- sessionLogs: ["docs/logs/20260610-233921-T386.md"]
 
 ### T387 — planned
 
