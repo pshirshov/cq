@@ -97,7 +97,7 @@ describe("D61 — two git-object stores over one repo+ref, no cross-invalidate",
   // EXPECTED to fail today: the lost-update reproduces (clobbered title +
   // duplicate M<n>). Flip to `test` once H41's fix (reload from ref tip after
   // lock) lands (T425).
-  test.failing(
+  test(
     "sequential interleave across two un-invalidated stores loses a milestone write (lost update)",
     async () => {
       const dir = await seedRepo();

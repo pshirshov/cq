@@ -544,6 +544,9 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
     patch: UpdateMilestoneItemPatch,
   ): Promise<Item> {
     const item = await this.withMilestonesLock(async () => {
+      // H41/D61: reload the milestones ledger from the ref tip under the lock so
+      // we mutate fresh in-memory state (counters + items), not a stale cache.
+      await this.reloadLedgerFromDisk(MILESTONES_LEDGER);
       const ledger = this.getLedger(MILESTONES_LEDGER);
       const it = applyUpdateMilestoneItem(ledger, milestoneId, patch, this.now());
       await this.writeLedgerFile(ledger);
@@ -560,6 +563,8 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
     patch: UpdateItemPatch,
   ): Promise<Item> {
     const it = await this.withLock(ledgerId, async () => {
+      // H41/D61: reload from the ref tip under the lock before reading/mutating.
+      await this.reloadLedgerFromDisk(ledgerId);
       const ledger = this.getLedger(ledgerId);
       const precondition = this.statusChangePrecondition(ledgerId, ledger, itemId, patch);
       const x = applyUpdateItem(ledger, itemId, patch, this.now(), precondition);
@@ -581,8 +586,14 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
       );
     }
     const item = await this.withMilestonesLock(async () => {
+      // H41/D61: reload the milestones ledger from the ref tip before the
+      // active-group check so it reflects peer commits.
+      await this.reloadLedgerFromDisk(MILESTONES_LEDGER);
       assertMilestoneActive(this.getLedger(MILESTONES_LEDGER), milestoneId);
       return this.withLock(ledgerId, async () => {
+        // H41/D61: reload the target ledger from the ref tip before id
+        // allocation + mutation so fresh counters/items are used.
+        await this.reloadLedgerFromDisk(ledgerId);
         const ledger = this.getLedger(ledgerId);
         const x = applyCreateItem(ledger, milestoneId, init, this.now());
         await this.writeLedgerFile(ledger);
@@ -595,6 +606,9 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
 
   async createMilestone(init: CreateMilestoneItemInit): Promise<Item> {
     const item = await this.withMilestonesLock(async () => {
+      // H41/D61: reload the milestones ledger from the ref tip under the lock so
+      // id allocation uses fresh counters (no duplicate M<n> / clobbered write).
+      await this.reloadLedgerFromDisk(MILESTONES_LEDGER);
       const ledger = this.getLedger(MILESTONES_LEDGER);
       const x = applyCreateMilestoneItem(ledger, init, this.now());
       await this.writeLedgerFile(ledger);
@@ -644,6 +658,8 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
     toStatus: string,
   ): Promise<Item> {
     const it = await this.withLock(ledgerId, async () => {
+      // H41/D61: reload from the ref tip under the lock before reading/mutating.
+      await this.reloadLedgerFromDisk(ledgerId);
       const ledger = this.getLedger(ledgerId);
       const x = applyReopenItem(ledger, itemId, toStatus, this.now());
       await this.writeLedgerFile(ledger);
@@ -660,6 +676,8 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
   ): Promise<Item> {
     const isMilestones = ledgerId === MILESTONES_LEDGER;
     const reattached = await this.withLock(ledgerId, async () => {
+      // H41/D61: reload from the ref tip under the lock before reading/mutating.
+      await this.reloadLedgerFromDisk(ledgerId);
       const ledger = this.getLedger(ledgerId);
       const ptr = ledger.archivePointers.find((p) => p.id === milestoneId);
       if (ptr === undefined) {
@@ -892,6 +910,15 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
       throw new BootstrapViolationError(
         `${MILESTONES_AMBIENT_ID} is immortal and cannot be archived`,
       );
+    }
+    // H41/D61: under archiveMilestone's all-held locks (milestones lock + every
+    // per-ledger lock acquired in order), reload the milestones ledger and every
+    // participating ledger from the ref tip before reading/mutating, so the
+    // archive operates on fresh in-memory state rather than a stale cache.
+    await this.reloadLedgerFromDisk(MILESTONES_LEDGER);
+    for (const name of Array.from(this.ledgers.keys())) {
+      if (name === MILESTONES_LEDGER) continue;
+      await this.reloadLedgerFromDisk(name);
     }
     // Phase 1 — verify no non-terminal items in ANY ledger.
     for (const [name, ledger] of this.ledgers) {
