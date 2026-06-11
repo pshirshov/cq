@@ -609,10 +609,10 @@ archives:
 - completion: "cq dispatcher routes mcp|tui|web BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam); ledger-tui refactored to export main(argv) (self-run via main(process.argv.slice(2))); jsx:react-jsx tsconfig fix for the cross-package .tsx import. dispatch.test.ts (11). check 1682/0."
 - sessionLogs: ["docs/logs/20260610-235859-T387.md"]
 
-### T388 — planned
+### T388 — done
 
 - createdAt: 2026-06-10T22:23:24.462Z
-- updatedAt: 2026-06-10T22:23:24.462Z
+- updatedAt: 2026-06-11T00:40:18.067Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Update cq --help/USAGE to list mcp|tui|web modes plus the native subcommands
@@ -621,11 +621,14 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T387"]
 - ledgerRefs: ["goals:G48"]
+- resultCommit: 7d6a8fc
+- completion: cq USAGE now lists mcp|tui|web modes (with flag signatures + mcp restore) alongside the 5 native subcommands; header <mode|command>; dispatch.test.ts asserts all present. check 1683/0.
+- sessionLogs: ["docs/logs/20260611-003952-T388.md"]
 
-### T389 — planned
+### T389 — wip
 
 - createdAt: 2026-06-10T22:23:30.575Z
-- updatedAt: 2026-06-10T22:23:30.575Z
+- updatedAt: 2026-06-10T23:59:43.967Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add cq-dispatch tests for mode routing, verbatim pass-through, and restore
@@ -637,10 +640,10 @@ archives:
 
 ## M167
 
-### T390 — planned
+### T390 — done
 
 - createdAt: 2026-06-10T22:23:36.264Z
-- updatedAt: 2026-06-10T22:23:36.264Z
+- updatedAt: 2026-06-11T00:40:20.352Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Remove the ledger-mcp/ledger-tui/ledger-web bin entries (delete the standalone CLIs)
@@ -649,6 +652,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T387"]
 - ledgerRefs: ["goals:G48"]
+- resultCommit: be42ffa
+- completion: Removed the bin block from the 3 product package.json (standalone CLIs deleted); source + exports + import.meta.main guards preserved; cq mcp/tui/web work via the dispatch. check 1682/0.
+- sessionLogs: ["docs/logs/20260611-003952-T390.md"]
 
 ### T391 — planned
 

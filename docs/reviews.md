@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 470
+  item: 472
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -913,3 +913,29 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T387","goals:G48"]
 - sessionLogs: ["docs/logs/20260610-235859-T387.md"]
+
+### R471 — go-ahead
+
+- createdAt: 2026-06-11T00:40:24.128Z
+- updatedAt: 2026-06-11T00:40:24.128Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T388 — reconciled approve (3 of 4 approve; grok disapprove ADJUDICATED INVALID). USAGE lists mcp/tui/web + 5 native subcommands; check 1683/0. grok's claim that `expect(USAGE).toContain('mcp')` can't pass is FALSE — USAGE is a STRING (`[...].join('\\n')`), so toContain is a valid substring check (green check confirms); grok's other nits non-blocking (existing no-args test enforces the usage path; format matches; 'cq mcp not unknown' handled by T387)."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T388","goals:G48"]
+- sessionLogs: ["docs/logs/20260611-003952-T388.md"]
+
+## M167
+
+### R472 — go-ahead
+
+- createdAt: 2026-06-11T00:40:27.250Z
+- updatedAt: 2026-06-11T00:40:27.250Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: T390 — UNANIMOUS approve (4-reviewer panel). Only the 3 product `bin` blocks removed (9 deletions); source + exports (main/serve/attachMcpHttp/createLedgerMcpServer) + import.meta.main guards intact; flake.nix/.mcp.json/tools.nix untouched (later tasks); no dangling bin-name refs; check 1682/0.
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T390","goals:G48"]
+- sessionLogs: ["docs/logs/20260611-003952-T390.md"]
