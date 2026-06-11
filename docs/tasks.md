@@ -569,156 +569,21 @@ archives:
     summary: "G48-A (cq dispatcher delegates mcp|tui|web in-process) COMPLETE: T386 added @cq/ledger-{mcp,tui,web} as cq-cli workspace deps (+mirrored tsconfig paths/references); T387 (load-bearing) added the MODES routing layer to dispatch() running BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam) + refactored ledger-tui run()→exported main(argv) + jsx:react-jsx tsconfig fix; T388 USAGE lists mcp/tui/web modes + the 5 native subcommands; T389 dispatch tests ((c) relative-cwd verbatim no-resolveRoot + (e) native-subcommand regression guard, dedup'd helper). All 4 tasks done + reviewed (R469/R470/R471/R473 go-ahead; T385-style grok-dissent on T388 adjudicated invalid [USAGE is a string], T389 dedup'd in a round-2 criticism loop). Merged bbb301b/baf1077/7d6a8fc/4dc1802. check 1688/0."
     title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
     status: done
+  - id: M167
+    path: ./archive/tasks/M167.md
+    summary: G48-B (delete standalone tools + collapse flake to one .#cq) COMPLETE. T390 removed the 3 product bin entries; T391 built the merged .#cq closure (union of embedServerClosure + extracted tuiClosure/webClosure + @cq symlinks + LEDGER_WEB_OUTDIR), round-2-fixed a reproduced missing-parent cp defect; T392 dropped the ledgerMcp/ledgerTui/ledgerWeb derivations and collapsed packages/apps to cq/default. Tasks T390-T392; reviews R472/R474/R475 (all UNANIMOUS approve). Merged on main; nix flake show lists only cq.
+    title: "G48-B: delete standalone tools + collapse flake to one .#cq"
+    status: done
+  - id: M168
+    path: ./archive/tasks/M168.md
+    summary: G48-C (migrate all call sites to cq mode) COMPLETE. T393 .mcp.json ledger server -> `.#cq mcp`; T394 nix/hm/tools.nix MCP-server command -> ${cq}/bin/cq args ["mcp"] + PATH collapsed to [cq]; T395 migrated user-facing docs (CLAUDE.md/README/package READMEs) to `cq mcp|tui|web`, leaving @cq/ package ids + bun-from-source paths + the embedded-mode narrative intact. Tasks T393-T395; reviews R476/R477/R478 (all UNANIMOUS approve). Merged on main.
+    title: "G48-C: migrate all call sites to cq mode (.mcp.json + tools.nix + docs)"
+    status: done
+  - id: M169
+    path: ./archive/tasks/M169.md
+    summary: "G48-D (FOD refresh + acceptance gate) COMPLETE. T396 refreshed the node-modules FOD hash after cq-cli's @cq/* dep additions; T397 acceptance gate PASS (bun run check 0 fail; nix build .#cq green; full launch parity: cq mcp stdio 26 tools + http /mcp, web embedded SPA+/mcp + --mcp-url proxy, tui routes, restore routes, old products gone). The gate surfaced + fixed two build/runtime defects invisible to the eval-only T391 acceptance: D58 (T398 — cq-cli staged one level too deep via cp-into-existing-dir) and D59 (T399 — dispatcher process.exit tore down long-running modes; fixed via a longRunning flag). Tasks T396-T399; defects D58/D59 resolved; reviews R479/R480/R481. Merged on main. G48 unify-CLI COMPLETE — cq mcp|tui|web is behavior-equivalent to the 3 former standalone tools."
+    title: "G48-D: FOD-hash refresh + nix build .#cq acceptance gate"
+    status: done
 ---
 
 # tasks
-
-## M167
-
-### T390 — done
-
-- createdAt: 2026-06-10T22:23:36.264Z
-- updatedAt: 2026-06-11T00:40:20.352Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Remove the ledger-mcp/ledger-tui/ledger-web bin entries (delete the standalone CLIs)
-- description: "Per Q214/Q215 the standalone tools are DELETED. Remove the `bin` block from packages/ledger-{mcp,tui,web}/package.json so they expose NO standalone executable. They REMAIN importable libraries — @cq/cli depends on their exported main(argv)/serve, and ledger-tui/-web also depend on @cq/ledger-mcp's exported server helpers, which all STAY. Do NOT delete the source files or the exported main()/serve()/attachMcpHttp/createLedgerMcpServer — only the `bin` registration. Keep the `import.meta.main` guards (harmless; the bins no longer point at them, and in-process delegation runs with import.meta.main false). Verify nothing else in the workspace references those three bin names."
-- acceptance: The three package.json files have no `bin` key; bun run typecheck green; importing each package still yields its exported main/serve; no remaining workspace reference to the three bin names. (cq mcp/tui/web still work via the T387 dispatch.)
-- suggestedModel: standard
-- dependsOn: ["T387"]
-- ledgerRefs: ["goals:G48"]
-- resultCommit: be42ffa
-- completion: Removed the bin block from the 3 product package.json (standalone CLIs deleted); source + exports + import.meta.main guards preserved; cq mcp/tui/web work via the dispatch. check 1682/0.
-- sessionLogs: ["docs/logs/20260611-003952-T390.md"]
-
-### T391 — done
-
-- createdAt: 2026-06-10T22:23:50.021Z
-- updatedAt: 2026-06-11T01:23:18.462Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Build the merged .#cq derivation closure (union of all four product stagings)
-- description: "In flake.nix rewrite the `cqCli` derivation so its workspace stages the UNION needed for all modes. R466 (opus-grounded) PRECISION: the per-product stagings are NOT all named fragments — `embedServerClosure` + `cqConfigForLedger` ARE named shell fragments, but the TUI staging is INLINE in the `ledgerTui` derivation (flake.nix ~281-323) and the WEB SPA staging is INLINE in the `ledgerWeb` derivation (flake.nix ~348-395), and T392 DELETES those derivations. Therefore: FIRST EXTRACT the inline tui staging (ink/react links + ledger-tui source) and the inline web staging (ledger-web source + react/react-dom/react-markdown/remark-gfm/rehype-sanitize/elkjs links + index.html + the LEDGER_WEB_OUTDIR writable-bundle wrapper env) into NEW named `let` fragments (e.g. `tuiClosure`, `webClosure`) alongside embedServerClosure — BEFORE/within this task, so T392's deletion of ledgerTui/ledgerWeb does not remove staging logic cqCli now needs. THEN have cqCli reuse `embedServerClosure` + `tuiClosure` + `webClosure` + the existing cq-cli/@cq/ledger/@cq/config staging, and wire the @cq/ledger-{mcp,tui,web,live} workspace symlinks into packages/cq-cli/node_modules/@cq/ so the dispatcher's dynamic imports resolve. The wrapper still targets cq-cli/src/main.ts and carries the LEDGER_WEB_OUTDIR env. RISK: a missing SPA-build symlink → `cq web` fails at Bun.build startup; a missing embed link → embedded /mcp breaks — caught by the T397 launches."
-- acceptance: "EXPLICIT CLOSURE-INPUT CHECKLIST (local acceptance, R466): the rewritten cqCli stages ALL of — (1) embedServerClosure (ledger + ledger-mcp + cq-config + deps for `cq mcp` + embedded servers); (2) tuiClosure (ink/react + ledger-tui source); (3) webClosure (ledger-web source + react/react-dom/react-markdown/remark-gfm/rehype-sanitize/elkjs + index.html); (4) @cq/ledger-{mcp,tui,web,live} symlinks under cq-cli/node_modules/@cq; (5) the LEDGER_WEB_OUTDIR wrapper env; and the tui/web inline stagings are EXTRACTED into named fragments so T392 can delete ledgerTui/ledgerWeb without removing needed code. (The green `nix build .#cq` is gated after T396 FOD-refresh in T397; this task's acceptance is the closure-input checklist + extraction being complete + reviewable.)"
-- suggestedModel: frontier
-- dependsOn: ["T390"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-012254-T391.md"]
-
-### T392 — done
-
-- createdAt: 2026-06-10T22:23:55.180Z
-- updatedAt: 2026-06-11T01:46:56.680Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Drop the per-product ledgerMcp/ledgerTui/ledgerWeb derivations and their packages/apps
-- description: "Per Q217 collapse to ONE product. In flake.nix delete the `ledgerMcp`, `ledgerTui`, `ledgerWeb` derivation bindings (KEEP the named fragments `embedServerClosure`/`cqConfigForLedger`/`tuiClosure`/`webClosure` — the latter two extracted in T391 — now consumed by cqCli). Update `packages`: remove `ledger-mcp`/`ledger-tui`/`ledger-web`, set `default = cqCli` and keep `cq = cqCli`; keep `node-modules`. Update `apps`: remove `apps.ledger-mcp/tui/web`, set `apps.default` + `apps.cq` to cqCli's bin. Leave the LLM-asset packages (cq-assets etc.) untouched. ATOMICITY NOTE (R466): T391 ADDS `.#cq` alongside the existing products; the call-site migrations T393(.mcp.json)/T394(tools.nix)/T395(docs) repoint every reference to `.#cq` (they dep T391, not this drop). The consistent end-state (no dangling `.#ledger-mcp` reference anywhere) is the T397 acceptance gate's responsibility — T397 deps BOTH this drop and the migrations. Verify `nix flake show` no longer lists the three old products."
-- acceptance: "`nix flake show` lists `packages.cq` + `packages.default` (=cq) and NO ledger-mcp/ledger-tui/ledger-web packages or apps; `nix eval .#packages.<system>.cq.name` resolves; the LLM-asset packages are untouched. (Final consistency — no surviving `.#ledger-mcp` reference — asserted by the T397 gate alongside the migrations.)"
-- suggestedModel: standard
-- dependsOn: ["T391"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T392.md"]
-
-## M168
-
-### T393 — done
-
-- createdAt: 2026-06-10T22:24:06.172Z
-- updatedAt: 2026-06-11T01:46:58.559Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Migrate .mcp.json to launch the ledger MCP server via cq mcp
-- description: "Update repo-root .mcp.json: change the `ledger` server from `{command:\"nix\", args:[\"run\",\".#ledger-mcp\",\"--\", ...]}` to `{command:\"nix\", args:[\"run\",\".#cq\",\"--\",\"mcp\", ...]}` (preserve any existing trailing args). This keeps the registered stdio MCP server working as `cq mcp` (stdout protocol-only, preserved by delegating to ledger-mcp's main). Confirm no other `.#ledger-mcp` invocation remains in the repo-root config."
-- acceptance: .mcp.json references `.#cq` + `mcp` and no longer references `.#ledger-mcp`; after `nix build .#cq` (T397), spawning `nix run .#cq -- mcp` over stdio responds to an MCP `initialize` identically to the old ledger-mcp (the 26-tool list).
-- suggestedModel: standard
-- dependsOn: ["T391"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T393.md"]
-
-### T394 — done
-
-- createdAt: 2026-06-10T22:24:13.184Z
-- updatedAt: 2026-06-11T01:46:59.988Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Migrate nix/hm/tools.nix MCP-server command + PATH tools to the cq product
-- description: "In nix/hm/tools.nix (the home-manager wiring — NOTE: the product-name references live HERE, not in dev-llm.nix): (1) the `programs.mcp.servers.ledger` entry currently runs `${ledgerPkg}/bin/ledger-mcp` (ledgerPkg = ledgerPkgs.ledger-mcp) with args=[] — change to `ledgerPkg = ledgerPkgs.cq`, `command = \"${ledgerPkg}/bin/cq\"`, `args = [\"mcp\"]` (the HTTP variant becomes `[\"mcp\" \"--http\" PORT]`). (2) the `ledgerTools` PATH list (ledgerPkgs.ledger-mcp/ledger-tui/ledger-web/cq, ~lines 41-46) collapses to just `[ ledgerPkgs.cq ]` since `cq` now provides all modes on PATH. Update the surrounding comments naming the three old tools. Confirm no other nix/hm/*.nix file references the dropped package attrs (ledgerPkgs.ledger-mcp/tui/web)."
-- acceptance: "`nix eval` of the home-manager module(s) evaluates without referencing the now-removed ledger-mcp/ledger-tui/ledger-web package attrs; grep of nix/hm/ shows the ledger MCP server command is `.../bin/cq` + args `[\"mcp\"]` and PATH carries only the `cq` product."
-- suggestedModel: frontier
-- dependsOn: ["T391"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T394.md"]
-
-### T395 — done
-
-- createdAt: 2026-06-10T22:24:19.995Z
-- updatedAt: 2026-06-11T01:47:01.516Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Migrate docs (CLAUDE.md, package READMEs) from ledger-mcp/tui/web to cq mode
-- description: "Update the prose call sites that name the standalone tools to `cq mcp|tui|web`: repo-root + nix/pkg/cq-ledgers/CLAUDE.md (the build/nix-products bullets: `nix build .#ledger-mcp|.#ledger-tui|.#ledger-web` → `nix build .#cq`), packages/ledger-{mcp,tui,web} README/header references documenting the bin invocation, and any other in-repo markdown referencing the three product NAMES as user-facing commands. Leave internal symbol/package names (@cq/ledger-mcp, the exported main) intact — only the user-facing tool/product invocations change. Keep the embedded-mode narrative intact (TUI in-memory transport; web /mcp+/ws). Do NOT hand-edit files under docs/ (ledger sources — go through MCP tools). Search the repo for the three names used as a COMMAND/product and convert."
-- acceptance: grep across non-docs/ markdown shows no user-facing `.#ledger-mcp|.#ledger-tui|.#ledger-web` or `ledger-mcp --http`/`ledger-web --port`/`ledger-tui` command references; CLAUDE.md nix-products line names `.#cq`; embedded-mode narrative preserved. bun run check unaffected (docs).
-- suggestedModel: standard
-- dependsOn: ["T391"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T395.md"]
-
-## M169
-
-### T396 — done
-
-- createdAt: 2026-06-10T22:24:29.767Z
-- updatedAt: 2026-06-11T01:58:50.477Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Refresh the node-modules FOD hash after the cq-cli dependency additions
-- description: "Because @cq/ledger-{mcp,tui,web} were added to cq-cli/package.json (T386) and bun.lock changed, the shared `bunNodeModules` FOD must be refreshed. In flake.nix's node-modules FOD: confirm the fileset still unions every package.json (the three product package.json files are unchanged in identity — only their bin removed; cq-cli's gained deps). Set `outputHash` to 52 `A`s, run `nix build .#node-modules` from the repo root, paste the reported `got:` sha256 back into `outputHash`. Documented FOD-refresh choreography (CLAUDE.md). MUST happen before the final `.#cq` build."
-- acceptance: "`nix build .#node-modules` succeeds with the pasted hash (no hash-mismatch); the FOD output contains packages/cq-cli/node_modules with the three new @cq workspace links present."
-- suggestedModel: standard
-- dependsOn: ["T386","T390"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T396.md"]
-
-### T397 — done
-
-- createdAt: 2026-06-10T22:24:37.389Z
-- updatedAt: 2026-06-11T02:51:17.480Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: "Acceptance gate: bun run check + nix build .#cq + all-mode launch parity + existing suites unchanged"
-- description: "Final behavior-invariance verification (Q218). (1) `bun run check` (test+typecheck+lint) from nix/pkg/cq-ledgers/ green — AND confirm the existing ledger-mcp/ledger-tui/ledger-web product test suites (mcp tool tests, ink-testing-library, happy-dom) stay UNCHANGED and still pass (they exercise the embedded-MCP path — the byte-for-byte invariant; fold-in from minimax). (2) `nix build .#cq` from repo root green. (3) Mode parity vs pre-refactor: (a) `nix run .#cq -- mcp` serves the .mcp.json stdio registration (initialize → 26 tools) AND `nix run .#cq -- mcp --http 7777` serves Streamable HTTP on /mcp; (b) `nix run .#cq -- tui` launches embedded (in-memory transport) + `--mcp-url` remote; (c) `nix run .#cq -- web` launches embedded (/mcp+/ws + SPA Bun.build) + `--mcp-url` proxy; (d) `cq mcp restore --from-cache` works; (e) the old `.#ledger-mcp|tui|web` products are gone (`nix flake show`). Capture observed output as operational evidence."
-- acceptance: "`bun run check` exits 0 (incl. the unchanged product suites); `nix build .#cq` succeeds; each of the launch checks (mcp stdio+http, tui embedded+remote, web embedded+proxy, restore, products-removed) produces the documented output; embedded MCP modes byte-for-byte intact."
-- suggestedModel: frontier
-- dependsOn: ["T396","T392","T393","T394","T395","T388","T389","T398","T399"]
-- ledgerRefs: ["goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T397.md"]
-
-### T398 — done
-
-- createdAt: 2026-06-11T02:02:04.767Z
-- updatedAt: 2026-06-11T02:28:17.417Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Fix D58 — cqCli installPhase nests cq-cli one level too deep (mkdir pre-creates cp dest)
-- description: "Fix the D58 root cause in flake.nix's cqCli derivation: line 294 `mkdir -p \"$WORKSPACE/packages/cq-cli\" $out/bin` pre-creates the dest dir, so line 300 `cp -r packages/cq-cli \"$WORKSPACE/packages/cq-cli\"` copies the source INTO it (nesting -> cq-cli/cq-cli/src/main.ts), breaking the wrapper's `run .../cq-cli/src/main.ts` path. Revert the mkdir to `mkdir -p \"$WORKSPACE/packages\" $out/bin` (only the parent is needed; embedServerClosure + the cq-cli cp both copy-as-dest into the existing $WORKSPACE/packages). Minimal 1-line change; do NOT touch the closure fragments."
-- acceptance: "After the fix: `nix build .#cq` green AND `result/share/cq/packages/cq-cli/src/main.ts` EXISTS (not nested under cq-cli/cq-cli/); launching `result/bin/cq mcp --cwd <ledger-root>` over stdio responds to MCP initialize + tools/list with the 26-tool surface (no 'Module not found'). Paste the build tail, the `ls .../cq-cli/src/main.ts`, and the tool count."
-- severity: high
-- suggestedModel: standard
-- dependsOn: []
-- ledgerRefs: ["defects:D58","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T398.md"]
-
-### T399 — done
-
-- createdAt: 2026-06-11T02:28:32.017Z
-- updatedAt: 2026-06-11T02:43:51.276Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- headline: Fix D59 — cq dispatcher must not process.exit a long-running mode (mcp/tui/web)
-- description: "Fix D59 in packages/cq-cli/src/main.ts. The dispatcher's `main()` does `const {exitCode}=await dispatch(argv); process.exit(exitCode);` — for a MODE, dispatch awaits the delegate (ledger-mcp.main resolves right after server.connect()) and returns {exitCode:0}, so process.exit(0) tears the stdio channel down before serving (0 tools via `cq mcp`). The standalone bins deliberately do NOT exit (ledger-mcp main.ts:717 'exiting here would close stdin'). FIX (testable, SOLID): give DispatchOutcome a `longRunning: boolean`; the mode branch (`:483-486`) returns `{exitCode:0, longRunning:true}`, every other branch returns `longRunning:false`; `main()` becomes `const {exitCode,longRunning}=await dispatch(argv); if (longRunning) return; process.exit(exitCode);` so a mode governs its own process lifetime (event loop stays alive via the delegate's transport/UI) exactly like the standalone bins, while native subcommands still process.exit to propagate non-zero codes. Update packages/cq-cli/test/dispatch.test.ts to assert longRunning=true for each mode and false for native subcommands + the usage path."
-- acceptance: "bun run check green (incl. the updated dispatch test asserting longRunning per branch). After `nix build .#cq`: `cq mcp --cwd <ledger-root>` over stdio responds to initialize + tools/list with the 26-tool surface (NOT 0); `cq mcp --http <port>` serves Streamable HTTP on /mcp (curl initialize returns serverInfo); `cq web --cwd <root> --port <p>` serves the SPA + embedded /mcp. Paste the stdio 26-tool count + the http initialize evidence."
-- severity: high
-- suggestedModel: standard
-- dependsOn: []
-- ledgerRefs: ["defects:D59","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T399.md"]

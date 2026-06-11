@@ -719,6 +719,21 @@ archives:
     summary: "G48-A (cq dispatcher delegates mcp|tui|web in-process) COMPLETE: T386 added @cq/ledger-{mcp,tui,web} as cq-cli workspace deps (+mirrored tsconfig paths/references); T387 (load-bearing) added the MODES routing layer to dispatch() running BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam) + refactored ledger-tui run()→exported main(argv) + jsx:react-jsx tsconfig fix; T388 USAGE lists mcp/tui/web modes + the 5 native subcommands; T389 dispatch tests ((c) relative-cwd verbatim no-resolveRoot + (e) native-subcommand regression guard, dedup'd helper). All 4 tasks done + reviewed (R469/R470/R471/R473 go-ahead; T385-style grok-dissent on T388 adjudicated invalid [USAGE is a string], T389 dedup'd in a round-2 criticism loop). Merged bbb301b/baf1077/7d6a8fc/4dc1802. check 1688/0."
     title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
     status: done
+  - id: M167
+    path: ./archive/reviews/M167.md
+    summary: G48-B (delete standalone tools + collapse flake to one .#cq) COMPLETE. T390 removed the 3 product bin entries; T391 built the merged .#cq closure (union of embedServerClosure + extracted tuiClosure/webClosure + @cq symlinks + LEDGER_WEB_OUTDIR), round-2-fixed a reproduced missing-parent cp defect; T392 dropped the ledgerMcp/ledgerTui/ledgerWeb derivations and collapsed packages/apps to cq/default. Tasks T390-T392; reviews R472/R474/R475 (all UNANIMOUS approve). Merged on main; nix flake show lists only cq.
+    title: "G48-B: delete standalone tools + collapse flake to one .#cq"
+    status: done
+  - id: M168
+    path: ./archive/reviews/M168.md
+    summary: G48-C (migrate all call sites to cq mode) COMPLETE. T393 .mcp.json ledger server -> `.#cq mcp`; T394 nix/hm/tools.nix MCP-server command -> ${cq}/bin/cq args ["mcp"] + PATH collapsed to [cq]; T395 migrated user-facing docs (CLAUDE.md/README/package READMEs) to `cq mcp|tui|web`, leaving @cq/ package ids + bun-from-source paths + the embedded-mode narrative intact. Tasks T393-T395; reviews R476/R477/R478 (all UNANIMOUS approve). Merged on main.
+    title: "G48-C: migrate all call sites to cq mode (.mcp.json + tools.nix + docs)"
+    status: done
+  - id: M169
+    path: ./archive/reviews/M169.md
+    summary: "G48-D (FOD refresh + acceptance gate) COMPLETE. T396 refreshed the node-modules FOD hash after cq-cli's @cq/* dep additions; T397 acceptance gate PASS (bun run check 0 fail; nix build .#cq green; full launch parity: cq mcp stdio 26 tools + http /mcp, web embedded SPA+/mcp + --mcp-url proxy, tui routes, restore routes, old products gone). The gate surfaced + fixed two build/runtime defects invisible to the eval-only T391 acceptance: D58 (T398 — cq-cli staged one level too deep via cp-into-existing-dir) and D59 (T399 — dispatcher process.exit tore down long-running modes; fixed via a longRunning flag). Tasks T396-T399; defects D58/D59 resolved; reviews R479/R480/R481. Merged on main. G48 unify-CLI COMPLETE — cq mcp|tui|web is behavior-equivalent to the 3 former standalone tools."
+    title: "G48-D: FOD-hash refresh + nix build .#cq acceptance gate"
+    status: done
 ---
 
 # reviews
@@ -892,116 +907,3 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G48"]
 - sessionLogs: ["docs/logs/20260610-224531-a2a5b452e81bbba55.md","docs/logs/20260610-224531-pi-codex-g48.md","docs/logs/20260610-224531-pi-grok-g48.md","docs/logs/20260610-224531-pi-minimax-g48.md"]
-
-## M167
-
-### R472 — go-ahead
-
-- createdAt: 2026-06-11T00:40:27.250Z
-- updatedAt: 2026-06-11T00:40:27.250Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: T390 — UNANIMOUS approve (4-reviewer panel). Only the 3 product `bin` blocks removed (9 deletions); source + exports (main/serve/attachMcpHttp/createLedgerMcpServer) + import.meta.main guards intact; flake.nix/.mcp.json/tools.nix untouched (later tasks); no dangling bin-name refs; check 1682/0.
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T390","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-003952-T390.md"]
-
-### R474 — go-ahead
-
-- createdAt: 2026-06-11T01:24:10.887Z
-- updatedAt: 2026-06-11T01:24:10.887Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T391 — UNANIMOUS approve at round 2 (4-reviewer panel: opus native + codex/grok/minimax pi), reconciled. Round 1 (457a178): orchestrator-grounded DISAPPROVE — reproduced a build-breaking defect the eval-only acceptance could not catch: tuiClosure/webClosure began with `cp -r packages/ledger-tui/src \"$WORKSPACE/packages/ledger-tui/src\"`, which needs the dest PARENT dir to pre-exist; the standalone ledgerTui/ledgerWeb derivations mkdir it, but the merged cqCli installPhase only mkdir'd packages/cq-cli — so the first cp would abort `nix build .#cq` (T397). Empirically reproduced (exit 1, `cannot create directory`). Round 2 (34d7213, merged ff): added `mkdir -p \"$WORKSPACE/packages/ledger-{tui,web}\"` as the first line of each fragment — self-contained in both contexts (mkdir -p idempotent). All 5 closure-input checklist items confirmed present (embedServerClosure/tuiClosure/webClosure + the 4 @cq/ledger-{mcp,tui,web,live} symlinks + LEDGER_WEB_OUTDIR); inline tui/web stagings extracted to named let fragments; ledgerLiveSource guard makes shared-$WORKSPACE double-staging idempotent. check 1688/0; nix flake show lists cq; nix eval cq.name -> cq-0.0.1. (Green `nix build .#cq` gated to T397 after T396 FOD refresh.)"
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T391","goals:G48"]
-
-### R475 — go-ahead
-
-- createdAt: 2026-06-11T01:47:10.867Z
-- updatedAt: 2026-06-11T01:47:10.867Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T392 — UNANIMOUS approve (4-reviewer panel: opus native + codex/grok/minimax pi). Dropped the ledgerMcp/ledgerTui/ledgerWeb derivation bindings (185-line excision); KEPT the 5 named fragments (embedServerClosure/cqConfigForLedger/tuiClosure/webClosure/ledgerLiveSource consumed by cqCli) + bunNodeModules + node-modules FOD. packages={default=cq,cq,node-modules,+untouched LLM assets}; apps={default,cq}->cqCli/bin/cq; no ledger-* products/apps. opus operationally verified in the worktree: nix flake show lists only cq/default, nix eval cq.name=cq-0.0.1, no dangling nix-level ref to a deleted binding. check 1688/0. (nix build .#cq gated to T397.) Cosmetic non-blocking note: cqCli header comment still says 'modelled on ledgerMcp' (a comment, not code)."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T392","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T392.md"]
-
-## M168
-
-### R476 — go-ahead
-
-- createdAt: 2026-06-11T01:47:15.061Z
-- updatedAt: 2026-06-11T01:47:15.061Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T393 — UNANIMOUS approve (4-reviewer panel: opus native + codex/grok/minimax pi). .mcp.json ledger server args ['run','.#ledger-mcp','--'] -> ['run','.#cq','--','mcp']; no trailing args dropped; JSON valid. Delegation target verified: dispatcher main.ts:72 routes mode mcp -> @cq/ledger-mcp.main(argv.slice(1)) verbatim (T387), so stdio behaviour is identical. Full initialize->26-tool parity gated to T397. check 1688/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T393","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T393.md"]
-
-### R477 — go-ahead
-
-- createdAt: 2026-06-11T01:47:19.763Z
-- updatedAt: 2026-06-11T01:47:19.763Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T394 — UNANIMOUS approve (4-reviewer panel: opus native + codex/grok/minimax pi). nix/hm/tools.nix: ledgerPkg=ledgerPkgs.cq; programs.mcp.servers.ledger command=${cq}/bin/cq args=['mcp'] (was bin/ledger-mcp,[]); ledgerTools PATH collapsed to [ ledgerPkgs.cq ]; comments updated. No HTTP variant existed. opus commit-tree grep across nix/hm/ for ledger-mcp/tui/web -> NO MATCHES; targets verified real (flake.nix:511 installs bin/cq; main.ts:96 maps mcp->@cq/ledger-mcp). nix-instantiate --parse OK; check 1688/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T394","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T394.md"]
-
-### R478 — go-ahead
-
-- createdAt: 2026-06-11T01:47:24.002Z
-- updatedAt: 2026-06-11T01:47:24.002Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T395 — UNANIMOUS approve (4-reviewer panel: opus native + codex/grok/minimax pi). Migrated user-facing product-command refs ledger-mcp/tui/web -> cq mcp|tui|web across 4 markdowns (CLAUDE.md nix-products->.#cq; README.md table+examples+flake-outputs; sample-ledger README; ledger-mcp README bin invocations). Left @cq/... package ids, the @cq/ledger-mcp table-row identifier, and bun-from-source dev paths intact; embedded-mode narrative preserved. opus commit-tree audit: acceptance grep empty; zero over/under-conversion; every converted command matches the real cq MODES=[mcp,tui,web] dispatcher. check 1688/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T395","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T395.md"]
-
-## M169
-
-### R479 — go-ahead
-
-- createdAt: 2026-06-11T01:58:55.150Z
-- updatedAt: 2026-06-11T01:58:55.150Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T396 — approve (orchestrator operational verification). FOD outputHash refresh: pure 1-line swap kG79B/… -> zyZvSkVSclhtQKc5K09MW2b8XZD89P1/YKAvjZS/+i0= after cq-cli's 3 @cq/* dep additions (T386). A FOD hash is non-semantic — the only meaningful adjudication is the build: orchestrator verified DIRECTLY on merged main (be79f97) that `nix build .#node-modules` exits 0 (no hash mismatch) and result/packages/cq-cli/node_modules/@cq/ contains all 5 workspace links (config, ledger, ledger-mcp, ledger-tui, ledger-web). Diff confirmed surgical (outputHash only). check 1688/0. Panel reduced to the operational build by the nature of a hash refresh."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T396","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T396.md"]
-
-### R480 — go-ahead
-
-- createdAt: 2026-06-11T02:44:00.547Z
-- updatedAt: 2026-06-11T02:44:00.547Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T399 (fixes D59) — UNANIMOUS approve (4-reviewer panel: opus native + codex/grok/minimax pi). Dispatcher lifetime fix: SubcommandOutcome{exitCode} for the 5 native handlers; DispatchOutcome gains longRunning; dispatch() mode-branch->{0,true}, usage/native->false; main() `if (longRunning) return; process.exit(exitCode)`. opus independently checked out c34fe39 + reproduced: check 1688/0, nix build .#cq exit 0, cq mcp stdio -> 26 tools + serverInfo (D59 fixed). All 5 adversarial checks pass: longRunning on every return path; non-zero propagation intact for natives; MODES/SUBCOMMANDS disjoint (no native mis-flag); type-correct outcome split; dispatch test asserts longRunning per branch + T387/T389 delegation intact."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T399","defects:D59","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T399.md"]
-
-### R481 — go-ahead
-
-- createdAt: 2026-06-11T02:51:24.239Z
-- updatedAt: 2026-06-11T02:51:24.239Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T397 acceptance gate — PASS (orchestrator operational verification on merged main). (1) bun run check 0 fail (1687 pass/1 skip — the skip is env-conditional jq/pty, not a regression); tsc+eslint green; unchanged product suites pass (embedded-MCP byte-for-byte invariant holds). (2) nix build .#cq green. (3) Launch parity: cq mcp stdio -> serverInfo + 26 tools; cq mcp --http -> /mcp initialize serverInfo+capabilities; cq tui -> routes to Ink (headless raw-mode = expected); cq web embedded -> SPA + /mcp serverInfo (+/ws); cq web --mcp-url proxy -> reverse-proxies to upstream cq mcp --http; cq mcp restore --from-cache -> routes to restore handler; (e) nix flake show lists only cq/default, no ledger-mcp/tui/web. The gate surfaced + fixed D58 (cq-cli nesting) and D59 (dispatcher process.exit lifetime) — both invisible to the eval-only T391 acceptance. G48 unification COMPLETE: cq mcp|tui|web is behavior-equivalent to the 3 former standalone tools."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T397","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-014618-T397.md"]

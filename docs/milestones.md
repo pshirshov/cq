@@ -784,6 +784,21 @@ archives:
     summary: "G48-A (cq dispatcher delegates mcp|tui|web in-process) COMPLETE: T386 added @cq/ledger-{mcp,tui,web} as cq-cli workspace deps (+mirrored tsconfig paths/references); T387 (load-bearing) added the MODES routing layer to dispatch() running BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam) + refactored ledger-tui run()→exported main(argv) + jsx:react-jsx tsconfig fix; T388 USAGE lists mcp/tui/web modes + the 5 native subcommands; T389 dispatch tests ((c) relative-cwd verbatim no-resolveRoot + (e) native-subcommand regression guard, dedup'd helper). All 4 tasks done + reviewed (R469/R470/R471/R473 go-ahead; T385-style grok-dissent on T388 adjudicated invalid [USAGE is a string], T389 dedup'd in a round-2 criticism loop). Merged bbb301b/baf1077/7d6a8fc/4dc1802. check 1688/0."
     title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
     status: done
+  - id: M167
+    path: ./archive/milestones/M167.md
+    summary: G48-B (delete standalone tools + collapse flake to one .#cq) COMPLETE. T390 removed the 3 product bin entries; T391 built the merged .#cq closure (union of embedServerClosure + extracted tuiClosure/webClosure + @cq symlinks + LEDGER_WEB_OUTDIR), round-2-fixed a reproduced missing-parent cp defect; T392 dropped the ledgerMcp/ledgerTui/ledgerWeb derivations and collapsed packages/apps to cq/default. Tasks T390-T392; reviews R472/R474/R475 (all UNANIMOUS approve). Merged on main; nix flake show lists only cq.
+    title: "G48-B: delete standalone tools + collapse flake to one .#cq"
+    status: done
+  - id: M168
+    path: ./archive/milestones/M168.md
+    summary: G48-C (migrate all call sites to cq mode) COMPLETE. T393 .mcp.json ledger server -> `.#cq mcp`; T394 nix/hm/tools.nix MCP-server command -> ${cq}/bin/cq args ["mcp"] + PATH collapsed to [cq]; T395 migrated user-facing docs (CLAUDE.md/README/package READMEs) to `cq mcp|tui|web`, leaving @cq/ package ids + bun-from-source paths + the embedded-mode narrative intact. Tasks T393-T395; reviews R476/R477/R478 (all UNANIMOUS approve). Merged on main.
+    title: "G48-C: migrate all call sites to cq mode (.mcp.json + tools.nix + docs)"
+    status: done
+  - id: M169
+    path: ./archive/milestones/M169.md
+    summary: "G48-D (FOD refresh + acceptance gate) COMPLETE. T396 refreshed the node-modules FOD hash after cq-cli's @cq/* dep additions; T397 acceptance gate PASS (bun run check 0 fail; nix build .#cq green; full launch parity: cq mcp stdio 26 tools + http /mcp, web embedded SPA+/mcp + --mcp-url proxy, tui routes, restore routes, old products gone). The gate surfaced + fixed two build/runtime defects invisible to the eval-only T391 acceptance: D58 (T398 — cq-cli staged one level too deep via cp-into-existing-dir) and D59 (T399 — dispatcher process.exit tore down long-running modes; fixed via a longRunning flag). Tasks T396-T399; defects D58/D59 resolved; reviews R479/R480/R481. Merged on main. G48 unify-CLI COMPLETE — cq mcp|tui|web is behavior-equivalent to the 3 former standalone tools."
+    title: "G48-D: FOD-hash refresh + nix build .#cq acceptance gate"
+    status: done
 ---
 
 # milestones
@@ -845,24 +860,3 @@ archives:
 - createdAt: 2026-06-10T22:02:13.252Z
 - updatedAt: 2026-06-10T22:02:13.252Z
 - title: "Plan: unify CLI tools into a single cq binary"
-
-### M167 — open
-
-- createdAt: 2026-06-10T22:22:39.333Z
-- updatedAt: 2026-06-10T22:22:39.333Z
-- title: "G48-B: delete standalone tools + collapse flake to one .#cq"
-- dependsOn: ["M166"]
-
-### M168 — open
-
-- createdAt: 2026-06-10T22:22:43.413Z
-- updatedAt: 2026-06-10T22:22:43.413Z
-- title: "G48-C: migrate all call sites to cq mode (.mcp.json + tools.nix + docs)"
-- dependsOn: ["M167"]
-
-### M169 — open
-
-- createdAt: 2026-06-10T22:22:44.551Z
-- updatedAt: 2026-06-10T22:22:44.551Z
-- title: "G48-D: FOD-hash refresh + nix build .#cq acceptance gate"
-- dependsOn: ["M168"]
