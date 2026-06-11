@@ -228,7 +228,7 @@ describe("D60 regression — validate_input string-tolerance at MCP entrypoint",
   // {ok:false, errors:[{keyword:'type', message:'must be object'}]}).
   // The MCP wire serialises the nested `input` arg as a JSON string;
   // validateInput must parse it before validating.
-  test.failing(
+  test(
     "(ii) JSON-string JSON.stringify({goalId:'G1'}) → {ok:true} [D60]",
     () => {
       const cap = createPromptCatalogCapability(REPO_ROOT);
@@ -241,7 +241,7 @@ describe("D60 regression — validate_input string-tolerance at MCP entrypoint",
   // yet; the code would either throw or return keyword:'type').
   // After the fix, an unparseable string should return
   // {ok:false, errors:[{keyword:'parse', ...}]}.
-  test.failing(
+  test(
     "(iii) unparseable string '{not json' → {ok:false, errors[0].keyword==='parse'} [D60]",
     () => {
       const cap = createPromptCatalogCapability(REPO_ROOT);
@@ -257,7 +257,7 @@ describe("D60 regression — validate_input string-tolerance at MCP entrypoint",
   // pre-check rather than keyword:'required' after parsing).
   // After the fix, the string is parsed to {}, the schema's 'required'
   // check fires, and errors[0].keyword === 'required'.
-  test.failing(
+  test(
     "(iv) JSON.stringify({}) for plan-advance → {ok:false, errors[0].keyword==='required'} [D60]",
     () => {
       const cap = createPromptCatalogCapability(REPO_ROOT);

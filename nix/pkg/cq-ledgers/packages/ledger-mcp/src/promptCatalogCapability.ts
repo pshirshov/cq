@@ -155,6 +155,38 @@ function toCapabilityResult(result: ValidationResult): PromptValidationResult {
 }
 
 /**
+ * Validate a `payload` against `schema`, tolerating a JSON-STRING payload (the
+ * MCP wire serialises a nested object arg as a JSON string). A string is parsed
+ * before validation; an unparseable string FAILS LOUD with a distinct `parse`
+ * {@link PromptValidationResult} error (keyword `"parse"`) rather than being
+ * passed raw to Ajv, silently accepted, or thrown — preserving the `{ok,errors}`
+ * contract. A successfully parsed value is validated normally, so the schema's
+ * own constraints (e.g. `required`) still fire on a parsed-but-invalid object.
+ */
+function validatePayload(schema: JSONSchema, payload: unknown): PromptValidationResult {
+  let value = payload;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch (e) {
+      return {
+        ok: false,
+        errors: [
+          {
+            path: "",
+            keyword: "parse",
+            message: `payload is not valid JSON: ${(e as Error).message}`,
+            schemaPath: "",
+            params: {},
+          },
+        ],
+      };
+    }
+  }
+  return toCapabilityResult(validateAgainstSchema(schema, value));
+}
+
+/**
  * Build a {@link PromptCatalogCapability} bound to a ledger/config `root`. The
  * asset markdown is resolved under `<root>/nix/pkg/cq-assets/` and RE-READ on
  * every `fetchPrompt` call (no caching), like the config capability re-reads
@@ -166,8 +198,8 @@ export function createPromptCatalogCapability(root: string): PromptCatalogCapabi
   return {
     fetchPrompt: (roleId: string) => fetchPromptFor(assetsRoot, roleId),
     validateInput: (roleId: string, input: unknown) =>
-      toCapabilityResult(validateAgainstSchema(schemaForRole(roleId, "input"), input)),
+      validatePayload(schemaForRole(roleId, "input"), input),
     validateOutput: (roleId: string, output: unknown) =>
-      toCapabilityResult(validateAgainstSchema(schemaForRole(roleId, "output"), output)),
+      validatePayload(schemaForRole(roleId, "output"), output),
   };
 }
