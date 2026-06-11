@@ -45,6 +45,7 @@ import {
   resolveLedgerBackend,
   ensureGitBackendGitignore,
   removeGitBackendGitignore,
+  ledgerTreePaths,
   type TreeEntry,
 } from "@cq/ledger";
 
@@ -93,41 +94,17 @@ async function pathExists(p: string): Promise<boolean> {
 
 /**
  * Enumerate the on-disk docs ledger files as DOCS-RELATIVE tree paths:
- * `ledgers.yaml`, every top-level `<ledger>.md`, and every `archive/**` file
+ * `ledgers.yaml`, every REGISTERED `<ledger>.md`, and every `archive/**` file
  * (recursively). Runtime-only `.locks/`, `.backup/`, and `logs/` are EXCLUDED —
  * they are never part of the ledger tree (matching {@link GitPersistence}).
+ *
+ * Delegates to @cq/ledger's `ledgerTreePaths` — the SINGLE source of truth for
+ * "which files belong to the ledger" (shared with `cq erase`). Registry-driven,
+ * so a user's NON-ledger `docs/*.md` (e.g. `docs/README.md`) is never claimed,
+ * snapshotted, or untracked.
  */
 async function enumerateDocsFiles(docsDir: string): Promise<string[]> {
-  const out: string[] = [];
-
-  // Top-level: ledgers.yaml + *.md (no recursion into .locks/.backup/logs).
-  const top = await fs.readdir(docsDir, { withFileTypes: true });
-  for (const ent of top) {
-    if (ent.isFile() && (ent.name === "ledgers.yaml" || ent.name.endsWith(".md"))) {
-      out.push(ent.name);
-    }
-  }
-
-  // archive/** (recursive).
-  const archiveDir = path.join(docsDir, "archive");
-  if (await pathExists(archiveDir)) {
-    await collectFilesRel(archiveDir, "archive", out);
-  }
-
-  return out.sort();
-}
-
-/** Recursively collect file paths under `dir`, prefixing each with `relPrefix`. */
-async function collectFilesRel(dir: string, relPrefix: string, out: string[]): Promise<void> {
-  const ents = await fs.readdir(dir, { withFileTypes: true });
-  for (const ent of ents) {
-    const rel = `${relPrefix}/${ent.name}`;
-    if (ent.isDirectory()) {
-      await collectFilesRel(path.join(dir, ent.name), rel, out);
-    } else if (ent.isFile()) {
-      out.push(rel);
-    }
-  }
+  return ledgerTreePaths(docsDir);
 }
 
 /**

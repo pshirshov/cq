@@ -219,4 +219,28 @@ describe("cq move-ledger", () => {
       expect(await readFile(path.join(root, rel), "utf8")).toBe(content);
     }
   });
+
+  it("--to git leaves a NON-ledger docs/*.md (not a registered ledger) tracked + out of the ref", async () => {
+    const root = await gitRepo();
+    await seedDocs(root);
+    // A user keeps an unrelated markdown file under docs/ — NOT a registered
+    // ledger. move-ledger must not claim, snapshot, or untrack it.
+    await writeFile(path.join(root, "docs", "notes.md"), "# design notes — not a ledger\n", "utf8");
+    await git(root, "add", "docs/notes.md");
+    await git(root, "commit", "-q", "-m", "add user notes");
+
+    expect((await dispatch(["move-ledger", "--cwd", root, "--to", "git"], recordingIo())).exitCode).toBe(0);
+
+    // The real ledger files are untracked; the non-ledger notes.md stays TRACKED.
+    const tracked = (await git(root, "ls-files", "docs/")).trim().split("\n").filter(Boolean);
+    expect(tracked).toEqual(["docs/notes.md"]);
+
+    // notes.md is NOT carried into the orphan ref tree.
+    await expect(git(root, "cat-file", "-p", "cq-ledger:notes.md")).rejects.toThrow();
+
+    // It is still on disk, untouched.
+    expect(await readFile(path.join(root, "docs", "notes.md"), "utf8")).toBe(
+      "# design notes — not a ledger\n",
+    );
+  });
 });

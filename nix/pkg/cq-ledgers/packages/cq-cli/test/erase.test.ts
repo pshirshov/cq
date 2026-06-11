@@ -199,4 +199,50 @@ describe("cq erase", () => {
     expect((await dispatch(["erase", "--cwd", noRoot.root], ioNo)).exitCode).toBe(1);
     expect(await exists(noRoot.docsDir)).toBe(true);
   });
+
+  it("(f) preserves NON-ledger content under docs/ (drafts/, README.md) and keeps docs/", async () => {
+    const { root, docsDir, configFile } = await seedTree();
+    // A user keeps unrelated files under docs/ (CLAUDE.md designates docs/drafts/
+    // for new docs); these are NOT ledger artifacts and must survive erase.
+    await fs.mkdir(path.join(docsDir, "drafts"), { recursive: true });
+    await fs.writeFile(path.join(docsDir, "drafts", "20260101-note.md"), "user note\n");
+    await fs.writeFile(path.join(docsDir, "README.md"), "user readme\n");
+
+    const io = recordingIo(false);
+    const outcome = await dispatch(["erase", "--cwd", root, "--yes"], io);
+    expect(outcome.exitCode).toBe(0);
+
+    // Ledger artifacts gone.
+    expect(await exists(path.join(docsDir, "ledgers.yaml"))).toBe(false);
+    expect(await exists(path.join(docsDir, "tasks.md"))).toBe(false);
+    expect(await exists(path.join(docsDir, "archive"))).toBe(false);
+    expect(await exists(path.join(docsDir, "logs"))).toBe(false);
+    expect(await exists(path.join(docsDir, ".backup"))).toBe(false);
+    expect(await exists(configFile)).toBe(false);
+
+    // NON-ledger content + the docs/ dir itself PRESERVED.
+    expect(await exists(docsDir)).toBe(true);
+    expect(await exists(path.join(docsDir, "drafts", "20260101-note.md"))).toBe(true);
+    expect(await exists(path.join(docsDir, "README.md"))).toBe(true);
+
+    // Report mentions the preservation rather than claiming docs/ removed.
+    const joined = io.outs.join("\n");
+    expect(joined).toContain(`preserved: ${docsDir}`);
+    // docs/ itself was NOT reported removed (only its ledger artifacts were);
+    // exact-line membership avoids matching `removed: <docsDir>/ledgers.yaml`.
+    expect(io.outs).not.toContain(`  removed: ${docsDir}`);
+  });
+
+  it("(g) a non-ledger top-level docs/*.md (not a registered ledger) survives", async () => {
+    const { root, docsDir } = await seedTree();
+    // NOT one of the registered ledger names → must NOT be treated as a ledger file.
+    await fs.writeFile(path.join(docsDir, "NOTES.md"), "design notes\n");
+
+    const io = recordingIo(false);
+    expect((await dispatch(["erase", "--cwd", root, "--yes"], io)).exitCode).toBe(0);
+
+    expect(await exists(path.join(docsDir, "NOTES.md"))).toBe(true);
+    expect(await exists(path.join(docsDir, "milestones.md"))).toBe(false); // a real ledger, removed
+    expect(await exists(docsDir)).toBe(true);
+  });
 });

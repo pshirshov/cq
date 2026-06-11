@@ -81,6 +81,15 @@ export { Lockfile } from "./store/lockfile.js";
 export type { LockfileOpts, LockHolder } from "./store/lockfile.js";
 export { parseRegistry, serializeRegistry, parseSchema, EMPTY_REGISTRY } from "./registry.js";
 export {
+  enumerateLedgerArtifacts,
+  ledgerTreePaths,
+  removeLedgerArtifacts,
+  LEDGER_REGISTRY_FILENAME,
+  LEDGER_ARCHIVE_DIRNAME,
+  LEDGER_RUNTIME_DIRNAMES,
+} from "./store/ledgerArtifacts.js";
+export type { LedgerArtifacts, RemoveLedgerArtifactsResult } from "./store/ledgerArtifacts.js";
+export {
   createLedgerMcpTools,
   LEDGER_TOOL_NAMES,
   TOOL_PREFIX_RE,

@@ -25,6 +25,7 @@ import * as path from "node:path";
 import {
   createLedgerStore,
   CANONICAL_LEDGERS,
+  removeLedgerArtifacts,
   type LedgerStore,
   type ResetSummary,
 } from "@cq/ledger";
@@ -346,15 +347,19 @@ export async function runReset(args: SubcommandArgs, io: DispatchIo): Promise<Su
  * `cq erase` (Q110, the MOST destructive subcommand): DESTROY everything the
  * ledger suite owns under `args.cwd` — with NO backup and NO reinit. Per the
  * user's answer ("erase should erase everything including archives and config"),
- * the destructive set is an EXPLICIT, BOUNDED pair of known paths under the
+ * the destructive set is an EXPLICIT, BOUNDED set of known paths under the
  * resolved root:
  *
- *   1. `<root>/docs/`     — the entire tree: active `*.md`, `ledgers.yaml`,
- *                           `archive/`, `.backup/`, `logs/`, `.locks/`
- *                           (recursive, force).
+ *   1. The ledger's OWN artifacts under `<root>/docs/` — `ledgers.yaml`, every
+ *      REGISTERED `<name>.md`, `archive/`, and the runtime dirs `logs/`,
+ *      `.locks/`, `.backup/` — enumerated by @cq/ledger's `removeLedgerArtifacts`
+ *      (the single source of truth shared with `cq move-ledger`). NON-ledger
+ *      content a user keeps under `docs/` (e.g. `docs/README.md`, `docs/drafts/`)
+ *      is PRESERVED; `docs/` itself is removed only if it is empty afterward.
  *   2. `<root>/cq.toml`   — the config file, if present (unlink).
  *
- * It is NOT a blind wipe of `<root>`: any sibling under the root (source, etc.)
+ * It is NOT a blind wipe of `<root>/docs/`, and NOT of `<root>`: any sibling
+ * under the root (source, etc.)
  * survives. Unlike `reset`, erase does NOT call init() afterward — the suite is
  * left fully un-initialised.
  *
@@ -397,11 +402,19 @@ export async function runErase(args: SubcommandArgs, io: DispatchIo): Promise<Su
     return { exitCode: decision.exitCode };
   }
 
-  // Bounded delete of the EXPLICIT set only — never the whole root.
+  // Bounded delete: the ledger's OWN artifacts under docs/ (shared enumerator)
+  // + cq.toml. Non-ledger content under docs/ is preserved; the whole root is
+  // never touched beyond these.
   const removed: string[] = [];
+  let docsPreserved = false;
   if (docsExists) {
-    await fs.rm(docsDir, { recursive: true, force: true });
-    removed.push(docsDir);
+    const result = await removeLedgerArtifacts(docsDir);
+    if (result.docsDirRemoved) {
+      removed.push(docsDir);
+    } else {
+      removed.push(...result.removed);
+      docsPreserved = true;
+    }
   }
   if (configExists) {
     await fs.rm(configFile, { force: true });
@@ -411,6 +424,9 @@ export async function runErase(args: SubcommandArgs, io: DispatchIo): Promise<Su
   io.out(`cq erase: erased ledgers + config at ${args.cwd} (IRREVERSIBLE, no backup)`);
   for (const p of removed) {
     io.out(`  removed: ${p}`);
+  }
+  if (docsPreserved) {
+    io.out(`  preserved: ${docsDir} (non-ledger content remains)`);
   }
   return { exitCode: 0 };
 }
