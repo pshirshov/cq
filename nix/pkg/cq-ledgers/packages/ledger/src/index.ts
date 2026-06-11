@@ -87,6 +87,8 @@ export {
   LEDGER_REGISTRY_FILENAME,
   LEDGER_ARCHIVE_DIRNAME,
   LEDGER_RUNTIME_DIRNAMES,
+  LEDGER_PORTABLE_RUNTIME_DIRNAMES,
+  LEDGER_EPHEMERAL_RUNTIME_DIRNAMES,
 } from "./store/ledgerArtifacts.js";
 export type { LedgerArtifacts, RemoveLedgerArtifactsResult } from "./store/ledgerArtifacts.js";
 export {

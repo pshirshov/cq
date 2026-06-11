@@ -11,7 +11,8 @@
  *   - `ledgers.yaml`                 — the registry
  *   - `<name>.md`                    — one per REGISTERED ledger (and the canonical set)
  *   - `archive/**`                   — archived milestone groups
- *   - `logs/`, `.locks/`, `.backup/` — runtime-only dirs (NOT part of the portable tree)
+ *   - `logs/**`                      — portable session logs (travel with the ledger tree)
+ *   - `.locks/`, `.backup/`          — ephemeral runtime dirs (NEVER travel)
  *
  * Anything else under `docs/` is treated as user content and left untouched.
  */
@@ -25,11 +26,25 @@ export const LEDGER_REGISTRY_FILENAME = "ledgers.yaml";
 /** Directory (under `docs/`) holding archived milestone groups. */
 export const LEDGER_ARCHIVE_DIRNAME = "archive";
 /**
- * Runtime-only directories under `docs/` — session logs, the FS lock dir, and
+ * Portable runtime directory under `docs/` — session logs that travel with the
+ * ledger tree (included in `ledgerTreePaths`, snapshotted by `move-ledger`).
+ */
+export const LEDGER_PORTABLE_RUNTIME_DIRNAMES: readonly string[] = ["logs"];
+/**
+ * Ephemeral runtime directories under `docs/` — the FS lock dir and
  * reset/divergence backups. They belong to the ledger (so `erase` removes them)
  * but are NOT part of the portable ledger tree (so `move-ledger` excludes them).
  */
-export const LEDGER_RUNTIME_DIRNAMES: readonly string[] = ["logs", ".locks", ".backup"];
+export const LEDGER_EPHEMERAL_RUNTIME_DIRNAMES: readonly string[] = [".locks", ".backup"];
+/**
+ * All runtime directories under `docs/` (portable + ephemeral). They all belong
+ * to the ledger so `erase` removes them. Re-exported under the original name for
+ * backward compatibility with existing callers.
+ */
+export const LEDGER_RUNTIME_DIRNAMES: readonly string[] = [
+  ...LEDGER_PORTABLE_RUNTIME_DIRNAMES,
+  ...LEDGER_EPHEMERAL_RUNTIME_DIRNAMES,
+];
 
 /** The ledger's own paths under a `docs/` dir, as ABSOLUTE paths. */
 export interface LedgerArtifacts {
@@ -110,9 +125,10 @@ export async function enumerateLedgerArtifacts(docsDir: string): Promise<LedgerA
 
 /**
  * The PORTABLE ledger tree as DOCS-RELATIVE paths: `ledgers.yaml`, every
- * registered `<name>.md`, and every `archive/**` file (recursive). Runtime dirs
- * (`logs`/`.locks`/`.backup`) are EXCLUDED — they never travel with the ledger.
- * Used by `cq move-ledger` to snapshot/materialise the orphan-ref tree. Sorted.
+ * registered `<name>.md`, every `archive/**` file (recursive), and every
+ * `logs/**` file (recursive). Ephemeral dirs (`.locks`/`.backup`) are EXCLUDED
+ * — they never travel with the ledger. Used by `cq move-ledger` to
+ * snapshot/materialise the orphan-ref tree. Sorted.
  */
 export async function ledgerTreePaths(docsDir: string): Promise<string[]> {
   const art = await enumerateLedgerArtifacts(docsDir);
@@ -120,6 +136,10 @@ export async function ledgerTreePaths(docsDir: string): Promise<string[]> {
   if (art.registryFile !== null) rel.push(LEDGER_REGISTRY_FILENAME);
   for (const f of art.ledgerFiles) rel.push(path.basename(f));
   if (art.archiveDir !== null) await collectFilesRel(art.archiveDir, LEDGER_ARCHIVE_DIRNAME, rel);
+  for (const dirName of LEDGER_PORTABLE_RUNTIME_DIRNAMES) {
+    const dirPath = path.join(docsDir, dirName);
+    if (await exists(dirPath)) await collectFilesRel(dirPath, dirName, rel);
+  }
   return rel.sort();
 }
 
