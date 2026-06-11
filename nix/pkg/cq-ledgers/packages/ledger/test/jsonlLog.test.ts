@@ -49,9 +49,9 @@ describe("validateJsonl", () => {
     expect(validateJsonl("\n\n\n")).toEqual({ ok: true });
   });
 
-  it("rejects a pretty-printed JSON object (multi-line) with line 2 as the offending line", () => {
+  it("rejects a pretty-printed JSON object (multi-line) with line 1 as the offending line", () => {
     // A pretty-printed object has opening `{` on line 1, then fields on
-    // subsequent lines — line 2 is not valid JSON on its own.
+    // subsequent lines — line 1 is not valid JSON on its own.
     const raw = [
       "{",
       '  "type": "start",',
