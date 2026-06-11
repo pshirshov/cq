@@ -591,10 +591,10 @@ archives:
 - completion: Removed the bin block from the 3 product package.json (standalone CLIs deleted); source + exports + import.meta.main guards preserved; cq mcp/tui/web work via the dispatch. check 1682/0.
 - sessionLogs: ["docs/logs/20260611-003952-T390.md"]
 
-### T391 — planned
+### T391 — done
 
 - createdAt: 2026-06-10T22:23:50.021Z
-- updatedAt: 2026-06-10T22:38:15.957Z
+- updatedAt: 2026-06-11T01:23:18.462Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Build the merged .#cq derivation closure (union of all four product stagings)
@@ -603,6 +603,7 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T390"]
 - ledgerRefs: ["goals:G48"]
+- sessionLogs: ["docs/logs/20260611-012254-T391.md"]
 
 ### T392 — planned
 

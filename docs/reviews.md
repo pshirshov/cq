@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 473
+  item: 474
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -906,3 +906,14 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T390","goals:G48"]
 - sessionLogs: ["docs/logs/20260611-003952-T390.md"]
+
+### R474 — go-ahead
+
+- createdAt: 2026-06-11T01:24:10.887Z
+- updatedAt: 2026-06-11T01:24:10.887Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T391 — UNANIMOUS approve at round 2 (4-reviewer panel: opus native + codex/grok/minimax pi), reconciled. Round 1 (457a178): orchestrator-grounded DISAPPROVE — reproduced a build-breaking defect the eval-only acceptance could not catch: tuiClosure/webClosure began with `cp -r packages/ledger-tui/src \"$WORKSPACE/packages/ledger-tui/src\"`, which needs the dest PARENT dir to pre-exist; the standalone ledgerTui/ledgerWeb derivations mkdir it, but the merged cqCli installPhase only mkdir'd packages/cq-cli — so the first cp would abort `nix build .#cq` (T397). Empirically reproduced (exit 1, `cannot create directory`). Round 2 (34d7213, merged ff): added `mkdir -p \"$WORKSPACE/packages/ledger-{tui,web}\"` as the first line of each fragment — self-contained in both contexts (mkdir -p idempotent). All 5 closure-input checklist items confirmed present (embedServerClosure/tuiClosure/webClosure + the 4 @cq/ledger-{mcp,tui,web,live} symlinks + LEDGER_WEB_OUTDIR); inline tui/web stagings extracted to named let fragments; ledgerLiveSource guard makes shared-$WORKSPACE double-staging idempotent. check 1688/0; nix flake show lists cq; nix eval cq.name -> cq-0.0.1. (Green `nix build .#cq` gated to T397 after T396 FOD refresh.)"
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T391","goals:G48"]
