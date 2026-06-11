@@ -79,6 +79,8 @@ export type { DerivedPredicates, PredicateVerdict } from "./store/predicates.js"
 export { AsyncMutex } from "./store/mutex.js";
 export { Lockfile } from "./store/lockfile.js";
 export type { LockfileOpts, LockHolder } from "./store/lockfile.js";
+export { redactSecrets, REDACTION_KINDS } from "./store/logRedaction.js";
+export type { RedactionKind } from "./store/logRedaction.js";
 export { parseRegistry, serializeRegistry, parseSchema, EMPTY_REGISTRY } from "./registry.js";
 export {
   enumerateLedgerArtifacts,
