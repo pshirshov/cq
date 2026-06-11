@@ -346,8 +346,18 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
         this.registry.ledgers.push({ name: canonical.name, schema: canonical.schema });
         registryDirty = true;
       } else if (!schemasEqual(entry.schema, canonical.schema)) {
-        // A prior cycle / hand-edit wrote an out-of-band schema.
-        divergent.push(canonical.name);
+        if (schemaCompatible(entry.schema, canonical.schema)) {
+          // Forward-compatible widening (T407): canon ADDED an optional field
+          // (e.g. T405's `rawLogs`) absent from the persisted entry. Upgrade
+          // the entry to canon IN PLACE — no destructive backup-reinit — so the
+          // ledger loads with the canonical schema and persists the widened
+          // shape. Existing items stay valid (the new field is optional).
+          entry.schema = canonical.schema;
+          registryDirty = true;
+        } else {
+          // A prior cycle / hand-edit wrote an out-of-band schema.
+          divergent.push(canonical.name);
+        }
       }
     }
     if (divergent.length > 0) {
@@ -1168,6 +1178,52 @@ export function schemasEqual(a: LedgerSchema, b: LedgerSchema): boolean {
     if (af.type !== bf.type || af.required !== bf.required) return false;
   }
   if (!transitionsEqual(a.transitions, b.transitions)) return false;
+  return true;
+}
+
+/**
+ * Forward-compatibility check for schema bootstrap (T407): is an EXISTING
+ * on-disk schema `onDisk` compatible with the current `canonical` bootstrap
+ * schema, such that loading it requires NO destructive backup-reinit?
+ *
+ * Compatible means the two schemas are equal EXCEPT that `canonical` may have
+ * ADDED one or more OPTIONAL (`required: false`) fields absent from `onDisk`.
+ * This is the case when a newer build widens a canonical schema with an
+ * optional field (e.g. T405's `rawLogs`): a pre-widening ledger's persisted
+ * registry entry simply lacks the new field, and that omission is benign — no
+ * existing item is invalidated, and the field is optional so nothing must be
+ * backfilled. The store upgrades the in-memory schema to `canonical` on load.
+ *
+ * Everything ELSE that `schemasEqual` distinguishes remains divergent and is
+ * NOT tolerated here: a differing idPrefix / statusValues / terminalStatuses /
+ * transitions, a field PRESENT on disk but ABSENT from canon, an added
+ * REQUIRED field, or a field whose `type`/`required` changed. Such differences
+ * still route through the backup-reinit (or abort) divergence policy.
+ */
+export function schemaCompatible(a: LedgerSchema, b: LedgerSchema): boolean {
+  if (schemasEqual(a, b)) return true;
+  // Non-field facets must match exactly.
+  if ((a.idPrefix ?? undefined) !== (b.idPrefix ?? undefined)) return false;
+  if (a.statusValues.length !== b.statusValues.length) return false;
+  for (let i = 0; i < a.statusValues.length; i++) {
+    if (a.statusValues[i] !== b.statusValues[i]) return false;
+  }
+  if (a.terminalStatuses.length !== b.terminalStatuses.length) return false;
+  for (let i = 0; i < a.terminalStatuses.length; i++) {
+    if (a.terminalStatuses[i] !== b.terminalStatuses[i]) return false;
+  }
+  if (!transitionsEqual(a.transitions, b.transitions)) return false;
+  // Every on-disk field must exist in canon UNCHANGED (no removed/retyped
+  // field, no required-flag flip).
+  for (const [name, af] of Object.entries(a.fields)) {
+    const bf = b.fields[name];
+    if (bf === undefined) return false;
+    if (af.type !== bf.type || af.required !== bf.required) return false;
+  }
+  // Every canon field MISSING from on-disk must be OPTIONAL (added-optional).
+  for (const [name, bf] of Object.entries(b.fields)) {
+    if (a.fields[name] === undefined && bf.required) return false;
+  }
   return true;
 }
 
