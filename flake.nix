@@ -203,6 +203,7 @@
         # ledgerTui derivation so cqCli can reuse it once the standalone
         # derivation is removed (T392).
         tuiClosure = ''
+          mkdir -p "$WORKSPACE/packages/ledger-tui"
           cp -r packages/ledger-tui/src "$WORKSPACE/packages/ledger-tui/src"
           cp packages/ledger-tui/package.json packages/ledger-tui/tsconfig.json \
             "$WORKSPACE/packages/ledger-tui/"
@@ -241,6 +242,7 @@
         # bundle wrapper env lives on the consuming derivation's makeWrapper
         # (it is a wrapper concern, not a staging one).
         webClosure = ''
+          mkdir -p "$WORKSPACE/packages/ledger-web"
           cp -r packages/ledger-web/src "$WORKSPACE/packages/ledger-web/src"
           cp packages/ledger-web/index.html "$WORKSPACE/packages/ledger-web/"
           cp packages/ledger-web/package.json packages/ledger-web/tsconfig.json \
