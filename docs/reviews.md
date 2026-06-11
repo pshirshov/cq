@@ -714,6 +714,11 @@ archives:
     summary: "G47 (fix D57) COMPLETE: T385 added a react-markdown components.code renderer to the ledger-web shared Markdown component that pretty-prints (JSON.stringify(parse,null,2)) + theme-var-colorizes json code fences (lw-json-* spans) with a SAFE try/catch raw fallback, + .lw-md pre white-space:pre-wrap so long lines wrap. Round-2 criticism-loop (grok caught a nested-<pre> defect the majority missed; verified + fixed: bare <code> in all fenced paths, react-markdown owns the <pre>). Reviewed round-2 UNANIMOUS go-ahead (R468). Merged cbde746+c3fdbe4. RESOLVES D57. check 1678/0 + nix build .#ledger-web green."
     title: "W: ledger-web JSON pretty-print + colorize + wrap (D57)"
     status: done
+  - id: M166
+    path: ./archive/reviews/M166.md
+    summary: "G48-A (cq dispatcher delegates mcp|tui|web in-process) COMPLETE: T386 added @cq/ledger-{mcp,tui,web} as cq-cli workspace deps (+mirrored tsconfig paths/references); T387 (load-bearing) added the MODES routing layer to dispatch() running BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam) + refactored ledger-tui run()→exported main(argv) + jsx:react-jsx tsconfig fix; T388 USAGE lists mcp/tui/web modes + the 5 native subcommands; T389 dispatch tests ((c) relative-cwd verbatim no-resolveRoot + (e) native-subcommand regression guard, dedup'd helper). All 4 tasks done + reviewed (R469/R470/R471/R473 go-ahead; T385-style grok-dissent on T388 adjudicated invalid [USAGE is a string], T389 dedup'd in a round-2 criticism loop). Merged bbb301b/baf1077/7d6a8fc/4dc1802. check 1688/0."
+    title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
+    status: done
 ---
 
 # reviews
@@ -887,56 +892,6 @@ archives:
 - criticism: []
 - ledgerRefs: ["goals:G48"]
 - sessionLogs: ["docs/logs/20260610-224531-a2a5b452e81bbba55.md","docs/logs/20260610-224531-pi-codex-g48.md","docs/logs/20260610-224531-pi-grok-g48.md","docs/logs/20260610-224531-pi-minimax-g48.md"]
-
-## M166
-
-### R469 — go-ahead
-
-- createdAt: 2026-06-10T23:40:10.733Z
-- updatedAt: 2026-06-10T23:40:10.733Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T386 — UNANIMOUS approve (4-reviewer panel: opus + codex/grok/minimax). 3 @cq/ledger-{mcp,tui,web} workspace:* deps + mirrored tsconfig paths/references (necessary for green typecheck, matches the existing @cq/* pattern — not scope creep); bun.lock consistent; flake.nix untouched; no source imports; check 1674/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T386","goals:G48"]
-- sessionLogs: ["docs/logs/20260610-233921-T386.md"]
-
-### R470 — go-ahead
-
-- createdAt: 2026-06-10T23:59:25.413Z
-- updatedAt: 2026-06-10T23:59:25.413Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T387 — UNANIMOUS approve (4-reviewer panel: opus repo-grounded + codex/grok/minimax). The load-bearing cq dispatcher: mode-before-native-parse routing, verbatim argv.slice(1) delegation (test-proven), behavior-preserving ledger-tui main(argv) export, minimal+necessary jsx:react-jsx TS6305 fix, protocol-only mcp stdout, embedded mode (no --mcp-url) preserved; mcp/web bins untouched. check 1682/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T387","goals:G48"]
-- sessionLogs: ["docs/logs/20260610-235859-T387.md"]
-
-### R471 — go-ahead
-
-- createdAt: 2026-06-11T00:40:24.128Z
-- updatedAt: 2026-06-11T00:40:24.128Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T388 — reconciled approve (3 of 4 approve; grok disapprove ADJUDICATED INVALID). USAGE lists mcp/tui/web + 5 native subcommands; check 1683/0. grok's claim that `expect(USAGE).toContain('mcp')` can't pass is FALSE — USAGE is a STRING (`[...].join('\\n')`), so toContain is a valid substring check (green check confirms); grok's other nits non-blocking (existing no-args test enforces the usage path; format matches; 'cq mcp not unknown' handled by T387)."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T388","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-003952-T388.md"]
-
-### R473 — go-ahead
-
-- createdAt: 2026-06-11T00:54:00.012Z
-- updatedAt: 2026-06-11T00:54:00.012Z
-- author: "opus-4.8[1m]"
-- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
-- summary: "T389 — reconciled approve at round 2 (opus+codex+grok approve; minimax abstained). Round 1: codex+grok disapprove (valid: recordingModes defined 3× = pure dup; (c) resolveRoot indirect; cleanup unwrapped). Round 2: dedup'd to a single module-scope helper; resolveRoot-bypass proof valid (sole call site parseSubcommandArgs, bypassed by the mode branch); try/catch cleanup; (e) native-subcommand guard intact. check 1688/0."
-- criticism: []
-- new_questions: []
-- ledgerRefs: ["tasks:T389","goals:G48"]
-- sessionLogs: ["docs/logs/20260611-003952-T389.md"]
 
 ## M167
 

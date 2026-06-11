@@ -779,6 +779,11 @@ archives:
     summary: "Investigate D57 (session-log JSON not pretty-printed) COMPLETE: H36 confirmed (ledger-web shared Markdown is bare react-markdown — no components.code/highlighter/pretty-print; .lw-md pre overflow:auto no-wrap; ledger-tui unaffected per Q122), D57 root-caused → seeded defect-goal G47 → fixed by T385 → D57 RESOLVED; Q213 traceability answered; HO50 investigate handoff. All items terminal."
     title: "Investigate: session-log-json-not-pretty-printed"
     status: done
+  - id: M166
+    path: ./archive/milestones/M166.md
+    summary: "G48-A (cq dispatcher delegates mcp|tui|web in-process) COMPLETE: T386 added @cq/ledger-{mcp,tui,web} as cq-cli workspace deps (+mirrored tsconfig paths/references); T387 (load-bearing) added the MODES routing layer to dispatch() running BEFORE native parseSubcommandArgs, delegating verbatim argv.slice(1) to each product's exported main (injectable ModeDelegates seam) + refactored ledger-tui run()→exported main(argv) + jsx:react-jsx tsconfig fix; T388 USAGE lists mcp/tui/web modes + the 5 native subcommands; T389 dispatch tests ((c) relative-cwd verbatim no-resolveRoot + (e) native-subcommand regression guard, dedup'd helper). All 4 tasks done + reviewed (R469/R470/R471/R473 go-ahead; T385-style grok-dissent on T388 adjudicated invalid [USAGE is a string], T389 dedup'd in a round-2 criticism loop). Merged bbb301b/baf1077/7d6a8fc/4dc1802. check 1688/0."
+    title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
+    status: done
 ---
 
 # milestones
@@ -840,12 +845,6 @@ archives:
 - createdAt: 2026-06-10T22:02:13.252Z
 - updatedAt: 2026-06-10T22:02:13.252Z
 - title: "Plan: unify CLI tools into a single cq binary"
-
-### M166 — open
-
-- createdAt: 2026-06-10T22:22:34.938Z
-- updatedAt: 2026-06-10T22:22:34.938Z
-- title: "G48-A: cq dispatcher delegates mcp|tui|web in-process"
 
 ### M167 — open
 
