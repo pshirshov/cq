@@ -3,9 +3,6 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "bin": {
-    "ledger-web": "./src/serve.ts"
-  },
   "dependencies": {
     "@cq/config": "workspace:*",
     "@cq/ledger-live": "workspace:*",
