@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 480
+  item: 481
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -993,3 +993,15 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T399","defects:D59","goals:G48"]
 - sessionLogs: ["docs/logs/20260611-014618-T399.md"]
+
+### R481 — go-ahead
+
+- createdAt: 2026-06-11T02:51:24.239Z
+- updatedAt: 2026-06-11T02:51:24.239Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T397 acceptance gate — PASS (orchestrator operational verification on merged main). (1) bun run check 0 fail (1687 pass/1 skip — the skip is env-conditional jq/pty, not a regression); tsc+eslint green; unchanged product suites pass (embedded-MCP byte-for-byte invariant holds). (2) nix build .#cq green. (3) Launch parity: cq mcp stdio -> serverInfo + 26 tools; cq mcp --http -> /mcp initialize serverInfo+capabilities; cq tui -> routes to Ink (headless raw-mode = expected); cq web embedded -> SPA + /mcp serverInfo (+/ws); cq web --mcp-url proxy -> reverse-proxies to upstream cq mcp --http; cq mcp restore --from-cache -> routes to restore handler; (e) nix flake show lists only cq/default, no ledger-mcp/tui/web. The gate surfaced + fixed D58 (cq-cli nesting) and D59 (dispatcher process.exit lifetime) — both invisible to the eval-only T391 acceptance. G48 unification COMPLETE: cq mcp|tui|web is behavior-equivalent to the 3 former standalone tools."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T397","goals:G48"]
+- sessionLogs: ["docs/logs/20260611-014618-T397.md"]

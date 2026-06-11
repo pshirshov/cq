@@ -679,10 +679,10 @@ archives:
 - ledgerRefs: ["goals:G48"]
 - sessionLogs: ["docs/logs/20260611-014618-T396.md"]
 
-### T397 — blocked
+### T397 — done
 
 - createdAt: 2026-06-10T22:24:37.389Z
-- updatedAt: 2026-06-11T02:28:33.693Z
+- updatedAt: 2026-06-11T02:51:17.480Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: "Acceptance gate: bun run check + nix build .#cq + all-mode launch parity + existing suites unchanged"
@@ -691,6 +691,7 @@ archives:
 - suggestedModel: frontier
 - dependsOn: ["T396","T392","T393","T394","T395","T388","T389","T398","T399"]
 - ledgerRefs: ["goals:G48"]
+- sessionLogs: ["docs/logs/20260611-014618-T397.md"]
 
 ### T398 — done
 
