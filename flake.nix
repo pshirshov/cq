@@ -182,6 +182,95 @@
           ${cqConfigForLedger}
         '';
 
+        # Shell fragment: stage @cq/ledger-live source + its workspace symlink
+        # into $WORKSPACE. Shared by the TUI and web closures (both bundle/import
+        # @cq/ledger-live). Idempotent — guarded so it can run once even when
+        # both tuiClosure and webClosure are staged into the same $WORKSPACE
+        # (the merged cqCli derivation). Expects $WORKSPACE/packages to exist.
+        ledgerLiveSource = ''
+          if [ ! -d "$WORKSPACE/packages/ledger-live" ]; then
+            mkdir -p "$WORKSPACE/packages/ledger-live"
+            cp -r packages/ledger-live/src "$WORKSPACE/packages/ledger-live/src"
+            cp packages/ledger-live/package.json "$WORKSPACE/packages/ledger-live/"
+          fi
+        '';
+
+        # Shell fragment: stage the @cq/ledger-tui source + its runtime closure
+        # (ink + react + @modelcontextprotocol/sdk, the @cq/ledger-live link, and
+        # the embedded-mode @cq/ledger-mcp + @cq/ledger workspace links). Expects
+        # the embedded MCP server closure (embedServerClosure) to be staged FIRST
+        # so $WORKSPACE/packages/{ledger,ledger-mcp} exist. Extracted from the
+        # ledgerTui derivation so cqCli can reuse it once the standalone
+        # derivation is removed (T392).
+        tuiClosure = ''
+          cp -r packages/ledger-tui/src "$WORKSPACE/packages/ledger-tui/src"
+          cp packages/ledger-tui/package.json packages/ledger-tui/tsconfig.json \
+            "$WORKSPACE/packages/ledger-tui/"
+          # @cq/ledger-live (zero runtime deps) — source + workspace symlink.
+          ${ledgerLiveSource}
+
+          mkdir -p "$WORKSPACE/packages/ledger-tui/node_modules/@modelcontextprotocol" \
+                   "$WORKSPACE/packages/ledger-tui/node_modules/@cq"
+          for dep in ink react bun-types; do
+            if [ -e "${bunNodeModules}/packages/ledger-tui/node_modules/$dep" ]; then
+              ln -s "${bunNodeModules}/packages/ledger-tui/node_modules/$dep" \
+                "$WORKSPACE/packages/ledger-tui/node_modules/$dep"
+            fi
+          done
+          ln -s ${bunNodeModules}/packages/ledger-tui/node_modules/@modelcontextprotocol/sdk \
+            "$WORKSPACE/packages/ledger-tui/node_modules/@modelcontextprotocol/sdk"
+          ln -s "$WORKSPACE/packages/ledger-live" \
+            "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger-live"
+          # Embedded-mode workspace links: the TUI imports @cq/ledger-mcp at
+          # runtime (which resolves @cq/ledger from its own node_modules).
+          ln -s "$WORKSPACE/packages/ledger-mcp" \
+            "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger-mcp"
+          ln -s "$WORKSPACE/packages/ledger" \
+            "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger"
+        '';
+
+        # Shell fragment: stage the @cq/ledger-web SPA source + its runtime
+        # closure (index.html + react/react-dom/react-markdown/remark-gfm/
+        # rehype-sanitize/elkjs links + @modelcontextprotocol/sdk, the
+        # @cq/ledger-live link, the embedded-mode @cq/ledger-mcp + @cq/ledger
+        # links, and the @cq/config link for serve.ts main()). Expects the
+        # embedded MCP server closure (embedServerClosure) staged FIRST so
+        # $WORKSPACE/packages/{ledger,ledger-mcp,cq-config} exist. Extracted
+        # from the ledgerWeb derivation so cqCli can reuse it once the standalone
+        # derivation is removed (T392). NOTE: the LEDGER_WEB_OUTDIR writable-
+        # bundle wrapper env lives on the consuming derivation's makeWrapper
+        # (it is a wrapper concern, not a staging one).
+        webClosure = ''
+          cp -r packages/ledger-web/src "$WORKSPACE/packages/ledger-web/src"
+          cp packages/ledger-web/index.html "$WORKSPACE/packages/ledger-web/"
+          cp packages/ledger-web/package.json packages/ledger-web/tsconfig.json \
+            "$WORKSPACE/packages/ledger-web/"
+          # @cq/ledger-live (bundled by Bun.build) — source + workspace symlink.
+          ${ledgerLiveSource}
+
+          mkdir -p "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol" \
+                   "$WORKSPACE/packages/ledger-web/node_modules/@cq"
+          for dep in react react-dom react-markdown remark-gfm rehype-sanitize bun-types elkjs; do
+            if [ -e "${bunNodeModules}/packages/ledger-web/node_modules/$dep" ]; then
+              ln -s "${bunNodeModules}/packages/ledger-web/node_modules/$dep" \
+                "$WORKSPACE/packages/ledger-web/node_modules/$dep"
+            fi
+          done
+          ln -s ${bunNodeModules}/packages/ledger-web/node_modules/@modelcontextprotocol/sdk \
+            "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol/sdk"
+          ln -s "$WORKSPACE/packages/ledger-live" \
+            "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger-live"
+          # Embedded-mode workspace links: serve.ts imports @cq/ledger-mcp at
+          # runtime (which resolves @cq/ledger from its own node_modules).
+          ln -s "$WORKSPACE/packages/ledger-mcp" \
+            "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger-mcp"
+          ln -s "$WORKSPACE/packages/ledger" \
+            "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger"
+          # @cq/config — cq.toml parser used by serve.ts main() (T187).
+          ln -s "$WORKSPACE/packages/cq-config" \
+            "$WORKSPACE/packages/ledger-web/node_modules/@cq/config"
+        '';
+
         # ledger-mcp — the standalone ledger MCP server. Serves the 18-tool
         # ledger surface over stdio or Streamable HTTP (`--http [host:]port`),
         # backed by a file-backed FsLedgerStore. Closure: the @cq/ledger library
@@ -284,36 +373,13 @@
             WORKSPACE=$out/share/ledger-tui
             mkdir -p "$WORKSPACE/packages/ledger-tui" $out/bin
 
-            cp -r packages/ledger-tui/src "$WORKSPACE/packages/ledger-tui/src"
-            cp packages/ledger-tui/package.json packages/ledger-tui/tsconfig.json \
-              "$WORKSPACE/packages/ledger-tui/"
-            # @cq/ledger-live (zero runtime deps) — source + workspace symlink.
-            mkdir -p "$WORKSPACE/packages/ledger-live"
-            cp -r packages/ledger-live/src "$WORKSPACE/packages/ledger-live/src"
-            cp packages/ledger-live/package.json "$WORKSPACE/packages/ledger-live/"
             cp package.json bun.lock bunfig.toml tsconfig.base.json "$WORKSPACE/"
 
             # Embedded MCP server closure (@cq/ledger + @cq/ledger-mcp).
             ${embedServerClosure}
 
-            mkdir -p "$WORKSPACE/packages/ledger-tui/node_modules/@modelcontextprotocol" \
-                     "$WORKSPACE/packages/ledger-tui/node_modules/@cq"
-            for dep in ink react bun-types; do
-              if [ -e "${bunNodeModules}/packages/ledger-tui/node_modules/$dep" ]; then
-                ln -s "${bunNodeModules}/packages/ledger-tui/node_modules/$dep" \
-                  "$WORKSPACE/packages/ledger-tui/node_modules/$dep"
-              fi
-            done
-            ln -s ${bunNodeModules}/packages/ledger-tui/node_modules/@modelcontextprotocol/sdk \
-              "$WORKSPACE/packages/ledger-tui/node_modules/@modelcontextprotocol/sdk"
-            ln -s "$WORKSPACE/packages/ledger-live" \
-              "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger-live"
-            # Embedded-mode workspace links: the TUI imports @cq/ledger-mcp at
-            # runtime (which resolves @cq/ledger from its own node_modules).
-            ln -s "$WORKSPACE/packages/ledger-mcp" \
-              "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger-mcp"
-            ln -s "$WORKSPACE/packages/ledger" \
-              "$WORKSPACE/packages/ledger-tui/node_modules/@cq/ledger"
+            # TUI source + ink/react + embedded-mode workspace links.
+            ${tuiClosure}
 
             makeWrapper ${pkgs.bun}/bin/bun $out/bin/ledger-tui \
               --add-flags "run $WORKSPACE/packages/ledger-tui/src/main.tsx --" \
@@ -351,40 +417,13 @@
             WORKSPACE=$out/share/ledger-web
             mkdir -p "$WORKSPACE/packages/ledger-web" $out/bin
 
-            cp -r packages/ledger-web/src "$WORKSPACE/packages/ledger-web/src"
-            cp packages/ledger-web/index.html "$WORKSPACE/packages/ledger-web/"
-            cp packages/ledger-web/package.json packages/ledger-web/tsconfig.json \
-              "$WORKSPACE/packages/ledger-web/"
-            # @cq/ledger-live (bundled by Bun.build) — source + workspace symlink.
-            mkdir -p "$WORKSPACE/packages/ledger-live"
-            cp -r packages/ledger-live/src "$WORKSPACE/packages/ledger-live/src"
-            cp packages/ledger-live/package.json "$WORKSPACE/packages/ledger-live/"
             cp package.json bun.lock bunfig.toml tsconfig.base.json "$WORKSPACE/"
 
             # Embedded MCP server closure (@cq/ledger + @cq/ledger-mcp).
             ${embedServerClosure}
 
-            mkdir -p "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol" \
-                     "$WORKSPACE/packages/ledger-web/node_modules/@cq"
-            for dep in react react-dom react-markdown remark-gfm rehype-sanitize bun-types elkjs; do
-              if [ -e "${bunNodeModules}/packages/ledger-web/node_modules/$dep" ]; then
-                ln -s "${bunNodeModules}/packages/ledger-web/node_modules/$dep" \
-                  "$WORKSPACE/packages/ledger-web/node_modules/$dep"
-              fi
-            done
-            ln -s ${bunNodeModules}/packages/ledger-web/node_modules/@modelcontextprotocol/sdk \
-              "$WORKSPACE/packages/ledger-web/node_modules/@modelcontextprotocol/sdk"
-            ln -s "$WORKSPACE/packages/ledger-live" \
-              "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger-live"
-            # Embedded-mode workspace links: serve.ts imports @cq/ledger-mcp at
-            # runtime (which resolves @cq/ledger from its own node_modules).
-            ln -s "$WORKSPACE/packages/ledger-mcp" \
-              "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger-mcp"
-            ln -s "$WORKSPACE/packages/ledger" \
-              "$WORKSPACE/packages/ledger-web/node_modules/@cq/ledger"
-            # @cq/config — cq.toml parser used by serve.ts main() (T187).
-            ln -s "$WORKSPACE/packages/cq-config" \
-              "$WORKSPACE/packages/ledger-web/node_modules/@cq/config"
+            # Web SPA source + react/elkjs/markdown links + embedded-mode links.
+            ${webClosure}
 
             makeWrapper ${pkgs.bun}/bin/bun $out/bin/ledger-web \
               --add-flags "run $WORKSPACE/packages/ledger-web/src/serve.ts --" \
@@ -416,31 +455,32 @@
             runHook preInstall
 
             WORKSPACE=$out/share/cq
-            mkdir -p "$WORKSPACE/packages" $out/bin
+            mkdir -p "$WORKSPACE/packages/cq-cli" $out/bin
 
-            # ── 1. Source: the library + this binary ────────────────────── #
-            cp -r packages/ledger "$WORKSPACE/packages/ledger"
+            # ── 1. Source: this binary + top-level workspace manifests ───── #
+            # (@cq/ledger, @cq/ledger-mcp, @cq/cq-config, @cq/ledger-live and
+            #  the tui/web SPA sources are staged by the closure fragments
+            #  below — embedServerClosure / tuiClosure / webClosure.)
             cp -r packages/cq-cli "$WORKSPACE/packages/cq-cli"
             cp package.json bun.lock bunfig.toml tsconfig.base.json "$WORKSPACE/"
-            rm -rf \
-              "$WORKSPACE/packages/ledger/node_modules" \
-              "$WORKSPACE/packages/cq-cli/node_modules"
+            rm -rf "$WORKSPACE/packages/cq-cli/node_modules"
 
-            # ── 2. ledger node_modules (runtime deps, mirrors ledgerMcp) ──── #
-            mkdir -p "$WORKSPACE/packages/ledger/node_modules/@anthropic-ai" \
-                     "$WORKSPACE/packages/ledger/node_modules/@modelcontextprotocol"
-            for dep in zod yaml unified remark-frontmatter remark-parse remark-stringify minisearch bun-types; do
-              if [ -e "${bunNodeModules}/packages/ledger/node_modules/$dep" ]; then
-                ln -s "${bunNodeModules}/packages/ledger/node_modules/$dep" \
-                  "$WORKSPACE/packages/ledger/node_modules/$dep"
-              fi
-            done
-            ln -s ${bunNodeModules}/packages/ledger/node_modules/@anthropic-ai/claude-agent-sdk \
-              "$WORKSPACE/packages/ledger/node_modules/@anthropic-ai/claude-agent-sdk"
-            ln -s ${bunNodeModules}/packages/ledger/node_modules/@modelcontextprotocol/sdk \
-              "$WORKSPACE/packages/ledger/node_modules/@modelcontextprotocol/sdk"
+            # ── 2. Union closure: cq dispatches mcp|tui|web in-process via ── #
+            #   dynamic import("@cq/ledger-{mcp,tui,web}"), so its workspace
+            #   stages all four product stagings:
+            #   (a) embedServerClosure — @cq/ledger + @cq/ledger-mcp + @cq/config
+            #       (the `cq mcp` server AND the embedded TUI/web MCP servers);
+            ${embedServerClosure}
+            #   (b) tuiClosure — ink/react + @cq/ledger-tui source;
+            ${tuiClosure}
+            #   (c) webClosure — @cq/ledger-web SPA source + react/react-dom/
+            #       react-markdown/remark-gfm/rehype-sanitize/elkjs + index.html.
+            ${webClosure}
 
             # ── 3. cq-cli node_modules ──────────────────────────────────── #
+            # The dispatcher resolves @cq/ledger (init/reset/erase build an
+            # FsLedgerStore directly) plus the dynamically-imported
+            # @cq/ledger-{mcp,tui,web,live} subcommand entrypoints.
             mkdir -p "$WORKSPACE/packages/cq-cli/node_modules/@cq"
             if [ -e "${bunNodeModules}/packages/cq-cli/node_modules/bun-types" ]; then
               ln -s "${bunNodeModules}/packages/cq-cli/node_modules/bun-types" \
@@ -448,18 +488,27 @@
             fi
             ln -s "$WORKSPACE/packages/ledger" \
               "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger"
-
             # @cq/config — cq-cli's runInit/runReset route through @cq/ledger's
             # createLedgerStore (T357), which imports @cq/config at startup.
-            cp -r packages/cq-config "$WORKSPACE/packages/cq-config"
-            rm -rf "$WORKSPACE/packages/cq-config/node_modules"
             ln -s "$WORKSPACE/packages/cq-config" \
               "$WORKSPACE/packages/cq-cli/node_modules/@cq/config"
-            ${cqConfigForLedger}
+            # Dispatcher subcommand entrypoints (dynamic import).
+            ln -s "$WORKSPACE/packages/ledger-mcp" \
+              "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger-mcp"
+            ln -s "$WORKSPACE/packages/ledger-tui" \
+              "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger-tui"
+            ln -s "$WORKSPACE/packages/ledger-web" \
+              "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger-web"
+            ln -s "$WORKSPACE/packages/ledger-live" \
+              "$WORKSPACE/packages/cq-cli/node_modules/@cq/ledger-live"
 
             # ── 4. Wrapper ──────────────────────────────────────────────── #
+            # LEDGER_WEB_OUTDIR redirects embedded `cq web` Bun.build output to a
+            # writable path (the store closure is read-only). Carried over from
+            # the standalone ledger-web wrapper.
             makeWrapper ${pkgs.bun}/bin/bun $out/bin/cq \
               --add-flags "run $WORKSPACE/packages/cq-cli/src/main.ts --" \
+              --run 'export LEDGER_WEB_OUTDIR="''${LEDGER_WEB_OUTDIR:-''${XDG_CACHE_HOME:-$HOME/.cache}/ledger-web/dist}"' \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.bun pkgs.nodejs_22 ]}
 
             runHook postInstall
