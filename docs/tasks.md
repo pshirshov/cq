@@ -625,10 +625,10 @@ archives:
 - completion: cq USAGE now lists mcp|tui|web modes (with flag signatures + mcp restore) alongside the 5 native subcommands; header <mode|command>; dispatch.test.ts asserts all present. check 1683/0.
 - sessionLogs: ["docs/logs/20260611-003952-T388.md"]
 
-### T389 — wip
+### T389 — done
 
 - createdAt: 2026-06-10T22:23:30.575Z
-- updatedAt: 2026-06-10T23:59:43.967Z
+- updatedAt: 2026-06-11T00:53:56.220Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Add cq-dispatch tests for mode routing, verbatim pass-through, and restore
@@ -637,6 +637,9 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T387"]
 - ledgerRefs: ["goals:G48"]
+- resultCommit: 4dc1802
+- completion: "cq-dispatch tests: extended dispatch.test.ts with (c) relative-cwd verbatim (no resolveRoot on the mode path) + (e) native-subcommand regression guard (mode delegates stay empty); round-2 dedup'd recordingModes to a single module-scope helper + try/catch cleanup. check 1688/0."
+- sessionLogs: ["docs/logs/20260611-003952-T389.md"]
 
 ## M167
 

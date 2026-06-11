@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 472
+  item: 473
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -925,6 +925,18 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T388","goals:G48"]
 - sessionLogs: ["docs/logs/20260611-003952-T388.md"]
+
+### R473 — go-ahead
+
+- createdAt: 2026-06-11T00:54:00.012Z
+- updatedAt: 2026-06-11T00:54:00.012Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T389 — reconciled approve at round 2 (opus+codex+grok approve; minimax abstained). Round 1: codex+grok disapprove (valid: recordingModes defined 3× = pure dup; (c) resolveRoot indirect; cleanup unwrapped). Round 2: dedup'd to a single module-scope helper; resolveRoot-bypass proof valid (sole call site parseSubcommandArgs, bypassed by the mode branch); try/catch cleanup; (e) native-subcommand guard intact. check 1688/0."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T389","goals:G48"]
+- sessionLogs: ["docs/logs/20260611-003952-T389.md"]
 
 ## M167
 
