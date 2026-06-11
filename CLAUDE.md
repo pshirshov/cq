@@ -14,7 +14,7 @@ under `nix/` (see `nix/hm/dev-llm.nix`, `nix/pkg/{yolo,codex,claude-code,…}`).
 - `bun test` — full suite (run from `nix/pkg/cq-ledgers/`).
 - `bun run typecheck` (`tsc -b`) and `bun run lint` (`eslint .`).
 - `bun run check` — all three. Run it before declaring work done.
-- Nix products (from the repo root): `nix build .#ledger-mcp | .#ledger-tui | .#ledger-web`.
+- Nix products (from the repo root): `nix build .#cq`.
 - After changing dependencies / `bun.lock`: refresh the FOD hash in
   `flake.nix` — set `outputHash` to 52 `A`s, `nix build .#node-modules`, paste
   the `got:` hash back.
@@ -28,7 +28,7 @@ under `nix/` (see `nix/hm/dev-llm.nix`, `nix/pkg/{yolo,codex,claude-code,…}`).
   co-locates the MCP server in its own process (in-memory transport for the TUI,
   co-hosted `/mcp` + `/ws` for the web) and still talks to it over MCP — it does
   not read `docs/` directly.
-- `--cwd` for `ledger-mcp` must be absolute (or relative, resolved vs CWD);
+- `--cwd` for `cq mcp` must be absolute (or relative, resolved vs CWD);
   it defaults to the process CWD.
 - Tests: `ink-testing-library` for the TUI, happy-dom for the web; controlled
   *text* inputs don't fire onChange under happy-dom, so use uncontrolled

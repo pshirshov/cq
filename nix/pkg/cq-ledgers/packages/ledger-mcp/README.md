@@ -8,16 +8,16 @@ HTTP (`--http`).
 
 ```sh
 # stdio; ledger root = $LEDGER_ROOT or CWD
-ledger-mcp
+cq mcp
 
 # explicit root
-ledger-mcp --cwd /path/to/project
+cq mcp --cwd /path/to/project
 
 # Streamable HTTP on 127.0.0.1:7777
-ledger-mcp --cwd /path/to/project --http 7777
+cq mcp --cwd /path/to/project --http 7777
 
 # Prefix all 26 tool names with "myproj_"
-ledger-mcp --cwd /path/to/project --tool-prefix myproj
+cq mcp --cwd /path/to/project --tool-prefix myproj
 ```
 
 Tool-name prefix rules: a prefix must match `^[a-zA-Z0-9]+$` (letters and
@@ -52,7 +52,7 @@ const { store } = await createLedgerStore(root);
 // Create the McpServer.
 // - displayName  surfaces as serverInfo.title (clients show it in the UI).
 // - toolPrefix   renames every tool to "<prefix>_<name>" so this server's
-//                tools don't clash with another ledger-mcp instance in the
+//                tools don't clash with another cq mcp instance in the
 //                same session.  Omit (or pass "") for the default unprefixed
 //                26-tool surface.
 const server = createLedgerMcpServer({
@@ -109,7 +109,7 @@ If you do not need in-process embedding, the standalone binary covers the
 no-code case:
 
 ```sh
-ledger-mcp --cwd /path/to/your/project --tool-prefix myproj
+cq mcp --cwd /path/to/your/project --tool-prefix myproj
 ```
 
 The `--tool-prefix` flag applies the same prefix as the programmatic

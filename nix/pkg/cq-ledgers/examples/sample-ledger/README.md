@@ -38,7 +38,7 @@ bun run packages/ledger-tui/src/main.tsx --url http://127.0.0.1:7777/mcp
 bun run packages/ledger-web/src/serve.ts --port 5180 --mcp-url http://127.0.0.1:7777/mcp
 ```
 
-`ledger-web` **reverse-proxies** `/mcp` to `--mcp-url`, so the browser only
+`cq web` **reverse-proxies** `/mcp` to `--mcp-url`, so the browser only
 talks to the page's own origin — it never contacts the MCP server directly
 (no CORS, and the MCP host need not be reachable from the browser). For a
 remote browser, bind the web server on a reachable address and keep
@@ -53,9 +53,9 @@ bun run packages/ledger-web/src/serve.ts --host 0.0.0.0 --port 5180 \
 ### With Nix
 
 ```sh
-nix run .#ledger-mcp -- --cwd "$PWD/examples/sample-ledger" --http 7777
-nix run .#ledger-tui -- --url http://127.0.0.1:7777/mcp
-nix run .#ledger-web -- --port 5180 --mcp-url http://127.0.0.1:7777/mcp
+nix run .#cq -- mcp --cwd "$PWD/examples/sample-ledger" --http 7777
+nix run .#cq -- tui --url http://127.0.0.1:7777/mcp
+nix run .#cq -- web --port 5180 --mcp-url http://127.0.0.1:7777/mcp
 ```
 
 In the **TUI**: `↑↓`/`jk` move, `Enter` opens, `/` searches, `n` creates,
