@@ -34,16 +34,11 @@ let
   # The ledger suite lives in THIS flake (cq). Re-use its packages + the LLM
   # asset bundle it contributes.
   ledgerPkgs = self.packages.${system};
-  ledgerPkg = ledgerPkgs.ledger-mcp;
+  ledgerPkg = ledgerPkgs.cq;
   ledgerAssets = self.llmAssets;
-  # The ledger-* CLI tools (ledger-mcp/ledger-tui/ledger-web) put on PATH so
-  # the agents (and the user) can drive the ledger directly, not only via MCP.
-  ledgerTools = [
-    ledgerPkgs.ledger-mcp
-    ledgerPkgs.ledger-tui
-    ledgerPkgs.ledger-web
-    ledgerPkgs.cq
-  ];
+  # The cq CLI put on PATH so the agents (and the user) can drive the ledger
+  # directly (cq mcp|tui|web), not only via MCP.
+  ledgerTools = [ ledgerPkgs.cq ];
 
   # Canonical llmAssets bundle from the two in-repo packages: skills from
   # llm-skills, general context from llm-contexts. Symmetric with
@@ -217,8 +212,8 @@ in
         # agent's process CWD, so one global server serves a per-project
         # ledger. Pass "--http" "PORT" instead for a shared HTTP instance.
         servers.ledger = {
-          command = "${ledgerPkg}/bin/ledger-mcp";
-          args = [ ];
+          command = "${ledgerPkg}/bin/cq";
+          args = [ "mcp" ];
         };
       };
 
