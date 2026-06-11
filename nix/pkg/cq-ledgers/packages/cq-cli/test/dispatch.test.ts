@@ -84,7 +84,7 @@ describe("dispatch", () => {
     expect(io.errs.join("\n")).toBe(USAGE);
   });
 
-  it("USAGE text includes all three modes and all five native subcommands", () => {
+  it("USAGE text includes all three modes and all six native subcommands", () => {
     // modes
     expect(USAGE).toContain("mcp");
     expect(USAGE).toContain("tui");
@@ -95,6 +95,7 @@ describe("dispatch", () => {
     expect(USAGE).toContain("erase");
     expect(USAGE).toContain("move-ledger");
     expect(USAGE).toContain("advance-gate");
+    expect(USAGE).toContain("log put");
   });
 
   it("routes erase to its handler (nonexistent root => refuse exit 2, nothing to erase)", async () => {

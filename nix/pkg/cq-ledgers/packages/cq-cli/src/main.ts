@@ -37,6 +37,7 @@ import {
 import { CQ_TOML_TEMPLATE } from "./cqTomlTemplate.js";
 import { runMoveLedger, type MoveDirection } from "./moveLedger.js";
 import { runAdvanceGate } from "./advanceGate.js";
+import { parseLogPutArgs, runLogPut, EXIT_USAGE as LOG_PUT_EXIT_USAGE } from "./logPut.js";
 
 /**
  * The `cq.toml` config filename, resolved relative to the ledger root. Kept as
@@ -51,7 +52,7 @@ export { type ConfirmIo, type ConfirmOutcome, defaultConfirmIo, confirmDestructi
 export const EXIT_USAGE = 2;
 
 /** The subcommands the dispatcher routes to. */
-export const SUBCOMMANDS = ["init", "reset", "erase", "move-ledger", "advance-gate"] as const;
+export const SUBCOMMANDS = ["init", "reset", "erase", "move-ledger", "advance-gate", "log"] as const;
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
 function isSubcommand(s: string): s is Subcommand {
@@ -151,6 +152,10 @@ export const USAGE = [
   "  advance-gate [--cwd <path>] [--session <id>]    emit the neutral /cq:advance stop-gate verdict",
   "                                                  JSON (block + reason + predicates) to stdout;",
   "                                                  exit 0 = allow, non-zero = block.",
+  "  log put <src>|--stdin --dest logs/<rel> [--cwd <path>]",
+  "                                                  write a log file into docs/logs/<rel>;",
+  "                                                  source is a local file path OR --stdin;",
+  "                                                  --dest must be under logs/ (no escapes).",
   "",
   "ledger root: --cwd > $LEDGER_ROOT > current working directory",
 ].join("\n");
@@ -465,6 +470,62 @@ export async function runAdvanceGateCmd(
   );
 }
 
+/**
+ * `cq log` (T406 / G49): a NATIVE namespace subcommand whose first positional
+ * token is a sub-subcommand (`put`). The only recognised sub-subcommand is
+ * `put`; anything else prints a usage error and exits {@link EXIT_USAGE}.
+ *
+ * The `cwd` in `args` is the already-resolved ledger root (from the top-level
+ * `--cwd` / `$LEDGER_ROOT` / CWD). The `logArgv` slice carries the tokens
+ * AFTER "log" (e.g. `["put", "--stdin", "--dest", "logs/raw/x.jsonl"]`).
+ */
+export async function runLogCmd(
+  args: SubcommandArgs,
+  logArgv: readonly string[],
+  io: DispatchIo,
+): Promise<SubcommandOutcome> {
+  // Find the first positional token in logArgv (the sub-subcommand); skip any
+  // leading flags (e.g. --cwd /foo that appear between "log" and "put").
+  let subIdx = -1;
+  for (let i = 0; i < logArgv.length; i++) {
+    const a = logArgv[i];
+    if (a !== undefined && !a.startsWith("-")) {
+      subIdx = i;
+      break;
+    }
+    // Skip --cwd <value> and --cwd=<value> since they were already consumed by
+    // the top-level dispatcher.
+    if (a === "--cwd") {
+      i += 1;
+    }
+  }
+
+  const sub = subIdx >= 0 ? logArgv[subIdx] : undefined;
+  if (sub !== "put") {
+    io.err(
+      sub === undefined
+        ? "cq log: a sub-subcommand is required (e.g. `cq log put --stdin --dest logs/<rel>`).\n" +
+            "  put <src>|--stdin --dest logs/<rel>   write a log file into docs/logs/<rel>"
+        : `cq log: unknown sub-subcommand "${sub}"; expected "put".\n` +
+            "  put <src>|--stdin --dest logs/<rel>   write a log file into docs/logs/<rel>",
+    );
+    return { exitCode: EXIT_USAGE };
+  }
+
+  // Everything after "put" is the `log put` argv:
+  // positional src, --stdin, --dest, etc. (--cwd was already consumed by the
+  // top-level parser and is reflected in args.cwd).
+  let putArgs;
+  try {
+    putArgs = parseLogPutArgs(args.cwd, logArgv.slice(subIdx + 1));
+  } catch (e) {
+    io.err(e instanceof Error ? e.message : String(e));
+    return { exitCode: LOG_PUT_EXIT_USAGE };
+  }
+
+  return runLogPut(putArgs, { out: io.out, err: io.err });
+}
+
 /** A store exposing the FS-specific backup→reinit `reset()` (FsLedgerStore). */
 interface ResettableStore extends LedgerStore {
   reset(): Promise<ResetSummary>;
@@ -491,6 +552,14 @@ const HANDLERS: Record<Subcommand, (args: SubcommandArgs, io: DispatchIo) => Pro
   erase: runErase,
   "move-ledger": runMoveLedgerCmd,
   "advance-gate": runAdvanceGateCmd,
+  // `log` is a namespace subcommand: the handler placeholder is never invoked
+  // directly — the dispatch() function intercepts it and delegates to runLogCmd
+  // with the raw post-"log" argv.  This entry must exist so isSubcommand() and
+  // SUBCOMMANDS include "log".
+  log: async (_args, io) => {
+    io.err("cq log: internal error — log handler called without sub-argv");
+    return { exitCode: EXIT_USAGE };
+  },
 };
 
 /**
@@ -521,6 +590,13 @@ export async function dispatch(
     return { exitCode: EXIT_USAGE, longRunning: false };
   }
   const args = parseSubcommandArgs(argv.slice(1));
+  // `log` is a namespace subcommand — intercept it before the generic handler
+  // dispatch so runLogCmd receives the raw post-"log" argv for sub-subcommand
+  // routing and `log put` argument parsing.
+  if (first === "log") {
+    const outcome = await runLogCmd(args, argv.slice(1), io);
+    return { ...outcome, longRunning: false };
+  }
   const outcome = await HANDLERS[first](args, io);
   return { ...outcome, longRunning: false };
 }
