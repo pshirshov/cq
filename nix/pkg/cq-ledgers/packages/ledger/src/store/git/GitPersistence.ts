@@ -49,11 +49,22 @@
  *  - NO `~/.cache` mirror (Q195(2)).
  */
 
+import * as path from "node:path";
 import type { LedgerPersistence } from "../LedgerPersistence.js";
 import type { GitPlumbing, TreeEntry } from "./GitPlumbing.js";
+import { LedgerError } from "../../types.js";
+import { MAX_READ_LOG_BYTES, type ReadLogResult } from "../../mcp/readLog.js";
 
 /** Regular-file git mode for a ledger blob. */
 const BLOB_MODE = "100644";
+
+/**
+ * The docs-relative tree prefix the git-object backend stores session logs under
+ * (the orphan tree is rooted at the DOCS CONTENTS, so the FS `<root>/docs/logs`
+ * confinement root is the `logs/` subtree here — NO `docs/` prefix; see the
+ * tree-layout note above).
+ */
+const LOGS_TREE_PREFIX = "logs";
 
 /** Registry tree path (docs-relative). */
 const REGISTRY_PATH = "ledgers.yaml";
@@ -253,6 +264,73 @@ export class GitPersistence implements LedgerPersistence {
     // a per-name token is the ref sha (uniform across names). Absent ref → "".
     const sha = await this.refSha();
     return sha ?? "";
+  }
+
+  // ---------------------------------------------------------------------------
+  // (f) Bounded read-log capability (T408 / Q87 / R137 #6)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bounded, root-confined read of a session log at `logs/<rel>` on the orphan
+   * ref — the git-object analogue of {@link FsLedgerStore.readLog}. The FS
+   * capability confines to `<root>/docs/logs`; the orphan tree is rooted at the
+   * docs contents, so the confinement root here is the `logs/` SUBTREE. The
+   * confinement + {@link MAX_READ_LOG_BYTES} cap + {@link ReadLogResult} shape
+   * MIRROR the FS capability EXACTLY:
+   *  - `relPath` MUST be repo-relative; an absolute path is rejected;
+   *  - the path is normalised under `logs/` and REJECTED if it escapes that
+   *    subtree (e.g. `..` traversal);
+   *  - read is `lsTree` presence-check + `catFile` at the ref tip (no checkout);
+   *  - a missing path is a clean not-found (mirroring the FS ENOENT surface);
+   *  - oversized content is truncated to the byte cap and flagged
+   *    `truncated: true`.
+   *
+   * There is no filesystem here, so the FS-only realpath/symlink TOCTOU defences
+   * (D26/D28) do not apply — confinement is purely lexical against the tree path.
+   */
+  async readLog(relPath: string): Promise<ReadLogResult> {
+    if (path.isAbsolute(relPath)) {
+      throw new LedgerError(`read_log: absolute paths are not allowed: ${relPath}`);
+    }
+    // sessionLogs stores REPO-relative paths ("docs/logs/<file>"); strip a
+    // leading docs/logs/ so it is not doubled into logs/docs/logs/<file>. A path
+    // already relative to logs ("<file>") is unaffected (mirrors FsLedgerStore).
+    const rel = relPath.replace(/^docs[/\\]logs[/\\]/, "");
+    // Resolve under a virtual `/<LOGS_TREE_PREFIX>` root and verify lexical
+    // containment (defence-in-depth against `..` traversal), then derive the
+    // tree path relative to the logs subtree. Using POSIX path semantics so the
+    // tree path uses forward slashes regardless of host platform.
+    const virtualRoot = path.posix.join("/", LOGS_TREE_PREFIX);
+    const resolved = path.posix.resolve(virtualRoot, rel.split(path.sep).join("/"));
+    if (resolved !== virtualRoot && !resolved.startsWith(virtualRoot + "/")) {
+      throw new LedgerError(`read_log: path escapes docs/logs root: ${relPath}`);
+    }
+    // Tree path is docs-relative: drop the leading slash of the virtual root.
+    const treePath = resolved.slice(1);
+
+    // Presence-check via lsTree, then catFile at the ref tip (no checkout).
+    const sha = await this.refSha();
+    const names = sha === null ? [] : await this.git.lsTree(this.ref);
+    if (!names.includes(treePath)) {
+      // Clean not-found mirroring the FS capability's ENOENT surface: a missing
+      // log is an error, not an empty result.
+      throw new LedgerError(
+        `read_log: no such file: ${relPath} (ENOENT, ref ${this.ref})`,
+      );
+    }
+    const content = await this.git.catFile(this.ref, treePath);
+    // Cap on BYTE length (mirrors FsLedgerStore: it reads bytes and slices the
+    // Buffer at MAX_READ_LOG_BYTES). catFile decoded utf8; re-encode to bound
+    // bytes faithfully and slice on a byte boundary when oversized.
+    const buf = Buffer.from(content, "utf8");
+    if (buf.byteLength > MAX_READ_LOG_BYTES) {
+      return {
+        path: relPath,
+        content: buf.subarray(0, MAX_READ_LOG_BYTES).toString("utf8"),
+        truncated: true,
+      };
+    }
+    return { path: relPath, content };
   }
 }
 

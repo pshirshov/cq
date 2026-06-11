@@ -2,11 +2,12 @@
  * Backend capability gating over buildServer (T357 / G43).
  *
  * buildServer historically gated read_log + config + promptCatalog on
- * `store instanceof FsLedgerStore`. T357 GENERALISES that:
+ * `store instanceof FsLedgerStore`. T357 GENERALISED config/promptCatalog;
+ * T408 GENERALISES read_log too:
  *
- *  - read_log stays FS-only (the git-object backend keeps no on-disk
- *    docs/logs) — so against a GitObjectLedgerBackend it returns the
- *    not-implemented error;
+ *  - read_log is now BACKEND-AWARE — the git-object backend serves the SAME
+ *    `logs/<rel>` confinement + 4 MiB cap from the orphan ref tip, so against a
+ *    GitObjectLedgerBackend it IS wired (NOT the not-implemented error);
  *  - config (get_config) and promptCatalog (fetch_prompt) are ROOT-BOUND and
  *    BACKEND-INDEPENDENT — both stores expose `rootDir` — so they ARE available
  *    for the git-object backend (NOT the not-implemented error).
@@ -24,11 +25,28 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { GitObjectLedgerBackend } from "@cq/ledger";
+import { GitObjectLedgerBackend, GitPlumbing } from "@cq/ledger";
 import { buildServer } from "../src/main.js";
 
 const exec = promisify(execFile);
+const REF = "refs/heads/cq-ledger";
 const dirs: string[] = [];
+
+/**
+ * Seed a `logs/<rel>` blob onto the orphan ref tip (mirrors how the FS read-log
+ * test writes a file under <root>/docs/logs). Advances the ref by one commit
+ * carrying the single log blob, so read_log finds it via lsTree + catFile.
+ */
+async function seedLog(dir: string, rel: string, content: string): Promise<void> {
+  const plumbing = GitPlumbing.withCwd(dir, path.join(dir, ".git"));
+  const blob = await plumbing.hashObject(content);
+  const tree = await plumbing.writeTree([
+    { mode: "100644", sha: blob, path: `logs/${rel}` },
+  ]);
+  const parent = await plumbing.readRef(REF);
+  const commit = await plumbing.commitTree(tree, parent, "ledger: seed log");
+  await plumbing.updateRef(REF, commit, parent);
+}
 
 async function gitRepo(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(tmpdir(), "capgate-"));
@@ -47,7 +65,7 @@ async function gitRepo(): Promise<string> {
 
 /** Connect an in-memory MCP client to buildServer over the given git-object store. */
 async function withGitBackendClient(
-  fn: (client: Client) => Promise<void>,
+  fn: (client: Client, dir: string) => Promise<void>,
 ): Promise<void> {
   const dir = await gitRepo();
   const store = new GitObjectLedgerBackend({ repoRoot: dir });
@@ -58,7 +76,7 @@ async function withGitBackendClient(
   const client = new Client({ name: "capgate-test", version: "0.0.1" }, { capabilities: {} });
   await client.connect(clientTransport);
   try {
-    await fn(client);
+    await fn(client, dir);
   } finally {
     await client.close();
     await store.dispose();
@@ -78,14 +96,45 @@ afterAll(async () => {
 });
 
 describe("buildServer capability gating — git-object backend", () => {
-  it("read_log returns the not-implemented error (FS-only capability absent)", async () => {
+  it("read_log IS wired and returns seeded content byte-identical (T408)", async () => {
+    await withGitBackendClient(async (client, dir) => {
+      await seedLog(dir, "raw/x.jsonl", '{"a":1}\n{"b":2}\n');
+      const result = (await client.callTool({
+        name: "read_log",
+        arguments: { path: "raw/x.jsonl" },
+      })) as { isError?: boolean; content?: Array<{ type: string; text?: string }> };
+      expect(result.isError ?? false).toBe(false);
+      const parsed = JSON.parse(textOf(result)) as {
+        path: string;
+        content: string;
+        truncated?: boolean;
+      };
+      expect(parsed.content).toBe('{"a":1}\n{"b":2}\n');
+      expect(parsed.truncated).toBeUndefined();
+    });
+  });
+
+  it("read_log rejects a path escaping logs/ (../tasks.md)", async () => {
     await withGitBackendClient(async (client) => {
       const result = (await client.callTool({
         name: "read_log",
-        arguments: { path: "anything.md" },
+        arguments: { path: "../tasks.md" },
       })) as { isError?: boolean; content?: Array<{ type: string; text?: string }> };
       expect(result.isError).toBe(true);
-      expect(textOf(result)).toContain("read_log is not implemented for this store");
+      expect(textOf(result)).toContain("escapes docs/logs");
+    });
+  });
+
+  it("read_log returns a clean not-found for a missing path", async () => {
+    await withGitBackendClient(async (client) => {
+      const result = (await client.callTool({
+        name: "read_log",
+        arguments: { path: "nonexistent.jsonl" },
+      })) as { isError?: boolean; content?: Array<{ type: string; text?: string }> };
+      expect(result.isError).toBe(true);
+      const text = textOf(result);
+      expect(text).not.toContain("escapes docs/logs");
+      expect(text).toContain("no such file");
     });
   });
 

@@ -32,6 +32,7 @@ import { Lockfile, type LockfileOpts } from "../lockfile.js";
 import { AbstractLedgerStore } from "../AbstractLedgerStore.js";
 import { GitPlumbing } from "./GitPlumbing.js";
 import { GitPersistence } from "./GitPersistence.js";
+import type { ReadLogResult } from "../../mcp/readLog.js";
 
 /** Default orphan branch the ledger tree lives on (short name, no `refs/`). */
 const DEFAULT_BRANCH = "cq-ledger";
@@ -111,6 +112,20 @@ export class GitObjectLedgerBackend
    */
   get rootDir(): string {
     return this.repoRoot;
+  }
+
+  /**
+   * Bounded, root-confined read of a session log at `logs/<rel>` on the orphan
+   * ref (T408) — the git-object backend's `read_log` capability, the analogue of
+   * {@link FsLedgerStore.readLog}. Delegates to {@link GitPersistence.readLog},
+   * which closes over this backend's {@link GitPlumbing} + ref and mirrors the FS
+   * capability's confinement + {@link MAX_READ_LOG_BYTES} cap + result shape
+   * exactly. Wired into `read_log` by the MCP host (see
+   * `createLedgerMcpServer`), gated on the backend-aware `rootDir` capability
+   * rather than `instanceof FsLedgerStore`.
+   */
+  async readLog(relPath: string): Promise<ReadLogResult> {
+    return this.gitPersistence.readLog(relPath);
   }
 
   // ---------------------------------------------------------------------------

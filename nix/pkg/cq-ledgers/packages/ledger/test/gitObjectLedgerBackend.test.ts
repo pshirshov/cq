@@ -27,6 +27,7 @@ import {
   GitObjectLedgerBackend,
   GitPlumbing,
   serializeRegistry,
+  MAX_READ_LOG_BYTES,
   type LedgerSchema,
   type LedgerStore,
 } from "../src/index.js";
@@ -74,6 +75,22 @@ async function seedRegistry(
   ]);
   const commit = await plumbing.commitTree(tree, null, "ledger: seed registry");
   await plumbing.updateRef(REF, commit, null);
+}
+
+/**
+ * Seed a `logs/<rel>` blob onto the orphan ref tip (the git analogue of writing
+ * a file under <root>/docs/logs). Advances the ref by one commit carrying the
+ * single log blob; idempotent w.r.t. the current tip via a CAS parent.
+ */
+async function seedLog(dir: string, rel: string, content: string): Promise<void> {
+  const plumbing = GitPlumbing.withCwd(dir, path.join(dir, ".git"));
+  const blob = await plumbing.hashObject(content);
+  const tree = await plumbing.writeTree([
+    { mode: "100644", sha: blob, path: `logs/${rel}` },
+  ]);
+  const parent = await plumbing.readRef(REF);
+  const commit = await plumbing.commitTree(tree, parent, "ledger: seed log");
+  await plumbing.updateRef(REF, commit, parent);
 }
 
 /** sha256 of all tracked working-tree files (excludes .git). */
@@ -285,6 +302,92 @@ describe("GitObjectLedgerBackend — orphan-ref invariants", () => {
       onSchemaDivergence: "abort",
     });
     await expect(store.init()).rejects.toThrow();
+    await store.dispose();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// read_log capability over the git-object backend (T408) — Blackbox-Atomic:
+// drive the REAL git adapter's readLog against a throwaway repo, mirroring the
+// FS read-log test's confinement + 4 MiB cap + not-found assertions.
+// ---------------------------------------------------------------------------
+
+describe("GitObjectLedgerBackend — read_log capability (T408)", () => {
+  it("returns content byte-identical to what was committed under logs/", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    await seedLog(dir, "raw/x.jsonl", '{"a":1}\n{"b":2}\n');
+    // Second instance forces a real read from the ref tip (no in-memory cache).
+    const reader = new GitObjectLedgerBackend({ repoRoot: dir });
+    await reader.init();
+
+    const res = await reader.readLog("raw/x.jsonl");
+    expect(res.path).toBe("raw/x.jsonl");
+    expect(res.content).toBe('{"a":1}\n{"b":2}\n');
+    expect(res.truncated).toBeUndefined();
+
+    await reader.dispose();
+    await store.dispose();
+  });
+
+  it("accepts a repo-relative docs/logs/ path without doubling the prefix", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    await seedLog(dir, "session.md", "hello log\n");
+
+    const res = await store.readLog("docs/logs/session.md");
+    expect(res.content).toBe("hello log\n");
+    await store.dispose();
+  });
+
+  it("rejects a path escaping logs/ (../tasks.md)", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    await expect(store.readLog("../tasks.md")).rejects.toThrow(/escapes docs\/logs/);
+    await store.dispose();
+  });
+
+  it("rejects an absolute path (/etc/passwd)", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    await expect(store.readLog("/etc/passwd")).rejects.toThrow(
+      /absolute paths are not allowed/,
+    );
+    await store.dispose();
+  });
+
+  it("truncates a file > 4 MiB and sets truncated:true", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    const big = "x".repeat(MAX_READ_LOG_BYTES + 1024);
+    await seedLog(dir, "big.log", big);
+
+    const res = await store.readLog("big.log");
+    expect(res.truncated).toBe(true);
+    expect(res.content.length).toBe(MAX_READ_LOG_BYTES);
+    await store.dispose();
+  });
+
+  it("returns a clean not-found for a missing path (mirrors FS ENOENT)", async () => {
+    const dir = await seedRepo();
+    const store = new GitObjectLedgerBackend({ repoRoot: dir });
+    await store.init();
+    let threw = false;
+    try {
+      await store.readLog("nonexistent.log");
+    } catch (e: unknown) {
+      threw = true;
+      const msg = e instanceof Error ? e.message : String(e);
+      // Must NOT be a false "escape" error — a clean not-found.
+      expect(msg.includes("escapes docs/logs")).toBe(false);
+      expect(msg.includes("no such file") || msg.includes("ENOENT")).toBe(true);
+    }
+    expect(threw).toBe(true);
     await store.dispose();
   });
 });

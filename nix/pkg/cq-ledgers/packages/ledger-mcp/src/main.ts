@@ -46,7 +46,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import {
-  FsLedgerStore,
   type LedgerStore,
   type ReadLogCapability,
   type ConfigCapability,
@@ -383,6 +382,24 @@ export function rootDirOf(store: LedgerStore): string | undefined {
 }
 
 /**
+ * Duck-typed read-log capability check (T408). Both FsLedgerStore (tails the
+ * on-disk `<root>/docs/logs`) and GitObjectLedgerBackend (resolves `logs/<rel>`
+ * from the orphan ref tip) expose a bounded, root-confined `readLog(relPath)`
+ * returning a `ReadLogResult`; the in-memory test store does not. Returns the
+ * bound capability when the store advertises one, else `undefined` — so
+ * read_log is wired for BOTH file-backed AND git-object backends but throws the
+ * documented not-implemented error over an in-memory store. Backend-aware on
+ * purpose, replacing the former `instanceof FsLedgerStore` gate (which excluded
+ * the git-object backend even though it can serve read_log from the ref tree).
+ */
+export function readLogOf(store: LedgerStore): ReadLogCapability | undefined {
+  const candidate = (store as { readLog?: unknown }).readLog;
+  if (typeof candidate !== "function") return undefined;
+  const fn = candidate as ReadLogCapability;
+  return (relPath) => fn.call(store, relPath);
+}
+
+/**
  * Start the per-backend coherence watcher for a resolved store (T357 item 5):
  * file-watch ({@link startLedgerWatcher}) for the fs backend, ref-sha-watch
  * ({@link startLedgerRefWatcher}, T353) for git-object. Both return a handle
@@ -443,14 +460,15 @@ export function createLedgerMcpServer(opts: CreateLedgerMcpServerOptions): McpSe
     capabilities: { tools: {} },
     instructions,
   });
-  // read_log (Q87 / R137 #6) is the one GENUINELY FS-only capability — it tails
-  // the on-disk per-ledger log file under <root>/docs/logs, which the git-object
-  // backend (orphan ref, no on-disk projection) does not maintain. So it stays
-  // gated on the explicit `instanceof FsLedgerStore`; a non-FS store (git-object
-  // or the in-memory test store) supplies no capability and read_log throws the
-  // documented not-implemented error.
-  const readLog: ReadLogCapability | undefined =
-    store instanceof FsLedgerStore ? (p) => store.readLog(p) : undefined;
+  // read_log (Q87 / R137 #6 / T408) is BACKEND-AWARE: the FS store tails the
+  // on-disk per-ledger log under <root>/docs/logs, and the git-object backend
+  // resolves the SAME `logs/<rel>` from the orphan ref tip (same confinement +
+  // 4 MiB cap). So gate it on the duck-typed `readLog` capability (T357
+  // precedent, mirroring `rootDirOf`) rather than `instanceof FsLedgerStore` —
+  // read_log is wired for BOTH backends. An in-memory store (tests) exposes no
+  // `readLog` and supplies none; read_log then throws the documented
+  // not-implemented error.
+  const readLog: ReadLogCapability | undefined = readLogOf(store);
   // cq.toml config + prompt-catalog capabilities (R193 / G18 / T2 / T343) are
   // ROOT-BOUND and BACKEND-INDEPENDENT: they read cq.toml / the role asset
   // markdown under the store's resolved root, which both FsLedgerStore and the
