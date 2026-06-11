@@ -2,7 +2,7 @@
 ledger: reviews
 counters:
   milestone: 0
-  item: 478
+  item: 479
 archives:
   - id: M5
     path: ./archive/reviews/M5.md
@@ -967,3 +967,17 @@ archives:
 - new_questions: []
 - ledgerRefs: ["tasks:T395","goals:G48"]
 - sessionLogs: ["docs/logs/20260611-014618-T395.md"]
+
+## M169
+
+### R479 — go-ahead
+
+- createdAt: 2026-06-11T01:58:55.150Z
+- updatedAt: 2026-06-11T01:58:55.150Z
+- author: "opus-4.8[1m]"
+- session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
+- summary: "T396 — approve (orchestrator operational verification). FOD outputHash refresh: pure 1-line swap kG79B/… -> zyZvSkVSclhtQKc5K09MW2b8XZD89P1/YKAvjZS/+i0= after cq-cli's 3 @cq/* dep additions (T386). A FOD hash is non-semantic — the only meaningful adjudication is the build: orchestrator verified DIRECTLY on merged main (be79f97) that `nix build .#node-modules` exits 0 (no hash mismatch) and result/packages/cq-cli/node_modules/@cq/ contains all 5 workspace links (config, ledger, ledger-mcp, ledger-tui, ledger-web). Diff confirmed surgical (outputHash only). check 1688/0. Panel reduced to the operational build by the nature of a hash refresh."
+- criticism: []
+- new_questions: []
+- ledgerRefs: ["tasks:T396","goals:G48"]
+- sessionLogs: ["docs/logs/20260611-014618-T396.md"]

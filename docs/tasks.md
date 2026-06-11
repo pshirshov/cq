@@ -665,10 +665,10 @@ archives:
 
 ## M169
 
-### T396 — planned
+### T396 — done
 
 - createdAt: 2026-06-10T22:24:29.767Z
-- updatedAt: 2026-06-10T22:38:29.028Z
+- updatedAt: 2026-06-11T01:58:50.477Z
 - author: "opus-4.8[1m]"
 - session: 7e451a99-b692-4ea6-b078-7776ebb17ca0
 - headline: Refresh the node-modules FOD hash after the cq-cli dependency additions
@@ -677,6 +677,7 @@ archives:
 - suggestedModel: standard
 - dependsOn: ["T386","T390"]
 - ledgerRefs: ["goals:G48"]
+- sessionLogs: ["docs/logs/20260611-014618-T396.md"]
 
 ### T397 — planned
 
