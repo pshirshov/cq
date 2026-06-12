@@ -15,7 +15,7 @@ outputs:
   - "planner ledger writes (questions / plan / revision / decision + planned) via plan-advance subagent or orchestrator persist"
   - "one aggregated reviews item per round (written by reviewer subagent or orchestrator)"
   - "auto-investigate: /cq:investigate:advance inline for each goal-linked actionable defect"
-  - "session log files docs/logs/<timestamp>-<agent-id>.md per subagent"
+  - "per planner/reviewer: a summary log docs/logs/<timestamp>-<agent-id>.md AND a raw transcript docs/logs/raw/<timestamp>-<agent-id>.jsonl (pi:* → logs/raw/<ts>-pi-<alias>.md plain), BOTH written via `cq log put`"
   - "handoffs item (standalone only) and ledger git commit (standalone only)"
 ioSchema:
   - "planner loop token: awaiting-answers | review-requested | completed | noop"
@@ -558,56 +558,88 @@ relevant), and report it** — these predicates REPLACE the numeric cap:
 ## Session logs (after EVERY subagent returns)
 
 Each subagent (planner and reviewer) ends its reply with a `### Session summary`
-section. After each `Agent` call returns, persist that summary so the run leaves
-a durable trace (the subagents are read-only and write nothing themselves):
+section. **ALL log writes go through `cq log put` under BOTH backends — never a
+direct `Write` to `docs/logs/`, and never `git add` a log file** (`cq log put`
+does redaction + strict-JSONL validation IN the CLI, and under `git-object`
+commits the log to the orphan ref itself; under `fs` it writes the file under
+`docs/logs/`, which the per-round ledger checkpoint already carries). Stamp
+`<timestamp>` (`Bash`: `date -u +%Y%m%d-%H%M%S`) once per returned subagent.
 
-1. Take `<agent-id>` from the `Agent` tool result (the returned agent id).
-2. Stamp `<timestamp>` yourself: `date -u +%Y%m%d-%H%M%S` via `Bash`.
-3. `Bash`: `mkdir -p docs/logs` (the dir is tracked via `.gitkeep`).
-4. `Write` `docs/logs/<timestamp>-<agent-id>.md` containing a short header
-   (which goal, which subagent/role, the returned status token or verdict) and
-   the verbatim `### Session summary` block the subagent emitted.
-5. **Populate `sessionLogs` on the outcome items** — the orchestrator owns the
-   goal's `sessionLogs` write (the planner subagent updates the goal's phase,
-   but after its log is written you, the orchestrator, must attach the path):
-   - **After the planner step returns** and you have written its log file(s),
-     call
-     `update_item("goals", G, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md"] })`
-     to record the log path(s) on the goal item. This keeps the goal's session
-     provenance without a separate pass.
-     - In the **single-planner fallback (1a)** there is ONE `plan-advance`
-       subagent log (the returned agent id) — record that path.
-     - In the **multi-planner path (1b)** record a log for EVERY candidate planner
-       that ran this round (one `claude`-subagent log file per `claude:*`
-       candidate planner, plus one `pi`-stdout log file per `pi:*` candidate
-       planner — same treatment as the multi-reviewer logs below), and a log for
-       the synthesis step if it ran as a `plan-synthesizer` subagent. Attach all
-       those paths to the goal's `sessionLogs`.
-   - **After the review step completes** — single-reviewer fallback (2a) or
-     multi-reviewer reconciliation (2b) — attach the log path(s) to the ONE
-     `reviews` item the round produced:
-     `update_item("reviews", <reviewId>, fields: { sessionLogs: [<log path(s)>] })`.
-     - In the **fallback (2a)** the native reviewer subagent created the review
-       item; use the review id it reported (or look it up via `fts_search` on
-       the reviews ledger for the just-created verdict), with the one
-       `claude`-subagent log path.
-     - In the **configured (2b)** path YOU created the aggregated review item
-       (sub-step 2b-iii), so you already have its id; attach the log paths for
-       **every** reviewer that ran this round (one `claude`-subagent log file per
-       `claude:*` reviewer, plus one `pi`-stdout log file per `pi:*` reviewer).
+**Native `Agent` subagent (planner / reviewer / `plan-synthesizer`).** Take
+`<agent-id>` from the tool result, then:
+1. **Locate its native transcript** at
+   `~/.claude/projects/<slug>/<session>/subagents/agent-<agent-id>.jsonl` — the
+   `<slug>` is derived from the ledger root path (Claude's project-dir slug; the
+   absolute ledger-root path with `/` → `-`), and `<session>` =
+   `$CLAUDE_CODE_SESSION_ID`.
+2. **Pipe the transcript through `cq log put`** for redaction + strict-JSONL
+   validation in the CLI:
+   `cat <transcript> | cq log put --stdin --dest logs/raw/<timestamp>-<agent-id>.jsonl`.
+3. **Write the summary** (a short header — which goal, which subagent/role, the
+   returned status token or verdict — plus the verbatim `### Session summary`
+   block) via `cq log put` to `logs/<timestamp>-<agent-id>.md` (e.g. compose the
+   header+summary to a temp file or pipe via
+   `--stdin --dest logs/<timestamp>-<agent-id>.md`).
+4. **Record BOTH paths on the outcome item**: `sessionLogs +=` the
+   `docs/logs/<timestamp>-<agent-id>.md` summary path; `rawLogs +=` the
+   `docs/logs/raw/<timestamp>-<agent-id>.jsonl` raw path (on the goal for a
+   planner / synthesis log, on the `reviews` item for a reviewer log — see the
+   per-step routing below).
 
-   For each **`pi:*` reviewer OR `pi:*` candidate planner** (no `Agent` result,
-   so no returned agent id), write a log file the same way:
-   `<timestamp>-pi-<alias>.md` under `docs/logs/`, containing a short header
-   (which goal, the alias + `pi` provider/model, and the parsed verdict for a
-   reviewer or "candidate plan emitted" for a planner) and the **verbatim
-   captured stdout** (including the raw, pre-fence-strip text). This makes each pi
-   shellout's reply a durable trace exactly like the subagent summaries.
+**Absent transcript (older run / crash / non-Claude harness).** When the
+`agent-<agent-id>.jsonl` file does not exist, do NOT fabricate a raw log: write an
+explicit `raw transcript unavailable: <reason>` line in the summary-log HEADER
+(via `cq log put` to `logs/<timestamp>-<agent-id>.md`) and proceed summary-only —
+add ONLY the `.md` to `sessionLogs`, leave `rawLogs` un-extended for that subagent.
+
+**`pi:*` shellout (candidate planner / reviewer).** There is no native `Agent`
+id and no `.jsonl` transcript — the verbatim shellout **stdout IS the raw log**.
+Route it through `cq log put` to a PLAIN/markdown dest (NOT `.jsonl`):
+`… | cq log put --stdin --dest logs/raw/<timestamp>-pi-<alias>.md` — the pi
+reply's VERBATIM stdout (including the raw, pre-fence-strip text). Capture this
+even when its stdout was unparseable (so a failed external planner/reviewer
+leaves a trace). Also write a summary `.md` (header: which goal, the alias + `pi`
+provider/model, and the parsed verdict for a reviewer or "candidate plan emitted"
+for a planner) via `cq log put` to `logs/<timestamp>-pi-<alias>.md`. Add the
+summary `.md` to the outcome item's `sessionLogs` and the raw
+`logs/raw/<timestamp>-pi-<alias>.md` to its `rawLogs`.
+
+**Populate `sessionLogs`+`rawLogs` on the outcome items** — the orchestrator owns
+the goal's and the `reviews` item's log writes (the planner subagent updates the
+goal's phase, but after its logs are written you, the orchestrator, must attach
+the paths):
+- **After the planner step returns** and you have written its log(s), call
+  `update_item("goals", G, fields: { sessionLogs: ["docs/logs/<ts>-<agent-id>.md", ...], rawLogs: ["docs/logs/raw/<ts>-<agent-id>.jsonl", ...] })`
+  to record the log path(s) on the goal item — both buckets in the SAME call.
+  (Omit a `rawLogs` entry for any subagent whose transcript was absent.) This
+  keeps the goal's session provenance without a separate pass.
+  - In the **single-planner fallback (1a)** there is ONE `plan-advance` subagent
+    log pair (the returned agent id) — record that `.md`+`.jsonl`.
+  - In the **multi-planner path (1b)** record a log pair for EVERY candidate
+    planner that ran this round (one `claude`-subagent `.md`+`.jsonl` pair per
+    `claude:*` candidate planner, plus one `pi`-stdout summary `.md` + raw `.md`
+    per `pi:*` candidate planner), and a log pair for the synthesis step if it
+    ran as a `plan-synthesizer` subagent. Attach all those paths to the goal's
+    `sessionLogs`/`rawLogs`.
+- **After the review step completes** — single-reviewer fallback (2a) or
+  multi-reviewer reconciliation (2b) — attach the log path(s) to the ONE
+  `reviews` item the round produced:
+  `update_item("reviews", <reviewId>, fields: { sessionLogs: [<summary path(s)>], rawLogs: [<raw path(s)>] })`.
+  - In the **fallback (2a)** the native reviewer subagent created the review
+    item; use the review id it reported (or look it up via `fts_search` on the
+    reviews ledger for the just-created verdict), with the one `claude`-subagent
+    `.md`+`.jsonl` pair.
+  - In the **configured (2b)** path YOU created the aggregated review item
+    (sub-step 2b-iii), so you already have its id; attach the log paths for
+    **every** reviewer that ran this round (one `claude`-subagent `.md`+`.jsonl`
+    pair per `claude:*` reviewer, plus one `pi`-stdout summary `.md` + raw `.md`
+    per `pi:*` reviewer).
 
 Do this for the planner step (the fallback subagent, or every candidate planner +
 the synthesis step in the multi-planner path) AND every reviewer on every
-iteration — one log file per spawned subagent and per pi shellout. The inline `/cq:investigate:advance` pass logs
-its own `investigate-explorer` subagents per llm/commands/cq/investigate/advance.md
+iteration — one log pair per spawned subagent and per pi shellout, ALL via
+`cq log put`. The inline `/cq:investigate:advance` pass logs its own
+`investigate-explorer` subagents per llm/commands/cq/investigate/advance.md
 (§Session logs) — follow that command's logging rule while running it.
 
 ## Report to the user
@@ -705,8 +737,11 @@ context you are in.
   a `mixed` stop (e.g. `[drained, answers-required]`), and for
   `user-action-required` carries the EXACT user action + item unblocked (the
   action is recorded here — NO new schema field is added; Q140); `sessionLogs` =
-  the `docs/logs/<ts>-<agent-id>.md` path(s) written this round — populate them
-  in the SAME `create_item` call. Stamp `author`/`session`. Append-only: written
+  the `docs/logs/<ts>-<agent-id>.md` summary path(s) AND `rawLogs` = the
+  `docs/logs/raw/<ts>-<agent-id>.jsonl` (and `docs/logs/raw/<ts>-pi-<alias>.md`)
+  raw path(s) written this round — populate them in the SAME `create_item` call
+  (omit a `rawLogs` entry for any subagent whose transcript was absent). Stamp
+  `author`/`session`. Append-only: written
   once at the stop, never updated. (The auto-investigate sub-rounds this command
   chains do NOT each write a handoff — investigate/advance.md suppresses its own
   handoff whenever chained, so this one record covers the whole pass.) **Then

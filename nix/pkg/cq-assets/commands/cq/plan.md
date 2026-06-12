@@ -13,7 +13,7 @@ outputs:
   - "one-or-more goal items G in clarifying status (one goal PER idea when idea-ids are given; create_item on goals ledger)"
   - "for each idea-seeded goal: bidirectional ledgerRefs link (goal↔idea) + idea status→planned"
   - "first batch of clarifying questions (filed by plan-advance subagent)"
-  - "session log file docs/logs/<timestamp>-<agent-id>.md"
+  - "planner summary log docs/logs/<timestamp>-<agent-id>.md AND raw transcript docs/logs/raw/<timestamp>-<agent-id>.jsonl, BOTH written via `cq log put`"
   - "handoffs item (answers-required) and ledger git commit"
 ioSchema:
   - "bootstrap only — no plan logic; plan-advance subagent owns question generation"
@@ -128,16 +128,32 @@ link, and flips the idea to `planned` — so one goal is bootstrapped per idea.
    clarifying questions and returns `awaiting-answers`. You drive it exactly once
    here — there is nothing to review yet, so no loop is needed.
 
-4. **Write the session log and attach it to the goal.** The `plan-advance`
-   subagent ends its reply with a `### Session summary` section. Persist it:
-   take `<agent-id>` from the `Agent` tool result, stamp `<timestamp>` via
-   `Bash` (`date -u +%Y%m%d-%H%M%S`), `mkdir -p docs/logs`, and `Write`
-   `docs/logs/<timestamp>-<agent-id>.md` with a short header (goal id, role:
-   planner, returned status token) followed by the verbatim summary block.
-   The subagent writes no file itself — the orchestrator does. **Immediately
-   after writing the log**, call `update_item("goals", G, fields: { sessionLogs:
-   ["docs/logs/<timestamp>-<agent-id>.md"] })` to attach the log path to the
-   goal item — do NOT defer this to a separate pass.
+4. **Write the session logs and attach them to the goal.** The `plan-advance`
+   subagent ends its reply with a `### Session summary` section. Persist BOTH a
+   raw transcript and a summary — **ALL log writes go through `cq log put` under
+   BOTH backends; never a direct `Write` to `docs/logs/`, and never `git add` a
+   log file** (`cq log put` does redaction + strict-JSONL validation IN the CLI,
+   and under `git-object` commits to the orphan ref; under `fs` it writes under
+   `docs/logs/`, which the step-8 ledger commit already carries). Take
+   `<agent-id>` from the `Agent` tool result and stamp `<timestamp>` via `Bash`
+   (`date -u +%Y%m%d-%H%M%S`), then:
+   - **Raw transcript.** Locate the native transcript at
+     `~/.claude/projects/<slug>/<session>/subagents/agent-<agent-id>.jsonl` (the
+     `<slug>` is the absolute ledger-root path with `/` → `-`; `<session>` =
+     `$CLAUDE_CODE_SESSION_ID`) and pipe it through `cq log put`:
+     `cat <transcript> | cq log put --stdin --dest logs/raw/<timestamp>-<agent-id>.jsonl`.
+     **Absent transcript** (older run / crash / non-Claude harness) → do NOT
+     fabricate a raw log: write an explicit `raw transcript unavailable: <reason>`
+     line in the summary-log HEADER and proceed summary-only (leave `rawLogs`
+     un-extended).
+   - **Summary.** Write a short header (goal id, role: planner, returned status
+     token) followed by the verbatim summary block via `cq log put` to
+     `logs/<timestamp>-<agent-id>.md`.
+   **Immediately after writing the logs**, call `update_item("goals", G, fields: {
+   sessionLogs: ["docs/logs/<timestamp>-<agent-id>.md"], rawLogs:
+   ["docs/logs/raw/<timestamp>-<agent-id>.jsonl"] })` to attach BOTH paths to the
+   goal item in the SAME call (omit `rawLogs` when the transcript was absent) —
+   do NOT defer this to a separate pass.
 
 5. **Auto-investigate filed defects (conditional — K12).** This mirrors the
    same phase in `/cq:plan:advance` (see that command's §Auto-investigate filed
@@ -184,8 +200,9 @@ link, and flips the idea to `planned` — so one goal is bootstrapped per idea.
    §Handoff record, STANDALONE branch — the goal is left in
    `clarifying`/`awaiting-answers` with the first questions filed, so the stop
    classification is `answers-required` (`flow` = `plan`; `ledgerRefs`
-   `goals:<G>`; `blockingQuestions` the filed question ids; `sessionLogs` the
-   step-4 path). Do not restate the field mapping here. The conditional step-5
+   `goals:<G>`; `blockingQuestions` the filed question ids; `sessionLogs` +
+   `rawLogs` the step-4 summary + raw paths). Do not restate the field mapping
+   here. The conditional step-5
    auto-investigate sub-round writes NO handoff of its own — `/cq:investigate:advance`
    suppresses its handoff when chained by this command (per its CHAINED section:
    `/<flow>:start` is listed as a suppress-context; this command owns the single
