@@ -61,5 +61,27 @@ work, instead of inline TODOs or scratch files.
   so the ledger records who wrote each item.
 - Don't `create_ledger` unless asked; the canonical set is enough.
 
+### Session and raw-log artifacts
+
+Ledger workflows (plan, investigate, implement) capture and commit raw subagent
+transcripts as ledger artifacts:
+
+- **Artifact formats**: Claude native Agent subagents (plan/investigate/implement)
+  write strict JSONL (`docs/logs/raw/<timestamp>-<id>.jsonl`); pi shellout
+  subagents (`pi:*`) write verbatim stdout as markdown (`docs/logs/raw/<timestamp>-pi-<alias>.md`).
+- **Write path**: ALL logs route through `cq log put` (never direct `Write` to
+  `docs/logs/`). The CLI handles redaction (best-effort / lossy per Q223),
+  strict JSONL validation, and backend routing:
+  - **Git-object backend**: commits raw JSONL to an orphan ref (`docs/logs` is
+    gitignored on the working branch); `cq log put` manages the CAS.
+  - **Filesystem backend**: writes to `docs/logs/` (tracked and committed in the
+    main ledger git commit).
+- **Immutability & no retention**: committed bytes are effectively **irreversible
+  per-byte** — removing them requires a full git history rewrite. There is **no
+  retention policy**; logs live as committed artifacts indefinitely.
+- **Viewing**: raw JSONL logs are viewable in the web UI's conversation viewer
+  (structured, collapsible turns) via the paired raw-log toggle. Markdown logs
+  render as plain text in the summary view.
+
 > The server also advertises baseline usage `instructions` on connect — this
 > section is the repo-specific policy on top of that.
