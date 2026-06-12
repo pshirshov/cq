@@ -646,6 +646,11 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
     }
     assertPrefixUnique(name, schema, this.registry.ledgers);
     const result = await this.withRegistryLock(async () => {
+      // D62: reload registry from the ref tip under the lock so a peer's
+      // concurrent createLedger is observed before the dup/prefix guards and
+      // writeRegistry — mirrors the D61 reloadLedgerFromDisk pattern.
+      const txt = await this.persistence.readRegistrySource();
+      if (txt !== null) this.registry = parseRegistry(txt);
       if (this.ledgers.has(name)) {
         throw new DuplicateIdError("ledger", name);
       }

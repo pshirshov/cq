@@ -102,10 +102,8 @@ afterAll(async () => {
 });
 
 describe("D62 — two git-object stores over one repo+ref, no cross-invalidate (registry/createLedger)", () => {
-  // EXPECTED to fail today: storeB's stale registry clobbers storeA's 'alpha'
-  // entry. Flip to `test` once D62's fix lands (T428).
-  test.failing(
-    "sequential createLedger across two un-invalidated stores clobbers the first registry entry (stale registry write)",
+  test(
+    "sequential createLedger across two un-invalidated stores preserves both registry entries (no stale registry clobber)",
     async () => {
       const dir = await seedRepo();
       // Seed only milestones so both stores start with an empty user-ledger
@@ -148,7 +146,7 @@ describe("D62 — two git-object stores over one repo+ref, no cross-invalidate (
           expect(alphaLedger).toBeDefined();
           expect(betaLedger).toBeDefined();
 
-          // They must have distinct id prefixes (T vs D — no collision).
+          // They must have distinct id prefixes (ALP vs BET — no collision).
           expect(alphaLedger.schema.idPrefix).not.toBe(betaLedger.schema.idPrefix);
         } finally {
           await reader.dispose();
