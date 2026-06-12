@@ -60,7 +60,7 @@ import {
   parseRegistry,
   serializeRegistry,
 } from "../registry.js";
-import type { LedgerRegistry } from "../types.js";
+import type { LedgerRegistry, LedgerRegistryEntry } from "../types.js";
 import {
   applyCreateItem,
   applyCreateMilestoneItem,
@@ -651,6 +651,12 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
       // writeRegistry — mirrors the D61 reloadLedgerFromDisk pattern.
       const txt = await this.persistence.readRegistrySource();
       if (txt !== null) this.registry = parseRegistry(txt);
+      // D65: after reloading the registry, reconcile this.ledgers so any peer-
+      // learned ledger is loaded+indexed into memory. The about-to-be-created
+      // ledger is not yet in the registry so it won't be pre-loaded here.
+      for (const entry of this.registry.ledgers) {
+        if (!this.ledgers.has(entry.name)) await this.loadAndIndexLedger(entry);
+      }
       if (this.ledgers.has(name)) {
         throw new DuplicateIdError("ledger", name);
       }
@@ -831,6 +837,25 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
   }
 
   /**
+   * Load a ledger from its source file and index it into this.ledgers and the
+   * FTS index. Shared by invalidate's unknown-ledger branch and createLedger's
+   * post-reload reconcile loop (DRY — fixes D65).
+   *
+   * Early-returns (no-op) if the source file is not yet present, so callers
+   * can use this as a safe "load if available" primitive.
+   */
+  private async loadAndIndexLedger(entry: LedgerRegistryEntry): Promise<void> {
+    const text = await this.persistence.readLedgerSource(entry.name);
+    if (text === null) return;
+    const ledger = parseLedger(text, {
+      schema: entry.schema,
+      isMilestonesLedger: entry.name === MILESTONES_LEDGER,
+    });
+    this.ledgers.set(entry.name, ledger);
+    await this.indexLedgerFull(entry.name);
+  }
+
+  /**
    * Drop the in-memory cache for `ledgerId` and re-read it from the source under
    * the per-ledger lock. Used by the cross-process coherence channel
    * (D-COHERENCE) on inbound `ledger.changed` notifications.
@@ -855,21 +880,10 @@ export abstract class AbstractLedgerStore<P extends LedgerPersistence>
       this.registry = fresh;
       const entry = fresh.ledgers.find((e) => e.name === ledgerId);
       if (entry === undefined) return; // still doesn't exist; nothing to do
-      const isMilestones = entry.name === MILESTONES_LEDGER;
-      const text = await this.persistence.readLedgerSource(entry.name);
-      if (text === null) {
-        // Source missing — the other process registered but hasn't written the
-        // file yet. Don't fabricate; bail out and let a later invalidate retry.
-        return;
-      }
-      const ledger = parseLedger(text, {
-        schema: entry.schema,
-        isMilestonesLedger: isMilestones,
-      });
-      this.ledgers.set(entry.name, ledger);
       // F1: a brand-new ledger learned via the registry-reload path must be
       // indexed too, or a cross-process `createLedger` leaves it unsearchable.
-      await this.indexLedgerFull(entry.name);
+      // The helper's null-return handles the "registered but not yet written" race.
+      await this.loadAndIndexLedger(entry);
     });
   }
 

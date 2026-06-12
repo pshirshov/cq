@@ -115,12 +115,12 @@ describe("D65 — post-D62 coherence gap: storeB's in-memory ledgers map omits p
    *     omits 'alpha', and storeB.fetch('alpha') throws LedgerNotFoundError —
    *     even though storeB.this.registry knows about 'alpha'.
    *
-   * Test is wrapped in test.failing() because the assertion body FAILS today:
-   *   - Today: enumerate() omits 'alpha' / fetch('alpha') throws.
-   *   - After T432 lands the fix: the body passes. Flip to test() at that point.
+   * T432 landed the fix: loadAndIndexLedger reconcile loop in createLedger now
+   * loads peer-learned ledgers into this.ledgers. This is a regular test() and
+   * must pass.
    */
-  test.failing(
-    "storeB can enumerate and fetch a peer ledger learned via registry reload (D65 — expected failure until T432)",
+  test(
+    "storeB can enumerate and fetch a peer ledger learned via registry reload (D65)",
     async () => {
       const dir = await seedRepo();
       await seedRegistry(dir, [{ name: MILESTONES_LEDGER, schema: MILESTONES_SCHEMA }]);
