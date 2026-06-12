@@ -405,7 +405,6 @@
           packages = with pkgs; [
             bun
             nodejs_22
-            git
             jq
             ripgrep
             fd
