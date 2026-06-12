@@ -14,7 +14,7 @@ outputs:
   - "task status transitions: planned->wip->done (or blocked/open-question registered)"
   - "one reviews item per task (written by reviewer subagent or orchestrator)"
   - "merged commits on base branch via rebase-merge (conflict-resolver dispatched on conflict)"
-  - "session log files docs/logs/<timestamp>-<agent-id>.md per worker/reviewer/conflict-resolver"
+  - "per worker/reviewer/conflict-resolver: a summary log docs/logs/<timestamp>-<agent-id>.md AND a raw transcript docs/logs/raw/<timestamp>-<agent-id>.jsonl, BOTH written via `cq log put`"
   - "handoffs item (standalone only) and ledger git commit (standalone only)"
 ioSchema:
   - "ready-set: tasks status non-terminal and not blocked, all dependsOn done, milestone dependsOn satisfied, no open question"
@@ -64,20 +64,49 @@ On every `create_item` / `update_item`, pass `author` = your OWN model class
 `$CLAUDE_CODE_SESSION_ID` (or the Codex equivalent; omit if unavailable).
 
 ## Session logs (after EVERY subagent returns)
-Each subagent ends its reply with a `### Session summary` block. After each
-`Agent` call returns: take `<agent-id>` from the tool result, stamp
-`<timestamp>` (`Bash`: `date -u +%Y%m%d-%H%M%S`), `mkdir -p docs/logs`, and
-`Write` `docs/logs/<timestamp>-<agent-id>.md` — a short header (task id, role,
-returned status/verdict) plus the verbatim summary block. Subagents write no
-file; you do.
+Each subagent ends its reply with a `### Session summary` block. **ALL log writes
+go through `cq log put` under BOTH backends — never a direct `Write` to
+`docs/logs/`, and never `git add` a log file** (`cq log put` does redaction +
+strict-JSONL validation IN the CLI, and under `git-object` commits the log to the
+orphan ref itself; under `fs` it writes the file under `docs/logs/`, which the
+per-merge ledger checkpoint already carries). Stamp `<timestamp>` (`Bash`: `date
+-u +%Y%m%d-%H%M%S`) once per returned subagent.
 
-For a `pi:*` reviewer (§3b) there is no `Agent` id, so key its log by reviewer
-alias: `Write docs/logs/<timestamp>-pi-<alias>-<taskId>.md` — a header (task id,
-role `implement-reviewer (pi:<harness>:<model>)`, parsed verdict) plus the
+**Native `Agent` subagent (worker / reviewer / conflict-resolver).** Take
+`<agent-id>` from the tool result, then:
+1. **Locate its native transcript** at
+   `~/.claude/projects/<slug>/<session>/subagents/agent-<agent-id>.jsonl` — the
+   `<slug>` is derived from the ledger root path (Claude's project-dir slug; the
+   absolute ledger-root path with `/` → `-`), and `<session>` =
+   `$CLAUDE_CODE_SESSION_ID`.
+2. **Pipe the transcript through `cq log put`** for redaction + strict-JSONL
+   validation in the CLI:
+   `cat <transcript> | cq log put --stdin --dest logs/raw/<timestamp>-<agent-id>.jsonl`.
+3. **Write the summary** (a short header — task id, role, returned status/verdict
+   — plus the verbatim `### Session summary` block) via `cq log put` to
+   `logs/<timestamp>-<agent-id>.md` (e.g. compose the header+summary to a temp
+   file or pipe via `--stdin --dest logs/<timestamp>-<agent-id>.md`).
+4. **Record BOTH paths on the task item**: `sessionLogs +=` the
+   `docs/logs/<timestamp>-<agent-id>.md` summary path; `rawLogs +=` the
+   `docs/logs/raw/<timestamp>-<agent-id>.jsonl` raw path (§Record, §7.3).
+
+**Absent transcript (older run / crash / non-Claude harness).** When the
+`agent-<agent-id>.jsonl` file does not exist, do NOT fabricate a raw log: write an
+explicit `raw transcript unavailable: <reason>` line in the summary-log HEADER
+(via `cq log put` to `logs/<timestamp>-<agent-id>.md`) and proceed summary-only —
+add ONLY the `.md` to `sessionLogs`, leave `rawLogs` un-extended for that subagent.
+
+**`pi:*` shellout reviewer (§3b).** There is no native `Agent` id and no
+`.jsonl` transcript — the verbatim shellout **stdout IS the raw log**. Route it
+through `cq log put` to a PLAIN/markdown dest (NOT `.jsonl`):
+`… | cq log put --stdin --dest logs/raw/<timestamp>-pi-<alias>.md` — the
 reviewer's VERBATIM stdout (the raw, possibly fence-wrapped json). Capture this
 even when its stdout was unparseable (so a failed external reviewer leaves a
-trace). Include these `pi` log paths alongside the native reviewer logs in the
-task's `sessionLogs` (§Record, §7.3).
+trace). Also write a summary `.md` (header: task id, role `implement-reviewer
+(pi:<harness>:<model>)`, parsed verdict) via `cq log put` to
+`logs/<timestamp>-pi-<alias>-<taskId>.md`. Add the summary `.md` to the task's
+`sessionLogs` and the raw `logs/raw/<timestamp>-pi-<alias>.md` to its `rawLogs`
+(§Record, §7.3).
 
 ---
 
@@ -148,7 +177,7 @@ Take up to N ready tasks. For each, resolve its model (§K4), set
 the task id + verbatim `headline`/`description`/`acceptance`, the branch
 `implement/<taskId>` and base commit, and (on a re-dispatch) the prior round's
 `criticism[]`. Issue the batch's `Agent` calls in ONE message so they run
-concurrently. Write each worker's session log on return (§Session logs).
+concurrently. Record each worker's session log on return via `cq log put` (§Session logs).
 
 **Catalog-driven dispatch (G41 — implement-worker).** Drive each
 `implement-worker` dispatch through the typed prompt-catalog MCP tools the
@@ -397,10 +426,13 @@ after every task in its `dependsOn` has merged). For each:
 3. On a clean rebase (or resolved conflict) → fast-forward merge into the base,
    set `update_item("tasks", <id>, status: "done", fields: { resultCommit:
    "<merged sha>", completion: "<1-line: what landed>", sessionLogs:
-   ["docs/logs/<ts>-<worker-agent-id>.md", ...] })` — include ALL session-log
-   paths written for this task (worker + reviewer rounds) in the SAME
-   `update_item` call that marks the task `done`; do NOT defer `sessionLogs` to
-   a separate update. Then tear down the worktree <!-- G38-1a-post-done-cleanup -->
+   ["docs/logs/<ts>-<worker-agent-id>.md", ...], rawLogs:
+   ["docs/logs/raw/<ts>-<worker-agent-id>.jsonl", ...] })` — include ALL
+   summary-log paths (`sessionLogs`) AND all raw-transcript paths (`rawLogs`)
+   written for this task (worker + reviewer rounds, §Session logs) in the SAME
+   `update_item` call that marks the task `done`; do NOT defer `sessionLogs` /
+   `rawLogs` to a separate update. (Omit a `rawLogs` entry for any subagent whose
+   transcript was absent — that subagent is summary-only per §Session logs.) Then tear down the worktree <!-- G38-1a-post-done-cleanup -->
    (both Claude and Codex paths — run explicitly immediately after the `done`
    ledger write above):
    ```
@@ -452,13 +484,17 @@ The reviewers write NOTHING to the ledger. YOU record exactly ONE terminal
 "go-ahead" | "revise", fields: { summary: "<reconciled summary, or
 '<reconciled-verdict>: <first line of rationale, truncated to ~80 chars>' if
 omitted>", criticism: [...], new_questions: [...], ledgerRefs: ["tasks:<id>",
-"goals:<G>"], sessionLogs: ["docs/logs/<ts>-<reviewer-agent-id>.md", ...] })`.
+"goals:<G>"], sessionLogs: ["docs/logs/<ts>-<reviewer-agent-id>.md", ...],
+rawLogs: ["docs/logs/raw/<ts>-<reviewer-agent-id>.jsonl",
+"docs/logs/raw/<ts>-pi-<alias>.md", ...] })`.
 The `criticism`/`new_questions` are the source-tagged UNION across the panel
 (§3c); the `status` follows the reconciled verdict (`go-ahead` only when ALL
 reviewers approved + green check, else `revise`). Include EVERY reviewer's
-session-log path written for this task (the native-Agent logs and the `pi`
-stdout logs, §Session logs) in the SAME `create_item` — do NOT defer them to a
-separate update. With a single configured/unconfigured reviewer this collapses
+summary-log path (`sessionLogs`) AND raw-log path (`rawLogs`) written for this
+task (the native-Agent `.md`+`.jsonl` pairs and the `pi` summary `.md` + raw
+`.md` stdout logs, §Session logs) in the SAME `create_item` — do NOT defer them
+to a separate update. (Omit a `rawLogs` entry for any reviewer whose transcript
+was absent.) With a single configured/unconfigured reviewer this collapses
 to the prior behaviour. Use the reconciled `summary` when present; otherwise
 synthesize `'<reconciled-verdict>: <first line of rationale, truncated to ~80
 chars>'`. This keeps the ledger to one review per task instead of one per

@@ -81,7 +81,10 @@ On any `create_item` / `update_item`, pass `author` = your OWN model class
    over the resolved target set — follow the full loop spec in
    `llm/commands/cq/implement/advance.md` (READY-SET → dispatch workers → review →
    criticism loop → questions → success gate → merge-back, plus its session-log
-   writing and provenance rules). Do NOT restate or duplicate that logic here;
+   recording — ALL logs written via `cq log put` (summary `.md` to `logs/` →
+   `sessionLogs`, raw transcript to `logs/raw/` → `rawLogs`; never a direct
+   `Write` to `docs/logs` and never `git add` of logs) — and provenance rules).
+   Do NOT restate or duplicate that logic here;
    run it. Then produce `/cq:implement:advance`'s end-of-pass report.
 
 This command is the outermost wrapper for this invocation (the user ran
