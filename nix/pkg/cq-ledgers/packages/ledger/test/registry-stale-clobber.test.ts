@@ -101,6 +101,64 @@ afterAll(async () => {
   for (const d of repos) await fs.rm(d, { recursive: true, force: true });
 });
 
+describe("D65 — post-D62 coherence gap: storeB's in-memory ledgers map omits peers learned during registry reload", () => {
+  /**
+   * D65 reproduction contract:
+   *   - Two independent stores over the same repo + orphan ref (same setup as D62).
+   *   - storeA.createLedger('alpha'): commits 'alpha' to the ref.
+   *   - storeB.createLedger('beta'): under the D62 registry-reload fix, storeB
+   *     reloads the registry from the ref tip — so storeB.this.registry now
+   *     contains 'alpha'. However, the reload only updates this.registry, NOT
+   *     this.ledgers. storeB.this.ledgers remains [{milestones, beta}], because
+   *     'alpha' was never loaded via reloadLedgerFromDisk.
+   *   - Consequence: storeB.enumerate() (which iterates this.ledgers.keys())
+   *     omits 'alpha', and storeB.fetch('alpha') throws LedgerNotFoundError —
+   *     even though storeB.this.registry knows about 'alpha'.
+   *
+   * Test is wrapped in test.failing() because the assertion body FAILS today:
+   *   - Today: enumerate() omits 'alpha' / fetch('alpha') throws.
+   *   - After T432 lands the fix: the body passes. Flip to test() at that point.
+   */
+  test.failing(
+    "storeB can enumerate and fetch a peer ledger learned via registry reload (D65 — expected failure until T432)",
+    async () => {
+      const dir = await seedRepo();
+      await seedRegistry(dir, [{ name: MILESTONES_LEDGER, schema: MILESTONES_SCHEMA }]);
+
+      const storeA = new GitObjectLedgerBackend({ repoRoot: dir });
+      const storeB = new GitObjectLedgerBackend({ repoRoot: dir });
+      await storeA.init();
+      await storeB.init();
+
+      try {
+        // storeA commits 'alpha'; storeB's in-memory state is stale at this point.
+        await storeA.createLedger("alpha", ALPHA_SCHEMA);
+        // storeB.createLedger('beta') reloads the registry under withRegistryLock
+        // (D62 fix) and learns 'alpha' into this.registry — but NOT into
+        // this.ledgers. storeB still cannot serve 'alpha' from its own state.
+        await storeB.createLedger("beta", BETA_SCHEMA);
+
+        // Assert on storeB ITSELF (not a third fresh reader — that's the D62 case).
+        // After D65 is fixed, storeB must be able to serve any ledger recorded in
+        // its own this.registry (loaded from the authoritative orphan-ref tip).
+
+        // (1) enumerate() MUST include 'alpha'.
+        const enumerated = storeB.enumerate();
+        expect(enumerated).toContain("alpha");
+
+        // (2) fetch('alpha') MUST NOT throw LedgerNotFoundError.
+        const alphaLedger = storeB.fetch("alpha");
+        expect(alphaLedger).toBeDefined();
+        expect(alphaLedger.schema.idPrefix).toBe("ALP");
+      } finally {
+        await storeA.dispose();
+        await storeB.dispose();
+      }
+    },
+    30_000,
+  );
+});
+
 describe("D62 — two git-object stores over one repo+ref, no cross-invalidate (registry/createLedger)", () => {
   test(
     "sequential createLedger across two un-invalidated stores preserves both registry entries (no stale registry clobber)",
