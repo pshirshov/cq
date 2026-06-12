@@ -11,6 +11,11 @@
  *   - Raw logs under docs/logs/raw/ are NOT imported (summaries-only scope).
  *
  * The fixture is a throwaway git repo; cleaned up in afterAll.
+ *
+ * The tests exercise the SHIPPED script by importing its exported functions
+ * (importSummaryLogs, collectSessionLogRefs, extractSessionLogsFromText,
+ * isSummaryLogRef, refPathFromDocsPath, recoverFromHistory) directly — no
+ * duplicated inline logic.
  */
 
 import { describe, it, expect, afterAll } from "bun:test";
@@ -19,8 +24,16 @@ import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
-import { GitPlumbing, resolveLedgerBackend, type TreeEntry } from "@cq/ledger";
-import { runLogPut, parseLogPutArgs } from "../src/logPut.js";
+import { GitPlumbing, type TreeEntry } from "../packages/ledger/src/index.js";
+// Import from the shipped script — tests exercise the real artifact.
+import {
+  importSummaryLogs,
+  extractSessionLogsFromText,
+  isSummaryLogRef,
+  refPathFromDocsPath,
+  collectSessionLogRefs,
+  recoverFromHistory,
+} from "./import-summary-logs.ts";
 
 const execP = promisify(execFile);
 const dirs: string[] = [];
@@ -63,7 +76,8 @@ function plumbing(root: string): GitPlumbing {
  *     commit-3: delete docs/logs/2026-02-summary.md (and raw)
  *
  * The orphan ref (refs/heads/cq-ledger) holds:
- *   tasks.md — a ledger file with sessionLogs referencing both summary files
+ *   tasks.md — a ledger file with sessionLogs referencing summary1
+ *   archive/tasks/M99.md — archive file referencing summary2
  *
  * The cq.toml has backend = "git-object".
  */
@@ -113,8 +127,8 @@ async function fixtureRepo(): Promise<{
     "utf8",
   );
 
-  // Seed the orphan ref with a tasks.md that references both summary logs.
-  // Also include archive/tasks/M99.md that references summary2 (to test archive scanning).
+  // Seed the orphan ref with a tasks.md that references summary1,
+  // plus archive/tasks/M99.md that references summary2 (tests archive scanning).
   const tasksMd = [
     "---",
     "ledger: tasks",
@@ -177,199 +191,91 @@ async function fixtureRepo(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Helpers to run the import logic inline (mirrors import-summary-logs.ts)
+// Unit tests for the pure utility functions (shipped code)
 // ---------------------------------------------------------------------------
 
-/**
- * Run the import logic from the script against a given root, without spawning a
- * subprocess (so the test can assert on effects directly).  Returns counts.
- *
- * This re-implements the core logic so the test file has no dynamic import of
- * the script (which is top-level-await'd), keeping the test hermetic.
- */
-async function runImport(root: string): Promise<{
-  imported: number;
-  skipped: number;
-  failed: number;
-  refSha: string | null;
-}> {
-  const { branch } = resolveLedgerBackend(root);
-  const ref = `refs/heads/${branch}`;
-  const git = GitPlumbing.withCwd(root, path.join(root, ".git"));
+describe("isSummaryLogRef (shipped)", () => {
+  it("accepts docs/logs/*.md summary paths", () => {
+    expect(isSummaryLogRef("docs/logs/2026-01-summary.md")).toBe(true);
+    expect(isSummaryLogRef("docs/logs/session.md")).toBe(true);
+  });
 
-  const refShaInitial = await git.readRef(ref);
-  const treeNames: string[] = refShaInitial === null ? [] : await git.lsTree(ref);
-  const treeSet = new Set(treeNames);
+  it("rejects docs/logs/raw/* paths", () => {
+    expect(isSummaryLogRef("docs/logs/raw/2026-01-raw.md")).toBe(false);
+    expect(isSummaryLogRef("docs/logs/raw/deep/nested.md")).toBe(false);
+  });
 
-  // Collect sessionLogs references from all .md files in the orphan ref.
-  const sessionLogRefs = new Set<string>();
-  for (const treePath of treeNames) {
-    if (!treePath.endsWith(".md")) continue;
-    const content = await git.catFile(ref, treePath);
-    extractSessionLogsFromText(content, sessionLogRefs);
-  }
+  it("rejects paths outside docs/logs/", () => {
+    expect(isSummaryLogRef("docs/other/file.md")).toBe(false);
+    expect(isSummaryLogRef("file.md")).toBe(false);
+  });
 
-  // Determine missing ones.
-  const missing: string[] = [];
-  for (const docsPath of sessionLogRefs) {
-    if (!isSummaryLogRef(docsPath)) continue;
-    const treePath = docsPath.slice("docs/".length); // docs/logs/foo.md → logs/foo.md
-    if (!treeSet.has(treePath)) {
-      missing.push(docsPath);
-    }
-  }
+  it("rejects non-.md extensions", () => {
+    expect(isSummaryLogRef("docs/logs/file.jsonl")).toBe(false);
+    expect(isSummaryLogRef("docs/logs/file.txt")).toBe(false);
+  });
+});
 
-  let imported = 0;
-  let skipped = 0;
-  let failed = 0;
+describe("refPathFromDocsPath (shipped)", () => {
+  it("strips the docs/ prefix", () => {
+    expect(refPathFromDocsPath("docs/logs/foo.md")).toBe("logs/foo.md");
+    expect(refPathFromDocsPath("docs/logs/raw/bar.md")).toBe("logs/raw/bar.md");
+  });
+});
 
-  for (const docsPath of missing) {
-    const treePath = docsPath.slice("docs/".length);
+describe("extractSessionLogsFromText (shipped)", () => {
+  it("extracts summary log refs and filters via isSummaryLogRef", () => {
+    const text = [
+      `- sessionLogs: ["docs/logs/2026-01-summary.md","docs/logs/raw/2026-01-raw.md"]`,
+    ].join("\n");
+    const out = new Set<string>();
+    extractSessionLogsFromText(text, out);
+    expect(out.has("docs/logs/2026-01-summary.md")).toBe(true);
+    // raw/ paths are filtered by isSummaryLogRef inside extractSessionLogsFromText
+    expect(out.has("docs/logs/raw/2026-01-raw.md")).toBe(false);
+  });
 
-    // Recover from git history.
-    const contents = await recoverFromGitHistory(root, docsPath, git);
-    if (contents.length === 0) {
-      skipped++;
-      continue;
-    }
-    const content = contents[0]!;
+  it("handles empty sessionLogs array", () => {
+    const out = new Set<string>();
+    extractSessionLogsFromText("- sessionLogs: []", out);
+    expect(out.size).toBe(0);
+  });
 
-    // Idempotency re-check.
-    const currentTree = await git.lsTree(ref);
-    if (currentTree.includes(treePath)) {
-      skipped++;
-      continue;
-    }
-
-    const outs: string[] = [];
-    const errs: string[] = [];
-    const args = parseLogPutArgs(root, ["--stdin", "--dest", treePath]);
-    const outcome = await runLogPut(args, {
-      out: (l) => outs.push(l),
-      err: (l) => errs.push(l),
-      readStdin: async () => content,
-    });
-
-    if (outcome.exitCode !== 0) {
-      failed++;
-    } else {
-      imported++;
-    }
-  }
-
-  const refSha = await git.readRef(ref);
-  return { imported, skipped, failed, refSha };
-}
-
-function isSummaryLogRef(s: string): boolean {
-  if (!s.startsWith("docs/logs/")) return false;
-  if (!s.endsWith(".md")) return false;
-  const rel = s.slice("docs/logs/".length);
-  if (rel.startsWith("raw/")) return false;
-  return true;
-}
-
-function extractSessionLogsFromText(text: string, out: Set<string>): void {
-  const LINE_RE = /[-]\s+sessionLogs:\s*(\[.*?\])/g;
-  let m: RegExpExecArray | null;
-  while ((m = LINE_RE.exec(text)) !== null) {
-    const arr = m[1];
-    if (arr === undefined) continue;
-    const ENTRY_RE = /"([^"]+)"/g;
-    let em: RegExpExecArray | null;
-    while ((em = ENTRY_RE.exec(arr)) !== null) {
-      const entry = em[1];
-      if (entry !== undefined) out.add(entry);
-    }
-  }
-}
-
-async function recoverFromGitHistory(
-  root: string,
-  docsPath: string,
-  git: GitPlumbing,
-): Promise<string[]> {
-  const execFileP = promisify(execFile);
-  const run = async (...args: string[]): Promise<string> => {
-    const r = await execFileP("git", args, {
-      cwd: root,
-      encoding: "utf8",
-      env: { ...process.env, LC_ALL: "C", LANG: "C" },
-    });
-    return r.stdout;
-  };
-
-  let revList: string;
-  try {
-    revList = await run("log", "--all", "--format=%H", "--diff-filter=AM", "--", docsPath);
-  } catch {
-    revList = "";
-  }
-
-  const shas = revList.split("\n").filter((s) => s.length === 40);
-
-  if (shas.length === 0) {
-    // Fallback: find deletion commits, use their parent.
-    let delLog: string;
-    try {
-      delLog = await run("log", "--all", "--format=%H", "--diff-filter=D", "--", docsPath);
-    } catch {
-      delLog = "";
-    }
-    const delShas = delLog.split("\n").filter((s) => s.length === 40);
-    for (const delSha of delShas) {
-      let parentOut: string;
-      try {
-        parentOut = await run("rev-parse", `${delSha}^1`);
-      } catch {
-        continue;
-      }
-      const parentSha = parentOut.trim();
-      if (parentSha.length === 40) shas.push(parentSha);
-    }
-  }
-
-  if (shas.length === 0) return [];
-
-  const seenContentShas = new Set<string>();
-  const unique: string[] = [];
-  for (const sha of shas) {
-    let content: string;
-    try {
-      content = await run("show", `${sha}:${docsPath}`);
-    } catch {
-      continue;
-    }
-    const cSha = await git.hashObject(content);
-    if (seenContentShas.has(cSha)) continue;
-    seenContentShas.add(cSha);
-    unique.push(content);
-    break; // take only the most recent unique copy
-  }
-  return unique;
-}
+  it("handles multiple sessionLogs lines", () => {
+    const text = [
+      `- sessionLogs: ["docs/logs/a.md"]`,
+      `- sessionLogs: ["docs/logs/b.md","docs/logs/c.md"]`,
+    ].join("\n");
+    const out = new Set<string>();
+    extractSessionLogsFromText(text, out);
+    expect(out.size).toBe(3);
+    expect(out.has("docs/logs/a.md")).toBe(true);
+    expect(out.has("docs/logs/b.md")).toBe(true);
+    expect(out.has("docs/logs/c.md")).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
-// Tests
+// Integration tests exercising the shipped importSummaryLogs driver
 // ---------------------------------------------------------------------------
 
-describe("import-summary-logs", () => {
+describe("import-summary-logs (shipped importSummaryLogs)", () => {
   it("imports all missing docs/logs/*.md summary logs into the orphan ref", async () => {
     const { root, summary1, summary2 } = await fixtureRepo();
-    const git = plumbing(root);
+    const gitPlumb = plumbing(root);
 
     // Before import: neither summary log is present in the ref.
-    const treeBefore = await git.lsTree(REF);
+    const treeBefore = await gitPlumb.lsTree(REF);
     expect(treeBefore).not.toContain("logs/2026-01-summary.md");
     expect(treeBefore).not.toContain("logs/2026-02-summary.md");
 
-    const result = await runImport(root);
+    const result = await importSummaryLogs({ root });
 
     // Both summary logs imported; no failures.
     expect(result.imported).toBe(2);
     expect(result.failed).toBe(0);
 
-    const treeAfter = await git.lsTree(REF);
+    const treeAfter = await gitPlumb.lsTree(REF);
     expect(treeAfter).toContain("logs/2026-01-summary.md");
     expect(treeAfter).toContain("logs/2026-02-summary.md");
 
@@ -377,51 +283,51 @@ describe("import-summary-logs", () => {
     expect(treeAfter.find((p) => p.includes("raw/"))).toBeUndefined();
 
     // Content matches the source (modulo redaction — no secrets in fixtures).
-    const got1 = await git.catFile(REF, "logs/2026-01-summary.md");
+    const got1 = await gitPlumb.catFile(REF, "logs/2026-01-summary.md");
     expect(got1).toBe(summary1);
-    const got2 = await git.catFile(REF, "logs/2026-02-summary.md");
+    const got2 = await gitPlumb.catFile(REF, "logs/2026-02-summary.md");
     expect(got2).toBe(summary2);
   });
 
   it("scans archive files for sessionLogs references (not just active items)", async () => {
     const { root } = await fixtureRepo();
-    const git = plumbing(root);
+    const gitPlumb = plumbing(root);
 
-    const result = await runImport(root);
+    const result = await importSummaryLogs({ root });
 
     // T3 in archive/tasks/M99.md references 2026-02-summary.md — it must be imported.
     expect(result.imported).toBeGreaterThanOrEqual(1);
-    const treeAfter = await git.lsTree(REF);
+    const treeAfter = await gitPlumb.lsTree(REF);
     expect(treeAfter).toContain("logs/2026-02-summary.md");
   });
 
   it("is idempotent: a re-run leaves the ref SHA unchanged", async () => {
     const { root } = await fixtureRepo();
-    const git = plumbing(root);
+    const gitPlumb = plumbing(root);
 
     // First run: imports both files.
-    const run1 = await runImport(root);
+    const run1 = await importSummaryLogs({ root });
     expect(run1.imported).toBe(2);
     const refShaAfterRun1 = run1.refSha;
     expect(refShaAfterRun1).not.toBeNull();
 
     // Second run: all files already present → no writes.
-    const run2 = await runImport(root);
+    const run2 = await importSummaryLogs({ root });
     expect(run2.imported).toBe(0);
     expect(run2.failed).toBe(0);
 
     // The orphan ref SHA must be byte-identical to after run 1.
-    const refShaAfterRun2 = await git.readRef(REF);
+    const refShaAfterRun2 = await gitPlumb.readRef(REF);
     expect(refShaAfterRun2).toBe(refShaAfterRun1);
   });
 
   it("does not import docs/logs/raw/* files (raw transcripts excluded)", async () => {
     const { root } = await fixtureRepo();
-    const git = plumbing(root);
+    const gitPlumb = plumbing(root);
 
-    // Add a sessionLogs reference to a raw log so the script would attempt it.
-    // We patch the orphan ref's tasks.md to include a raw reference.
-    const refSha = await git.readRef(REF);
+    // Add a sessionLogs reference to a raw log so the script would attempt it if
+    // the filter were absent.  We patch the orphan ref's tasks.md to include a raw reference.
+    const refSha = await gitPlumb.readRef(REF);
     if (refSha === null) throw new Error("fixture: ref must exist");
 
     const tasksMdWithRawRef = [
@@ -448,22 +354,62 @@ describe("import-summary-logs", () => {
     ].join("\n");
 
     // Re-seed the orphan ref with this tasks.md (no archive entry).
-    const currentEntries = await git.lsTreeEntries(REF);
-    const tSha = await git.hashObject(tasksMdWithRawRef);
+    const currentEntries = await gitPlumb.lsTreeEntries(REF);
+    const tSha = await gitPlumb.hashObject(tasksMdWithRawRef);
     const kept = currentEntries.filter((e) => e.path !== "tasks.md" && e.path !== "archive/tasks/M99.md");
     kept.push({ mode: "100644", sha: tSha, path: "tasks.md" });
-    const tree = await git.writeTree(kept);
-    const commit = await git.commitTree(tree, refSha, "patch: add raw ref");
-    await git.updateRef(REF, commit, refSha);
+    const tree = await gitPlumb.writeTree(kept);
+    const commit = await gitPlumb.commitTree(tree, refSha, "patch: add raw ref");
+    await gitPlumb.updateRef(REF, commit, refSha);
 
-    const result = await runImport(root);
+    const result = await importSummaryLogs({ root });
 
     // Only the summary log is imported; the raw log is excluded.
-    const treeAfter = await git.lsTree(REF);
+    const treeAfter = await gitPlumb.lsTree(REF);
     expect(treeAfter).toContain("logs/2026-01-summary.md");
     expect(treeAfter.find((p) => p.startsWith("logs/raw/"))).toBeUndefined();
 
     // raw log was neither imported nor counted as a failure.
     expect(result.failed).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration tests for collectSessionLogRefs and recoverFromHistory
+// ---------------------------------------------------------------------------
+
+describe("collectSessionLogRefs (shipped)", () => {
+  it("collects refs from active and archive ledger files in the orphan ref", async () => {
+    const { root } = await fixtureRepo();
+    const gitPlumb = plumbing(root);
+    const treeNames = await gitPlumb.lsTree(REF);
+    const refs = await collectSessionLogRefs(gitPlumb, REF, treeNames);
+
+    // tasks.md has docs/logs/2026-01-summary.md, archive/tasks/M99.md has 2026-02-summary.md
+    expect(refs.has("docs/logs/2026-01-summary.md")).toBe(true);
+    expect(refs.has("docs/logs/2026-02-summary.md")).toBe(true);
+    // Raw refs must not appear (filtered by extractSessionLogsFromText → isSummaryLogRef)
+    for (const r of refs) {
+      expect(isSummaryLogRef(r)).toBe(true);
+    }
+  });
+});
+
+describe("recoverFromHistory (shipped)", () => {
+  it("recovers a deleted file from git history", async () => {
+    const { root, summary1 } = await fixtureRepo();
+    const gitPlumb = plumbing(root);
+
+    const contents = await recoverFromHistory(root, "docs/logs/2026-01-summary.md", gitPlumb);
+    expect(contents.length).toBeGreaterThan(0);
+    expect(contents[0]).toBe(summary1);
+  });
+
+  it("returns empty array for a path that never existed in history", async () => {
+    const { root } = await fixtureRepo();
+    const gitPlumb = plumbing(root);
+
+    const contents = await recoverFromHistory(root, "docs/logs/nonexistent.md", gitPlumb);
+    expect(contents).toEqual([]);
   });
 });

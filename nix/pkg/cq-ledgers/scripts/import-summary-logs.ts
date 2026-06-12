@@ -66,87 +66,14 @@ import { runLogPut, parseLogPutArgs } from "../packages/cq-cli/src/logPut.js";
 const execFileP = promisify(execFile);
 
 // ---------------------------------------------------------------------------
-// CLI arg parsing
+// Pure utilities — exported for testability
 // ---------------------------------------------------------------------------
-
-const rawArgs = process.argv.slice(2);
-let cwdArg: string | undefined;
-let historyRef = "HEAD";
-let dryRun = false;
-
-for (let i = 0; i < rawArgs.length; i++) {
-  const a = rawArgs[i];
-  if (a === "--cwd") {
-    cwdArg = rawArgs[++i];
-  } else if (a !== undefined && a.startsWith("--cwd=")) {
-    cwdArg = a.slice("--cwd=".length);
-  } else if (a === "--history") {
-    const v = rawArgs[++i];
-    if (v === undefined) { process.stderr.write("import-summary-logs: --history requires a value\n"); process.exit(2); }
-    historyRef = v;
-  } else if (a !== undefined && a.startsWith("--history=")) {
-    historyRef = a.slice("--history=".length);
-  } else if (a === "--dry-run") {
-    dryRun = true;
-  }
-}
-
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const root = cwdArg !== undefined ? path.resolve(cwdArg) : path.resolve(SCRIPT_DIR, "..");
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-const { backend, branch } = resolveLedgerBackend(root);
-if (backend !== "git-object") {
-  process.stderr.write(
-    `import-summary-logs: [ledger] backend='${backend}' — this script only applies to the ` +
-      `git-object backend (backend='git-object' in cq.toml).\n`,
-  );
-  process.exit(2);
-}
-
-const ref = `refs/heads/${branch}`;
-const git = GitPlumbing.withCwd(root, path.join(root, ".git"));
-
-// --- Step 1: read ledger files from the orphan ref and collect sessionLogs ---
-
-const refSha = await git.readRef(ref);
-const treeNames: string[] = refSha === null ? [] : await git.lsTree(ref);
-const treeSet = new Set(treeNames);
-
-/**
- * Collect all `docs/logs/<f>` paths referenced in `sessionLogs` fields across
- * ALL files in the orphan ref's tree (active ledger files + all archive files),
- * restricting to summary `.md` files (not under `raw/`).
- *
- * We use a line-oriented regex rather than the full ledger parser so that both
- * active *.md and archive archive-wildcard files are handled uniformly
- * without needing per-schema parse context.  The format is stable:
- *   - sessionLogs: ["docs/logs/foo.md","docs/logs/bar.md"]
- */
-async function collectSessionLogRefs(): Promise<Set<string>> {
-  const found = new Set<string>();
-  // Scan every .md file in the orphan ref tree (active ledgers + all archives).
-  for (const treePath of treeNames) {
-    if (!treePath.endsWith(".md")) continue;
-    let content: string;
-    try {
-      content = await git.catFile(ref, treePath);
-    } catch {
-      continue;
-    }
-    extractSessionLogsFromText(content, found);
-  }
-  return found;
-}
 
 /**
  * Regex-based extractor: find `- sessionLogs: [...]` lines and pull out
  * all double-quoted `docs/logs/*.md` entries that match {@link isSummaryLogRef}.
  */
-function extractSessionLogsFromText(text: string, out: Set<string>): void {
+export function extractSessionLogsFromText(text: string, out: Set<string>): void {
   // Match the sessionLogs field line (may be on one line or spanning a JSON array).
   const LINE_RE = /[-]\s+sessionLogs:\s*(\[.*?\])/g;
   let m: RegExpExecArray | null;
@@ -171,7 +98,7 @@ function extractSessionLogsFromText(text: string, out: Set<string>): void {
  *  - ends with `.md`
  *  - is NOT under `docs/logs/raw/` (raw transcripts excluded)
  */
-function isSummaryLogRef(s: string): boolean {
+export function isSummaryLogRef(s: string): boolean {
   if (!s.startsWith("docs/logs/")) return false;
   if (!s.endsWith(".md")) return false;
   // Exclude raw/ subdirectory
@@ -185,47 +112,21 @@ function isSummaryLogRef(s: string): boolean {
  * to its orphan-ref tree path (e.g. `logs/foo.md`, since the orphan tree is
  * rooted at the docs CONTENTS — no `docs/` prefix).
  */
-function refPathFromDocsPath(docsRelPath: string): string {
+export function refPathFromDocsPath(docsRelPath: string): string {
   // docsRelPath = "docs/logs/foo.md" → orphan tree path = "logs/foo.md"
   return docsRelPath.slice("docs/".length);
 }
 
-// --- Step 2: determine which files are missing from the ref -----------------
-
-const sessionLogRefs = await collectSessionLogRefs();
-
-const missing: string[] = [];
-for (const docsPath of sessionLogRefs) {
-  const treePath = refPathFromDocsPath(docsPath);
-  if (!treeSet.has(treePath)) {
-    missing.push(docsPath);
-  }
-}
-
-if (missing.length === 0) {
-  process.stdout.write(
-    "import-summary-logs: all referenced summary logs are already present in the " +
-      `orphan ref ${ref} — nothing to import.\n`,
-  );
-  process.exit(0);
-}
-
-process.stdout.write(
-  `import-summary-logs: ${missing.length} summary log(s) referenced by sessionLogs ` +
-    `but absent from ${ref}:\n`,
-);
-for (const p of missing) {
-  process.stdout.write(`  missing: ${p}\n`);
-}
-
-// --- Step 3: recover each missing file from git history ---------------------
+// ---------------------------------------------------------------------------
+// Git command helper (exported for testability in recoverFromHistory)
+// ---------------------------------------------------------------------------
 
 /**
- * Run git in the repo root and return stdout.
+ * Run git in a given directory and return stdout.
  */
-async function gitCmd(...args: string[]): Promise<string> {
+export async function gitCmd(cwd: string, ...args: string[]): Promise<string> {
   const r = await execFileP("git", args, {
-    cwd: root,
+    cwd,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
     env: {
@@ -237,12 +138,46 @@ async function gitCmd(...args: string[]): Promise<string> {
   return r.stdout;
 }
 
+// ---------------------------------------------------------------------------
+// Core logic functions — exported for testability
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect all `docs/logs/<f>` paths referenced in `sessionLogs` fields across
+ * ALL files in the orphan ref's tree (active ledger files + all archive files),
+ * restricting to summary `.md` files (not under `raw/`).
+ *
+ * We use a line-oriented regex rather than the full ledger parser so that both
+ * active *.md and archive archive-wildcard files are handled uniformly
+ * without needing per-schema parse context.  The format is stable:
+ *   - sessionLogs: ["docs/logs/foo.md","docs/logs/bar.md"]
+ */
+export async function collectSessionLogRefs(
+  git: GitPlumbing,
+  ref: string,
+  treeNames: string[],
+): Promise<Set<string>> {
+  const found = new Set<string>();
+  // Scan every .md file in the orphan ref tree (active ledgers + all archives).
+  for (const treePath of treeNames) {
+    if (!treePath.endsWith(".md")) continue;
+    let content: string;
+    try {
+      content = await git.catFile(ref, treePath);
+    } catch {
+      continue;
+    }
+    extractSessionLogsFromText(content, found);
+  }
+  return found;
+}
+
 /**
  * Recover the content of `docsRelPath` (e.g. `docs/logs/foo.md`) from git
- * history reachable from `historyRef`.  Searches commits where the file was
+ * history reachable from `root`.  Searches commits where the file was
  * present (the last commit that touched/added it before its deletion) using
  *
- *   git log --all --diff-filter=A --diff-filter=M -- <path>
+ *   git log --all --diff-filter=AM -- <path>
  *
  * and picks the most recent such commit.  Falls back to searching for D
  * (deleted) commits and using their parent.  Deduplicates by content so
@@ -251,13 +186,18 @@ async function gitCmd(...args: string[]): Promise<string> {
  * Returns an array of unique content strings (deduped by SHA), or [] if the
  * file cannot be found in history.
  */
-async function recoverFromHistory(docsRelPath: string): Promise<string[]> {
+export async function recoverFromHistory(
+  root: string,
+  docsRelPath: string,
+  git: GitPlumbing,
+): Promise<string[]> {
   // Use `git log --all --follow -- <path>` with null-terminated output to find
   // commits that touched the file.  We want the LAST commit that STILL HAD the
   // file (before or at the deletion point).
   let revList: string;
   try {
     revList = await gitCmd(
+      root,
       "log",
       "--all",
       "--format=%H",
@@ -276,6 +216,7 @@ async function recoverFromHistory(docsRelPath: string): Promise<string[]> {
     let delLog: string;
     try {
       delLog = await gitCmd(
+        root,
         "log",
         "--all",
         "--format=%H",
@@ -291,7 +232,7 @@ async function recoverFromHistory(docsRelPath: string): Promise<string[]> {
       // The parent (^1) still had the file.
       let parentLog: string;
       try {
-        parentLog = await gitCmd("rev-parse", `${delSha}^1`);
+        parentLog = await gitCmd(root, "rev-parse", `${delSha}^1`);
       } catch {
         continue;
       }
@@ -313,7 +254,7 @@ async function recoverFromHistory(docsRelPath: string): Promise<string[]> {
   for (const sha of shas) {
     let content: string;
     try {
-      content = await gitCmd("show", `${sha}:${docsRelPath}`);
+      content = await gitCmd(root, "show", `${sha}:${docsRelPath}`);
     } catch {
       continue;
     }
@@ -329,75 +270,198 @@ async function recoverFromHistory(docsRelPath: string): Promise<string[]> {
   return unique;
 }
 
-// --- Step 4: import each missing file via cq log put ------------------------
+// ---------------------------------------------------------------------------
+// Import driver — exported for testability
+// ---------------------------------------------------------------------------
 
-let imported = 0;
-let skipped = 0;
-let failed = 0;
-
-for (const docsPath of missing) {
-  const treePath = refPathFromDocsPath(docsPath);     // e.g. logs/foo.md
-  const destArg = treePath;                            // --dest logs/foo.md
-
-  process.stdout.write(`  recovering: ${docsPath} ...\n`);
-
-  const contents = await recoverFromHistory(docsPath);
-  if (contents.length === 0) {
-    process.stderr.write(
-      `  [WARN] import-summary-logs: could not find ${docsPath} in git history ` +
-        `(searched from ${historyRef} and --all); skipping.\n`,
-    );
-    skipped++;
-    continue;
-  }
-
-  const content = contents[0]!;
-
-  if (dryRun) {
-    process.stdout.write(`  [dry-run] would import: ${docsPath} (${content.length} bytes)\n`);
-    imported++;
-    continue;
-  }
-
-  // Re-check idempotency immediately before the write (in case a concurrent
-  // run already imported this file between the earlier check and now).
-  const currentTree = await git.lsTree(ref);
-  if (currentTree.includes(treePath)) {
-    process.stdout.write(`  [skip] ${docsPath} now present in ref (concurrent import?) — idempotent skip\n`);
-    skipped++;
-    continue;
-  }
-
-  const outs: string[] = [];
-  const errs: string[] = [];
-  const logPutArgs = parseLogPutArgs(root, ["--stdin", "--dest", destArg]);
-  const outcome = await runLogPut(
-    logPutArgs,
-    {
-      out: (l) => outs.push(l),
-      err: (l) => errs.push(l),
-      readStdin: async () => content,
-    },
-  );
-
-  if (outcome.exitCode !== 0) {
-    process.stderr.write(
-      `  [ERROR] import-summary-logs: cq log put failed for ${docsPath}:\n` +
-        errs.map((e) => `    ${e}`).join("\n") + "\n",
-    );
-    failed++;
-  } else {
-    process.stdout.write(`  [ok] imported: ${docsPath}\n`);
-    imported++;
-  }
+export interface ImportOptions {
+  /** Ledger root directory (where cq.toml lives). */
+  root: string;
+  /** Whether to skip actual writes (dry-run mode). */
+  dryRun?: boolean;
+  /** Output callback; defaults to process.stdout.write. */
+  out?: (line: string) => void;
+  /** Error callback; defaults to process.stderr.write. */
+  err?: (line: string) => void;
 }
 
-const refAfter = await git.readRef(ref);
-process.stdout.write(
-  `\nimport-summary-logs: done. imported=${imported} skipped=${skipped} failed=${failed}\n` +
-    `  orphan ref ${ref} tip: ${refAfter ?? "(absent)"}\n`,
-);
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  failed: number;
+  /** The orphan ref SHA after the run (null if ref does not exist). */
+  refSha: string | null;
+}
 
-if (failed > 0) {
-  process.exit(1);
+/**
+ * Core import driver: collect missing summary logs from ledger refs, recover
+ * from git history, and write via cq log put.  Returns counters and the final
+ * orphan-ref SHA.
+ *
+ * This function contains no CLI side-effects (no process.exit, no
+ * process.argv).  CLI wiring lives in the `if (import.meta.main)` block.
+ */
+export async function importSummaryLogs(opts: ImportOptions): Promise<ImportResult> {
+  const { root, dryRun = false } = opts;
+  const stdout = opts.out ?? ((l: string) => process.stdout.write(l));
+  const stderr = opts.err ?? ((l: string) => process.stderr.write(l));
+
+  const { branch } = resolveLedgerBackend(root);
+  const ref = `refs/heads/${branch}`;
+  const git = GitPlumbing.withCwd(root, path.join(root, ".git"));
+
+  // --- Step 1: read ledger files from the orphan ref and collect sessionLogs ---
+
+  const refSha = await git.readRef(ref);
+  const treeNames: string[] = refSha === null ? [] : await git.lsTree(ref);
+  const treeSet = new Set(treeNames);
+
+  // --- Step 2: determine which files are missing from the ref -----------------
+
+  const sessionLogRefs = await collectSessionLogRefs(git, ref, treeNames);
+
+  const missing: string[] = [];
+  for (const docsPath of sessionLogRefs) {
+    const treePath = refPathFromDocsPath(docsPath);
+    if (!treeSet.has(treePath)) {
+      missing.push(docsPath);
+    }
+  }
+
+  if (missing.length === 0) {
+    stdout(
+      "import-summary-logs: all referenced summary logs are already present in the " +
+        `orphan ref ${ref} — nothing to import.\n`,
+    );
+    const finalSha = await git.readRef(ref);
+    return { imported: 0, skipped: 0, failed: 0, refSha: finalSha };
+  }
+
+  stdout(
+    `import-summary-logs: ${missing.length} summary log(s) referenced by sessionLogs ` +
+      `but absent from ${ref}:\n`,
+  );
+  for (const p of missing) {
+    stdout(`  missing: ${p}\n`);
+  }
+
+  // --- Step 3: recover each missing file from git history and import ----------
+
+  let imported = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const docsPath of missing) {
+    const treePath = refPathFromDocsPath(docsPath);  // e.g. logs/foo.md
+    const destArg = treePath;                          // --dest logs/foo.md
+
+    stdout(`  recovering: ${docsPath} ...\n`);
+
+    const contents = await recoverFromHistory(root, docsPath, git);
+    if (contents.length === 0) {
+      stderr(
+        `  [WARN] import-summary-logs: could not find ${docsPath} in git history ` +
+          `(searched --all); skipping.\n`,
+      );
+      skipped++;
+      continue;
+    }
+
+    const content = contents[0]!;
+
+    if (dryRun) {
+      stdout(`  [dry-run] would import: ${docsPath} (${content.length} bytes)\n`);
+      imported++;
+      continue;
+    }
+
+    // Re-check idempotency immediately before the write (in case a concurrent
+    // run already imported this file between the earlier check and now).
+    const currentTree = await git.lsTree(ref);
+    if (currentTree.includes(treePath)) {
+      stdout(`  [skip] ${docsPath} now present in ref (concurrent import?) — idempotent skip\n`);
+      skipped++;
+      continue;
+    }
+
+    const outs: string[] = [];
+    const errs: string[] = [];
+    const logPutArgs = parseLogPutArgs(root, ["--stdin", "--dest", destArg]);
+    const outcome = await runLogPut(
+      logPutArgs,
+      {
+        out: (l) => outs.push(l),
+        err: (l) => errs.push(l),
+        readStdin: async () => content,
+      },
+    );
+
+    if (outcome.exitCode !== 0) {
+      stderr(
+        `  [ERROR] import-summary-logs: cq log put failed for ${docsPath}:\n` +
+          errs.map((e) => `    ${e}`).join("\n") + "\n",
+      );
+      failed++;
+    } else {
+      stdout(`  [ok] imported: ${docsPath}\n`);
+      imported++;
+    }
+  }
+
+  const refAfter = await git.readRef(ref);
+  stdout(
+    `\nimport-summary-logs: done. imported=${imported} skipped=${skipped} failed=${failed}\n` +
+      `  orphan ref ${ref} tip: ${refAfter ?? "(absent)"}\n`,
+  );
+
+  return { imported, skipped, failed, refSha: refAfter };
+}
+
+// ---------------------------------------------------------------------------
+// CLI entry point — only executes when run as the main script
+// ---------------------------------------------------------------------------
+
+if (import.meta.main) {
+  // Parse CLI args.
+  const rawArgs = process.argv.slice(2);
+  let cwdArg: string | undefined;
+  let historyRef = "HEAD";  // kept for future use / documentation; not passed to importSummaryLogs yet
+  let dryRun = false;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === "--cwd") {
+      cwdArg = rawArgs[++i];
+    } else if (a !== undefined && a.startsWith("--cwd=")) {
+      cwdArg = a.slice("--cwd=".length);
+    } else if (a === "--history") {
+      const v = rawArgs[++i];
+      if (v === undefined) { process.stderr.write("import-summary-logs: --history requires a value\n"); process.exit(2); }
+      historyRef = v;
+    } else if (a !== undefined && a.startsWith("--history=")) {
+      historyRef = a.slice("--history=".length);
+    } else if (a === "--dry-run") {
+      dryRun = true;
+    }
+  }
+  void historyRef; // consumed above; present for CLI documentation
+
+  const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+  const root = cwdArg !== undefined ? path.resolve(cwdArg) : path.resolve(SCRIPT_DIR, "..");
+
+  // Guard: git-object backend only.
+  const { backend } = resolveLedgerBackend(root);
+  if (backend !== "git-object") {
+    process.stderr.write(
+      `import-summary-logs: [ledger] backend='${backend}' — this script only applies to the ` +
+        `git-object backend (backend='git-object' in cq.toml).\n`,
+    );
+    process.exit(2);
+  }
+
+  const result = await importSummaryLogs({ root, dryRun });
+
+  if (result.failed > 0) {
+    process.exit(1);
+  }
 }
